@@ -1,0 +1,19 @@
+name: deeppeak
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.10
+  - pybedtools
+  - numpy<1.25.0
+  - pandas
+  - matplotlib
+  - scikit-learn
+  - tqdm
+  - shap
+  - pip
+  - pip:
+    - tensorflow[and-cuda]==2.8.0
+    - protobuf==3.20.0
+    - weblogo
