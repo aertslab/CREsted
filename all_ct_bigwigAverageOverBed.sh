@@ -36,7 +36,9 @@ module load Kent_tools
 # Run bigWigAverageOverBed in parallel for all .bw files in the directory
 ls -1 $bigwig_dir/*.bw | parallel -j 8 "start=\$(date +%s.%N); bigWigAverageOverBed -minMax {} $peak_bed_file $output_dir/{/}.tsv; end=\$(date +%s.%N); echo \$(echo \"\$end - \$start\" | bc) seconds >> $output_dir/time_log.txt"
 
+ls $output_dir/*.tsv | parallel -j 8 'awk -F "[:|-]" "{print \$1 \"\t\" \$2 \"\t\" \$0}" {} | sort -k1,1 -k2,2n | cut -f 3- > {.}_sorted.tsv && rm {}'
 
+echo 'DONE.'
 
 
 
