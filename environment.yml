@@ -1,22 +1,22 @@
 name: deeppeak
 channels:
-  - bioconda
   - conda-forge
   - defaults
 dependencies:
   - python=3.10
-  - pybedtools
   - numpy<1.25.0
   - pandas
   - matplotlib
   - scikit-learn
   - tqdm
   - shap
+  - ipykernel
   - pip
   - pip:
     - tensorflow[and-cuda]==2.8.0
     - protobuf==3.20.0
     - weblogo
     - pyBigWig
-    - pyfasta
+    - pyfaidx
+    - pybedtools
     - fasta
