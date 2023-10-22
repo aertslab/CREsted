@@ -1,3 +1,5 @@
 *.bed
 *__pycache__*
 notebooks/personal
+.vscode
+data/
