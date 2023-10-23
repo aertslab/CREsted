@@ -1,5 +1,6 @@
 name: deeppeak
 channels:
+  - bioconda
   - conda-forge
   - defaults
 dependencies:
@@ -11,12 +12,12 @@ dependencies:
   - tqdm
   - shap
   - ipykernel
+  - pybedtools
   - pip
   - pip:
     - tensorflow[and-cuda]==2.8.0
-    - protobuf==3.20.0
+    - protobuf==3.20.0 # tensorflow issue
     - weblogo
-    - pyBigWig
-    - pyfaidx
-    - pybedtools
-    - fasta
+    - pyBigWig # for bigwig file indexing
+    - pyfaidx # bed file indexing
+    - fasta # for pyfaidx

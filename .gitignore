@@ -3,3 +3,4 @@
 notebooks/personal
 .vscode
 data/
+!src/data
