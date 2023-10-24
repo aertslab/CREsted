@@ -75,6 +75,9 @@ endif
 		echo "$(SRC) is neither a file nor a directory!"; \
 	fi
 
-## Make Dataset
-data:
-	python src/data/preprocess.py data/raw data/interim data/processed
+## Make Datasets
+bed:
+	python src/data/preprocess_bed.py data/raw data/interim data/processed
+
+bigwig:
+	scripts/all_ct_bigwigAverageOverBed.sh -o "data/interim/bw/" -b "data/raw/bw/" -p "data/interim/consensus_peaks_2114.bed"
