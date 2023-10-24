@@ -80,3 +80,21 @@ def filter_bed_chrom_regions(input_path: str, output_path: str, chrom_sizes_file
         outfile.writelines(sorted_lines)
 
     print(f"chromosome size: filtered out {total_lines - len(sorted_lines)} lines out of {total_lines} total lines.")
+
+
+def get_regions_from_bed(regions_bed_filename: str):
+    """
+    Read BED file and yield a region (chrom, start, end) for each invocation.
+    """
+    with open(regions_bed_filename, "r") as fh_bed:
+        for line in fh_bed:
+            line = line.rstrip("\r\n")
+
+            if line.startswith("#"):
+                continue
+
+            columns = line.split("\t")
+            chrom = columns[0]
+            start, end = [int(x) for x in columns[1:3]]
+            region = chrom, start, end
+            yield region
