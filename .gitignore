@@ -3,4 +3,4 @@
 notebooks/personal
 .vscode
 data/
-!src/data
+!data/*.gitkeep
