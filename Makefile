@@ -79,5 +79,5 @@ endif
 bed:
 	python src/data/preprocess_bed.py data/raw data/interim data/processed
 
-bigwig:
+bigwig: bed
 	scripts/all_ct_bigwigAverageOverBed.sh -o "data/interim/bw/" -b "data/raw/bw/" -p "data/interim/consensus_peaks_2114.bed"
