@@ -13,11 +13,13 @@ dependencies:
   - shap
   - ipykernel
   - pybedtools
+  - click # parsing arguments
   - pip
   - pip:
     - tensorflow[and-cuda]==2.8.0
     - protobuf==3.20.0 # tensorflow issue
     - weblogo
-    - pyBigWig # for bigwig file indexing
+    - pyBigWig # bigwig file indexing
     - pyfaidx # bed file indexing
-    - fasta # for pyfaidx
+    - fasta # pyfaidx
+    - flake8 # code linting
