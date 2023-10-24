@@ -31,7 +31,50 @@ requirements:
 		conda env update --file environment.yml --prune; \
 	fi
 
-## Sample data from a file that can be readable in text format and save to local
-## Useful for running tests on local
-sample:
-	@python src/data/sample.py
+## Delete all compiled Python files
+clean:
+	find . -type f -name "*.py[co]" -delete
+	find . -type d -name "__pycache__" -delete
+
+## Lint using flake8 on src/ while ignoring 'line too long' errors
+lint:
+	flake8 src/ --ignore=E501
+
+## Link data to raw and rename
+linkdata:
+ifndef SRC
+	$(error "SRC is not set. Use make copydata SRC=path/to/your/source/file_or_folder")
+endif
+	@if [ -f $(SRC) ]; then \
+		FILE_NAME=$(shell basename $(SRC)); \
+		if echo $$FILE_NAME | grep -q ".bed"; then \
+			echo "Creating symlink to data/raw and renaming $$FILE_NAME to consensus_peaks.bed..."; \
+			ln -s $(SRC) data/raw/consensus_peaks.bed; \
+		elif echo $$FILE_NAME | grep -q "chrom.sizes"; then \
+			echo "Creating symlink to data/raw and renaming $$FILE_NAME to chrom.sizes..."; \
+			ln -s $(SRC) data/raw/chrom.sizes; \
+		elif echo $$FILE_NAME | grep -q ".fa"; then \
+			echo "Creating symlink to data/raw and renaming $$FILE_NAME to genome.fa..."; \
+			ln -s $(SRC) data/raw/genome.fa; \
+		else \
+			echo "Creating symlink for $$FILE_NAME without renaming..."; \
+			ln -s $(SRC) data/raw/$$FILE_NAME; \
+		fi \
+	elif [ -d $(SRC) ]; then \
+		BW_COUNT=$(shell find $(SRC) -maxdepth 1 -name "*.bw" | wc -l); \
+		if [ "$$BW_COUNT" -eq "0" ]; then \
+			echo "No .bw files found in $(SRC)."; \
+		else \
+			echo "Creating symlinks for .bw files in $(SRC) to data/raw/bw..."; \
+			mkdir -p data/raw/bw; \
+			for file in $(SRC)/*.bw; do \
+				ln -s $$file data/raw/bw/; \
+			done \
+		fi \
+	else \
+		echo "$(SRC) is neither a file nor a directory!"; \
+	fi
+
+## Make Dataset
+data:
+	python src/data/preprocess.py data/raw data/interim data/processed

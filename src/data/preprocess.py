@@ -1,90 +1,167 @@
 """Functions for preprocessing raw ATAC-seq and genomic data."""
 
 import os
+import click
+import logging
 import tempfile
+import numpy as np
+import pyfaidx
+from pybedtools import BedTool
 from contextlib import contextmanager
+from helpers.bed import extend_bed_file, filter_bed_negative_regions, filter_bed_chrom_regions
 
-######### General functions #########
-def _raw_assertion(path: str):
-    """Assert that a file is not in the "raw" directory."""
-    assert 'raw' not in path, f"Out file {path} is in the raw directory. Select a different directory."
 
-@contextmanager
-def smart_open(input_path, output_path):
-    """Open a file for reading and another for writing, handling the case where paths are the same."""
-    _raw_assertion(output_path) 
-
-    if input_path == output_path:
-        dir_name = os.path.dirname(input_path)
-        with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False) as tmpfile:
-            yield open(input_path, 'r'), tmpfile
-            temp_name = tmpfile.name
-        os.replace(temp_name, output_path)
-    else:
-        with open(output_path, 'w') as outfile:
-            yield open(input_path, 'r'), outfile
-
-######### BED file processing #########
-def extend_bed_file(input_path: str, output_path: str, value: int):
+# General functions
+def check_data_folder(folder_path: str):
+    """Check that all required files are in the data folder.
     """
-    Extend the start and end positions of a BED file by a given value.
-    """
-    with smart_open(input_path, output_path) as (infile, outfile):
-        for line in infile:
-            cols = line.strip().split()
-            cols[1] = str(int(cols[1]) - value)
-            cols[2] = str(int(cols[2]) + value)
-            outfile.write('\t'.join(cols) + '\n')
+    required_files = [
+        "consensus_peaks.bed",
+        "bw/"
+        "chrom.sizes",
+        "genome.fa"
+    ]
+    for file in required_files:
+        assert os.path.exists(os.path.join(folder_path, file)), f"{file} not found in {folder_path}"
 
-def filter_bed_negative_regions(input_path: str, output_path: str):
+
+# BED file processing
+def bed_preprocessing(
+    input_path: str,
+    output_path: str,
+    chrom_sizes_file: str,
+    value: int = 0,
+    filter_negative: bool = False,
+    filter_chrom: bool = False
+):
     """
-    Filters out lines from a BED file that have negative values in the second or third column.
+    Preprocess a BED file by extending the start and end positions by a given
+    value, and filtering out negative and out of bounds coordinates.
     """
-    with smart_open(input_path, output_path) as (infile, outfile):
-        for line_number, line in enumerate(infile, start=1):
-            cols = line.strip().split()
-            if int(cols[1]) < 0 or int(cols[2]) < 0:
-                print(f"Negative coordinate found on line: {line_number}")
+    print(f"Preprocessing BED file: {input_path} to {output_path}...")
+    if value > 0:
+        extend_bed_file(input_path, output_path, value)
+
+    if filter_negative:
+        filter_bed_negative_regions(input_path, output_path)
+
+    if filter_chrom:
+        filter_bed_chrom_regions(input_path, output_path, chrom_sizes_file)
+
+
+# One hot encoding
+def _get_regions_from_bed(regions_bed_filename: str):
+    """
+    Read BED file and yield a region (chrom, start, end) for each invocation.
+    """
+    with open(regions_bed_filename, "r") as fh_bed:
+        for line in fh_bed:
+            line = line.rstrip("\r\n")
+
+            if line.startswith("#"):
                 continue
-            outfile.write(line)
 
-def filter_bed_chrom_regions(input_path: str, output_path: str, chrom_sizes_file: str):
+            columns = line.split("\t")
+            chrom = columns[0]
+            start, end = [int(x) for x in columns[1:3]]
+            region = chrom, start, end
+            yield region
+
+
+def regions_to_hot_encoding(
+    regions_bed_filename: str,
+    genomic_pyfasta: pyfaidx.Fasta,
+    hot_encoding_table: np.ndarray
+):
     """
-    Filters out lines from a BED file that are out of bounds of the chromosome size.
+    Encode the seqeunce associated with each region in regions_bed_filename
+    to a hot encoded numpy array with shape (len(sequence), len(alphabet)).
     """
-    filtered_lines = []
-    total_lines = 0
-    chrom_sizes = {}
+    # Get a region (chrom, start, end) from the regions BED file.
+    for region in _get_regions_from_bed(regions_bed_filename):
+        # Region is in BED format: zero-based half open interval.
+        chrom, start, end = region
+        sequence = str(genomic_pyfasta[chrom][start:end].seq)
+        # Hot encode region.
+        sequence_bytes = np.frombuffer(sequence.encode('ascii'), dtype=np.uint8)
+        yield hot_encoding_table[sequence_bytes]
 
-    with open(chrom_sizes_file, 'r') as sizes:
-        for line in sizes:
-            chrom, size = line.strip().split('\t')
-            size = int(size)
-            chrom_sizes[chrom] = size
 
-    with smart_open(input_path, output_path) as (infile, outfile):
-        for bed_line in infile:
-            total_lines += 1
-            bed_cols = bed_line.strip().split('\t')
-            chrom = bed_cols[0]
-            if chrom in chrom_sizes and int(bed_cols[2]) <= chrom_sizes[chrom]:
-                filtered_lines.append(bed_line)
+def get_hot_encoding_table(
+    alphabet: str = 'ACGT',
+    neutral_alphabet: str = 'N',
+    neutral_value: float = 0.0,
+    dtype=np.float32,
+) -> np.ndarray:
+    """
+    Get hot encoding table to encode a DNA sequence to a numpy array with shape
+    (len(sequence), len(alphabet)) using bytes.
+    """
+    def str_to_uint8(string) -> np.ndarray:
+        """
+        Convert string to byte representation.
+        """
+        return np.frombuffer(string.encode('ascii'), dtype=np.uint8)
 
-    # Sort the filtered BED file
-    sorted_lines = sorted(filtered_lines, key=lambda x: (x.split('\t')[0], int(x.split('\t')[1])))
+    # 255 x 4
+    hot_encoding_table = np.zeros((np.iinfo(np.uint8).max, len(alphabet)), dtype=dtype)
 
-    with open(output_path, 'w') as outfile:
-        outfile.writelines(sorted_lines)
+    # For each ASCII value of the nucleotides used in the alphabet
+    # (upper and lower case), set 1 in the correct column.
+    hot_encoding_table[str_to_uint8(alphabet.upper())] = np.eye(len(alphabet), dtype=dtype)
+    hot_encoding_table[str_to_uint8(alphabet.lower())] = np.eye(len(alphabet), dtype=dtype)
 
-    print(f"chromosome size: Filtered out {total_lines - len(sorted_lines)} lines out of {total_lines} total lines.")
+    # For each ASCII value of the nucleotides used in the neutral alphabet
+    # (upper and lower case), set neutral_value in the correct column.
+    hot_encoding_table[str_to_uint8(neutral_alphabet.upper())] = neutral_value
+    hot_encoding_table[str_to_uint8(neutral_alphabet.lower())] = neutral_value
+
+    return hot_encoding_table
+
+
+# Main preprocessing pipeline
+@click.command()
+@click.argument('input_folder', type=click.Path(exists=True))
+@click.argument('output_folder', type=click.Path(exists=True))
+def main(
+    input_folder: str,
+    output_folder: str,
+):
+    """Run data preprocessing pipeline to turn raw data into processed data (../processed)"""
+    # Check folders and paths
+    check_data_folder(input_folder)
+
+    bigwigs_folder = os.path.join(input_folder, "bw")
+    chrom_sizes_file = os.path.join(input_folder, "chrom.sizes")
+    genome_fasta_file = os.path.join(input_folder, "genome.fa")
+    peaks_bed_file = os.path.join(input_folder, "consensus_peaks.bed")
+
+    peaks_bed_name = os.path.basename(peaks_bed_file).split('.')[0]
+
+    # Preprocess peaks BED file
+    bed_preprocessing(
+        input_path=peaks_bed_file,
+        output_path=f'data/interim/{peaks_bed_name}_2114.bed',
+        chrom_sizes_file=chrom_sizes_file,
+        value=807,
+        filter_negative=True,
+        filter_chrom=True
+    )  # 2114 peaks
+
+    bed_preprocessing(
+        input_path=peaks_bed_file,
+        output_path=f'data/interim/{peaks_bed_name}_1000.bed',
+        chrom_sizes_file=chrom_sizes_file,
+        value=250,
+        filter_negative=True,
+        filter_chrom=True
+    )  # 1000 peaks
+
+
+    
 
 if __name__ == '__main__':
-    extend_bed_file('data/raw/consensus_peaks_bicnn.bed', 'data/interim/consensus_peaks_bicnn_2114.bed', 807)
-    filter_bed_negative_regions("data/interim/consensus_peaks_bicnn_2114.bed", "data/interim/consensus_peaks_bicnn_2114.bed")
-    filter_bed_chrom_regions("data/interim/consensus_peaks_bicnn_2114.bed", "data/interim/consensus_peaks_bicnn_2114.bed", "data/raw/mm10.chrom.sizes")
+    log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    logging.basicConfig(level=logging.INFO, format=log_fmt)
 
-    extend_bed_file('data/raw/consensus_peaks_bicnn.bed', 'data/interim/consensus_peaks_bicnn_1000.bed', 250)
-    filter_bed_negative_regions("data/interim/consensus_peaks_bicnn_1000.bed", "data/interim/consensus_peaks_bicnn_1000.bed")
-    filter_bed_chrom_regions("data/interim/consensus_peaks_bicnn_1000.bed", "data/interim/consensus_peaks_bicnn_1000.bed", "data/raw/mm10.chrom.sizes")
-
-
+    main()
