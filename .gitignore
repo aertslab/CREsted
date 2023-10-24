@@ -2,5 +2,3 @@
 *__pycache__*
 notebooks/personal
 .vscode
-data/
-!data/*.gitkeep
