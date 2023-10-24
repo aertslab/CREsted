@@ -40,10 +40,10 @@ clean:
 lint:
 	flake8 src/ --ignore=E501
 
-## Link data to raw and rename
+## Link data to raw and rename (use absolute paths)
 linkdata:
 ifndef SRC
-	$(error "SRC is not set. Use make copydata SRC=path/to/your/source/file_or_folder")
+	$(error "SRC is not set. Use make copydata SRC=/path/to/your/source/file_or_folder")
 endif
 	@if [ -f $(SRC) ]; then \
 		FILE_NAME=$(shell basename $(SRC)); \
