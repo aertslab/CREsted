@@ -12,8 +12,9 @@ dependencies:
   - tqdm
   - shap
   - ipykernel
-  - pybedtools
+  - pybedtools # bed to df
   - click # parsing arguments
+  - pyyaml
   - pip
   - pip:
     - tensorflow[and-cuda]==2.8.0

@@ -1,5 +1,7 @@
 # Default configuration file for the project.
-# Don't edit this file directly. Instead, add/overwrite the values in the user.yml file.
-# Configs will be loaded in the following order: user.yml, default.yml
-# Only update default configs after extensive testing.
+# !!! Don't edit this file directly !!! 
+# Instead, create a user.yml file in /configs and
+# add/overwrite the values in the user.yml file.
+# User configs take priority over default configs.
+# Only update default configs after extensive testing and discussion with team.
 test: testconfig
