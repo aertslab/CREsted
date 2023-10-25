@@ -75,12 +75,25 @@ endif
 		echo "$(SRC) is neither a file nor a directory!"; \
 	fi
 
+## Update user configs
+config:
+	python configs/update_configs.py
+
 ## Make Datasets
-inputs:
+bed:
+	python src/data/preprocess_bed.py data/raw data/interim
+
+inputs: bed
 	python src/data/create_inputs.py data/raw data/interim
 
-bigwig: inputs
-	scripts/all_ct_bigwigAverageOverBed.sh -o "data/interim/bw/" -b "data/raw/bw/" -p "data/interim/consensus_peaks_2114.bed"
+bigwig: bed
+	echo "Creating bigwig files..."
+	scripts/all_ct_bigwigAverageOverBed.sh -o "data/interim/bw/" -b "data/raw/bw/" -p "data/interim/consensus_peaks_1000.bed"
 
-targets:
+targets: bigwig
 	python src/data/create_targets.py data/interim data/interim
+
+split:
+	python src/data/train_val_test_split.py data/interim data/processed
+
+data: config inputs targets split # will run everything
