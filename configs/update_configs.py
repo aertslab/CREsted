@@ -19,6 +19,12 @@ def load_config(
     default_config = _open_config(default_path)
     user_config = _open_config(user_path)
 
+    # If user.yaml is None (empty), create it from default.yaml
+    if user_config is None:
+        with open(default_path, "r") as df, open(user_path, "w") as uf:
+            uf.write(df.read())
+        return _open_config(default_path)
+
     # Add any missing keys from default to user config and save
     updated = False
     for key, value in default_config.items():

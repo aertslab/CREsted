@@ -4,4 +4,7 @@
 # add/overwrite the values in the user.yml file.
 # User configs take priority over default configs.
 # Only update default configs after extensive testing and discussion with team.
-test: testconfig
+
+# Train/val/test
+val: ['chr8', 'chr10']
+test: ['chr9', 'chr18']
