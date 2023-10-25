@@ -53,6 +53,7 @@ def peaks_to_sequences(peaks_bed_file: str, genome_fasta_file: str) -> np.ndarra
 @click.argument("input_folder", type=click.Path(exists=True))
 @click.argument("output_folder", type=click.Path(exists=True))
 def main(input_folder, output_folder):
+    print("\nCreating input data...")
     peaks_bed_name = "consensus_peaks"
     genome_fasta_file = os.path.join(input_folder, "genome.fa")
 

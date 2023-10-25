@@ -30,7 +30,7 @@ def split_indices(df, val_chr, test_chr):
 @click.argument("input_folder", type=click.Path(exists=True))
 @click.argument("output_folder", type=click.Path(exists=True))
 def main(input_folder: str, output_folder: str):
-    print("Splitting data into train, validation, and test sets...")
+    print("\nSplitting data into train, validation, and test sets...")
     # Get val & test chr names
     with open("configs/user.yml", "r") as f:
         config = yaml.safe_load(f)

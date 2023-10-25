@@ -54,6 +54,7 @@ def main(
     """Run data preprocessing pipeline to turn raw bed and genome
     sequences into input data for the model.
     """
+    print("\nPreprocessing bed files...")
     # Check folders and paths
     check_data_folder(input_folder)
 

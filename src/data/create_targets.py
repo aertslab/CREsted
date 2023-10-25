@@ -11,6 +11,7 @@ from tqdm import tqdm
 @click.argument("input_folder", type=str)
 @click.argument("output_folder", type=str)
 def main(input_folder: str, output_folder: str):
+    print("\nCreating target vectors...")
     # Directory containing preprocessed bigwig TSV files (from script)
     tsv_dir = os.path.join(input_folder, "bw")
     tsv_files = [f for f in os.listdir(tsv_dir) if f.endswith(".tsv")]
