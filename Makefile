@@ -76,8 +76,11 @@ endif
 	fi
 
 ## Make Datasets
-bed:
-	python src/data/preprocess_bed.py data/raw data/interim data/processed
+inputs:
+	python src/data/create_inputs.py data/raw data/interim
 
-bigwig: bed
+bigwig: inputs
 	scripts/all_ct_bigwigAverageOverBed.sh -o "data/interim/bw/" -b "data/raw/bw/" -p "data/interim/consensus_peaks_2114.bed"
+
+targets:
+	python src/data/create_targets.py data/interim data/interim

@@ -1,4 +1,7 @@
-"""Functions for preprocessing raw ATAC-seq and genomic data."""
+"""
+Functions for preprocessing raw ATAC-seq as well as saving matched genome
+as input data for the model
+"""
 
 import os
 import click
@@ -92,14 +95,14 @@ def peaks_to_sequences(peaks_bed_file: str, genome_fasta_file: str) -> np.ndarra
 # Main preprocessing pipeline
 @click.command()
 @click.argument("input_folder", type=click.Path(exists=True))
-@click.argument("interim_folder", type=click.Path(exists=True))
 @click.argument("output_folder", type=click.Path(exists=True))
 def main(
     input_folder: str,
-    interim_folder: str,
     output_folder: str,
 ):
-    """Run data preprocessing pipeline to turn raw data into processed data (../processed)"""
+    """Run data preprocessing pipeline to turn raw bed and genome
+    sequences into input data for the model.
+    """
     # Check folders and paths
     check_data_folder(input_folder)
 
@@ -113,7 +116,7 @@ def main(
     # Preprocess peaks BED file
     preprocess_bed(
         input_path=peaks_bed_file,
-        output_path=os.path.join(interim_folder, f"{peaks_bed_name}_2114.bed"),
+        output_path=os.path.join(output_folder, f"{peaks_bed_name}_2114.bed"),
         chrom_sizes_file=chrom_sizes_file,
         value=807,
         filter_negative=True,
@@ -122,7 +125,7 @@ def main(
 
     preprocess_bed(
         input_path=peaks_bed_file,
-        output_path=os.path.join(interim_folder, f"{peaks_bed_name}_1000.bed"),
+        output_path=os.path.join(output_folder, f"{peaks_bed_name}_1000.bed"),
         chrom_sizes_file=chrom_sizes_file,
         value=250,
         filter_negative=True,
@@ -131,8 +134,11 @@ def main(
 
     # Create input data (consensus peak 2114 sequences)
     seqs_one_hot = peaks_to_sequences(
-        os.path.join(interim_folder, f"{peaks_bed_name}_2114.bed"), genome_fasta_file
+        os.path.join(output_folder, f"{peaks_bed_name}_2114.bed"), genome_fasta_file
     )
+
+    print(f"\nSaving input data (seqs_one_hot) to {output_folder}...")
+    np.save(os.path.join(output_folder, "peaks_one_hot.npy"), seqs_one_hot)
 
 
 if __name__ == "__main__":
