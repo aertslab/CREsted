@@ -1,0 +1,5 @@
+# Default configuration file for the project.
+# Don't edit this file directly. Instead, add/overwrite the values in the user.yml file.
+# Configs will be loaded in the following order: user.yml, default.yml
+# Only update default configs after extensive testing.
+test: testconfig
