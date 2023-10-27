@@ -6,8 +6,6 @@ channels:
 dependencies:
   - python=3.10
   - numpy<1.25.0
-  - pandas
-  - matplotlib
   - scikit-learn
   - tqdm
   - shap
@@ -17,10 +15,13 @@ dependencies:
   - pyyaml
   - pip
   - pip:
-    - tensorflow[and-cuda]==2.8.0
-    - protobuf==3.20.0 # tensorflow issue
+    - tensorflow[and-cuda]==2.8.4
     - weblogo
     - pyBigWig # bigwig file indexing
     - pyfaidx # bed file indexing
     - fasta # pyfaidx
     - flake8 # code linting
+    - wandb
+    - matplotlib
+    - pandas
+    - chardet # wandb issue
