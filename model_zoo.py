@@ -136,6 +136,7 @@ def select(num_classes, filter_size=17, num_filters=1024, pool_size=4, num_dense
     elif model_type=='chrombpnet':
         x = input_
         x = conv_block(int(num_filters), filter_size, x, 0, activation, 1e-5, 0.1, False)
+        # def conv_block(filters, kernel_size, x, pool_size=2, activation='relu', l2=1e-5, dropout=0.25, res=False):
         n_dil_layers=8
         for i in range(1, n_dil_layers + 1):
         # dilated convolution

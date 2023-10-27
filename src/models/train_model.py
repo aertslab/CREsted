@@ -8,8 +8,9 @@ from datetime import datetime
 import wandb
 from wandb.keras import WandbCallback
 
-from deeppeak.model import DeepPeak
+from deeppeak.model import ChromBPNet
 from deeppeak.metrics import get_lr_metric, PearsonCorrelation
+from deeppeak.loss import custom_loss
 
 
 def load_data(data_folder: str):
@@ -18,12 +19,23 @@ def load_data(data_folder: str):
     y_train = np.load(os.path.join(data_folder, "Y_train.npy"))
     y_val = np.load(os.path.join(data_folder, "Y_val.npy"))
 
-    X_train = tf.data.Dataset.from_tensor_slices(X_train)
-    X_val = tf.data.Dataset.from_tensor_slices(X_val)
-    y_train = tf.data.Dataset.from_tensor_slices(y_train)
-    y_val = tf.data.Dataset.from_tensor_slices(y_val)
+    # X_train = tf.data.Dataset.from_tensor_slices(X_train).batch(256)
+    # X_val = tf.data.Dataset.from_tensor_slices(X_val).batch(256)
+    # y_train = tf.data.Dataset.from_tensor_slices(y_train).batch(256)
+    # y_val = tf.data.Dataset.from_tensor_slices(y_val).batch(256)
 
-    return X_train, X_val, y_train, y_val
+    train_dataset = (
+        tf.data.Dataset.from_tensor_slices((X_train, y_train)).shuffle(1000).batch(256)
+    )
+    val_dataset = (
+        tf.data.Dataset.from_tensor_slices((X_val, y_val)).shuffle(1000).batch(256)
+    )
+
+    # # Get first batch
+    # first_X = next(iter(X_train))  # Batch size, seq length, 4
+    # first_y = next(iter(y_train))  # Batch size, num_classes
+
+    return train_dataset, val_dataset
 
 
 def model_callbacks(checkpoint_dir: str, patience: int, use_wandb: bool) -> list:
@@ -94,10 +106,10 @@ def main(input_dir: str, output_dir: str):
         os.makedirs(output_dir)
 
     # Load data
-    X_train, X_val, y_train, y_val = load_data(input_dir)
+    train, val = load_data(input_dir)
 
     # Initialize the model
-    model = DeepPeak(config["num_classes"], config)
+    model = ChromBPNet(config["num_classes"], config)
     # model.build(input_shape=(None, 500, 4))
 
     optimizer = tf.keras.optimizers.Adam(learning_rate=config["learning_rate"])
@@ -106,7 +118,7 @@ def main(input_dir: str, output_dir: str):
     # Compile the model
     model.compile(
         optimizer=optimizer,
-        loss=tf.keras.losses.MeanSquaredError(),
+        loss=custom_loss,
         metrics=[
             tf.keras.metrics.MeanAbsoluteError(),
             tf.keras.metrics.MeanSquaredError(),
@@ -119,12 +131,9 @@ def main(input_dir: str, output_dir: str):
     callbacks = model_callbacks(checkpoint_dir, config["patience"], config["wandb"])
 
     model.fit(
-        X_train,
-        y_train,
+        train,
+        validation_data=val,
         epochs=config["epochs"],
-        batch_size=config["batch_size"],
-        shuffle=True,
-        validation_data=(X_val, y_val),
         callbacks=callbacks,
     )
 

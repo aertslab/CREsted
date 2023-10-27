@@ -2,10 +2,10 @@
 
 import tensorflow as tf
 import tensorflow.keras.layers as layers
-import keras
+from tensorflow.keras.backend import int_shape
 
 
-class ConvBlock(layers.Layer):
+class ConvResBlock(layers.Layer):
     """Convolution block with optional residual connection."""
 
     def __init__(
@@ -17,6 +17,8 @@ class ConvBlock(layers.Layer):
         l2: float = 1e-5,
         dropout: float = 0.25,
         res: bool = False,
+        use_bias: bool = True,
+        dilation_rate: int = 1,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -36,24 +38,29 @@ class ConvBlock(layers.Layer):
             kernel_size=self.kernel_size,
             strides=1,
             activation=None,
-            use_bias=False,
             padding="same",
             kernel_initializer="he_normal",
             kernel_regularizer=tf.keras.regularizers.l2(self.l2),
+            use_bias=use_bias,
+            dilation_rate=dilation_rate,
         )
         self.conv_res = layers.Conv1D(
             filters=self.filters,
             kernel_size=1,
             strides=1,
             activation=None,
-            use_bias=False,
             padding="same",
+            use_bias=use_bias,
             kernel_initializer="he_normal",
             kernel_regularizer=tf.keras.regularizers.l2(self.l2),
         )
         self.bn = layers.BatchNormalization(momentum=0.9, gamma_initializer="ones")
         self.activation_layer = layers.Activation(self.activation)
-        self.maxpool = layers.MaxPool1D(pool_size=self.pool_size, padding="same")
+        self.maxpool = (
+            layers.MaxPool1D(pool_size=self.pool_size, padding="same")
+            if self.pool_size > 1
+            else None
+        )
         self.dropout_layer = layers.Dropout(self.dropout)
 
     def build(self, input_shape):
@@ -82,7 +89,78 @@ class ConvBlock(layers.Layer):
         return x
 
 
-class DeepPeak(tf.keras.Model):
+class ConvChromBlock(layers.Layer):
+    """Convolution used in ChromBPNet."""
+
+    def __init__(
+        self,
+        filters,
+        kernel_size,
+        pool_size: int = 2,
+        activation: str = "relu",
+        l2: float = 1e-5,
+        dropout: float = 0.25,
+        res: bool = False,
+        use_bias: bool = True,
+        dilation_rate: int = 1,
+        **kwargs
+    ):
+        super().__init__(**kwargs)
+
+        # configs
+        self.num_filters = filters
+        self.kernel_size = kernel_size
+        self.pool_size = pool_size
+        self.activation = activation
+        self.l2 = l2
+        self.dropout = dropout
+        self.res = res
+        self.use_bias = use_bias
+        self.dilation_rate = dilation_rate
+
+        # layers
+        self.conv = layers.Conv1D(
+            filters=self.num_filters,
+            kernel_size=self.kernel_size,
+            strides=1,
+            activation=None,
+            padding="same",
+            kernel_initializer="he_normal",
+            kernel_regularizer=tf.keras.regularizers.l2(self.l2),
+            use_bias=self.use_bias,
+            dilation_rate=self.dilation_rate,
+        )
+
+        self.bn = layers.BatchNormalization(momentum=0.9, gamma_initializer="ones")
+        self.activation_layer = layers.Activation(self.activation)
+        self.dropout_layer = layers.Dropout(self.dropout)
+
+    def build(self, input_shape):
+        # Explicitly build the primary convolution layer
+        self.conv.build(input_shape)
+
+        super().build(input_shape)
+
+    def call(self, inputs):
+        x = inputs
+        conv_x = self.conv(inputs)
+        conv_x = self.bn(conv_x)
+        conv_x = self.activation_layer(conv_x)
+
+        x_len = int_shape(x)[1]
+        conv_x_len = int_shape(conv_x)[1]
+        assert (x_len - conv_x_len) % 2 == 0, "x_len - conv_x_len must be even"
+
+        if self.num_filters != x.shape[2]:
+            x = layers.Conv1D(filters=self.num_filters, kernel_size=1, strides=1)(x)
+        x = layers.Cropping1D((x_len - conv_x_len) // 2)(x)
+        x = layers.add([conv_x, x])
+        x = self.dropout_layer(x)
+
+        return x
+
+
+class ChromBPNet(tf.keras.Model):
     def __init__(self, num_classes: int, config: dict, **kwargs):
         super().__init__(**kwargs)
 
@@ -90,6 +168,7 @@ class DeepPeak(tf.keras.Model):
 
         self.num_classes = num_classes
 
+        self.n_dil_layers = self.config["n_dil_layers"]
         self.filter_size = self.config["filter_size"]
         self.num_filters = self.config["num_filters"]
         self.pool_size = self.config["pool_size"]
@@ -98,51 +177,31 @@ class DeepPeak(tf.keras.Model):
         self.dropout = self.config["dropout"]
         self.res = self.config["res"]
 
-        self.conv1 = ConvBlock(
+        self.conv1 = ConvResBlock(
             filters=self.num_filters,
-            kernel_size=self.filter_size,
-            pool_size=self.pool_size,
+            kernel_size=17,
+            pool_size=0,
             activation=self.activation,
             l2=self.l2,
-            dropout=0.3,
+            dropout=0.1,
             res=False,
+            use_bias=False,
         )
-        self.conv2a = ConvBlock(
-            filters=int(self.num_filters / 2),
-            kernel_size=3,
-            pool_size=2,
-            activation="relu",
-            l2=self.l2,
-            dropout=self.dropout,
-            res=self.res,
-        )
-        self.conv2b = ConvBlock(
-            filters=int(self.num_filters / 2),
-            kernel_size=3,
-            pool_size=2,
-            activation="relu",
-            l2=self.l2,
-            dropout=self.dropout,
-            res=self.res,
-        )
-        self.conv3a = ConvBlock(
-            filters=int(self.num_filters / 4),
-            kernel_size=3,
-            pool_size=2,
-            activation="relu",
-            l2=self.l2,
-            dropout=self.dropout,
-            res=self.res,
-        )
-        self.conv3b = ConvBlock(
-            filters=int(self.num_filters / 4),
-            kernel_size=3,
-            pool_size=2,
-            activation="relu",
-            l2=self.l2,
-            dropout=self.dropout,
-            res=self.res,
-        )
+        self.conv_blocks = [
+            ConvChromBlock(
+                filters=self.num_filters,
+                kernel_size=self.filter_size,
+                pool_size=self.pool_size,
+                activation=self.activation,
+                l2=self.l2,
+                dropout=self.dropout,
+                res=False,
+                use_bias=False,
+                dilation_rate=2**i,
+            )
+            for i in range(1, self.n_dil_layers + 1)
+        ]
+
         self.pooling = layers.GlobalAveragePooling1D()
         self.dense = layers.Dense(
             units=self.num_classes,
@@ -152,10 +211,8 @@ class DeepPeak(tf.keras.Model):
 
     def call(self, inputs, training=False):
         x = self.conv1(inputs)
-        x = self.conv2a(x)
-        x = self.conv2b(x)
-        x = self.conv3a(x)
-        x = self.conv3b(x)
+        for conv_block in self.conv_blocks:
+            x = conv_block(x)  # 8 times
         x = self.pooling(x)
         x = self.dense(x)
 
