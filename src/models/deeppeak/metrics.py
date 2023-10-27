@@ -54,7 +54,7 @@ class PearsonCorrelation(tf.keras.metrics.Metric):
 
         return numerator / (denominator + tf.keras.backend.epsilon())
 
-    def reset_states(self):
+    def reset_state(self):
         self.y_true_sum.assign(0.0)
         self.y_pred_sum.assign(0.0)
         self.y_true_squared_sum.assign(0.0)

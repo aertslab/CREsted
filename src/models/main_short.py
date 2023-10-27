@@ -138,7 +138,6 @@ def make_argument_parser():
                        help='The output directory. Will overwrite if directory already exists.')
     return parser
 
-
 def main():
     parser = make_argument_parser()
     args = parser.parse_args()

@@ -2,6 +2,7 @@
 
 import tensorflow as tf
 import tensorflow.keras.layers as layers
+import keras
 
 
 class ConvBlock(layers.Layer):
@@ -16,8 +17,9 @@ class ConvBlock(layers.Layer):
         l2: float = 1e-5,
         dropout: float = 0.25,
         res: bool = False,
+        **kwargs
     ):
-        super().__init__()
+        super().__init__(**kwargs)
 
         # configs
         self.filters = filters
@@ -54,6 +56,13 @@ class ConvBlock(layers.Layer):
         self.maxpool = layers.MaxPool1D(pool_size=self.pool_size, padding="same")
         self.dropout_layer = layers.Dropout(self.dropout)
 
+    def build(self, input_shape):
+        # Explicitly build the primary convolution layer
+        self.conv.build(input_shape)
+        self.conv_res.build(input_shape)
+
+        super().build(input_shape)
+
     def call(self, inputs):
         if self.res:
             residual = inputs
@@ -74,8 +83,8 @@ class ConvBlock(layers.Layer):
 
 
 class DeepPeak(tf.keras.Model):
-    def __init__(self, num_classes: int, config: dict):
-        super().__init__()
+    def __init__(self, num_classes: int, config: dict, **kwargs):
+        super().__init__(**kwargs)
 
         self.config = config
 
