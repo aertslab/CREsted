@@ -5,6 +5,26 @@
 # User configs take priority over default configs.
 # Only update default configs after extensive testing and discussion with team.
 
+# general
+project_name: 'mouse'  # used for naming output folders
+num_classes: 19
+
 # Train/val/test
 val: ['chr8', 'chr10']
 test: ['chr9', 'chr18']
+
+# Training
+wandb: True
+epochs: 2
+batch_size: 256
+learning_rate: 0.001
+
+# Model architecture
+filter_size: 17
+num_filters: 512
+pool_size: 2
+activation: 'relu'
+l2: 0.00001
+dropout: 0.5
+res: True
+patience: 5
