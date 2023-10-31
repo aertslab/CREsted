@@ -97,3 +97,10 @@ split:
 	python src/data/train_val_test_split.py data/interim data/processed
 
 data: config inputs targets split # will run everything
+
+## Model training
+cuda:
+	@bash -l -c "module load cuDNN/8.2.1.32-CUDA-11.3.1"
+
+train:
+	python src/models/train_model.py data/processed checkpoints/
