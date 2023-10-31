@@ -1,41 +1,17 @@
 import click
 import tensorflow as tf
-import numpy as np
 import yaml
 import os
 from datetime import datetime
+import atexit
 
 import wandb
-from wandb.keras import WandbCallback
+from wandb.keras import WandbMetricsLogger
 
+from dataloader import load_chunked_tfrecord_dataset, count_samples_in_tfrecords
 from deeppeak.model import ChromBPNet
 from deeppeak.metrics import get_lr_metric, PearsonCorrelation
 from deeppeak.loss import custom_loss
-
-
-def load_data(data_folder: str):
-    X_train = np.load(os.path.join(data_folder, "X_train.npy"))
-    X_val = np.load(os.path.join(data_folder, "X_val.npy"))
-    y_train = np.load(os.path.join(data_folder, "Y_train.npy"))
-    y_val = np.load(os.path.join(data_folder, "Y_val.npy"))
-
-    # X_train = tf.data.Dataset.from_tensor_slices(X_train).batch(256)
-    # X_val = tf.data.Dataset.from_tensor_slices(X_val).batch(256)
-    # y_train = tf.data.Dataset.from_tensor_slices(y_train).batch(256)
-    # y_val = tf.data.Dataset.from_tensor_slices(y_val).batch(256)
-
-    train_dataset = (
-        tf.data.Dataset.from_tensor_slices((X_train, y_train)).shuffle(1000).batch(256)
-    )
-    val_dataset = (
-        tf.data.Dataset.from_tensor_slices((X_val, y_val)).shuffle(1000).batch(256)
-    )
-
-    # # Get first batch
-    # first_X = next(iter(X_train))  # Batch size, seq length, 4
-    # first_y = next(iter(y_train))  # Batch size, num_classes
-
-    return train_dataset, val_dataset
 
 
 def model_callbacks(checkpoint_dir: str, patience: int, use_wandb: bool) -> list:
@@ -68,19 +44,10 @@ def model_callbacks(checkpoint_dir: str, patience: int, use_wandb: bool) -> list
 
     # Wandb
     if use_wandb:
-        wandb_callback = WandbCallback()
+        wandb_callback = WandbMetricsLogger(log_freq=10)
         callbacks.append(wandb_callback)
 
     return callbacks
-
-
-# Assuming sequences of length 500 with 4 channels (e.g., DNA sequences: A, C, G, T)
-# X_train = np.random.rand(1000, 500, 4)
-# X_val = np.random.rand(300, 500, 4)
-
-# # Assuming binary classification (adjust as needed for multi-class)
-# y_train = np.random.rand(1000)
-# y_val = np.random.rand(300)
 
 
 @click.command()
@@ -91,10 +58,11 @@ def main(input_dir: str, output_dir: str):
     now = datetime.now().strftime("%Y-%m-%d_%H:%M")
 
     with open("configs/user.yml", "r") as f:
+        global config
         config = yaml.safe_load(f)
 
     if config["wandb"]:
-        wandb.init(
+        run = wandb.init(
             project=f"deeppeak_{config['project_name']}",
             config=config,
             name=now,
@@ -105,44 +73,87 @@ def main(input_dir: str, output_dir: str):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    # Train on GPU
+    strategy = tf.distribute.MirroredStrategy()
+    atexit.register(strategy._extended._collective_ops._pool.close)
+    gpus_found = tf.config.list_physical_devices("GPU")
+
+    print("Number of replica devices in use: {}".format(strategy.num_replicas_in_sync))
+    print("Number of GPUs available: {}".format(len(gpus_found)))
+
+    if config["wandb"]:
+        wandb.config.update({"num_gpus_available": len(gpus_found)})
+        wandb.config.update({"num_devices_used": strategy.num_replicas_in_sync})
+
     # Load data
-    train, val = load_data(input_dir)
+    total_number_of_training_samples = count_samples_in_tfrecords(
+        os.path.join(input_dir, "train", "*.tfrecord")
+    )
+    total_number_of_validation_samples = count_samples_in_tfrecords(
+        os.path.join(input_dir, "val", "*.tfrecord")
+    )
+
+    batch_size = config["batch_size"] * strategy.num_replicas_in_sync
+    train = load_chunked_tfrecord_dataset(
+        os.path.join(input_dir, "train", "*.tfrecord"),
+        config,
+        total_number_of_training_samples,
+    )
+    val = load_chunked_tfrecord_dataset(
+        os.path.join(input_dir, "val", "*.tfrecord"),
+        config,
+        batch_size,
+    )
+
+    train = strategy.experimental_distribute_dataset(train)
+    val = strategy.experimental_distribute_dataset(val)
 
     # Initialize the model
-    model = ChromBPNet(config["num_classes"], config)
-    # model.build(input_shape=(None, 500, 4))
+    with strategy.scope():
+        model = ChromBPNet(config["num_classes"], config)
+        # model.build(input_shape=(None, 2114, 4))
 
-    optimizer = tf.keras.optimizers.Adam(learning_rate=config["learning_rate"])
-    lr_metric = get_lr_metric(optimizer)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=config["learning_rate"])
+        lr_metric = get_lr_metric(optimizer)
 
-    # Compile the model
-    model.compile(
-        optimizer=optimizer,
-        loss=custom_loss,
-        metrics=[
-            tf.keras.metrics.MeanAbsoluteError(),
-            tf.keras.metrics.MeanSquaredError(),
-            tf.keras.metrics.CosineSimilarity(axis=1),
-            PearsonCorrelation(),
-            lr_metric,
-        ],
-    )
+        # Compile the model
+        model.compile(
+            optimizer=optimizer,
+            loss=custom_loss,
+            metrics=[
+                tf.keras.metrics.MeanAbsoluteError(),
+                tf.keras.metrics.MeanSquaredError(),
+                tf.keras.metrics.CosineSimilarity(axis=1),
+                PearsonCorrelation(),
+                lr_metric,
+            ],
+        )
 
-    callbacks = model_callbacks(checkpoint_dir, config["patience"], config["wandb"])
+        callbacks = model_callbacks(checkpoint_dir, config["patience"], config["wandb"])
+        output = model(tf.random.normal([batch_size, config["seq_len"], 4]))
+        assert output.shape == (batch_size, config["num_classes"])
 
-    model.fit(
-        train,
-        validation_data=val,
-        epochs=config["epochs"],
-        callbacks=callbacks,
-    )
+        train_steps_per_epoch = total_number_of_training_samples // batch_size
+        val_steps_per_epoch = total_number_of_validation_samples // batch_size
 
-    loss, mae, rmse, cos, pearson, lr = model.evaluate(X_val, y_val)
+        model.fit(
+            train,
+            steps_per_epoch=train_steps_per_epoch,
+            validation_steps=val_steps_per_epoch,
+            validation_data=val,
+            epochs=config["epochs"],
+            callbacks=callbacks,
+        )
+
+    loss, mae, rmse, cos, pearson, lr = model.evaluate(val, steps=val_steps_per_epoch)
     print(f"Validation Loss (MAE): {mae}")
     print(f"Validation Loss (RMSE): {rmse}")
     print(f"Validation Loss (Cosine Similarity): {cos}")
     print(f"Validation Loss (Pearson Correlation): {pearson}")
     print(f"Validation Loss (Learning Rate): {lr}")
+
+    if config["wandb"]:
+        run.finish()
 
 
 if __name__ == "__main__":

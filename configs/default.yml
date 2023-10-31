@@ -8,6 +8,7 @@
 # general
 project_name: 'mouse'  # used for naming output folders
 num_classes: 19
+seq_len: 2114
 
 # Train/val/test
 val: ['chr8', 'chr10']
@@ -18,13 +19,27 @@ wandb: True
 epochs: 2
 batch_size: 256
 learning_rate: 0.001
+fraction_of_data: 1.0  # fraction of data to use for training. Only lower for debugging.
+
+# augmentations
+augment_complement: True  # complement base pairs
 
 # Model architecture
-filter_size: 17
+## First convblock
+first_conv_filters: 512
+first_conv_filter_size: 7
+first_conv_pool_size: 0
+first_conv_activation: 'gelu'
+first_conv_l2: 0.00001
+first_conv_dropout: 0.1
+first_conv_res: False
+
+## Chrombp Conv blocks after first conv layer
 num_filters: 512
-pool_size: 2
+n_dil_layers: 8
+filter_size: 3
 activation: 'relu'
 l2: 0.00001
-dropout: 0.5
-res: True
+dropout: 0.1
+dense_bias: True
 patience: 5

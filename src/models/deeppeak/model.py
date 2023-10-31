@@ -44,16 +44,17 @@ class ConvResBlock(layers.Layer):
             use_bias=use_bias,
             dilation_rate=dilation_rate,
         )
-        self.conv_res = layers.Conv1D(
-            filters=self.filters,
-            kernel_size=1,
-            strides=1,
-            activation=None,
-            padding="same",
-            use_bias=use_bias,
-            kernel_initializer="he_normal",
-            kernel_regularizer=tf.keras.regularizers.l2(self.l2),
-        )
+        if self.res:
+            self.conv_res = layers.Conv1D(
+                filters=self.filters,
+                kernel_size=1,
+                strides=1,
+                activation=None,
+                padding="same",
+                use_bias=use_bias,
+                kernel_initializer="he_normal",
+                kernel_regularizer=tf.keras.regularizers.l2(self.l2),
+            )
         self.bn = layers.BatchNormalization(momentum=0.9, gamma_initializer="ones")
         self.activation_layer = layers.Activation(self.activation)
         self.maxpool = (
@@ -65,8 +66,10 @@ class ConvResBlock(layers.Layer):
 
     def build(self, input_shape):
         # Explicitly build the primary convolution layer
+
         self.conv.build(input_shape)
-        self.conv_res.build(input_shape)
+        if self.res:
+            self.conv_res.build(input_shape)
 
         super().build(input_shape)
 
@@ -96,11 +99,9 @@ class ConvChromBlock(layers.Layer):
         self,
         filters,
         kernel_size,
-        pool_size: int = 2,
         activation: str = "relu",
         l2: float = 1e-5,
         dropout: float = 0.25,
-        res: bool = False,
         use_bias: bool = True,
         dilation_rate: int = 1,
         **kwargs
@@ -110,11 +111,9 @@ class ConvChromBlock(layers.Layer):
         # configs
         self.num_filters = filters
         self.kernel_size = kernel_size
-        self.pool_size = pool_size
         self.activation = activation
         self.l2 = l2
         self.dropout = dropout
-        self.res = res
         self.use_bias = use_bias
         self.dilation_rate = dilation_rate
 
@@ -168,45 +167,33 @@ class ChromBPNet(tf.keras.Model):
 
         self.num_classes = num_classes
 
-        self.n_dil_layers = self.config["n_dil_layers"]
-        self.filter_size = self.config["filter_size"]
-        self.num_filters = self.config["num_filters"]
-        self.pool_size = self.config["pool_size"]
-        self.activation = self.config["activation"]
-        self.l2 = self.config["l2"]
-        self.dropout = self.config["dropout"]
-        self.res = self.config["res"]
-
         self.conv1 = ConvResBlock(
-            filters=self.num_filters,
-            kernel_size=17,
-            pool_size=0,
-            activation=self.activation,
-            l2=self.l2,
-            dropout=0.1,
-            res=False,
-            use_bias=False,
+            filters=self.config["first_conv_filters"],
+            kernel_size=self.config["first_conv_filter_size"],
+            pool_size=self.config["first_conv_pool_size"],
+            activation=self.config["first_conv_activation"],
+            l2=self.config["first_conv_l2"],
+            dropout=self.config["first_conv_dropout"],
+            res=self.config["first_conv_res"],
         )
         self.conv_blocks = [
             ConvChromBlock(
-                filters=self.num_filters,
-                kernel_size=self.filter_size,
-                pool_size=self.pool_size,
-                activation=self.activation,
-                l2=self.l2,
-                dropout=self.dropout,
-                res=False,
+                filters=self.config["num_filters"],
+                kernel_size=self.config["filter_size"],
+                activation=self.config["activation"],
+                l2=self.config["l2"],
+                dropout=self.config["dropout"],
                 use_bias=False,
                 dilation_rate=2**i,
             )
-            for i in range(1, self.n_dil_layers + 1)
+            for i in range(1, self.config["n_dil_layers"] + 1)
         ]
 
         self.pooling = layers.GlobalAveragePooling1D()
         self.dense = layers.Dense(
             units=self.num_classes,
             activation="linear",
-            use_bias=True,
+            use_bias=self.config["dense_bias"],
         )
 
     def call(self, inputs, training=False):
