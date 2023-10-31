@@ -4,10 +4,14 @@ import os
 import tempfile
 from contextlib import contextmanager
 
+
 def _raw_assertion(path: str):
     """Assert that a file is not in the "raw" directory."""
-    assert 'raw' not in path, f"Out file {path} is in the raw directory. \
+    assert (
+        "raw" not in path
+    ), f"Out file {path} is in the raw directory. \
     Select a different directory."
+
 
 @contextmanager
 def smart_open(input_path, output_path):
@@ -17,13 +21,14 @@ def smart_open(input_path, output_path):
 
     if input_path == output_path:
         dir_name = os.path.dirname(input_path)
-        with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False) as tmp:
-            yield open(input_path, 'r'), tmp
+        with tempfile.NamedTemporaryFile(mode="w", dir=dir_name, delete=False) as tmp:
+            yield open(input_path, "r"), tmp
             temp_name = tmp.name
         os.replace(temp_name, output_path)
     else:
-        with open(output_path, 'w') as outfile:
-            yield open(input_path, 'r'), outfile
+        with open(output_path, "w") as outfile:
+            yield open(input_path, "r"), outfile
+
 
 def extend_bed_file(input_path: str, output_path: str, value: int):
     """
@@ -34,7 +39,7 @@ def extend_bed_file(input_path: str, output_path: str, value: int):
             cols = line.strip().split()
             cols[1] = str(int(cols[1]) - value)
             cols[2] = str(int(cols[2]) + value)
-            outfile.write('\t'.join(cols) + '\n')
+            outfile.write("\t".join(cols) + "\n")
 
 
 def filter_bed_negative_regions(input_path: str, output_path: str):
@@ -59,27 +64,29 @@ def filter_bed_chrom_regions(input_path: str, output_path: str, chrom_sizes_file
     total_lines = 0
     chrom_sizes = {}
 
-    with open(chrom_sizes_file, 'r') as sizes:
+    with open(chrom_sizes_file, "r") as sizes:
         for line in sizes:
-            chrom, size = line.strip().split('\t')
+            chrom, size = line.strip().split("\t")
             size = int(size)
             chrom_sizes[chrom] = size
 
     with smart_open(input_path, output_path) as (infile, outfile):
         for bed_line in infile:
             total_lines += 1
-            bed_cols = bed_line.strip().split('\t')
+            bed_cols = bed_line.strip().split("\t")
             chrom = bed_cols[0]
             if chrom in chrom_sizes and int(bed_cols[2]) <= chrom_sizes[chrom]:
                 filtered_lines.append(bed_line)
 
     # Sort the filtered BED file
-    sorted_lines = sorted(filtered_lines, key=lambda x: (x.split('\t')[0], int(x.split('\t')[1])))
+    sorted_lines = sorted(
+        filtered_lines, key=lambda x: (x.split("\t")[0], int(x.split("\t")[1]))
+    )
 
-    with open(output_path, 'w') as outfile:
+    with open(output_path, "w") as outfile:
         outfile.writelines(sorted_lines)
 
-    print(f"chromosome size: filtered out {total_lines - len(sorted_lines)} lines out of {total_lines} total lines.")
+    print(f"chrom size: removed {total_lines - len(sorted_lines)}/{total_lines} lines.")
 
 
 def get_regions_from_bed(regions_bed_filename: str):
