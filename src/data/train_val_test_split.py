@@ -9,6 +9,56 @@ import os
 from pybedtools import BedTool
 import numpy as np
 import gc
+import tensorflow as tf
+
+
+def _bytes_feature(value):
+    """Returns a bytes_list from a string / byte."""
+    if isinstance(value, type(tf.constant(0))):
+        value = value.numpy()
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+
+def save_data_as_tfrecord(
+    prefix, X_data, Y_data, output_folder, samples_per_file=10000
+):
+    """
+    Save data as TFRecords, chunked by samples_per_file.
+    """
+    num_samples = X_data.shape[0]
+    num_files = (num_samples + samples_per_file - 1) // samples_per_file
+
+    if not os.path.exists(os.path.join(output_folder, prefix)):
+        os.makedirs(os.path.join(output_folder, prefix))
+
+    for idx in range(num_files):
+        start_idx = idx * samples_per_file
+        end_idx = min((idx + 1) * samples_per_file, num_samples)
+
+        file_name = f"{prefix}_{idx}.tfrecord"
+        file_path = os.path.join(output_folder, prefix, file_name)
+
+        with tf.io.TFRecordWriter(file_path) as writer:
+            for X, Y in zip(X_data[start_idx:end_idx], Y_data[start_idx:end_idx]):
+                example = serialize_example(X, Y)
+                writer.write(example)
+
+
+def serialize_example(X, Y):
+    """
+    Creates a tf.train.Example message ready to be written to a file.
+    """
+    # Convert the arrays to bytes after converting to uint8
+    X_bytes = tf.io.serialize_tensor(tf.cast(X, tf.uint8)).numpy()
+    Y_bytes = tf.io.serialize_tensor(tf.cast(Y, tf.uint8)).numpy()
+
+    feature = {
+        "X": _bytes_feature(X_bytes),
+        "Y": _bytes_feature(Y_bytes),
+    }
+
+    example_proto = tf.train.Example(features=tf.train.Features(feature=feature))
+    return example_proto.SerializeToString()
 
 
 def split_indices(df, val_chr, test_chr):
@@ -66,14 +116,19 @@ def main(input_folder: str, output_folder: str):
     print("Y_test:", Y_test.shape)
 
     # Save
-    print("Saving data...")
-    np.save(os.path.join(output_folder, "X_train.npy"), X_train)
-    np.save(os.path.join(output_folder, "X_val.npy"), X_val)
-    np.save(os.path.join(output_folder, "X_test.npy"), X_test)
+    # np.save(os.path.join(output_folder, "X_train.npy"), X_train)
+    # np.save(os.path.join(output_folder, "X_val.npy"), X_val)
+    # np.save(os.path.join(output_folder, "X_test.npy"), X_test)
 
-    np.save(os.path.join(output_folder, "Y_train.npy"), Y_train)
-    np.save(os.path.join(output_folder, "Y_val.npy"), Y_val)
-    np.save(os.path.join(output_folder, "Y_test.npy"), Y_test)
+    # np.save(os.path.join(output_folder, "Y_train.npy"), Y_train)
+    # np.save(os.path.join(output_folder, "Y_val.npy"), Y_val)
+    # np.save(os.path.join(output_folder, "Y_test.npy"), Y_test)
+    # Save
+    print("Saving data as TFRecords...")
+
+    save_data_as_tfrecord("train", X_train, Y_train, output_folder)
+    save_data_as_tfrecord("val", X_val, Y_val, output_folder)
+    save_data_as_tfrecord("test", X_test, Y_test, output_folder)
 
 
 if __name__ == "__main__":
