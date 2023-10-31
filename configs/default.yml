@@ -16,7 +16,7 @@ test: ['chr9', 'chr18']
 
 # Training
 wandb: True
-epochs: 2
+epochs: 100
 batch_size: 256
 learning_rate: 0.001
 fraction_of_data: 1.0  # fraction of data to use for training. Only lower for debugging.

@@ -36,6 +36,10 @@ clean:
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
 
+## Delete wandb files
+clean_wandb:
+	rm -rf wandb
+
 ## Lint using flake8 on src/ while ignoring 'line too long' errors
 lint:
 	flake8 src/ --ignore=E501
@@ -75,10 +79,6 @@ endif
 		echo "$(SRC) is neither a file nor a directory!"; \
 	fi
 
-## Update user configs
-config:
-	python configs/update_configs.py
-
 ## Make Datasets
 bed:
 	python src/data/preprocess_bed.py data/raw data/interim
@@ -99,8 +99,5 @@ split:
 data: config inputs targets split # will run everything
 
 ## Model training
-cuda:
-	@bash -l -c "module load cuDNN/8.2.1.32-CUDA-11.3.1"
-
 train:
 	python src/models/train_model.py data/processed checkpoints/
