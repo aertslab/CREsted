@@ -43,8 +43,7 @@ def load_chunked_tfrecord_dataset(file_pattern, config, num_samples):
     dataset = dataset.map(parse_func)
 
     if config["fraction_of_data"] < 1.0:
-        print(f'WARNING: Using {config["fraction_of_data"]} of the data. ')
-        dataset = dataset.take(int(num_samples * config["fraction_of_data"]))
+        dataset = dataset.take(int(num_samples))
 
     dataset = dataset.shuffle(buffer_size=config["shuffle_buffer_size"])
     dataset = dataset.repeat(config["epochs"])

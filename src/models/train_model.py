@@ -21,12 +21,12 @@ def model_callbacks(checkpoint_dir: str, patience: int, use_wandb: bool) -> list
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
         os.path.join(checkpoint_dir, "{epoch:02d}"),
         save_freq="epoch",
-        save_weights_only=True,
+        save_best_only=True,
     )
     callbacks.append(checkpoint)
 
     # Early stopping
-    early_stop_metric = "val_pearson_correlation"
+    early_stop_metric = "val_loss"
     early_stop = tf.keras.callbacks.EarlyStopping(
         monitor=early_stop_metric, patience=patience, mode="max"
     )
@@ -87,6 +87,8 @@ def main(input_dir: str, output_dir: str):
         wandb.config.update({"num_devices_used": strategy.num_replicas_in_sync})
 
     # Load data
+    fraction_of_data = config["fraction_of_data"]
+
     total_number_of_training_samples = count_samples_in_tfrecords(
         os.path.join(input_dir, "train", "*.tfrecord")
     )
@@ -96,6 +98,18 @@ def main(input_dir: str, output_dir: str):
     total_number_of_test_samples = count_samples_in_tfrecords(
         os.path.join(input_dir, "test", "*.tfrecord")
     )
+    if fraction_of_data < 1.0:
+        # Testing
+        print(f"WARNING: Using {fraction_of_data} of the data. ")
+        total_number_of_training_samples = int(
+            total_number_of_training_samples * fraction_of_data
+        )
+        total_number_of_validation_samples = int(
+            total_number_of_validation_samples * fraction_of_data
+        )
+        total_number_of_test_samples = int(
+            total_number_of_test_samples * fraction_of_data
+        )
 
     if config["wandb"]:
         wandb.config.update(
@@ -128,8 +142,15 @@ def main(input_dir: str, output_dir: str):
 
     # Initialize the model
     with strategy.scope():
-        model = ChromBPNet(config["num_classes"], config)
-        # model.build(input_shape=(None, 2114, 4))
+        pt_model = config["pretrained_model_path"]
+
+        if pt_model:
+            print(f"Continuing training from pretrained model {pt_model}...")
+            model = tf.keras.models.load_model(pt_model, compile=False)
+
+        else:
+            print("Training from scratch...")
+            model = ChromBPNet(config)
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=config["learning_rate"])
         lr_metric = get_lr_metric(optimizer)

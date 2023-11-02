@@ -21,7 +21,8 @@ epochs: 60
 batch_size: 256
 learning_rate: 0.001
 fraction_of_data: 1.0  # fraction of data to use for training. Only lower for debugging.
-patience: 10  # number of epochs to wait before early stopping
+patience: 5  # number of epochs to wait before early stopping
+path_to_pretrained_model: ''  # continue from checkpoint. Leave empty if starting from scratch
 
 # augmentations
 augment_complement: True  # complement base pairs
