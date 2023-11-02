@@ -10,6 +10,7 @@ from pybedtools import BedTool
 import numpy as np
 import gc
 import tensorflow as tf
+import shutil
 
 
 def _bytes_feature(value):
@@ -29,6 +30,10 @@ def save_data_as_tfrecord(
     num_files = (num_samples + samples_per_file - 1) // samples_per_file
 
     if not os.path.exists(os.path.join(output_folder, prefix)):
+        os.makedirs(os.path.join(output_folder, prefix))
+    else:
+        print(f"WARNING: Removing {os.path.join(output_folder, prefix)}")
+        shutil.rmtree(os.path.join(output_folder, prefix))
         os.makedirs(os.path.join(output_folder, prefix))
 
     for idx in range(num_files):
@@ -50,7 +55,7 @@ def serialize_example(X, Y):
     """
     # Convert the arrays to bytes after converting to uint8
     X_bytes = tf.io.serialize_tensor(tf.cast(X, tf.uint8)).numpy()
-    Y_bytes = tf.io.serialize_tensor(tf.cast(Y, tf.uint8)).numpy()
+    Y_bytes = tf.io.serialize_tensor(Y).numpy()
 
     feature = {
         "X": _bytes_feature(X_bytes),
@@ -106,6 +111,10 @@ def main(input_folder: str, output_folder: str):
     X_train = inputs[train_idcs]
     X_val = inputs[val_idcs]
     X_test = inputs[test_idcs]
+
+    # # Augment X_train by taking inverse complement bases
+    # X_train = np.concatenate([X_train, X_train[:, ::-1, ::-1]], axis=0)
+    # Y_train = np.concatenate([Y_train, Y_train], axis=0)
 
     print("X_train:", X_train.shape)
     print("X_val:", X_val.shape)
