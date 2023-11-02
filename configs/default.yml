@@ -13,13 +13,15 @@ seq_len: 2114
 # Train/val/test
 val: ['chr8', 'chr10']
 test: ['chr9', 'chr18']
+shuffle_buffer_size: 10000
 
 # Training
 wandb: True
-epochs: 100
+epochs: 60
 batch_size: 256
 learning_rate: 0.001
 fraction_of_data: 1.0  # fraction of data to use for training. Only lower for debugging.
+patience: 10  # number of epochs to wait before early stopping
 
 # augmentations
 augment_complement: True  # complement base pairs
@@ -27,7 +29,7 @@ augment_complement: True  # complement base pairs
 # Model architecture
 ## First convblock
 first_conv_filters: 512
-first_conv_filter_size: 7
+first_conv_filter_size: 5
 first_conv_pool_size: 0
 first_conv_activation: 'gelu'
 first_conv_l2: 0.00001
@@ -42,4 +44,3 @@ activation: 'relu'
 l2: 0.00001
 dropout: 0.1
 dense_bias: True
-patience: 5
