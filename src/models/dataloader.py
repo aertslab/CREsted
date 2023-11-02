@@ -46,8 +46,13 @@ def load_chunked_tfrecord_dataset(file_pattern, config, num_samples):
         print(f'WARNING: Using {config["fraction_of_data"]} of the data. ')
         dataset = dataset.take(int(num_samples * config["fraction_of_data"]))
 
+    dataset = dataset.shuffle(buffer_size=config["shuffle_buffer_size"])
+    dataset = dataset.repeat(config["epochs"])
+    dataset = dataset.batch(config["batch_size"])
+    dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+
     # Batch and prefetch
-    return dataset.batch(config["batch_size"]).prefetch(tf.data.experimental.AUTOTUNE)
+    return dataset
 
 
 def _parse_function(example_proto, file_pattern: str, config: dict):
@@ -59,7 +64,7 @@ def _parse_function(example_proto, file_pattern: str, config: dict):
     example = tf.io.parse_single_example(example_proto, feature_description)
 
     X = tf.io.parse_tensor(example["X"], out_type=tf.uint8)
-    Y = tf.io.parse_tensor(example["Y"], out_type=tf.uint8)
+    Y = tf.io.parse_tensor(example["Y"], out_type=tf.double)
 
     # Cast it back to float
     X = tf.cast(X, tf.float32)

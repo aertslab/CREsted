@@ -6,7 +6,7 @@ from datetime import datetime
 import atexit
 
 import wandb
-from wandb.keras import WandbMetricsLogger
+from wandb.keras import WandbMetricsLogger, WandbCallback
 
 from dataloader import load_chunked_tfrecord_dataset, count_samples_in_tfrecords
 from deeppeak.model import ChromBPNet
@@ -45,7 +45,9 @@ def model_callbacks(checkpoint_dir: str, patience: int, use_wandb: bool) -> list
     # Wandb
     if use_wandb:
         wandb_callback = WandbMetricsLogger(log_freq=10)
+        wandb_model_callback = WandbCallback()
         callbacks.append(wandb_callback)
+        callbacks.append(wandb_model_callback)
 
     return callbacks
 
@@ -58,7 +60,6 @@ def main(input_dir: str, output_dir: str):
     now = datetime.now().strftime("%Y-%m-%d_%H:%M")
 
     with open("configs/user.yml", "r") as f:
-        global config
         config = yaml.safe_load(f)
 
     if config["wandb"]:
@@ -92,6 +93,18 @@ def main(input_dir: str, output_dir: str):
     total_number_of_validation_samples = count_samples_in_tfrecords(
         os.path.join(input_dir, "val", "*.tfrecord")
     )
+    total_number_of_test_samples = count_samples_in_tfrecords(
+        os.path.join(input_dir, "test", "*.tfrecord")
+    )
+
+    if config["wandb"]:
+        wandb.config.update(
+            {
+                "N_train": total_number_of_training_samples,
+                "N_val": total_number_of_validation_samples,
+                "N_test": total_number_of_test_samples,
+            }
+        )
 
     batch_size = config["batch_size"] * strategy.num_replicas_in_sync
     train = load_chunked_tfrecord_dataset(
@@ -104,6 +117,11 @@ def main(input_dir: str, output_dir: str):
         config,
         batch_size,
     )
+
+    # Get one batch to check shapes
+    for x, y in train.take(1):
+        print(f"Input shape: {x.shape}")
+        print(f"Output shape: {y.shape}")
 
     train = strategy.experimental_distribute_dataset(train)
     val = strategy.experimental_distribute_dataset(val)
