@@ -18,8 +18,7 @@ class ConvResBlock(layers.Layer):
         l2: float = 1e-5,
         dropout: float = 0.25,
         res: bool = False,
-        use_bias: bool = True,
-        dilation_rate: int = 1,
+        use_bias: bool = False,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -43,7 +42,6 @@ class ConvResBlock(layers.Layer):
             kernel_initializer="he_normal",
             kernel_regularizer=tf.keras.regularizers.l2(self.l2),
             use_bias=use_bias,
-            dilation_rate=dilation_rate,
         )
         if self.res:
             self.conv_res = layers.Conv1D(
@@ -52,7 +50,6 @@ class ConvResBlock(layers.Layer):
                 strides=1,
                 activation=None,
                 padding="same",
-                use_bias=use_bias,
                 kernel_initializer="he_normal",
                 kernel_regularizer=tf.keras.regularizers.l2(self.l2),
             )
@@ -65,14 +62,14 @@ class ConvResBlock(layers.Layer):
         )
         self.dropout_layer = layers.Dropout(self.dropout)
 
-    def build(self, input_shape):
-        # Explicitly build the primary convolution layer
+    # def build(self, input_shape):
+    #     # Explicitly build the primary convolution layer
 
-        self.conv.build(input_shape)
-        if self.res:
-            self.conv_res.build(input_shape)
+    #     self.conv.build(input_shape)
+    #     if self.res:
+    #         self.conv_res.build(input_shape)
 
-        super().build(input_shape)
+    #     super().build(input_shape)
 
     def call(self, inputs):
         if self.res:
@@ -84,7 +81,7 @@ class ConvResBlock(layers.Layer):
         if self.res:
             if self.filters != residual.shape[-1]:
                 residual = self.conv_res(residual)
-            x = tf.keras.layers.add([x, residual])
+            x = layers.add([x, residual])
 
         if self.pool_size > 1 and inputs.shape[1] > self.kernel_size:
             x = self.maxpool(x)
@@ -142,7 +139,7 @@ class ConvChromBlock(layers.Layer):
             kernel_size=self.kernel_size,
             strides=1,
             activation=None,
-            padding="same",
+            padding="valid",
             kernel_initializer="he_normal",
             kernel_regularizer=tf.keras.regularizers.l2(self.l2),
             use_bias=self.use_bias,
@@ -153,11 +150,11 @@ class ConvChromBlock(layers.Layer):
         self.activation_layer = layers.Activation(self.activation)
         self.dropout_layer = layers.Dropout(self.dropout)
 
-    def build(self, input_shape):
-        # Explicitly build the primary convolution layer
-        self.conv.build(input_shape)
+    # def build(self, input_shape):
+    #     # Explicitly build the primary convolution layer
+    #     self.conv.build(input_shape)
 
-        super().build(input_shape)
+    #     super().build(input_shape)
 
     def call(self, inputs):
         x = inputs
