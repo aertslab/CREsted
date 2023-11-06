@@ -112,32 +112,30 @@ def main(input_folder: str, output_folder: str):
     X_val = inputs[val_idcs]
     X_test = inputs[test_idcs]
 
-    # # Augment X_train by taking inverse complement bases
-    # X_train = np.concatenate([X_train, X_train[:, ::-1, ::-1]], axis=0)
-    # Y_train = np.concatenate([Y_train, Y_train], axis=0)
-
-    print("X_train:", X_train.shape)
-    print("X_val:", X_val.shape)
-    print("X_test:", X_test.shape)
-
-    print("Y_train:", Y_train.shape)
-    print("Y_val:", Y_val.shape)
-    print("Y_test:", Y_test.shape)
-
-    # Save
-    # np.save(os.path.join(output_folder, "X_train.npy"), X_train)
-    # np.save(os.path.join(output_folder, "X_val.npy"), X_val)
-    # np.save(os.path.join(output_folder, "X_test.npy"), X_test)
-
-    # np.save(os.path.join(output_folder, "Y_train.npy"), Y_train)
-    # np.save(os.path.join(output_folder, "Y_val.npy"), Y_val)
-    # np.save(os.path.join(output_folder, "Y_test.npy"), Y_test)
-    # Save
-    print("Saving data as TFRecords...")
-
+    # Augment  by taking inverse complement bases
+    print("Augmenting and saving train data...")
+    X_train = np.concatenate([X_train, X_train[:, ::-1, ::-1]], axis=0)
+    Y_train = np.concatenate([Y_train, Y_train], axis=0)
     save_data_as_tfrecord("train", X_train, Y_train, output_folder)
+    print("X_train:", X_train.shape)
+    print("Y_train:", Y_train.shape)
+    del X_train, Y_train
+
+    print("Augmenting and saving val data...")
+    X_val = np.concatenate([X_val, X_val[:, ::-1, ::-1]], axis=0)
+    Y_val = np.concatenate([Y_val, Y_val], axis=0)
     save_data_as_tfrecord("val", X_val, Y_val, output_folder)
+    print("X_val:", X_val.shape)
+    print("Y_val:", Y_val.shape)
+    del X_val, Y_val
+
+    print("Augmenting and saving test data...")
+    X_test = np.concatenate([X_test, X_test[:, ::-1, ::-1]], axis=0)
+    Y_test = np.concatenate([Y_test, Y_test], axis=0)
     save_data_as_tfrecord("test", X_test, Y_test, output_folder)
+    print("X_test:", X_test.shape)
+    print("Y_test:", Y_test.shape)
+    del X_test, Y_test
 
 
 if __name__ == "__main__":
