@@ -88,6 +88,8 @@ inputs: bed
 
 bigwig: bed
 	echo "Creating bigwig files..."
+	echo "Warning: removing data/interim/bw/"
+	rm -rf data/interim/bw
 	scripts/all_ct_bigwigAverageOverBed.sh -o "data/interim/bw/" -b "data/raw/bw/" -p "data/interim/consensus_peaks_1000.bed"
 
 targets: bigwig
@@ -96,7 +98,7 @@ targets: bigwig
 split:
 	python src/data/train_val_test_split.py data/interim data/processed
 
-data: config inputs targets split # will run everything
+data: inputs targets split # will run everything
 
 ## Model training
 train:
