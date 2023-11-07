@@ -13,7 +13,7 @@ from deeppeak.model import ChromBPNet
 from deeppeak.metrics import get_lr_metric, PearsonCorrelation
 from deeppeak.loss import custom_loss
 
-seed = 42
+seed = 777
 tf.random.set_seed(seed)
 
 
