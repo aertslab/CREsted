@@ -25,7 +25,7 @@ patience: 5  # number of epochs to wait before early stopping
 path_to_pretrained_model: ''  # continue from checkpoint. Leave empty if starting from scratch
 
 # augmentations
-augment_complement: True  # complement base pairs
+augment_complement: False  # complement base pairs
 
 # Model architecture
 ## First convblock
