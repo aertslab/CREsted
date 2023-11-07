@@ -13,6 +13,9 @@ from deeppeak.model import ChromBPNet
 from deeppeak.metrics import get_lr_metric, PearsonCorrelation
 from deeppeak.loss import custom_loss
 
+seed = 42
+tf.random.set_seed(seed)
+
 
 def model_callbacks(checkpoint_dir: str, patience: int, use_wandb: bool) -> list:
     """Get model callbacks."""
@@ -26,7 +29,7 @@ def model_callbacks(checkpoint_dir: str, patience: int, use_wandb: bool) -> list
     callbacks.append(checkpoint)
 
     # Early stopping
-    early_stop_metric = "val_loss"
+    early_stop_metric = "val_pearson_correlation"
     early_stop = tf.keras.callbacks.EarlyStopping(
         monitor=early_stop_metric, patience=patience, mode="max"
     )
@@ -44,9 +47,11 @@ def model_callbacks(checkpoint_dir: str, patience: int, use_wandb: bool) -> list
 
     # Wandb
     if use_wandb:
-        wandb_callback = WandbMetricsLogger(log_freq=10)
+        wandb_callback_epoch = WandbMetricsLogger(log_freq="epoch")
+        wandb_callback_batch = WandbMetricsLogger(log_freq=10)
         wandb_model_callback = WandbCallback()
-        callbacks.append(wandb_callback)
+        callbacks.append(wandb_callback_epoch)
+        callbacks.append(wandb_callback_batch)
         callbacks.append(wandb_model_callback)
 
     return callbacks
@@ -168,21 +173,21 @@ def main(input_dir: str, output_dir: str):
             ],
         )
 
-        callbacks = model_callbacks(checkpoint_dir, config["patience"], config["wandb"])
-        output = model(tf.random.normal([batch_size, config["seq_len"], 4]))
-        assert output.shape == (batch_size, config["num_classes"])
+    callbacks = model_callbacks(checkpoint_dir, config["patience"], config["wandb"])
+    output = model(tf.random.normal([batch_size, config["seq_len"], 4]))
+    assert output.shape == (batch_size, config["num_classes"])
 
-        train_steps_per_epoch = total_number_of_training_samples // batch_size
-        val_steps_per_epoch = total_number_of_validation_samples // batch_size
+    train_steps_per_epoch = total_number_of_training_samples // batch_size
+    val_steps_per_epoch = total_number_of_validation_samples // batch_size
 
-        model.fit(
-            train,
-            steps_per_epoch=train_steps_per_epoch,
-            validation_steps=val_steps_per_epoch,
-            validation_data=val,
-            epochs=config["epochs"],
-            callbacks=callbacks,
-        )
+    model.fit(
+        train,
+        steps_per_epoch=train_steps_per_epoch,
+        validation_steps=val_steps_per_epoch,
+        validation_data=val,
+        epochs=config["epochs"],
+        callbacks=callbacks,
+    )
 
     loss, mae, rmse, cos, pearson, lr = model.evaluate(val, steps=val_steps_per_epoch)
     print(f"Validation Loss (MAE): {mae}")
