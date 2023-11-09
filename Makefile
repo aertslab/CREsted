@@ -40,6 +40,10 @@ clean:
 clean_wandb:
 	rm -rf wandb
 
+## Delete all slurm logs
+clean_logs:
+	find . -type f -name "*slurm*" -delete
+
 ## Lint using flake8 on src/ while ignoring 'line too long' errors
 lint:
 	flake8 src/ --ignore=E501
