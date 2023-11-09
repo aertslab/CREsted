@@ -31,7 +31,7 @@ def count_samples_in_tfrecords(file_pattern):
     return num_samples
 
 
-def load_chunked_tfrecord_dataset(file_pattern, config, num_samples):
+def load_chunked_tfrecord_dataset(file_pattern, config, num_samples, batch_size):
     """
     Load data from multiple chunked TFRecord files and shuffle the data.
     """
@@ -40,14 +40,14 @@ def load_chunked_tfrecord_dataset(file_pattern, config, num_samples):
 
     dataset = tf.data.TFRecordDataset(files)
     parse_func = partial(_parse_function, file_pattern=file_pattern, config=config)
+
+    dataset = dataset.shuffle(buffer_size=config["shuffle_buffer_size"])
+    # dataset = dataset.repeat(config["epochs"])
+    dataset = dataset.batch(batch_size, drop_remainder=True)
     dataset = dataset.map(parse_func)
 
     if config["fraction_of_data"] < 1.0:
         dataset = dataset.take(int(num_samples))
-
-    dataset = dataset.shuffle(buffer_size=config["shuffle_buffer_size"])
-    dataset = dataset.repeat(config["epochs"])
-    dataset = dataset.batch(config["batch_size"])
     dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
     # Batch and prefetch
@@ -55,15 +55,25 @@ def load_chunked_tfrecord_dataset(file_pattern, config, num_samples):
 
 
 def _parse_function(example_proto, file_pattern: str, config: dict):
-    """Load a single example from a TFRecord file and augment the data."""
+    """Load a batch of examples from a TFRecord file and augment the data."""
     feature_description = {
         "X": tf.io.FixedLenFeature([], tf.string),
         "Y": tf.io.FixedLenFeature([], tf.string),
     }
-    example = tf.io.parse_single_example(example_proto, feature_description)
+    # Parse all examples in the batch
+    examples = tf.io.parse_example(example_proto, feature_description)
 
-    X = tf.io.parse_tensor(example["X"], out_type=tf.uint8)
-    Y = tf.io.parse_tensor(example["Y"], out_type=tf.double)
+    # Decode each example in the batch
+    X = tf.map_fn(
+        lambda x: tf.io.parse_tensor(x, out_type=tf.uint8),
+        examples["X"],
+        dtype=tf.uint8,
+    )
+    Y = tf.map_fn(
+        lambda x: tf.io.parse_tensor(x, out_type=tf.double),
+        examples["Y"],
+        dtype=tf.double,
+    )
 
     # Cast it back to float
     X = tf.cast(X, tf.float32)
@@ -72,9 +82,10 @@ def _parse_function(example_proto, file_pattern: str, config: dict):
     # Data augmentations here
     if "train" in file_pattern:
         if config["augment_complement"]:
-            X = complement_base(X)
+            X = tf.map_fn(complement_base, X, dtype=tf.float32)
 
-    X.set_shape([config["seq_len"], 4])
-    Y.set_shape([config["num_classes"]])
+    # Set the shape of the tensors in the batch
+    X.set_shape([None, config["seq_len"], 4])
+    Y.set_shape([None, config["num_classes"]])
 
     return X, Y

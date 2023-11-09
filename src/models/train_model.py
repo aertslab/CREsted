@@ -3,7 +3,6 @@ import tensorflow as tf
 import yaml
 import os
 from datetime import datetime
-import atexit
 
 import wandb
 from wandb.keras import WandbMetricsLogger, WandbCallback
@@ -25,6 +24,7 @@ def model_callbacks(checkpoint_dir: str, patience: int, use_wandb: bool) -> list
         os.path.join(checkpoint_dir, "{epoch:02d}"),
         save_freq="epoch",
         save_best_only=True,
+        save_weights_only=False,
     )
     callbacks.append(checkpoint)
 
@@ -81,7 +81,6 @@ def main(input_dir: str, output_dir: str):
 
     # Train on GPU
     strategy = tf.distribute.MirroredStrategy()
-    atexit.register(strategy._extended._collective_ops._pool.close)
     gpus_found = tf.config.list_physical_devices("GPU")
 
     print("Number of replica devices in use: {}".format(strategy.num_replicas_in_sync))
@@ -125,16 +124,20 @@ def main(input_dir: str, output_dir: str):
             }
         )
 
-    batch_size = config["batch_size"] * strategy.num_replicas_in_sync
+    batch_size = config["batch_size"]
+    global_batch_size = batch_size * strategy.num_replicas_in_sync
+
     train = load_chunked_tfrecord_dataset(
         os.path.join(input_dir, "train", "*.tfrecord"),
         config,
         total_number_of_training_samples,
+        global_batch_size,
     )
     val = load_chunked_tfrecord_dataset(
         os.path.join(input_dir, "val", "*.tfrecord"),
         config,
-        batch_size,
+        total_number_of_validation_samples,
+        global_batch_size,
     )
 
     # Get one batch to check shapes
@@ -142,8 +145,8 @@ def main(input_dir: str, output_dir: str):
         print(f"Input shape: {x.shape}")
         print(f"Output shape: {y.shape}")
 
-    train = strategy.experimental_distribute_dataset(train)
-    val = strategy.experimental_distribute_dataset(val)
+    # train = strategy.experimental_distribute_dataset(train)
+    # val = strategy.experimental_distribute_dataset(val)
 
     # Initialize the model
     with strategy.scope():
@@ -177,8 +180,8 @@ def main(input_dir: str, output_dir: str):
     output = model(tf.random.normal([batch_size, config["seq_len"], 4]))
     assert output.shape == (batch_size, config["num_classes"])
 
-    train_steps_per_epoch = total_number_of_training_samples // batch_size
-    val_steps_per_epoch = total_number_of_validation_samples // batch_size
+    train_steps_per_epoch = total_number_of_training_samples // global_batch_size
+    val_steps_per_epoch = total_number_of_validation_samples // global_batch_size
 
     model.fit(
         train,
@@ -189,12 +192,12 @@ def main(input_dir: str, output_dir: str):
         callbacks=callbacks,
     )
 
-    loss, mae, rmse, cos, pearson, lr = model.evaluate(val, steps=val_steps_per_epoch)
-    print(f"Validation Loss (MAE): {mae}")
-    print(f"Validation Loss (RMSE): {rmse}")
-    print(f"Validation Loss (Cosine Similarity): {cos}")
-    print(f"Validation Loss (Pearson Correlation): {pearson}")
-    print(f"Validation Loss (Learning Rate): {lr}")
+    # loss, mae, rmse, cos, pearson, lr = model.evaluate(val, steps=val_steps_per_epoch)
+    # print(f"Validation Loss (MAE): {mae}")
+    # print(f"Validation Loss (RMSE): {rmse}")
+    # print(f"Validation Loss (Cosine Similarity): {cos}")
+    # print(f"Validation Loss (Pearson Correlation): {pearson}")
+    # print(f"Validation Loss (Learning Rate): {lr}")
 
     if config["wandb"]:
         run.finish()
