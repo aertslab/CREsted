@@ -15,7 +15,7 @@ dependencies:
   - pyyaml
   - pip
   - pip:
-    - tensorflow[and-cuda]==2.8.4
+    - tensorflow[and-cuda]==2.14.0
     - weblogo
     - pyBigWig # bigwig file indexing
     - pyfaidx # bed file indexing
