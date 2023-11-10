@@ -48,6 +48,7 @@ def load_chunked_tfrecord_dataset(file_pattern, config, num_samples, batch_size)
 
     if config["fraction_of_data"] < 1.0:
         dataset = dataset.take(int(num_samples))
+    dataset = dataset.repeat(config["epochs"])
     dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
     # Batch and prefetch
