@@ -5,3 +5,4 @@ configs/user.yml
 wandb/
 scripts/personal
 *slurm*
+logs/
