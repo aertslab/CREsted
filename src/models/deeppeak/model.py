@@ -192,64 +192,6 @@ class ConvChromBlock(layers.Layer):
         return cls(**config)
 
 
-# @tf.keras.utils.register_keras_serializable(package="ChromBPNet")
-# class ChromBPNet(tf.keras.Model):
-#     def __init__(self, num_classes: int, config: dict, **kwargs):
-#         super().__init__(**kwargs)
-
-#         self.config = config
-
-#         self.num_classes = num_classes
-
-#         self.conv1 = ConvResBlock(
-#             filters=self.config["first_conv_filters"],
-#             kernel_size=self.config["first_conv_filter_size"],
-#             pool_size=self.config["first_conv_pool_size"],
-#             activation=self.config["first_conv_activation"],
-#             l2=self.config["first_conv_l2"],
-#             dropout=self.config["first_conv_dropout"],
-#             res=self.config["first_conv_res"],
-#         )
-#         self.conv_blocks = [
-#             ConvChromBlock(
-#                 filters=self.config["num_filters"],
-#                 kernel_size=self.config["filter_size"],
-#                 activation=self.config["activation"],
-#                 l2=self.config["l2"],
-#                 dropout=self.config["dropout"],
-#                 use_bias=False,
-#                 dilation_rate=2**i,
-#             )
-#             for i in range(1, self.config["n_dil_layers"] + 1)
-#         ]
-
-#         self.pooling = layers.GlobalAveragePooling1D()
-#         self.dense = layers.Dense(
-#             units=self.num_classes,
-#             activation="linear",
-#             use_bias=self.config["dense_bias"],
-#         )
-
-#     def call(self, inputs, training=False):
-#         x = self.conv1(inputs)
-#         for conv_block in self.conv_blocks:
-#             x = conv_block(x)  # 8 times
-#         x = self.pooling(x)
-#         x = self.dense(x)
-
-#         return x
-
-#     def get_config(self):
-#         base_config = super().get_config()
-#         config = {
-#             "conv1": self.conv1,
-#             "conv_blocks": [conv_block for conv_block in self.conv_blocks],
-#             "pooling": self.pooling,
-#             "dense": self.dense,
-#         }
-#         return {**base_config, **config}
-
-
 def ChromBPNet(config: dict):
     """Functioncal ChromBPNet model definition."""
     input_shape = (config["seq_len"], 4)
