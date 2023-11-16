@@ -12,11 +12,10 @@ from deeppeak.model import ChromBPNet
 from deeppeak.metrics import get_lr_metric, PearsonCorrelation
 from deeppeak.loss import custom_loss
 
-seed = 777
-tf.random.set_seed(seed)
 
-
-def model_callbacks(checkpoint_dir: str, patience: int, use_wandb: bool) -> list:
+def model_callbacks(
+    checkpoint_dir: str, patience: int, use_wandb: bool, profile: bool
+) -> list:
     """Get model callbacks."""
     callbacks = []
     # Checkpoints
@@ -54,10 +53,12 @@ def model_callbacks(checkpoint_dir: str, patience: int, use_wandb: bool) -> list
         callbacks.append(wandb_callback_batch)
         callbacks.append(wandb_model_callback)
 
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(
-        log_dir="data/output/logs/test", histogram_freq=1, profile_batch="1, 64"
-    )
-    callbacks.append(tensorboard_callback)
+    if profile:
+        print("Profiling enabled. Saving to logs/")
+        tensorboard_callback = tf.keras.callbacks.TensorBoard(
+            log_dir="logs/", histogram_freq=1, profile_batch="1, 64"
+        )
+        callbacks.append(tensorboard_callback)
 
     return callbacks
 
@@ -78,6 +79,8 @@ def main(input_dir: str, output_dir: str):
             config=config,
             name=now,
         )
+    if int(config["seed"]) > 0:
+        tf.random.set_seed(int(config["seed"]))
 
     checkpoint_dir = os.path.join(output_dir, config["project_name"], now)
 
@@ -159,7 +162,15 @@ def main(input_dir: str, output_dir: str):
 
         if pt_model:
             print(f"Continuing training from pretrained model {pt_model}...")
-            model = tf.keras.models.load_model(pt_model, compile=False)
+            model = tf.keras.models.load_model(
+                pt_model,
+                compile=True,
+                custom_objects={
+                    "lr": get_lr_metric,
+                    "PearsonCorrelation": PearsonCorrelation,
+                    "custom_loss": custom_loss,
+                },
+            )
 
         else:
             print("Training from scratch...")
@@ -181,10 +192,16 @@ def main(input_dir: str, output_dir: str):
             ],
         )
 
-    callbacks = model_callbacks(checkpoint_dir, config["patience"], config["wandb"])
+    # Get callbacks
+    callbacks = model_callbacks(
+        checkpoint_dir, config["patience"], config["wandb"], config["profile"]
+    )
+
+    # Check model output shape
     output = model(tf.random.normal([batch_size, config["seq_len"], 4]))
     assert output.shape == (batch_size, config["num_classes"])
 
+    # Train the model
     train_steps_per_epoch = total_number_of_training_samples // global_batch_size
     val_steps_per_epoch = total_number_of_validation_samples // global_batch_size
 
@@ -199,13 +216,6 @@ def main(input_dir: str, output_dir: str):
         workers=32,
         max_queue_size=32,
     )
-
-    # loss, mae, rmse, cos, pearson, lr = model.evaluate(val, steps=val_steps_per_epoch)
-    # print(f"Validation Loss (MAE): {mae}")
-    # print(f"Validation Loss (RMSE): {rmse}")
-    # print(f"Validation Loss (Cosine Similarity): {cos}")
-    # print(f"Validation Loss (Pearson Correlation): {pearson}")
-    # print(f"Validation Loss (Learning Rate): {lr}")
 
     if config["wandb"]:
         run.finish()
