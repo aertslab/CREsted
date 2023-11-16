@@ -119,6 +119,7 @@ class ConvChromBlock(layers.Layer):
         l2: float = 1e-5,
         dropout: float = 0.25,
         use_bias: bool = True,
+        batch_norm: bool = True,
         dilation_rate: int = 1,
         **kwargs
     ):
@@ -131,6 +132,7 @@ class ConvChromBlock(layers.Layer):
         self.l2 = l2
         self.dropout = dropout
         self.use_bias = use_bias
+        self.batch_norm = batch_norm
         self.dilation_rate = dilation_rate
 
         # layers
@@ -146,9 +148,15 @@ class ConvChromBlock(layers.Layer):
             dilation_rate=self.dilation_rate,
         )
 
-        self.bn = layers.BatchNormalization(momentum=0.9, gamma_initializer="ones")
-        self.activation_layer = layers.Activation(self.activation)
-        self.dropout_layer = layers.Dropout(self.dropout)
+        self.bn = (
+            layers.BatchNormalization(momentum=0.9, gamma_initializer="ones")
+            if self.batch_norm
+            else None
+        )
+        self.activation_layer = (
+            layers.Activation(self.activation) if self.activation != "none" else None
+        )
+        self.dropout_layer = layers.Dropout(self.dropout) if self.dropout > 0 else None
 
     # def build(self, input_shape):
     #     # Explicitly build the primary convolution layer
@@ -159,8 +167,10 @@ class ConvChromBlock(layers.Layer):
     def call(self, inputs):
         x = inputs
         conv_x = self.conv(inputs)
-        conv_x = self.bn(conv_x)
-        conv_x = self.activation_layer(conv_x)
+        if self.batch_norm:
+            conv_x = self.bn(conv_x)
+        if self.activation != "none":
+            conv_x = self.activation_layer(conv_x)
 
         x_len = int_shape(x)[1]
         conv_x_len = int_shape(conv_x)[1]
@@ -170,7 +180,8 @@ class ConvChromBlock(layers.Layer):
             x = layers.Conv1D(filters=self.num_filters, kernel_size=1, strides=1)(x)
         x = layers.Cropping1D((x_len - conv_x_len) // 2)(x)
         x = layers.add([conv_x, x])
-        x = self.dropout_layer(x)
+        if self.dropout > 0:
+            x = self.dropout_layer(x)
 
         return x
 
@@ -217,6 +228,7 @@ def ChromBPNet(config: dict):
             l2=config["l2"],
             dropout=config["dropout"],
             use_bias=False,
+            batch_norm=config["batch_norm"],
             dilation_rate=2**i,
         )(x)
 
