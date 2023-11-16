@@ -54,6 +54,11 @@ def model_callbacks(checkpoint_dir: str, patience: int, use_wandb: bool) -> list
         callbacks.append(wandb_callback_batch)
         callbacks.append(wandb_model_callback)
 
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(
+        log_dir="data/output/logs/test", histogram_freq=1, profile_batch="1, 64"
+    )
+    callbacks.append(tensorboard_callback)
+
     return callbacks
 
 
@@ -190,6 +195,9 @@ def main(input_dir: str, output_dir: str):
         validation_data=val,
         epochs=config["epochs"],
         callbacks=callbacks,
+        use_multiprocessing=True,
+        workers=32,
+        max_queue_size=32,
     )
 
     # loss, mae, rmse, cos, pearson, lr = model.evaluate(val, steps=val_steps_per_epoch)
