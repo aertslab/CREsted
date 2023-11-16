@@ -5,6 +5,7 @@ from tensorflow.python.ops import math_ops
 from tensorflow.python.keras import backend as K
 
 
+@tf.function
 def custom_loss(y_true, y_pred):
     y_true1 = nn.l2_normalize(y_true, axis=-1)
     y_pred1 = nn.l2_normalize(y_pred, axis=-1)

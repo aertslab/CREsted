@@ -98,6 +98,9 @@ def main(input_dir: str, output_dir: str):
         wandb.config.update({"num_gpus_available": len(gpus_found)})
         wandb.config.update({"num_devices_used": strategy.num_replicas_in_sync})
 
+    # Mixed precision (for GPU)
+    tf.keras.mixed_precision.set_global_policy("mixed_float16")
+
     # Load data
     fraction_of_data = config["fraction_of_data"]
 
