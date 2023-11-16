@@ -1,9 +1,8 @@
+# !!! DON'T EDIT THIS FILE !!! 
 # Default configuration file for the project.
-# !!! Don't edit this file directly !!! 
 # Instead, create a user.yml file in /configs and
-# add/overwrite the values in the user.yml file.
-# User configs take priority over default configs.
-# Only update default configs after extensive testing and discussion with team.
+# copy the contents of this file into the user.yml file.
+# Add/overwrite the values in the user.yml file.
 
 # general
 project_name: 'mouse'  # used for naming output folders
@@ -17,15 +16,19 @@ shuffle_buffer_size: 10000
 
 # Training
 wandb: True
-epochs: 60
-batch_size: 256
+epochs: 30
+batch_size: 128
 learning_rate: 0.001
-fraction_of_data: 1.0  # fraction of data to use for training. Only lower for debugging.
 patience: 5  # number of epochs to wait before early stopping
-path_to_pretrained_model: ''  # continue from checkpoint. Leave empty if starting from scratch
+pretrained_model_path: ''  # continue from checkpoint. Leave empty if starting from scratch
 
-# augmentations
-augment_complement: False  # complement base pairs
+# Debugging
+fraction_of_data: 1.0  # fraction of data to use for training. Only lower for debugging.
+profile: False  # profile training with TensorBoard profiler
+seed: 0  # set seed for reproducibility. Set to 0 for random seed
+
+# augmentations (online)
+augment_complement: False  # inverse complement base pairs during training (50 % chance)
 
 # Model architecture
 ## First convblock
@@ -41,7 +44,8 @@ first_conv_res: False
 num_filters: 512
 n_dil_layers: 8
 filter_size: 3
-activation: 'relu'
+activation: 'relu'  # 'activation_name' or 'none'
 l2: 0.00001
-dropout: 0.1
+dropout: 0.1  # set to 0.0 for no dropout
+batch_norm: True
 dense_bias: True
