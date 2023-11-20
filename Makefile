@@ -10,7 +10,7 @@ endif
 
 ENV_NAME=deeppeak
 
-ifeq (,$(shell conda env list | grep $(ENV_NAME)))
+ifeq (,$(shell conda env list | grep -w $(ENV_NAME)))
 HAS_ENV=False
 else
 HAS_ENV=True

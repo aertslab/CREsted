@@ -7,7 +7,12 @@ from datetime import datetime
 import wandb
 from wandb.keras import WandbMetricsLogger, WandbCallback
 
-from dataloader import load_chunked_tfrecord_dataset, count_samples_in_tfrecords
+from dataloader import (
+    load_chunked_tfrecord_dataset,
+    count_samples_in_tfrecords,
+    CustomDataLoader,
+)
+
 from deeppeak.model import ChromBPNet
 from deeppeak.metrics import get_lr_metric, PearsonCorrelation
 from deeppeak.loss import custom_loss
@@ -88,8 +93,12 @@ def main(input_dir: str, output_dir: str):
         os.makedirs(output_dir)
 
     # Train on GPU
-    strategy = tf.distribute.MirroredStrategy()
     gpus_found = tf.config.list_physical_devices("GPU")
+
+    # for gpu in gpus_found:
+    #     tf.config.experimental.set_memory_growth(gpu, True)
+
+    strategy = tf.distribute.MirroredStrategy()
 
     print("Number of replica devices in use: {}".format(strategy.num_replicas_in_sync))
     print("Number of GPUs available: {}".format(len(gpus_found)))
@@ -101,99 +110,155 @@ def main(input_dir: str, output_dir: str):
     # Mixed precision (for GPU)
     tf.keras.mixed_precision.set_global_policy("mixed_float16")
 
-    # Load data
-    fraction_of_data = config["fraction_of_data"]
+    # # Load data
+    # fraction_of_data = config["fraction_of_data"]
 
-    total_number_of_training_samples = count_samples_in_tfrecords(
-        os.path.join(input_dir, "train", "*.tfrecord")
-    )
-    total_number_of_validation_samples = count_samples_in_tfrecords(
-        os.path.join(input_dir, "val", "*.tfrecord")
-    )
-    total_number_of_test_samples = count_samples_in_tfrecords(
-        os.path.join(input_dir, "test", "*.tfrecord")
-    )
-    if fraction_of_data < 1.0:
-        # Testing
-        print(f"WARNING: Using {fraction_of_data} of the data. ")
-        total_number_of_training_samples = int(
-            total_number_of_training_samples * fraction_of_data
-        )
-        total_number_of_validation_samples = int(
-            total_number_of_validation_samples * fraction_of_data
-        )
-        total_number_of_test_samples = int(
-            total_number_of_test_samples * fraction_of_data
-        )
+    # total_number_of_training_samples = count_samples_in_tfrecords(
+    #     os.path.join(input_dir, "train", "*.tfrecord")
+    # )
+    # total_number_of_validation_samples = count_samples_in_tfrecords(
+    #     os.path.join(input_dir, "val", "*.tfrecord")
+    # )
+    # total_number_of_test_samples = count_samples_in_tfrecords(
+    #     os.path.join(input_dir, "test", "*.tfrecord")
+    # )
+    # if fraction_of_data < 1.0:
+    #     # Testing
+    #     print(f"WARNING: Using {fraction_of_data} of the data. ")
+    #     total_number_of_training_samples = int(
+    #         total_number_of_training_samples * fraction_of_data
+    #     )
+    #     total_number_of_validation_samples = int(
+    #         total_number_of_validation_samples * fraction_of_data
+    #     )
+    #     total_number_of_test_samples = int(
+    #         total_number_of_test_samples * fraction_of_data
+    #     )
 
-    if config["wandb"]:
-        wandb.config.update(
-            {
-                "N_train": total_number_of_training_samples,
-                "N_val": total_number_of_validation_samples,
-                "N_test": total_number_of_test_samples,
-            }
-        )
+    # if config["wandb"]:
+    #     wandb.config.update(
+    #         {
+    #             "N_train": total_number_of_training_samples,
+    #             "N_val": total_number_of_validation_samples,
+    #             "N_test": total_number_of_test_samples,
+    #         }
+    #     )
 
     batch_size = config["batch_size"]
     global_batch_size = batch_size * strategy.num_replicas_in_sync
 
-    train = load_chunked_tfrecord_dataset(
-        os.path.join(input_dir, "train", "*.tfrecord"),
-        config,
-        total_number_of_training_samples,
-        global_batch_size,
-    )
-    val = load_chunked_tfrecord_dataset(
-        os.path.join(input_dir, "val", "*.tfrecord"),
-        config,
-        total_number_of_validation_samples,
-        global_batch_size,
+    # train = load_chunked_tfrecord_dataset(
+    #     os.path.join(input_dir, "train", "*.tfrecord"),
+    #     config,
+    #     total_number_of_training_samples,
+    #     global_batch_size,
+    # )
+    # val = load_chunked_tfrecord_dataset(
+    #     os.path.join(input_dir, "val", "*.tfrecord"),
+    #     config,
+    #     total_number_of_validation_samples,
+    #     global_batch_size,
+    # )
+
+    # No auto sharding since we are using a custom generator
+    # options = tf.data.Options()
+    # options.experimental_distribute.auto_shard_policy = (
+    #     tf.data.experimental.AutoShardPolicy.OFF
+    # )
+
+    train = CustomDataLoader(
+        "data/interim/consensus_peaks_2114.bed",
+        "data/raw/genome.fa",
+        "data/interim/targets.npy",
+        {"val": ["chr8", "chr10"], "test": ["chr9", "chr18"]},
+        "train",
+        config["batch_size"],
+        True,
     )
 
+    val = CustomDataLoader(
+        "data/interim/consensus_peaks_2114.bed",
+        "data/raw/genome.fa",
+        "data/interim/targets.npy",
+        {"val": ["chr8", "chr10"], "test": ["chr9", "chr18"]},
+        "val",
+        config["batch_size"],
+        True,
+    )
+
+    # def generator(generator):
+    #     multi_enqueuer = keras.utils.data_utils.OrderedEnqueuer(
+    #         generator, use_multiprocessing=True
+    #     )
+    #     multi_enqueuer.start(workers=32, max_queue_size=32)
+    #     while True:
+    #         batch_xs, batch_ys = next(multi_enqueuer.get())
+    #         yield batch_xs, batch_ys
+
+    # train = tf.data.Dataset.from_generator(
+    #     generator,
+    #     (tf.float32, tf.float32),
+    #     (
+    #         tf.TensorShape([None, 2114, 4]),
+    #         tf.TensorShape([None, 19]),
+    #     ),
+    #     args=(train_gen,),
+    # )
+    # val = tf.data.Dataset.from_generator(
+    #     generator,
+    #     (tf.float32, tf.float32),
+    #     (
+    #         tf.TensorShape([None, 2114, 4]),
+    #         tf.TensorShape([None, 1]),
+    #         tf.TensorShape([None]),
+    #     ),
+    #     args=(val_gen,),
+    # )
+
     # Get one batch to check shapes
-    for x, y in train.take(1):
-        print(f"Input shape: {x.shape}")
-        print(f"Output shape: {y.shape}")
+    # for x, y in train:
+    #     print(f"Input shape: {x.shape}")
+    #     print(f"Output shape: {y.shape}")
+    #     break
 
     # train = strategy.experimental_distribute_dataset(train)
     # val = strategy.experimental_distribute_dataset(val)
 
     # Initialize the model
-    with strategy.scope():
-        pt_model = config["pretrained_model_path"]
+    # with strategy.scope():
+    pt_model = config["pretrained_model_path"]
 
-        if pt_model:
-            print(f"Continuing training from pretrained model {pt_model}...")
-            model = tf.keras.models.load_model(
-                pt_model,
-                compile=True,
-                custom_objects={
-                    "lr": get_lr_metric,
-                    "PearsonCorrelation": PearsonCorrelation,
-                    "custom_loss": custom_loss,
-                },
-            )
-
-        else:
-            print("Training from scratch...")
-            model = ChromBPNet(config)
-
-        optimizer = tf.keras.optimizers.Adam(learning_rate=config["learning_rate"])
-        lr_metric = get_lr_metric(optimizer)
-
-        # Compile the model
-        model.compile(
-            optimizer=optimizer,
-            loss=custom_loss,
-            metrics=[
-                tf.keras.metrics.MeanAbsoluteError(),
-                tf.keras.metrics.MeanSquaredError(),
-                tf.keras.metrics.CosineSimilarity(axis=1),
-                PearsonCorrelation(),
-                lr_metric,
-            ],
+    if pt_model:
+        print(f"Continuing training from pretrained model {pt_model}...")
+        model = tf.keras.models.load_model(
+            pt_model,
+            compile=True,
+            custom_objects={
+                "lr": get_lr_metric,
+                "PearsonCorrelation": PearsonCorrelation,
+                "custom_loss": custom_loss,
+            },
         )
+
+    else:
+        print("Training from scratch...")
+        model = ChromBPNet(config)
+
+    optimizer = tf.keras.optimizers.Adam(learning_rate=config["learning_rate"])
+    lr_metric = get_lr_metric(optimizer)
+
+    # Compile the model
+    model.compile(
+        optimizer=optimizer,
+        loss=custom_loss,
+        metrics=[
+            tf.keras.metrics.MeanAbsoluteError(),
+            tf.keras.metrics.MeanSquaredError(),
+            tf.keras.metrics.CosineSimilarity(axis=1),
+            PearsonCorrelation(),
+            lr_metric,
+        ],
+    )
 
     # Get callbacks
     callbacks = model_callbacks(
@@ -205,19 +270,19 @@ def main(input_dir: str, output_dir: str):
     assert output.shape == (batch_size, config["num_classes"])
 
     # Train the model
-    train_steps_per_epoch = total_number_of_training_samples // global_batch_size
-    val_steps_per_epoch = total_number_of_validation_samples // global_batch_size
+    # train_steps_per_epoch = total_number_of_training_samples // global_batch_size
+    # val_steps_per_epoch = total_number_of_validation_samples // global_batch_size
 
     model.fit(
         train,
-        steps_per_epoch=train_steps_per_epoch,
-        validation_steps=val_steps_per_epoch,
+        # steps_per_epoch=train_steps_per_epoch,
+        # validation_steps=val_steps_per_epoch,
         validation_data=val,
         epochs=config["epochs"],
         callbacks=callbacks,
-        use_multiprocessing=True,
-        workers=32,
-        max_queue_size=32,
+        # use_multiprocessing=True,
+        # workers=32,
+        # max_queue_size=32,
     )
 
     if config["wandb"]:
