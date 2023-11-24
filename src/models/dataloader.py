@@ -68,6 +68,7 @@ class CustomDataLoader(tf.keras.utils.Sequence):
         targets: str,
         split_dict: dict,
         set_type: str,
+        augment_complement: bool = True,
         batch_size: int = 32,
         shuffle: bool = True,
         fraction_of_data: float = 1.0,
@@ -77,6 +78,7 @@ class CustomDataLoader(tf.keras.utils.Sequence):
         self.targets = np.load(targets)
         self.split_dict = split_dict
         self.set_type = set_type
+        self.augment_complement = augment_complement
         self.batch_size = batch_size
         self.genomic_pyfasta = pyfaidx.Fasta(
             genome_fasta_file, sequence_always_upper=True
@@ -137,6 +139,8 @@ class CustomDataLoader(tf.keras.utils.Sequence):
             sequence = str(self.genomic_pyfasta[chrom][start:end].seq)
             sequence_bytes = np.frombuffer(sequence.encode("ascii"), dtype=np.uint8)
             batch_x[i] = self.hot_encoding_table[sequence_bytes]
+            if self.augment_complement:
+                batch_x[i] = complement_base(batch_x[i])
 
         return np.array(batch_x), np.array(batch_y)
 
@@ -154,10 +158,17 @@ if __name__ == "__main__":
 
     split_dict = {"val": ["chr8", "chr10"], "test": ["chr9", "chr18"]}
     set_type = "val"
-    batch_size = 1024
+    batch_size = 1
 
     loader = CustomDataLoader(
-        bed_file, genome_fasta_file, targets, split_dict, set_type, batch_size, True
+        bed_file,
+        genome_fasta_file,
+        targets,
+        split_dict,
+        set_type,
+        True,
+        batch_size,
+        False,
     )
     print(len(loader))
     # Get one batch
