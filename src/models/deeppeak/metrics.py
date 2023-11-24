@@ -30,6 +30,7 @@ class PearsonCorrelation(tf.keras.metrics.Metric):
         )
         self.count = self.add_weight(name="count", initializer="zeros")
 
+    @tf.function
     def update_state(self, y_true, y_pred, sample_weight=None):
         y_true = tf.cast(y_true, tf.float32)
         y_pred = tf.cast(y_pred, tf.float32)
@@ -41,6 +42,7 @@ class PearsonCorrelation(tf.keras.metrics.Metric):
         self.y_true_y_pred_sum.assign_add(tf.reduce_sum(y_true * y_pred))
         self.count.assign_add(tf.cast(tf.size(y_true), tf.float32))
 
+    @tf.function
     def result(self):
         numerator = (
             self.count * self.y_true_y_pred_sum - self.y_true_sum * self.y_pred_sum
@@ -52,6 +54,7 @@ class PearsonCorrelation(tf.keras.metrics.Metric):
 
         return numerator / (denominator + tf.keras.backend.epsilon())
 
+    @tf.function
     def reset_state(self):
         self.y_true_sum.assign(0.0)
         self.y_pred_sum.assign(0.0)
