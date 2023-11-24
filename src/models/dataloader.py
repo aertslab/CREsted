@@ -1,97 +1,8 @@
 """Helper functions for loading data from tfRecords."""
 import tensorflow as tf
 from augment import complement_base
-from functools import partial
 import pyfaidx
 import numpy as np
-
-
-def count_samples_in_tfrecords(file_pattern):
-    """
-    Count the number of samples in a set of TFRecord files.
-
-    Args:
-        file_pattern (str): Glob pattern to match TFRecord files.
-
-    Returns:
-        int: Total number of samples.
-    """
-    # Create a dataset from the file pattern
-    files = tf.data.Dataset.list_files(file_pattern)
-
-    # Initialize a counter
-    num_samples = 0
-
-    # Iterate over each file and count the number of records
-    for file in files:
-        # Use TFRecordDataset to read the file
-        dataset = tf.data.TFRecordDataset(file)
-
-        # Count records in this file
-        num_samples += sum(1 for _ in dataset)
-
-    return num_samples
-
-
-def load_chunked_tfrecord_dataset(file_pattern, config, num_samples, batch_size):
-    """
-    Load data from multiple chunked TFRecord files and shuffle the data.
-    """
-    # List files and shuffle them
-    files = tf.data.Dataset.list_files(file_pattern, shuffle=True)
-
-    dataset = tf.data.TFRecordDataset(files)
-    parse_func = partial(_parse_function, file_pattern=file_pattern, config=config)
-
-    dataset = dataset.shuffle(buffer_size=config["shuffle_buffer_size"])
-    # dataset = dataset.repeat(config["epochs"])
-    dataset = dataset.batch(batch_size, drop_remainder=True)
-    dataset = dataset.map(parse_func)
-
-    if config["fraction_of_data"] < 1.0:
-        dataset = dataset.take(int(num_samples))
-    dataset = dataset.repeat(config["epochs"])
-    dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
-
-    # Batch and prefetch
-    return dataset
-
-
-def _parse_function(example_proto, file_pattern: str, config: dict):
-    """Load a batch of examples from a TFRecord file and augment the data."""
-    feature_description = {
-        "X": tf.io.FixedLenFeature([], tf.string),
-        "Y": tf.io.FixedLenFeature([], tf.string),
-    }
-    # Parse all examples in the batch
-    examples = tf.io.parse_example(example_proto, feature_description)
-
-    # Decode each example in the batch
-    X = tf.map_fn(
-        lambda x: tf.io.parse_tensor(x, out_type=tf.uint8),
-        examples["X"],
-        dtype=tf.uint8,
-    )
-    Y = tf.map_fn(
-        lambda x: tf.io.parse_tensor(x, out_type=tf.double),
-        examples["Y"],
-        dtype=tf.double,
-    )
-
-    # Cast it back to float
-    X = tf.cast(X, tf.float32)
-    Y = tf.cast(Y, tf.float32)
-
-    # Data augmentations here
-    if "train" in file_pattern:
-        if config["augment_complement"]:
-            X = tf.map_fn(complement_base, X, dtype=tf.float32)
-
-    # Set the shape of the tensors in the batch
-    X.set_shape([None, config["seq_len"], 4])
-    Y.set_shape([None, config["num_classes"]])
-
-    return X, Y
 
 
 def get_hot_encoding_table(
@@ -159,6 +70,7 @@ class CustomDataLoader(tf.keras.utils.Sequence):
         set_type: str,
         batch_size: int = 32,
         shuffle: bool = True,
+        fraction_of_data: float = 1.0,
     ):
         self.bed_file = bed_file
         self.genome_fasta_file = genome_fasta_file
@@ -175,6 +87,7 @@ class CustomDataLoader(tf.keras.utils.Sequence):
         self.indices = self._get_indices_for_set_type(set_type)
 
         self.shuffle = shuffle
+        self.fraction_of_data = fraction_of_data
 
     def _get_indices_for_set_type(self, set_type: str):
         """Get indices for the specified set type (train/val/test)."""
@@ -198,7 +111,18 @@ class CustomDataLoader(tf.keras.utils.Sequence):
         return indices
 
     def __len__(self):
-        return int(np.ceil(len(self.indices) / self.batch_size))
+        if self.fraction_of_data < 1.0:
+            return int(
+                np.ceil(len(self.indices) * self.fraction_of_data / self.batch_size)
+            )
+        else:
+            return int(np.ceil(len(self.indices) / self.batch_size))
+
+    def __num_samples__(self):
+        if self.fraction_of_data < 1.0:
+            return int(np.ceil(len(self.indices) * self.fraction_of_data))
+        else:
+            return len(self.indices)
 
     def __getitem__(self, idx):
         """Return one batch of data."""
@@ -214,7 +138,7 @@ class CustomDataLoader(tf.keras.utils.Sequence):
             sequence_bytes = np.frombuffer(sequence.encode("ascii"), dtype=np.uint8)
             batch_x[i] = self.hot_encoding_table[sequence_bytes]
 
-        return batch_x, batch_y
+        return np.array(batch_x), np.array(batch_y)
 
     def on_epoch_end(self):
         """Shuffle indices after each epoch."""
@@ -229,7 +153,7 @@ if __name__ == "__main__":
     targets = "data/interim/targets.npy"
 
     split_dict = {"val": ["chr8", "chr10"], "test": ["chr9", "chr18"]}
-    set_type = "train"
+    set_type = "val"
     batch_size = 1024
 
     loader = CustomDataLoader(
@@ -239,4 +163,5 @@ if __name__ == "__main__":
     # Get one batch
     for x, y in loader:
         print(x.shape, y.shape)
+        break
     print("finished")
