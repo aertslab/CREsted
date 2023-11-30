@@ -1,0 +1,12 @@
+name: DeepLocus
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - python-dotenv>=0.5.1
+  - pip
+  - pip:
+    - tensorflow[and-cuda]==2.14.1
+    - flake8 # code linting
