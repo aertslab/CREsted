@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
 import argparse
-from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
 def parse_args():
