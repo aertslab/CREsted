@@ -4,7 +4,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.11
+  - python=3.10
   - python-dotenv>=0.5.1
   - pip
   - pip:
