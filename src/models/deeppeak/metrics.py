@@ -2,6 +2,8 @@
 
 import tensorflow as tf
 
+tf.keras.utils.get_custom_objects().clear()
+
 
 def get_lr_metric(optimizer):
     """Returns a function that gets the current learning rate from optimizer.
@@ -14,6 +16,7 @@ def get_lr_metric(optimizer):
     return lr
 
 
+@tf.keras.utils.register_keras_serializable(package="Metrics")
 class PearsonCorrelation(tf.keras.metrics.Metric):
     def __init__(self, name="pearson_correlation", **kwargs):
         super(PearsonCorrelation, self).__init__(name=name, **kwargs)
