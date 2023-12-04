@@ -105,4 +105,4 @@ data: inputs targets split # will run everything
 
 ## Model training
 train:
-	python src/models/train_model.py data/raw/genome.fa data/interim/consensus_peaks_2114.bed data/interim/targets.npy checkpoints/
+	python src/models/train.py data/raw/genome.fa data/interim/consensus_peaks_2114.bed data/interim/targets.npy checkpoints/
