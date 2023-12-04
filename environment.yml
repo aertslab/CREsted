@@ -21,7 +21,7 @@ dependencies:
     - pyfaidx # bed file indexing
     - fasta # pyfaidx
     - flake8 # code linting
-    - wandb
+    - wandb==0.15.12
     - matplotlib
-    - pandas==2.0.3
+    - pandas==2.1.3
     - chardet # wandb issue
