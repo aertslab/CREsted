@@ -253,7 +253,7 @@ def main(args: argparse.Namespace, config: dict):
                 custom_objects={
                     "lr": get_lr_metric,
                     "PearsonCorrelation": PearsonCorrelation,
-                    "custom_loss": CustomLoss(),
+                    "custom_loss": CustomLoss,
                 },
             )
 
@@ -267,7 +267,7 @@ def main(args: argparse.Namespace, config: dict):
         # Compile the model
         model.compile(
             optimizer=optimizer,
-            loss=CustomLoss(),
+            loss=CustomLoss(global_batch_size),
             metrics=[
                 tf.keras.metrics.MeanAbsoluteError(),
                 tf.keras.metrics.MeanSquaredError(),
