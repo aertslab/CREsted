@@ -43,9 +43,9 @@ clean_wandb:
 clean_logs:
 	find . -type f -name "*slurm*" -delete
 
-## Lint using flake8 on src/ while ignoring 'line too long' errors
+## Lint using flake8 on deeppeak/ while ignoring 'line too long' errors
 lint:
-	flake8 src/ --ignore=E501
+	flake8 deeppeak/ --ignore=E501
 
 ## Link data to raw and rename (use absolute paths)
 linkdata:
@@ -84,10 +84,10 @@ endif
 
 ## Make Datasets
 bed:
-	python src/data/preprocess_bed.py data/raw data/interim
+	python deeppeak/data/preprocess_bed.py data/raw data/interim
 
 inputs: bed
-	python src/data/create_inputs.py data/raw data/interim
+	python deeppeak/data/create_inputs.py data/raw data/interim
 
 bigwig: bed
 	echo "Creating bigwig files..."
@@ -96,13 +96,13 @@ bigwig: bed
 	scripts/all_ct_bigwigAverageOverBed.sh -o "data/interim/bw/" -b "data/raw/bw/" -p "data/interim/consensus_peaks_1000.bed"
 
 targets: bigwig
-	python src/data/create_targets.py data/interim data/interim
+	python deeppeak/data/create_targets.py data/interim data/interim
 
 split:
-	python src/data/train_val_test_split.py data/interim data/processed
+	python deeppeak/data/train_val_test_split.py data/interim data/processed
 
 data: inputs targets split # will run everything
 
 ## Model training
 train:
-	python src/models/train.py data/raw/genome.fa data/interim/consensus_peaks_2114.bed data/interim/targets.npy checkpoints/
+	python deeppeak/models/train.py data/raw/genome.fa data/interim/consensus_peaks_2114.bed data/interim/targets.npy checkpoints/
