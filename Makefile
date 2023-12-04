@@ -27,7 +27,6 @@ requirements:
 		conda env create --file environment.yml; \
 	else \
 		echo "Updating conda environment: $(ENV_NAME)"; \
-		/bin/bash -c "source activate $(ENV_NAME)"; \
 		conda env update --file environment.yml --prune; \
 	fi
 
@@ -106,4 +105,4 @@ data: inputs targets split # will run everything
 
 ## Model training
 train:
-	python src/models/train_model.py data/processed checkpoints/
+	python src/models/train_model.py data/raw/genome.fa data/interim/consensus_peaks_2114.bed data/interim/targets.npy checkpoints/
