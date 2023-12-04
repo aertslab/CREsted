@@ -1,7 +1,7 @@
-import click
 import tensorflow as tf
 import yaml
 import os
+import argparse
 from datetime import datetime
 
 import wandb
@@ -14,6 +14,41 @@ from deeppeak.metrics import get_lr_metric, PearsonCorrelation
 from deeppeak.loss import CustomLoss
 
 from augment import complement_base
+
+
+def parse_arguments() -> argparse.Namespace:
+    """Parse required command line arguments."""
+    parser = argparse.ArgumentParser(description="Train a model.")
+    parser.add_argument(
+        "-g",
+        "--genome_fasta_file",
+        type=str,
+        help="Path to genome FASTA file",
+        default="data/raw/genome.fa",
+    )
+    parser.add_argument(
+        "-b",
+        "--bed_file",
+        type=str,
+        help="Path to BED file",
+        default="data/interim/consensus_peaks_2114.bed",
+    )
+    parser.add_argument(
+        "-t",
+        "--targets_file",
+        type=str,
+        help="Path to targets file",
+        default="data/interim/targets.npy",
+    )
+    parser.add_argument(
+        "-o",
+        "--output_dir",
+        type=str,
+        help="Path to output directory",
+        default="checkpoints/",
+    )
+
+    return parser.parse_args()
 
 
 def model_callbacks(
@@ -122,7 +157,7 @@ def load_datasets(bed_file, genome_fasta_file, targets_file, config, batch_size)
     train_data = (
         dataset.subset("train")
         .map(mapped_function, num_parallel_calls=tf.data.AUTOTUNE)
-        .shuffle(256)
+        .shuffle(buffer_size=1024, reshuffle_each_iteration=True)
         .batch(batch_size, drop_remainder=True)
         .repeat(config["epochs"])
         .prefetch(tf.data.AUTOTUNE)
@@ -131,7 +166,7 @@ def load_datasets(bed_file, genome_fasta_file, targets_file, config, batch_size)
     val_data = (
         dataset.subset("val")
         .map(mapped_function, num_parallel_calls=tf.data.AUTOTUNE)
-        .batch(batch_size, drop_remainder=True)
+        .batch(batch_size)
         .repeat(config["epochs"])
         .prefetch(tf.data.AUTOTUNE)
     )
@@ -147,17 +182,9 @@ def load_datasets(bed_file, genome_fasta_file, targets_file, config, batch_size)
     )
 
 
-@click.command()
-@click.argument("genome_fasta_file", type=click.Path(exists=True))
-@click.argument("bed_file", type=click.Path(exists=True))
-@click.argument("targets_file", type=click.Path(exists=True))
-@click.argument("output_dir", type=click.Path(exists=True))
-def main(genome_fasta_file: str, bed_file: str, targets_file: str, output_dir: str):
+def main(args: argparse.Namespace, config: dict):
     # Init configs and wandb
     now = datetime.now().strftime("%Y-%m-%d_%H:%M")
-
-    with open("configs/user.yml", "r") as f:
-        config = yaml.safe_load(f)
 
     if config["wandb"]:
         run = wandb.init(
@@ -168,10 +195,10 @@ def main(genome_fasta_file: str, bed_file: str, targets_file: str, output_dir: s
     if int(config["seed"]) > 0:
         tf.random.set_seed(int(config["seed"]))
 
-    checkpoint_dir = os.path.join(output_dir, config["project_name"], now)
+    checkpoint_dir = os.path.join(args.output_dir, config["project_name"], now)
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
 
     # Train on GPU
     gpus_found = tf.config.list_physical_devices("GPU")
@@ -199,7 +226,11 @@ def main(genome_fasta_file: str, bed_file: str, targets_file: str, output_dir: s
         total_number_of_training_samples,
         total_number_of_validation_samples,
     ) = load_datasets(
-        bed_file, genome_fasta_file, targets_file, config, global_batch_size
+        args.bed_file,
+        args.genome_fasta_file,
+        args.targets_file,
+        config,
+        global_batch_size,
     )
 
     if config["wandb"]:
@@ -274,4 +305,10 @@ def main(genome_fasta_file: str, bed_file: str, targets_file: str, output_dir: s
 
 
 if __name__ == "__main__":
-    main()
+    # Load args and config
+    args = parse_arguments()
+    with open("configs/user.yml", "r") as f:
+        config = yaml.safe_load(f)
+
+    # Train
+    main(args, config)
