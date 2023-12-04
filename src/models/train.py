@@ -7,11 +7,13 @@ from datetime import datetime
 import wandb
 from wandb.keras import WandbMetricsLogger, WandbCallback
 
-from dataloader import CustomDataLoader
+from dataloader import CustomDataset
 
 from deeppeak.model import bpnet
 from deeppeak.metrics import get_lr_metric, PearsonCorrelation
-from deeppeak.loss import custom_loss
+from deeppeak.loss import CustomLoss
+
+from augment import complement_base
 
 
 def model_callbacks(
@@ -21,10 +23,10 @@ def model_callbacks(
     callbacks = []
     # Checkpoints
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        os.path.join(checkpoint_dir, "{epoch:02d}"),
+        os.path.join(checkpoint_dir, "{epoch:02d}.keras"),
         save_freq="epoch",
-        save_best_only=True,
         save_weights_only=False,
+        save_best_only=False,
     )
     callbacks.append(checkpoint)
 
@@ -57,17 +59,100 @@ def model_callbacks(
     if profile:
         print("Profiling enabled. Saving to logs/")
         tensorboard_callback = tf.keras.callbacks.TensorBoard(
-            log_dir="logs/", histogram_freq=1, profile_batch="1, 64"
+            log_dir="logs/", histogram_freq=1, profile_batch="10, 60"
         )
         callbacks.append(tensorboard_callback)
 
     return callbacks
 
 
+def load_datasets(bed_file, genome_fasta_file, targets_file, config, batch_size):
+    """Load train & val datasets."""
+    # Load data
+    split_dict = {"val": config["val"], "test": config["test"]}
+
+    dataset = CustomDataset(
+        bed_file,
+        genome_fasta_file,
+        targets_file,
+        split_dict,
+        config["num_classes"],
+        config["fraction_of_data"],
+    )
+
+    seq_len = config["seq_len"]
+    augment_complement = config["augment_complement"]
+
+    base_to_int_mapping = {"A": 0, "C": 1, "G": 2, "T": 3}
+    table = tf.lookup.StaticHashTable(
+        initializer=tf.lookup.KeyValueTensorInitializer(
+            keys=tf.constant(list(base_to_int_mapping.keys())),
+            values=tf.constant(list(base_to_int_mapping.values()), dtype=tf.int32),
+        ),
+        default_value=-1,
+    )
+
+    @tf.function
+    def mapped_function(sequence, target):
+        if isinstance(sequence, str):
+            sequence = tf.constant([sequence])
+        elif isinstance(sequence, tf.Tensor) and sequence.ndim == 0:
+            sequence = tf.expand_dims(sequence, 0)
+
+        # Define one_hot_encode function using TensorFlow operations
+        def one_hot_encode(sequence):
+            # Map each base to an integer
+            char_seq = tf.strings.unicode_split(sequence, "UTF-8")
+            integer_seq = table.lookup(char_seq)
+            # One-hot encode the integer sequence
+            x = tf.one_hot(integer_seq, depth=4)
+            if augment_complement:
+                x = complement_base(x)
+            return x
+
+        # Apply one_hot_encode to each sequence
+        one_hot_sequence = tf.map_fn(
+            one_hot_encode,
+            sequence,
+            fn_output_signature=tf.TensorSpec(shape=(seq_len, 4), dtype=tf.float32),
+        )
+        one_hot_sequence = tf.squeeze(one_hot_sequence, axis=0)  # remove extra map dim
+        return one_hot_sequence, target
+
+    train_data = (
+        dataset.subset("train")
+        .map(mapped_function, num_parallel_calls=tf.data.AUTOTUNE)
+        .shuffle(256)
+        .batch(batch_size, drop_remainder=True)
+        .repeat(config["epochs"])
+        .prefetch(tf.data.AUTOTUNE)
+    )
+
+    val_data = (
+        dataset.subset("val")
+        .map(mapped_function, num_parallel_calls=tf.data.AUTOTUNE)
+        .batch(batch_size, drop_remainder=True)
+        .repeat(config["epochs"])
+        .prefetch(tf.data.AUTOTUNE)
+    )
+
+    total_number_of_training_samples = dataset.len("train")
+    total_number_of_validation_samples = dataset.len("val")
+
+    return (
+        train_data,
+        val_data,
+        total_number_of_training_samples,
+        total_number_of_validation_samples,
+    )
+
+
 @click.command()
-@click.argument("input_dir", type=click.Path(exists=True))
+@click.argument("genome_fasta_file", type=click.Path(exists=True))
+@click.argument("bed_file", type=click.Path(exists=True))
+@click.argument("targets_file", type=click.Path(exists=True))
 @click.argument("output_dir", type=click.Path(exists=True))
-def main(input_dir: str, output_dir: str):
+def main(genome_fasta_file: str, bed_file: str, targets_file: str, output_dir: str):
     # Init configs and wandb
     now = datetime.now().strftime("%Y-%m-%d_%H:%M")
 
@@ -91,9 +176,6 @@ def main(input_dir: str, output_dir: str):
     # Train on GPU
     gpus_found = tf.config.list_physical_devices("GPU")
 
-    for gpu in gpus_found:
-        tf.config.experimental.set_memory_growth(gpu, True)
-
     strategy = tf.distribute.MirroredStrategy()
     print("Number of replica devices in use: {}".format(strategy.num_replicas_in_sync))
     print("Number of GPUs available: {}".format(len(gpus_found)))
@@ -103,38 +185,22 @@ def main(input_dir: str, output_dir: str):
         wandb.config.update({"num_devices_used": strategy.num_replicas_in_sync})
 
     # Mixed precision (for GPU)
-    tf.keras.mixed_precision.set_global_policy("mixed_float16")
+    if config["mixed_precision"]:
+        print("WARNING: Mixed precision enabled. Disable on CPU or older GPUs.")
+        tf.keras.mixed_precision.set_global_policy("mixed_float16")
 
     # # Load data
     batch_size = config["batch_size"]
     global_batch_size = batch_size * strategy.num_replicas_in_sync
 
-    train = CustomDataLoader(
-        bed_file="data/interim/consensus_peaks_2114.bed",
-        genome_fasta_file="data/raw/genome.fa",
-        targets="data/interim/targets.npy",
-        split_dict={"val": config["val"], "test": config["test"]},
-        set_type="train",
-        augment_complement=config["augment_complement"],
-        batch_size=config["batch_size"],
-        shuffle=config["shuffle"],
-        fraction_of_data=config["fraction_of_data"],
+    (
+        train,
+        val,
+        total_number_of_training_samples,
+        total_number_of_validation_samples,
+    ) = load_datasets(
+        bed_file, genome_fasta_file, targets_file, config, global_batch_size
     )
-
-    val = CustomDataLoader(
-        bed_file="data/interim/consensus_peaks_2114.bed",
-        genome_fasta_file="data/raw/genome.fa",
-        targets="data/interim/targets.npy",
-        split_dict={"val": config["val"], "test": config["test"]},
-        set_type="val",
-        augment_complement=config["augment_complement"],
-        batch_size=config["batch_size"],
-        shuffle=config["shuffle"],
-        fraction_of_data=config["fraction_of_data"],
-    )
-
-    total_number_of_training_samples = train.__num_samples__()
-    total_number_of_validation_samples = val.__num_samples__()
 
     if config["wandb"]:
         wandb.config.update(
@@ -156,7 +222,7 @@ def main(input_dir: str, output_dir: str):
                 custom_objects={
                     "lr": get_lr_metric,
                     "PearsonCorrelation": PearsonCorrelation,
-                    "custom_loss": custom_loss,
+                    "custom_loss": CustomLoss(),
                 },
             )
 
@@ -170,7 +236,7 @@ def main(input_dir: str, output_dir: str):
         # Compile the model
         model.compile(
             optimizer=optimizer,
-            loss=custom_loss,
+            loss=CustomLoss(),
             metrics=[
                 tf.keras.metrics.MeanAbsoluteError(),
                 tf.keras.metrics.MeanSquaredError(),
@@ -200,8 +266,7 @@ def main(input_dir: str, output_dir: str):
         validation_data=val,
         epochs=config["epochs"],
         callbacks=callbacks,
-        workers=4,
-        max_queue_size=50,
+        use_multiprocessing=False,
     )
 
     if config["wandb"]:
