@@ -164,3 +164,4 @@ if __name__ == "__main__":
             print(target)
             break
     print("Execution time:", time.perf_counter() - start_time)
+    print("Time per sample:", (time.perf_counter() - start_time) / 10000)
