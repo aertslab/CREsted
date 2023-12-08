@@ -45,7 +45,7 @@ clean_logs:
 
 ## Lint using flake8 on deeppeak/ while ignoring 'line too long' errors
 lint:
-	flake8 deeppeak/ --ignore=E501
+	flake8 src/ --ignore=E501
 
 ## Link data to raw and rename (use absolute paths)
 linkdata:
@@ -84,10 +84,10 @@ endif
 
 ## Make Datasets
 bed:
-	python deeppeak/data/preprocess_bed.py data/raw data/interim
+	python src/data/preprocess_bed.py data/raw data/interim
 
 inputs: bed
-	python deeppeak/data/create_inputs.py data/raw data/interim
+	python src/data/create_inputs.py data/raw data/interim
 
 bigwig: bed
 	echo "Creating bigwig files..."
@@ -96,13 +96,13 @@ bigwig: bed
 	scripts/all_ct_bigwigAverageOverBed.sh -o "data/interim/bw/" -b "data/raw/bw/" -p "data/interim/consensus_peaks_1000.bed"
 
 targets: bigwig
-	python deeppeak/data/create_targets.py data/interim data/interim
+	python src/data/create_targets.py data/interim data/interim
 
 split:
-	python deeppeak/data/train_val_test_split.py data/interim data/processed
+	python src/data/train_val_test_split.py data/interim data/processed
 
 data: inputs targets split # will run everything
 
 ## Model training
 train:
-	python deeppeak/models/train.py
+	python src/models/train.py
