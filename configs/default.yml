@@ -12,15 +12,16 @@ seq_len: 2114
 # Train/val/test
 val: ['chr8', 'chr10']
 test: ['chr9', 'chr18']
-shuffle_buffer_size: 10000
 
 # Training
 wandb: True
-epochs: 30
+epochs: 40
 batch_size: 128
 learning_rate: 0.001
 patience: 5  # number of epochs to wait before early stopping
 pretrained_model_path: ''  # continue from .keras checkpoint. Leave empty if starting from scratch
+shuffle: True
+mixed_precision: True  # use mixed precision training (recent GPUs only)
 
 # Debugging
 fraction_of_data: 1.0  # fraction of data to use for training. Only lower for debugging.
@@ -28,7 +29,7 @@ profile: False  # profile training with TensorBoard profiler
 seed: 0  # set seed for reproducibility. Set to 0 for random seed
 
 # augmentations (online)
-augment_complement: False  # inverse complement base pairs during training (50 % chance)
+augment_complement: True  # inverse complement base pairs during training (50 % chance)
 
 # Model architecture
 ## First convblock
@@ -42,7 +43,7 @@ first_conv_res: False
 
 ## Chrombp Conv blocks after first conv layer
 num_filters: 512
-n_dil_layers: 8
+n_dil_layers: 3
 filter_size: 3
 activation: 'relu'  # 'activation_name' or 'none'
 l2: 0.00001
