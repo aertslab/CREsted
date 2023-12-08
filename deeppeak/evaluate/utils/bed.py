@@ -5,20 +5,10 @@ import tempfile
 from contextlib import contextmanager
 
 
-def _raw_assertion(path: str):
-    """Assert that a file is not in the "raw" directory."""
-    assert (
-        "raw" not in path
-    ), f"Out file {path} is in the raw directory. \
-    Select a different directory."
-
-
 @contextmanager
 def smart_open(input_path, output_path):
     """Open a file for reading and another for writing, handling the case where
     paths are the same."""
-    _raw_assertion(output_path)
-
     if input_path == output_path:
         dir_name = os.path.dirname(input_path)
         with tempfile.NamedTemporaryFile(mode="w", dir=dir_name, delete=False) as tmp:

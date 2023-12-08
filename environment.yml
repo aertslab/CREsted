@@ -25,3 +25,4 @@ dependencies:
     - matplotlib
     - pandas==2.1.3
     - chardet # wandb issue
+    - fastism

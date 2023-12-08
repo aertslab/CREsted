@@ -83,8 +83,10 @@ endif
 	fi
 
 ## Make Datasets
-bed:
-	python deeppeak/data/preprocess_bed.py data/raw data/interim
+bed_2114:
+	python deeppeak/data/preprocess_bed.py --n_extend 807
+bed_1000:
+	python deeppeak/data/preprocess_bed.py --n_extend 250
 
 inputs: bed
 	python deeppeak/data/create_inputs.py data/raw data/interim

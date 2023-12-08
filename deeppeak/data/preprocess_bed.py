@@ -4,19 +4,55 @@ as input data for the model
 """
 
 import os
-import click
-import logging
+import argparse
 from helpers import bed
 
 
-# General functions
-def check_data_folder(folder_path: str):
-    """Check that all required files are in the data folder."""
-    required_files = ["consensus_peaks.bed", "bw/", "chrom.sizes", "genome.fa"]
-    for file in required_files:
-        assert os.path.exists(
-            os.path.join(folder_path, file)
-        ), f"{file} not found in {folder_path}"
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Preprocess raw ATAC-seq data and create input data for the model."
+    )
+    parser.add_argument(
+        "-r",
+        "--regions_bed_file",
+        type=str,
+        default="data/raw/consensus_peaks.bed",
+        help="Path to the input regions bed file.",
+    )
+    parser.add_argument(
+        "-c",
+        "--chrom_sizes_file",
+        type=str,
+        default="data/raw/chrom.sizes",
+        help="Path to the chromosome sizes file. Required if --filter_chrom is True.",
+    )
+    parser.add_argument(
+        "-n",
+        "--n_extend",
+        type=int,
+        help="Number of base pairs to extend the start and end bed positions.",
+        default=0,
+    )
+    parser.add_argument("--filter_negative", type=bool, default=True)
+    parser.add_argument("--filter_chrom", type=bool, default=True)
+    parser.add_argument(
+        "-o",
+        "--output_folder",
+        type=str,
+        default="data/interim/",
+        help="Path to the folder where the processed data will be saved.",
+    )
+    # check if chrom_sizes_file exists if filter_chrom is True
+    args = parser.parse_args()
+    if args.filter_chrom and not os.path.exists(args.chrom_sizes_file):
+        raise ValueError(
+            f"Chromosome sizes file not found at {args.chrom_sizes_file}. "
+            "Please specify the correct path to the chromosome sizes file or set \
+            --filter_chrom to False."
+        )
+
+    return args
 
 
 # BED file processing
@@ -32,59 +68,42 @@ def preprocess_bed(
     Preprocess a BED file by extending the start and end positions by a given
     value, and filtering out negative and out of bounds coordinates.
     """
-    print(f"Preprocessing BED file: {input_path} to {output_path}...")
+    print(f"\nPreprocessing BED file: {input_path} to {output_path}...")
     if value > 0:
+        print(f"Extending start and end positions by {value}...")
         bed.extend_bed_file(input_path, output_path, value)
 
     if filter_negative:
+        print("Filtering out negative coordinates...")
         bed.filter_bed_negative_regions(output_path, output_path)
 
     if filter_chrom:
+        print("Filtering out out of bounds coordinates...")
         bed.filter_bed_chrom_regions(output_path, output_path, chrom_sizes_file)
+    print("Done!")
 
 
-# Main preprocessing pipeline
-@click.command()
-@click.argument("input_folder", type=click.Path(exists=True))
-@click.argument("output_folder", type=click.Path(exists=True))
-def main(
-    input_folder: str,
-    output_folder: str,
-):
+def main(args):
     """Run data preprocessing pipeline to turn raw bed and genome
     sequences into input data for the model.
     """
-    print("\nPreprocessing bed files...")
-    # Check folders and paths
-    check_data_folder(input_folder)
-
-    chrom_sizes_file = os.path.join(input_folder, "chrom.sizes")
-    peaks_bed_file = os.path.join(input_folder, "consensus_peaks.bed")
-
-    peaks_bed_name = os.path.basename(peaks_bed_file).split(".")[0]
+    regions_bed_name = os.path.basename(args.regions_bed_file).split(".")[0]
+    regions_width = bed.get_bed_region_width(args.regions_bed_file)
+    final_regions_width = regions_width + 2 * args.n_extend
 
     # Preprocess peaks BED file
     preprocess_bed(
-        input_path=peaks_bed_file,
-        output_path=os.path.join(output_folder, f"{peaks_bed_name}_2114.bed"),
-        chrom_sizes_file=chrom_sizes_file,
-        value=807,
-        filter_negative=True,
-        filter_chrom=True,
-    )  # 2114 peaks (for inputs)
-
-    preprocess_bed(
-        input_path=peaks_bed_file,
-        output_path=os.path.join(output_folder, f"{peaks_bed_name}_1000.bed"),
-        chrom_sizes_file=chrom_sizes_file,
-        value=250,
-        filter_negative=True,
-        filter_chrom=True,
-    )  # 1000 peaks (for targets)
+        input_path=args.regions_bed_file,
+        output_path=os.path.join(
+            args.output_folder, f"{regions_bed_name}_{final_regions_width}.bed"
+        ),
+        chrom_sizes_file=args.chrom_sizes_file,
+        value=args.n_extend,
+        filter_negative=args.filter_negative,
+        filter_chrom=args.filter_chrom,
+    )
 
 
 if __name__ == "__main__":
-    log_fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    logging.basicConfig(level=logging.INFO, format=log_fmt)
-
-    main()
+    args = parse_arguments()
+    main(args)
