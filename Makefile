@@ -43,51 +43,51 @@ clean_wandb:
 clean_logs:
 	find . -type f -name "*slurm*" -delete
 
-## Lint using flake8 on src/ while ignoring 'line too long' errors
+## Lint using flake8 on deeppeak/ while ignoring 'line too long' errors
 lint:
-	flake8 src/ --ignore=E501
+	flake8 deeppeak/ --ignore=E501
 
 ## Link data to raw and rename (use absolute paths)
 linkdata:
-ifndef SRC
-	$(error "SRC is not set. Use make copydata SRC=/path/to/your/source/file_or_folder")
+ifndef deeppeak
+	$(error "deeppeak is not set. Use make copydata deeppeak=/path/to/your/source/file_or_folder")
 endif
-	@if [ -f $(SRC) ]; then \
-		FILE_NAME=$(shell basename $(SRC)); \
+	@if [ -f $(deeppeak) ]; then \
+		FILE_NAME=$(shell basename $(deeppeak)); \
 		if echo $$FILE_NAME | grep -q ".bed"; then \
 			echo "Creating symlink to data/raw and renaming $$FILE_NAME to consensus_peaks.bed..."; \
-			ln -s $(SRC) data/raw/consensus_peaks.bed; \
+			ln -s $(deeppeak) data/raw/consensus_peaks.bed; \
 		elif echo $$FILE_NAME | grep -q "chrom.sizes"; then \
 			echo "Creating symlink to data/raw and renaming $$FILE_NAME to chrom.sizes..."; \
-			ln -s $(SRC) data/raw/chrom.sizes; \
+			ln -s $(deeppeak) data/raw/chrom.sizes; \
 		elif echo $$FILE_NAME | grep -q ".fa"; then \
 			echo "Creating symlink to data/raw and renaming $$FILE_NAME to genome.fa..."; \
-			ln -s $(SRC) data/raw/genome.fa; \
+			ln -s $(deeppeak) data/raw/genome.fa; \
 		else \
 			echo "Creating symlink for $$FILE_NAME without renaming..."; \
-			ln -s $(SRC) data/raw/$$FILE_NAME; \
+			ln -s $(deeppeak) data/raw/$$FILE_NAME; \
 		fi \
-	elif [ -d $(SRC) ]; then \
-		BW_COUNT=$(shell find $(SRC) -maxdepth 1 -name "*.bw" | wc -l); \
+	elif [ -d $(deeppeak) ]; then \
+		BW_COUNT=$(shell find $(deeppeak) -maxdepth 1 -name "*.bw" | wc -l); \
 		if [ "$$BW_COUNT" -eq "0" ]; then \
-			echo "No .bw files found in $(SRC)."; \
+			echo "No .bw files found in $(deeppeak)."; \
 		else \
-			echo "Creating symlinks for .bw files in $(SRC) to data/raw/bw..."; \
+			echo "Creating symlinks for .bw files in $(deeppeak) to data/raw/bw..."; \
 			mkdir -p data/raw/bw; \
-			for file in $(SRC)/*.bw; do \
+			for file in $(deeppeak)/*.bw; do \
 				ln -s $$file data/raw/bw/; \
 			done \
 		fi \
 	else \
-		echo "$(SRC) is neither a file nor a directory!"; \
+		echo "$(deeppeak) is neither a file nor a directory!"; \
 	fi
 
 ## Make Datasets
 bed:
-	python src/data/preprocess_bed.py data/raw data/interim
+	python deeppeak/data/preprocess_bed.py data/raw data/interim
 
 inputs: bed
-	python src/data/create_inputs.py data/raw data/interim
+	python deeppeak/data/create_inputs.py data/raw data/interim
 
 bigwig: bed
 	echo "Creating bigwig files..."
@@ -96,16 +96,16 @@ bigwig: bed
 	scripts/all_ct_bigwigAverageOverBed.sh -o "data/interim/bw/" -b "data/raw/bw/" -p "data/interim/consensus_peaks_1000.bed"
 
 targets: bigwig
-	python src/data/create_targets.py data/interim data/interim
+	python deeppeak/data/create_targets.py data/interim data/interim
 
 split:
-	python src/data/train_val_test_split.py data/interim data/processed
+	python deeppeak/data/train_val_test_split.py data/interim data/processed
 
 data: inputs targets split # will run everything
 
 ## Model training
 train:
-	python src/models/train.py
+	python deeppeak/training/train.py
 
 
 #################################################################################

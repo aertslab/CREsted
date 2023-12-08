@@ -20,7 +20,7 @@ epochs: 30
 batch_size: 128
 learning_rate: 0.001
 patience: 5  # number of epochs to wait before early stopping
-pretrained_model_path: ''  # continue from checkpoint. Leave empty if starting from scratch
+pretrained_model_path: ''  # continue from .keras checkpoint. Leave empty if starting from scratch
 
 # Debugging
 fraction_of_data: 1.0  # fraction of data to use for training. Only lower for debugging.

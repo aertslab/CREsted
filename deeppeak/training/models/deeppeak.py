@@ -7,7 +7,7 @@ from tensorflow.keras.backend import int_shape
 
 def bpnet(config: dict):
     """
-    Construct a ChromBPNet model.
+    Construct a ChromBPNet like model.
 
     Args:
         config (dict): A dictionary containing the model configuration.

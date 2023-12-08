@@ -7,13 +7,12 @@ from datetime import datetime
 import wandb
 from wandb.keras import WandbMetricsLogger, WandbCallback
 
-from dataloader import CustomDataset
+from models.deeppeak import bpnet
 
-from deeppeak.model import bpnet
-from deeppeak.metrics import get_lr_metric, PearsonCorrelation
-from deeppeak.loss import CustomLoss
-
-from augment import complement_base
+from utils.metrics import get_lr_metric, PearsonCorrelation
+from utils.loss import CustomLoss
+from utils.augment import complement_base
+from utils.dataloader import CustomDataset
 
 
 def parse_arguments() -> argparse.Namespace:
