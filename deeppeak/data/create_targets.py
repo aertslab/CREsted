@@ -1,19 +1,36 @@
-"""Create target vectors from the preprocessed bigwig files."""
+"""Create target vectors from the preprocessed bigwigs."""
 
 import os
+import argparse
 import numpy as np
-import click
-import logging
 from tqdm import tqdm
 
 
-@click.command()
-@click.argument("input_folder", type=str)
-@click.argument("output_folder", type=str)
-def main(input_folder: str, output_folder: str):
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Create target vectors from the preprocessed bigwig files."
+    )
+    parser.add_argument(
+        "-b",
+        "--bigwig_dir",
+        type=str,
+        help="Path to the folder containing the preprocessed bigwig files.",
+        required=True,
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        help="Path to the folder to save the target vectors.",
+        required=True,
+    )
+    return parser.parse_args()
+
+
+def main(args: argparse.Namespace):
     print("\nCreating target vectors...")
     # Directory containing preprocessed bigwig TSV files (from script)
-    tsv_dir = os.path.join(input_folder, "bw")
+    tsv_dir = args.bigwig_dir
     tsv_files = [f for f in os.listdir(tsv_dir) if f.endswith(".tsv")]
 
     num_cell_types = len(tsv_files)
@@ -21,7 +38,7 @@ def main(input_folder: str, output_folder: str):
         num_regions = len(f.readlines())  # Number of regions in each TSV file
 
     # Create target vector
-    print(f"\nCreating target vector from {tsv_dir}...")
+    print(f"Creating target vectors from {tsv_dir}...")
     target_vector = np.zeros((2, num_regions, num_cell_types))
 
     for cell_type_idx, tsv_file in tqdm(enumerate(tsv_files), total=num_cell_types):
@@ -35,12 +52,10 @@ def main(input_folder: str, output_folder: str):
                 target_vector[1, region_idx, cell_type_idx] = average_peak_height
 
     # Save target vector
-    print(f"Saving target vector to {output_folder}...")
-    np.save(os.path.join(output_folder, "targets.npy"), target_vector)
+    print(f"Saving target vector to {args.output_dir}...")
+    np.save(os.path.join(args.output_dir, "targets.npy"), target_vector)
 
 
 if __name__ == "__main__":
-    log_fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    logging.basicConfig(level=logging.INFO, format=log_fmt)
-
-    main()
+    args = parse_arguments()
+    main(args)

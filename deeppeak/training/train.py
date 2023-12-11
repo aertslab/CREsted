@@ -30,14 +30,14 @@ def parse_arguments() -> argparse.Namespace:
         "--bed_file",
         type=str,
         help="Path to BED file",
-        default="data/interim/consensus_peaks_2114.bed",
+        default="data/processed/consensus_peaks_inputs.bed",
     )
     parser.add_argument(
         "-t",
         "--targets_file",
         type=str,
         help="Path to targets file",
-        default="data/interim/targets.npy",
+        default="data/processed/targets.npy",
     )
     parser.add_argument(
         "-o",

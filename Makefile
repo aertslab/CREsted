@@ -31,7 +31,7 @@ requirements:
 	fi
 
 ## Delete all compiled Python files
-clean:
+clean_compiled:
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
 
@@ -82,32 +82,35 @@ endif
 		echo "$(deeppeak) is neither a file nor a directory!"; \
 	fi
 
-## Make Datasets
-bed_2114:
-	python deeppeak/data/preprocess_bed.py --n_extend 807
-bed_1000:
-	python deeppeak/data/preprocess_bed.py --n_extend 250
+# Datasets
+## Data: clean region bed file for inputs
+data_bed_inputs:
+	python deeppeak/data/preprocess_bed.py -it "inputs"
+## Data: clean region bed file for targets
+data_bed_targets:
+	python deeppeak/data/preprocess_bed.py -it "targets" -o "data/interim"
 
-inputs: bed
-	python deeppeak/data/create_inputs.py data/raw data/interim
-
-bigwig: bed
-	echo "Creating bigwig files..."
+## Data: match bigwig files to target bed file
+data_bigwig:
+	echo "Matching bigwig files to target bed regions..."
 	echo "Warning: removing data/interim/bw/"
 	rm -rf data/interim/bw
-	scripts/all_ct_bigwigAverageOverBed.sh -o "data/interim/bw/" -b "data/raw/bw/" -p "data/interim/consensus_peaks_1000.bed"
+	scripts/all_ct_bigwigAverageOverBed.sh -o "data/interim/bw/" -b "data/raw/bw/" -p "data/interim/consensus_peaks_targets.bed"
 
-targets: bigwig
-	python deeppeak/data/create_targets.py data/interim data/interim
+## Data: create target vectors from bigwigs
+data_targets:
+	python deeppeak/data/create_targets.py --bigwig_dir "data/interim/bw/" --output_dir "data/processed/"
 
-split:
-	python deeppeak/data/train_val_test_split.py data/interim data/processed
-
-data: inputs targets split # will run everything
+## Data: run full preprocessing pipeline
+data_pipeline: data_bed_inputs data_bed_targets data_bigwig data_targets
 
 ## Model training
 train:
 	python deeppeak/training/train.py
+
+## Copy configs/default.yml to configs/user.yml
+copyconfig:
+	cp configs/default.yml configs/user.yml
 
 
 #################################################################################
