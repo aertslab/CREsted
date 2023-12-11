@@ -87,7 +87,7 @@ To train the model, change the necessary training configs in *user.yml*, ensure 
 make train  # shortcut with default paths
 
 # or
-python deeppeak/training/train.py --genome_fasta_file /path/to/genome.fa --bed_file /path/to/input_regions.bed --targets_file /path/to/targets.npy --output_dir +/path/to/output
+python deeppeak/training/train.py --genome_fasta_file /path/to/genome.fa --bed_file /path/to/consensus_peaks_inputs.bed --targets_file /path/to/targets.npy --output_dir /path/to/output
 ```
 
 ### Prediction
