@@ -8,6 +8,7 @@
 project_name: 'mouse'  # used for naming output folders
 num_classes: 19
 seq_len: 2114
+target_len: 1000
 
 # Train/val/test
 val: ['chr8', 'chr10']

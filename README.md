@@ -1,78 +1,104 @@
 # DeepPeak: Predicting Chromatin Accessibility from Genome Sequences
 
-DeepPeak is a deep learning framework designed to predict ATAC-seq (Assay for Transposase-Accessible Chromatin using sequencing) chromatin accessibility. This tool utilizes CNNs to accurately infer the open chromatin regions from genome sequences, facilitating a deeper understanding of gene regulation.
+![DeepPeak Logo](figures/banner.png)
+
+
+DeepPeak is a sequence based deep learning model designed to predict scATAC peak height over multiple cell types. 
+The model architecture is based on ChromBPNet, but, instead of predicting the entire track signal, DeepPeak predicts the average peak height.
+The goal of the model is to learn to denoise the signal and to be able to interpret the results post-hoc to identify the most important regions and motifs for each prediction.
 
 ## Table of Contents
-- [Introduction](#introduction)
-- [Features](#features)
 - [Getting Started](#getting-started)
-  - [Dependencies](#dependencies)
   - [Installation](#installation)
+  - [Dependencies](#dependencies)
+  - [Useful commands](#useful-commands)
   - [Quick Start](#quick-start)
 - [Usage](#usage)
   - [Data Preprocessing](#data-preprocessing)
   - [Model Training](#model-training)
   - [Prediction](#prediction)
 - [Results](#results)
-- [How It Works](#how-it-works)
-  - [Model Architecture](#model-architecture)
-  - [Training Process](#training-process)
 - [Contributing](#contributing)
-- [Citation](#citation)
-- [License](#license)
-- [Contact](#contact)
 - [Acknowledgments](#acknowledgments)
-
-## Introduction
-*to do*
-
-## Features
-This repository handles the full pipeline from raw genome sequences to chromatin accessibility predictions. The main features of DeepPeak are:
-- **Data Preprocessing**: turning consensus peak bed files, chromosome 
 
 ## Getting Started
 To get started with DeepPeak, clone the repository, install the dependencies, and follow the quick start guide.
-
-### Dependencies
-Detail any prerequisites, libraries, OS version, etc., needed.
+The repository has been tested on Rocky Linux 8.8, python 3.10, and CUDA 11.8.
 
 ### Installation
-Step-by-step guide on setting up the environment and installing the DeepPeak repository.
+To install the dependencies, make sure you have conda installed and run the following commands:
+```bash
+# Creates a new conda environment if it does not exist yet
+# Updates the environment if it does exist
+make requirements
+```
 
-### Quick Start
-Provide a quick start guide for users to run a basic analysis.
+Alternatively, you can install the dependencies using the following commands:
+```bash
+conda env create -f environment.yml
+```
 
-## Usage
-Detailed guidelines on how to use the software, including preprocessing steps, how to train the model, and how to perform predictions.
+This will install the required packages and **tensorflow version 2.14**, which is compatible with CUDA 11.8. If you want to use a different version of CUDA, make sure you install the compatible version of tensorflow instead (see [here](https://www.tensorflow.org/install/source#gpu) for more information).
 
-### Data Preprocessing
-Instructions on how to preprocess the input genome sequences to make them suitable for model training.
+### Dependencies
 
-### Model Training
-Guidance on how to train the deep learning model, including setting hyperparameters, choosing the right architecture, and monitoring the training process.
+Tensorflow requires CUDA and cuDNN to be installed. If you have multiple versions installed on your machine, ensure that you have the correct versions of CUDA and cuDNN loaded in your environment. 
+```bash
+# Find available cuDNN/CUDA versions
+module spider cudnn
 
-### Prediction
-Steps on how to use the trained model to predict chromatin accessibility from new genome sequences.
+# Load the correct versions for tensorflow
+module load cuDNN/8.7.0.84-CUDA-11.8.0  # CUDA 11.8
+```
 
 ### Useful commands
 
+To see a list of useful commands, run the following:
+```bash
+make help
+```
+For example, you can delete all compiled python files using: 
+```bash
+make clean_compiled
+```
+
+### Quick Start
+In progress...
+
+## Usage
+To be able to run the preprocessing, model training, or evaluation code, you need to ensure your configs are set.  
+Copy the config file from *configs/default.yml* to *configs/user.yml* (you can do so easily with the command `make copyconfig`) and make the necessary changes in the *user.yml* file.  
+**Do not change the default.yml file!**
+
+The most important changes  you need to make in your *user.yml* for each project are under the *general* section:
+- **project_name**: The name of the project. This will be used to name the output files and wandb project.
+- **num_classes**: The number of cell types in the dataset.
+- **seq_len**: The length you want your input sequences to be (in bp). We recommend to have this wider than your target region, so that the model can also learn patterns outside of the center of the target region.
+- **target_len**: The length your want your target region to be (in bp).
+
+
+### Data Preprocessing
+In progress...
+
+### Model Training
+
+To train the model, change the necessary training configs in *user.yml*, ensure your environment is loaded correctly (see [Getting started](#getting-started)) and run the following command:
+```bash
+make train  # shortcut with default paths
+
+# or
+python deeppeak/training/train.py --genome_fasta_file /path/to/genome.fa --bed_file /path/to/input_regions.bed --targets_file /path/to/targets.npy --output_dir +/path/to/output
+```
+
+### Prediction
+In progress...
+
+
 ## Results
-Showcase the results of the model, including any benchmarks or comparisons with other methods.
-
-## How It Works
-An explanation of the underlying technology, including the deep learning architecture and the training process.
-
-### Model Architecture
-Describe the architecture of the neural network used in DeepPeak.
-
-### Training Process
-Outline the steps taken during the training of the model, such as data augmentation, loss function, optimization, etc.
+In progress...
 
 ## Contributing
-Guidelines for how other developers can contribute to the DeepPeak project, including coding standards, pull request process, etc.
-
-## Contact
-Provide contact details for users to get in touch with the maintainers for support or inquiries.
+In progress...
 
 ## Acknowledgments
 Authors:
@@ -80,4 +106,5 @@ Authors:
 
 Contributors:
   - Lukas Mahieu (Lukas.Mahieu@kuleuven.be)
+  - Vasileios Konstantakos (Vasileios.Konstantakos@kuleuven.be)
   

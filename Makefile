@@ -33,9 +33,9 @@ requirements:
 ## Delete all compiled Python files
 clean_compiled:
 	find . -type f -name "*.py[co]" -delete
-	find . -type d -name "__pycache__" -delete
+	find . -type d -name "__pycache__" -exec rm -rf {} +
 
-## Delete wandb files
+## Delete all local wandb files
 clean_wandb:
 	rm -rf wandb
 
