@@ -49,37 +49,37 @@ lint:
 
 ## Link data to raw and rename (use absolute paths)
 linkdata:
-ifndef deeppeak
-	$(error "deeppeak is not set. Use make copydata deeppeak=/path/to/your/source/file_or_folder")
+ifndef path
+	$(error "path is not set. Use make linkdata path=/path/to/your/source/file_or_folder")
 endif
-	@if [ -f $(deeppeak) ]; then \
-		FILE_NAME=$(shell basename $(deeppeak)); \
+	@if [ -f $(path) ]; then \
+		FILE_NAME=$(shell basename $(path)); \
 		if echo $$FILE_NAME | grep -q ".bed"; then \
 			echo "Creating symlink to data/raw and renaming $$FILE_NAME to consensus_peaks.bed..."; \
-			ln -s $(deeppeak) data/raw/consensus_peaks.bed; \
+			ln -s $(path) data/raw/consensus_peaks.bed; \
 		elif echo $$FILE_NAME | grep -q "chrom.sizes"; then \
 			echo "Creating symlink to data/raw and renaming $$FILE_NAME to chrom.sizes..."; \
-			ln -s $(deeppeak) data/raw/chrom.sizes; \
+			ln -s $(path) data/raw/chrom.sizes; \
 		elif echo $$FILE_NAME | grep -q ".fa"; then \
 			echo "Creating symlink to data/raw and renaming $$FILE_NAME to genome.fa..."; \
-			ln -s $(deeppeak) data/raw/genome.fa; \
+			ln -s $(path) data/raw/genome.fa; \
 		else \
 			echo "Creating symlink for $$FILE_NAME without renaming..."; \
-			ln -s $(deeppeak) data/raw/$$FILE_NAME; \
+			ln -s $(path) data/raw/$$FILE_NAME; \
 		fi \
-	elif [ -d $(deeppeak) ]; then \
-		BW_COUNT=$(shell find $(deeppeak) -maxdepth 1 -name "*.bw" | wc -l); \
+	elif [ -d $(path) ]; then \
+		BW_COUNT=$(shell find $(path) -maxdepth 1 -name "*.bw" | wc -l); \
 		if [ "$$BW_COUNT" -eq "0" ]; then \
-			echo "No .bw files found in $(deeppeak)."; \
+			echo "No .bw files found in $(path)."; \
 		else \
-			echo "Creating symlinks for .bw files in $(deeppeak) to data/raw/bw..."; \
+			echo "Creating symlinks for .bw files in $(path) to data/raw/bw..."; \
 			mkdir -p data/raw/bw; \
-			for file in $(deeppeak)/*.bw; do \
+			for file in $(path)/*.bw; do \
 				ln -s $$file data/raw/bw/; \
 			done \
 		fi \
 	else \
-		echo "$(deeppeak) is neither a file nor a directory!"; \
+		echo "$(path) is neither a file nor a directory!"; \
 	fi
 
 # Datasets
