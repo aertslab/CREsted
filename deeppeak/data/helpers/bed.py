@@ -115,3 +115,24 @@ def get_bed_region_width(regions_bed_filename: str):
     start_position = int(fields[1])
     end_position = int(fields[2])
     return end_position - start_position
+
+
+def fix_bed_labels(regions_bed_file: str):
+    """
+    Fix the labels of a BED file (3rd column) so that they are in the format
+    chr:start-end.
+    """
+    with open(regions_bed_file, "r") as infile:
+        lines = infile.readlines()
+    with open(regions_bed_file, "w") as outfile:
+        for line in lines:
+            cols = line.strip().split()
+            if len(cols) == 3:
+                cols.append(f"{cols[0]}:{cols[1]}-{cols[2]}")
+            elif len(cols) == 4:
+                cols[3] = f"{cols[0]}:{cols[1]}-{cols[2]}"
+            else:
+                raise ValueError(
+                    f"Expected 3 or 4 columns in BED file, got {len(cols)}."
+                )
+            outfile.write("\t".join(cols) + "\n")

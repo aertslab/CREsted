@@ -81,6 +81,9 @@ def preprocess_bed(
     if filter_chrom:
         print("Filtering out out of bounds coordinates...")
         bed.filter_bed_chrom_regions(output_path, output_path, chrom_sizes_file)
+
+    # Ensure labels of bed file are correct again
+    bed.fix_bed_labels(output_path)
     print("Done!")
 
 
