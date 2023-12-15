@@ -32,6 +32,7 @@ def main(args: argparse.Namespace):
     # Directory containing preprocessed bigwig TSV files (from script)
     tsv_dir = args.bigwig_dir
     tsv_files = [f for f in os.listdir(tsv_dir) if f.endswith(".tsv")]
+    tsv_files.sort()
 
     num_cell_types = len(tsv_files)
     with open(os.path.join(tsv_dir, tsv_files[0]), "r") as f:
