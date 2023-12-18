@@ -3,6 +3,7 @@
 import argparse
 import numpy as np
 import tempfile
+from datetime import datetime
 import os
 import pyfaidx
 from utils.explain import Explainer, grad_times_input_to_df, plot_attribution_map
@@ -12,8 +13,6 @@ import matplotlib as mpl
 from tqdm import tqdm
 import tensorflow as tf
 from tensorflow.keras.models import load_model
-
-mpl.rcParams["path.simplify"] = True
 
 CLASS_NAMES = os.listdir("data/interim/bw/")
 CLASS_NAMES = [name.split(".")[0] for name in CLASS_NAMES]
@@ -86,7 +85,7 @@ def parse_arguments():
         default="all",
         help="Classes to explain. Either 'all', 'combined', or a list of integers. \
         If 'all', all classes will be explained separately. If 'combined', the inputs \
-        will be explained respective to the combined model outptu. If a list of \
+        will be explained respective to the combined model output. If a list of \
         integers, only the classes with the corresponding indices will be explained.",
     )
     parser.add_argument(
@@ -161,22 +160,22 @@ def visualize_scores(
     # Center and zoom
     center = int(scores.shape[2] / 2)
     start_idx = center - int(zoom_n_bases / 2)
-    # scores = scores[:, :, start_idx : start_idx + zoom_n_bases, :]
-    # seqs_one_hot = seqs_one_hot[:, start_idx : start_idx + zoom_n_bases, :]
-    scores = scores[:, :, 1033:1210, :]
-    seqs_one_hot = seqs_one_hot[:, 1033:1210, :]
+    scores = scores[:, :, start_idx : start_idx + zoom_n_bases, :]
+    seqs_one_hot = seqs_one_hot[:, start_idx : start_idx + zoom_n_bases, :]
     zoom_n_bases = scores.shape[2]
 
-    # Plot
-    from datetime import datetime
+    global_min = scores.min()
+    global_max = scores.max()
 
+    # Plot
     now = datetime.now()
     output_dir = os.path.join(output_dir, "interpretation_plots")
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     print(f"Plotting scores and saving to {output_dir}...")
     for seq in tqdm(range(seqs_one_hot.shape[0]), desc="Plotting scores per seq"):
-        fig = plt.figure(figsize=(50, 20))
+        fig_height_per_class = 2
+        fig = plt.figure(figsize=(50, fig_height_per_class * len(class_indices)))
         for i, class_index in enumerate(class_indices):
             seq_class_scores = scores[seq, i, :, :]
             seq_class_x = seqs_one_hot[seq, :, :]
@@ -184,6 +183,8 @@ def visualize_scores(
             ax = plt.subplot(len(class_indices), 1, i + 1)
             plt.ylabel(CLASS_NAMES[class_index])
             plot_attribution_map(intgrad_df, ax=ax)
+
+            ax.set_ylim([global_min, global_max])
         plt.xlabel("Position")
         plt.xticks(np.arange(0, zoom_n_bases, 50))
         plt.savefig(os.path.join(output_dir, f"seq_{seq}.jpeg"))
