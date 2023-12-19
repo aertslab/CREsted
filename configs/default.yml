@@ -11,8 +11,8 @@ seq_len: 2114
 target_len: 1000
 
 # Train/val/test
-val: ['chr8', 'chr10']
-test: ['chr9', 'chr18']
+val: ['chr8', 'chr10']  # leave list empty for auto val chrom selection (0.1 of data)
+test: ['chr9', 'chr18']  # leave list empty for auto test chrom selection (0.1 of data)
 
 # Training
 wandb: True

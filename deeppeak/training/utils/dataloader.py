@@ -4,6 +4,7 @@ import os
 import pyfaidx
 import numpy as np
 import shutil
+import random
 import json
 
 
@@ -31,14 +32,14 @@ class CustomDataset:
         self.shift_n_bp = shift_n_bp
 
         # Get indices for each set type
-        train_indices, train_chroms = self._get_indices_for_set_type(
-            self.split_dict, "train", self.all_regions, fraction_of_data
-        )
         val_indices, val_chroms = self._get_indices_for_set_type(
             self.split_dict, "val", self.all_regions, fraction_of_data
         )
         test_indices, test_chroms = self._get_indices_for_set_type(
             self.split_dict, "test", self.all_regions, fraction_of_data
+        )
+        train_indices, train_chroms = self._get_indices_for_set_type(
+            self.split_dict, "train", self.all_regions, fraction_of_data
         )
         self.indices = {
             "train": train_indices,
@@ -50,8 +51,6 @@ class CustomDataset:
             "val": list(val_chroms),
             "test": list(test_chroms),
         }
-        print(self.chroms)
-
         if output_dir is not None:
             # Save chromosome mapping to output directory for safekeeping.
             with open(os.path.join(output_dir, "chrom_mapping.json"), "w") as f:
@@ -112,14 +111,30 @@ class CustomDataset:
         if set_type not in ["train", "val", "test"]:
             raise ValueError("set_type must be 'train', 'val', or 'test'")
 
-        if set_type == "train":
+        if set_type in ["val", "test"]:
+            # If no splits given, then auto split, trying to achieve target fraction
+            if len(split_dict.get(set_type)) == 0:
+                print(f"Auto-splitting {set_type} set...")
+                # Determine chromosomes already used in other sets
+                other_sets = {"train", "val", "test"} - {set_type}
+                used_chromosomes = set()
+                for other_set in other_sets:
+                    used_chromosomes.update(split_dict.get(other_set, []))
+
+                # Select chromosomes for the current set
+                selected_chromosomes = self._select_chromosomes_for_subset(
+                    used_chromosomes, set_type, target_fraction=0.1
+                )
+                self.split_dict[set_type] = list(selected_chromosomes)
+            if len(split_dict.get(set_type)) > 0:
+                selected_chromosomes = set(split_dict.get(set_type, []))
+
+        elif set_type == "train":
             excluded_chromosomes = set(
                 split_dict.get("val", []) + split_dict.get("test", [])
             )
             all_chromosomes = set(chrom for chrom, _, _ in all_regions)
             selected_chromosomes = all_chromosomes - excluded_chromosomes
-        else:
-            selected_chromosomes = set(split_dict.get(set_type, []))
 
         indices = [
             i
@@ -148,15 +163,64 @@ class CustomDataset:
                 regions.append((chrom, start, end))
         return regions
 
+    def _get_chromosome_counts(self):
+        """Count occurrences of each chromosome."""
+        chromosome_counts = {}
+        for chrom, _, _ in self.all_regions:
+            if chrom not in chromosome_counts:
+                chromosome_counts[chrom] = 0
+            chromosome_counts[chrom] += 1
+        return chromosome_counts
+
+    def _select_chromosomes_for_subset(
+        self, excluded_chromosomes, split, target_fraction=0.1
+    ):
+        """
+        Auto select chromosomes for a subset (val/test) based on fraction,
+        excluding those already in other subsets.
+        """
+        chrom_counts = self._get_chromosome_counts()
+        total_seqs = sum(
+            count
+            for chrom, count in chrom_counts.items()
+            if chrom not in excluded_chromosomes
+        )
+        target_count = int(round(target_fraction * total_seqs))
+
+        # Filter out excluded chromosomes and sort the rest by count
+        sorted_chroms = sorted(
+            (chrom for chrom in chrom_counts if chrom not in excluded_chromosomes),
+            key=chrom_counts.get,
+            reverse=False,
+        )
+
+        selected_chroms, current_count = set(), 0
+        for chrom in sorted_chroms:
+            chrom_count = chrom_counts[chrom]
+            if current_count + chrom_count <= target_count:
+                selected_chroms.add(chrom)
+                current_count += chrom_count
+            else:
+                # Check if adding this chromosome gets us closer to the target
+                if abs(target_count - (current_count + chrom_count)) < abs(
+                    target_count - current_count
+                ):
+                    selected_chroms.add(chrom)
+                    current_count += chrom_count
+                print(f"{split}: Using {(current_count/total_seqs)*100:.3f}% of data")
+                break
+
+        return selected_chroms
+
 
 if __name__ == "__main__":
     # test dataloader
-    bed_file = "data/interim/consensus_peaks_2114.bed"
+    bed_file = "data/processed/consensus_peaks_inputs.bed"
     genome_fasta_file = "data/raw/genome.fa"
-    targets = "data/interim/targets.npy"
-    targets_numpy = "data/interim/targets.npy"
+    targets = "data/processed/targets.npz"
 
-    split_dict = {"val": ["chr8", "chr10"], "test": ["chr9", "chr18"]}
+    # split_dict = {"val": ["chr8", "chr10"], "test": ["chr9", "chr18"]}
+    split_dict = {"test": ["chr1"], "val": []}
 
     dataset = CustomDataset(bed_file, genome_fasta_file, targets, split_dict, 19)
 
