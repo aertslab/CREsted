@@ -3,6 +3,7 @@ import tensorflow as tf
 import os
 import pyfaidx
 import numpy as np
+import shutil
 
 
 class CustomDataset:
@@ -61,7 +62,8 @@ class CustomDataset:
                 val=val_targets,
                 test=test_targets,
             )
-            print(f"Saved split ids and targets to {output_dir}")
+            shutil.copyfile(bed_file, os.path.join(output_dir, "regions.bed"))
+            print(f"Saved bed regions, split ids and split targets to {output_dir}")
 
     def len(self, subset: str):
         if subset not in ["train", "val"]:
