@@ -12,6 +12,7 @@ class CustomDataset:
         targets: str,
         split_dict: dict,
         num_classes: int,
+        shift_n_bp: int = 0,
         fraction_of_data: float = 1.0,
     ):
         # Load datasets
@@ -23,6 +24,7 @@ class CustomDataset:
         self.split_dict = split_dict
 
         self.num_classes = num_classes
+        self.shift_n_bp = shift_n_bp
 
         # Get indices for each set type
         train_indices = self._get_indices_for_set_type(
@@ -43,6 +45,11 @@ class CustomDataset:
         for sample_idx in self.indices[split]:
             region = self.all_regions[sample_idx]
             chrom, start, end = region
+            if (self.shift_n_bp > 0) and (split == "train"):
+                # shift augmentation
+                shift = np.random.randint(-self.shift_n_bp, self.shift_n_bp)
+                start += shift
+                end += shift
             sequence = str(self.genomic_pyfasta[chrom][start:end].seq)
             target = self.targets[1, sample_idx]
             yield sequence, target

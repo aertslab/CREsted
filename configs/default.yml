@@ -32,6 +32,7 @@ seed: 0  # set seed for reproducibility. Set to 0 for random seed
 
 # augmentations (online)
 augment_complement: True  # inverse complement base pairs during training (50 % chance)
+augment_shift_n_bp: 0  # stochastic shift up to n base pairs without recalculating targets
 
 # Model architectures
 simple_convnet:
