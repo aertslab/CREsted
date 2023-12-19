@@ -16,6 +16,7 @@ test: ['chr9', 'chr18']
 
 # Training
 wandb: True
+model_architecture: 'chrombpnet'  # simple_convnet, basenji, chrombpnet
 epochs: 40
 batch_size: 128
 learning_rate: 0.001
@@ -32,22 +33,52 @@ seed: 0  # set seed for reproducibility. Set to 0 for random seed
 # augmentations (online)
 augment_complement: True  # inverse complement base pairs during training (50 % chance)
 
-# Model architecture
-## First convblock
-first_conv_filters: 512
-first_conv_filter_size: 5
-first_conv_pool_size: 0
-first_conv_activation: 'gelu'
-first_conv_l2: 0.00001
-first_conv_dropout: 0.1
-first_conv_res: False
+# Model architectures
+simple_convnet:
+  num_conv_blocks: 3
+  num_dense_blocks: 2
+  residual: 0
+  first_activation: 'exponential'
+  activation: 'swish'
+  output_activation: 'softplus'
+  normalization: 'batch'
+  first_filters: 192
+  filters: 256
+  first_kernel_size: 13
+  kernel_size: 7
+  first_pool_size: 8
+  pool_size: 2
+  conv_dropout: 0.1
+  dense_dropout: 0.3
+  flatten: True
+  dense_size: 256
+  bottleneck: 8
 
-## Chrombp Conv blocks after first conv layer
-num_filters: 512
-n_dil_layers: 3
-filter_size: 3
-activation: 'relu'  # 'activation_name' or 'none'
-l2: 0.00001
-dropout: 0.1  # set to 0.0 for no dropout
-batch_norm: True
-dense_bias: True
+chrombpnet:
+  ## First convblock
+  first_conv_filters: 512
+  first_conv_filter_size: 5
+  first_conv_pool_size: 0
+  first_conv_activation: 'gelu'
+  first_conv_l2: 0.00001
+  first_conv_dropout: 0.1
+  first_conv_res: False
+
+  ## Dilated Conv blocks after first conv layer
+  num_filters: 512
+  n_dil_layers: 3
+  filter_size: 3
+  activation: 'relu'  # 'activation_name' or 'none'
+  l2: 0.00001
+  dropout: 0.1  # set to 0.0 for no dropout
+  batch_norm: True
+  dense_bias: True
+
+basenji:
+  first_activation: 'gelu'
+  activation: 'gelu'
+  output_activation: 'softplus'
+  first_filters: 256
+  filters: 2048
+  first_kernel_size: 15
+  kernel_size: 3

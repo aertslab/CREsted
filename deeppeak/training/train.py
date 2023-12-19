@@ -7,7 +7,7 @@ from datetime import datetime
 import wandb
 from wandb.keras import WandbMetricsLogger, WandbCallback
 
-from models.deeppeak import bpnet
+from models.zoo import simple_convnet, chrombpnet, basenji
 
 from utils.metrics import get_lr_metric, PearsonCorrelation
 from utils.loss import CustomLoss
@@ -181,6 +181,71 @@ def load_datasets(bed_file, genome_fasta_file, targets_file, config, batch_size)
     )
 
 
+def load_model(config: dict) -> tf.keras.Model:
+    """Load requested model from zoo using the given configuration"""
+    model_name = config["model_architecture"]
+    options = ["basenji", "chrombpnet", "simple_convnet"]
+    if model_name not in options:
+        raise ValueError(f"Model {model_name} not supported.")
+
+    model_config = config[model_name]
+
+    if model_name == "basenji":
+        model = basenji(
+            input_shape=(config["seq_len"], 4),
+            output_shape=(1, config["num_classes"]),
+            first_activation=model_config["first_activation"],
+            activation=model_config["activation"],
+            output_activation=model_config["output_activation"],
+            first_filters=model_config["first_filters"],
+            filters=model_config["filters"],
+            first_kernel_size=model_config["first_kernel_size"],
+            kernel_size=model_config["kernel_size"],
+        )
+    elif model_name == "chrombpnet":
+        model = chrombpnet(
+            input_shape=(config["seq_len"], 4),
+            output_shape=(1, config["num_classes"]),
+            first_conv_filters=model_config["first_conv_filters"],
+            first_conv_filter_size=model_config["first_conv_filter_size"],
+            first_conv_pool_size=model_config["first_conv_pool_size"],
+            first_conv_activation=model_config["first_conv_activation"],
+            first_conv_l2=model_config["first_conv_l2"],
+            first_conv_dropout=model_config["first_conv_dropout"],
+            n_dil_layers=model_config["n_dil_layers"],
+            num_filters=model_config["num_filters"],
+            filter_size=model_config["filter_size"],
+            activation=model_config["activation"],
+            l2=model_config["l2"],
+            dropout=model_config["dropout"],
+            batch_norm=model_config["batch_norm"],
+            dense_bias=model_config["dense_bias"],
+        )
+    elif model_name == "simple_convnet":
+        model = simple_convnet(
+            input_shape=(config["seq_len"], 4),
+            output_shape=(1, config["num_classes"]),
+            num_conv_blocks=model_config["num_conv_blocks"],
+            num_dense_blocks=model_config["num_dense_blocks"],
+            residual=model_config["residual"],
+            first_activation=model_config["first_activation"],
+            activation=model_config["activation"],
+            output_activation=model_config["output_activation"],
+            first_filters=model_config["first_filters"],
+            filters=model_config["filters"],
+            first_kernel_size=model_config["first_kernel_size"],
+            kernel_size=model_config["kernel_size"],
+            first_pool_size=model_config["first_pool_size"],
+            pool_size=model_config["pool_size"],
+            conv_dropout=model_config["conv_dropout"],
+            dense_dropout=model_config["dense_dropout"],
+            flatten=model_config["flatten"],
+            dense_size=model_config["dense_size"],
+            bottleneck=model_config["bottleneck"],
+        )
+    return model
+
+
 def main(args: argparse.Namespace, config: dict):
     # Init configs and wandb
     now = datetime.now().strftime("%Y-%m-%d_%H:%M")
@@ -215,7 +280,7 @@ def main(args: argparse.Namespace, config: dict):
         print("WARNING: Mixed precision enabled. Disable on CPU or older GPUs.")
         tf.keras.mixed_precision.set_global_policy("mixed_float16")
 
-    # # Load data
+    # Load data
     batch_size = config["batch_size"]
     global_batch_size = batch_size * strategy.num_replicas_in_sync
 
@@ -258,7 +323,7 @@ def main(args: argparse.Namespace, config: dict):
 
         else:
             print("Training from scratch...")
-            model = bpnet(config)
+            model = load_model(config)
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=config["learning_rate"])
         lr_metric = get_lr_metric(optimizer)
@@ -281,10 +346,6 @@ def main(args: argparse.Namespace, config: dict):
         checkpoint_dir, config["patience"], config["wandb"], config["profile"]
     )
 
-    # Check model output shape
-    output = model(tf.random.normal([batch_size, config["seq_len"], 4]))
-    assert output.shape == (batch_size, config["num_classes"])
-
     # Train the model
     train_steps_per_epoch = total_number_of_training_samples // global_batch_size
     val_steps_per_epoch = total_number_of_validation_samples // global_batch_size
@@ -296,7 +357,6 @@ def main(args: argparse.Namespace, config: dict):
         validation_data=val,
         epochs=config["epochs"],
         callbacks=callbacks,
-        use_multiprocessing=False,
     )
 
     if config["wandb"]:
@@ -306,6 +366,10 @@ def main(args: argparse.Namespace, config: dict):
 if __name__ == "__main__":
     # Load args and config
     args = parse_arguments()
+
+    assert os.path.exists(
+        "configs/user.yml"
+    ), "users.yml file not found. Please run `make copyconfig first`"
     with open("configs/user.yml", "r") as f:
         config = yaml.safe_load(f)
 

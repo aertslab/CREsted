@@ -107,7 +107,7 @@ In progress
 * Mapping
 * Consensus peaks in output
 * Data input paths in output/wandb
-* 
+* ISM
 
 
 ## Acknowledgments
