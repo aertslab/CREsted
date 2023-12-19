@@ -101,13 +101,12 @@ In progress...
 In progress
 
 ### To Do
-* Add extra models (also as input)
 * Save train/val splits used and give option
-* Peak shifting (as aug first)
-* Mapping
-* Consensus peaks in output
 * Data input paths in output/wandb
 * ISM
+* Prediction (& plots)
+* Normalization checking
+* Logfreq as targets
 
 
 ## Acknowledgments

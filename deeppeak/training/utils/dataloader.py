@@ -4,6 +4,7 @@ import os
 import pyfaidx
 import numpy as np
 import shutil
+import json
 
 
 class CustomDataset:
@@ -30,13 +31,13 @@ class CustomDataset:
         self.shift_n_bp = shift_n_bp
 
         # Get indices for each set type
-        train_indices = self._get_indices_for_set_type(
+        train_indices, train_chroms = self._get_indices_for_set_type(
             self.split_dict, "train", self.all_regions, fraction_of_data
         )
-        val_indices = self._get_indices_for_set_type(
+        val_indices, val_chroms = self._get_indices_for_set_type(
             self.split_dict, "val", self.all_regions, fraction_of_data
         )
-        test_indices = self._get_indices_for_set_type(
+        test_indices, test_chroms = self._get_indices_for_set_type(
             self.split_dict, "test", self.all_regions, fraction_of_data
         )
         self.indices = {
@@ -44,9 +45,19 @@ class CustomDataset:
             "val": val_indices,
             "test": test_indices,
         }
+        self.chroms = {
+            "train": list(train_chroms),
+            "val": list(val_chroms),
+            "test": list(test_chroms),
+        }
+        print(self.chroms)
 
-        # Save split ids & targets to output directory for safekeeping.
         if output_dir is not None:
+            # Save chromosome mapping to output directory for safekeeping.
+            with open(os.path.join(output_dir, "chrom_mapping.json"), "w") as f:
+                json.dump(self.chroms, f)
+
+            # Save split ids & targets to output directory for safekeeping.
             np.savez(
                 os.path.join(output_dir, "region_split_ids.npz"),
                 train=train_indices,
@@ -117,7 +128,7 @@ class CustomDataset:
         ]
         if fraction_of_data != 1.0:
             indices = indices[: int(np.ceil(len(indices) * fraction_of_data))]
-        return indices
+        return indices, selected_chromosomes
 
     def _load_bed_file(self, regions_bed_filename: str):
         """
