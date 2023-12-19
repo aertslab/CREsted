@@ -17,6 +17,7 @@ test: ['chr9', 'chr18']  # leave list empty for auto test chrom selection (0.1 o
 # Training
 wandb: True
 model_architecture: 'chrombpnet'  # simple_convnet, basenji, chrombpnet
+target: 'mean'  # max, mean, count, or logcount
 epochs: 40
 batch_size: 128
 learning_rate: 0.001

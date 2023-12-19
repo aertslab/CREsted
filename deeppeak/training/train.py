@@ -117,6 +117,7 @@ def load_datasets(
         bed_file,
         genome_fasta_file,
         targets_file,
+        config["target"],
         split_dict,
         config["num_classes"],
         config["augment_shift_n_bp"],

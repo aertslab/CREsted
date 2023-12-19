@@ -13,6 +13,7 @@ class CustomDataset:
         bed_file: str,
         genome_fasta_file: str,
         targets: str,
+        target_goal: str,
         split_dict: dict,
         num_classes: int,
         shift_n_bp: int = 0,
@@ -25,6 +26,14 @@ class CustomDataset:
             genome_fasta_file, sequence_always_upper=True
         )
         self.targets = np.load(targets)["targets"]
+        if target_goal == "max":
+            self.targets = self.targets[0, :]
+        elif target_goal == "mean":
+            self.targets = self.targets[1, :]
+        elif target_goal == "count":
+            self.targets = self.targets[2, :]
+        elif target_goal == "logcount":
+            self.targets = self.targets[3, :]
         self.split_dict = split_dict
 
         self.num_classes = num_classes
@@ -62,9 +71,9 @@ class CustomDataset:
                 val=val_indices,
                 test=test_indices,
             )
-            train_targets = self.targets[:, train_indices]
-            val_targets = self.targets[:, val_indices]
-            test_targets = self.targets[:, test_indices]
+            train_targets = self.targets[train_indices]
+            val_targets = self.targets[val_indices]
+            test_targets = self.targets[test_indices]
             np.savez(
                 os.path.join(output_dir, "targets.npz"),
                 train=train_targets,
@@ -90,7 +99,7 @@ class CustomDataset:
                 start += shift
                 end += shift
             sequence = str(self.genomic_pyfasta[chrom][start:end].seq)
-            target = self.targets[1, sample_idx]
+            target = self.targets[sample_idx]
             yield sequence, target
 
     def subset(self, split: str):

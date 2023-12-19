@@ -101,8 +101,6 @@ In progress...
 In progress
 
 ### To Do
-* Save train/val splits used and give option
-* Data input paths in output/wandb
 * ISM
 * Prediction (& plots)
 * Normalization checking

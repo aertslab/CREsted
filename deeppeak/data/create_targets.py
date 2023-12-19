@@ -40,7 +40,7 @@ def main(args: argparse.Namespace):
 
     # Create target vector
     print(f"Creating target vectors from {tsv_dir}...")
-    target_vector = np.zeros((2, num_regions, num_cell_types))
+    target_vector = np.zeros((4, num_regions, num_cell_types))
 
     for cell_type_idx, tsv_file in tqdm(enumerate(tsv_files), total=num_cell_types):
         file_path = os.path.join(tsv_dir, tsv_file)
@@ -49,8 +49,11 @@ def main(args: argparse.Namespace):
                 columns = line.strip().split("\t")
                 average_peak_height = float(columns[-4])
                 max_peak_height = float(columns[-1])
+                count = float(columns[-5])
                 target_vector[0, region_idx, cell_type_idx] = max_peak_height
                 target_vector[1, region_idx, cell_type_idx] = average_peak_height
+                target_vector[2, region_idx, cell_type_idx] = count
+                target_vector[3, region_idx, cell_type_idx] = np.log(count + 1)
 
     # Save target vector
     print(f"Saving target vectors to {args.output_dir}/targets.npz...")
