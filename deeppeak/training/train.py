@@ -1,6 +1,7 @@
 import tensorflow as tf
 import yaml
 import os
+import shutil
 import argparse
 from datetime import datetime
 
@@ -37,7 +38,7 @@ def parse_arguments() -> argparse.Namespace:
         "--targets_file",
         type=str,
         help="Path to targets file",
-        default="data/processed/targets.npy",
+        default="data/processed/targets.npz",
     )
     parser.add_argument(
         "-o",
@@ -57,7 +58,7 @@ def model_callbacks(
     callbacks = []
     # Checkpoints
     checkpoint = tf.keras.callbacks.ModelCheckpoint(
-        os.path.join(checkpoint_dir, "{epoch:02d}.keras"),
+        os.path.join(checkpoint_dir, "checkpoints", "{epoch:02d}.keras"),
         save_freq="epoch",
         save_weights_only=False,
         save_best_only=False,
@@ -100,7 +101,14 @@ def model_callbacks(
     return callbacks
 
 
-def load_datasets(bed_file, genome_fasta_file, targets_file, config, batch_size):
+def load_datasets(
+    bed_file: str,
+    genome_fasta_file: str,
+    targets_file: str,
+    config: dict,
+    batch_size: int,
+    checkpoint_dir: str,
+):
     """Load train & val datasets."""
     # Load data
     split_dict = {"val": config["val"], "test": config["test"]}
@@ -113,6 +121,7 @@ def load_datasets(bed_file, genome_fasta_file, targets_file, config, batch_size)
         config["num_classes"],
         config["augment_shift_n_bp"],
         config["fraction_of_data"],
+        checkpoint_dir,
     )
 
     seq_len = config["seq_len"]
@@ -262,8 +271,11 @@ def main(args: argparse.Namespace, config: dict):
 
     checkpoint_dir = os.path.join(args.output_dir, config["project_name"], now)
 
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
+    if not os.path.exists(checkpoint_dir):
+        os.makedirs(checkpoint_dir)
+    elif os.path.exists(checkpoint_dir):
+        shutil.rmtree(checkpoint_dir)
+        os.makedirs(checkpoint_dir)
 
     # Train on GPU
     gpus_found = tf.config.list_physical_devices("GPU")
@@ -296,6 +308,7 @@ def main(args: argparse.Namespace, config: dict):
         args.targets_file,
         config,
         global_batch_size,
+        checkpoint_dir,
     )
 
     if config["wandb"]:

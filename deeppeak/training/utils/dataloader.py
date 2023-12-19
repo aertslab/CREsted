@@ -1,5 +1,6 @@
 """Helper functions for loading data from tfRecords."""
 import tensorflow as tf
+import os
 import pyfaidx
 import numpy as np
 
@@ -14,13 +15,14 @@ class CustomDataset:
         num_classes: int,
         shift_n_bp: int = 0,
         fraction_of_data: float = 1.0,
+        output_dir: str = None,
     ):
         # Load datasets
         self.all_regions = self._load_bed_file(bed_file)
         self.genomic_pyfasta = pyfaidx.Fasta(
             genome_fasta_file, sequence_always_upper=True
         )
-        self.targets = np.load(targets)
+        self.targets = np.load(targets)["targets"]
         self.split_dict = split_dict
 
         self.num_classes = num_classes
@@ -33,7 +35,33 @@ class CustomDataset:
         val_indices = self._get_indices_for_set_type(
             self.split_dict, "val", self.all_regions, fraction_of_data
         )
-        self.indices = {"train": train_indices, "val": val_indices}
+        test_indices = self._get_indices_for_set_type(
+            self.split_dict, "test", self.all_regions, fraction_of_data
+        )
+        self.indices = {
+            "train": train_indices,
+            "val": val_indices,
+            "test": test_indices,
+        }
+
+        # Save split ids & targets to output directory for safekeeping.
+        if output_dir is not None:
+            np.savez(
+                os.path.join(output_dir, "region_split_ids.npz"),
+                train=train_indices,
+                val=val_indices,
+                test=test_indices,
+            )
+            train_targets = self.targets[:, train_indices]
+            val_targets = self.targets[:, val_indices]
+            test_targets = self.targets[:, test_indices]
+            np.savez(
+                os.path.join(output_dir, "targets.npz"),
+                train=train_targets,
+                val=val_targets,
+                test=test_targets,
+            )
+            print(f"Saved split ids and targets to {output_dir}")
 
     def len(self, subset: str):
         if subset not in ["train", "val"]:

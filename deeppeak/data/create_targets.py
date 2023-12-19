@@ -53,8 +53,11 @@ def main(args: argparse.Namespace):
                 target_vector[1, region_idx, cell_type_idx] = average_peak_height
 
     # Save target vector
-    print(f"Saving target vector to {args.output_dir}...")
-    np.save(os.path.join(args.output_dir, "targets.npy"), target_vector)
+    print(f"Saving target vectors to {args.output_dir}/targets.npz...")
+    np.savez_compressed(
+        os.path.join(args.output_dir, "targets.npz"),
+        targets=target_vector,
+    )
 
 
 if __name__ == "__main__":
