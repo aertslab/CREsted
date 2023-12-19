@@ -1,6 +1,5 @@
 import pyfaidx
 import numpy as np
-from tqdm import tqdm
 
 
 def regions_to_hot_encoding(

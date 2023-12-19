@@ -1,8 +1,5 @@
 """Load a trained model and predict on the test set."""
-import os
 import argparse
-import yaml
-import tensorflow as tf
 
 
 def parse_arguments() -> argparse.Namespace:

@@ -9,7 +9,6 @@ import pyfaidx
 from utils.explain import Explainer, grad_times_input_to_df, plot_attribution_map
 from utils.one_hot_encoding import get_hot_encoding_table, regions_to_hot_encoding
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 from tqdm import tqdm
 import tensorflow as tf
 from tensorflow.keras.models import load_model

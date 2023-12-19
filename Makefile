@@ -43,9 +43,9 @@ clean_wandb:
 clean_logs:
 	find . -type f -name "*slurm*" -delete
 
-## Lint using flake8 on deeppeak/ while ignoring 'line too long' errors
+## Lint using flake8 on deeppeak/ while ignoring 'line too long' & whitespace ':' errors
 lint:
-	flake8 deeppeak/ --ignore=E501
+	flake8 deeppeak/ --ignore=E501,E203
 
 ## Link data to raw and rename (use absolute paths)
 linkdata:

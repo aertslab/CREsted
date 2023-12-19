@@ -204,11 +204,11 @@ def mutagenesis(x, model, class_index=None):
     def generate_mutagenesis(x):
         _, L, A = x.shape
         x_mut = []
-        for l in range(L):
+        for length in range(L):
             for a in range(A):
                 x_new = np.copy(x)
-                x_new[0, l, :] = 0
-                x_new[0, l, a] = 1
+                x_new[0, length, :] = 0
+                x_new[0, length, a] = 1
                 x_mut.append(x_new)
         return np.concatenate(x_mut, axis=0)
 
@@ -217,9 +217,9 @@ def mutagenesis(x, model, class_index=None):
 
         mut_score = np.zeros((1, L, A))
         k = 0
-        for l in range(L):
+        for length in range(L):
             for a in range(A):
-                mut_score[0, l, a] = predictions[k]
+                mut_score[0, length, a] = predictions[k]
                 k += 1
         return mut_score
 

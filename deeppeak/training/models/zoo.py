@@ -348,7 +348,7 @@ def dense_block(
         l2 (float, optional): L2 regularization weight (default is 1e-5).
         bn_gamma (tf.Tensor, optional): Gamma initializer for batch normalization.
         bn_momentum (float, optional): Batch normalization momentum (default is 0.90).
-        normalization (str, optional): Type of normalization ('batch' or 'layer', default is 'batch').
+        normalization (str, optional): Type of normalization ('batch' or 'layer').
 
     Returns:
         tf.Tensor: The output tensor of the dense block.
@@ -394,7 +394,7 @@ def conv_block(
         pool_size (int): Size of the max-pooling kernel.
         activation (str): Activation function applied after convolution.
         dropout (float, optional): Dropout rate (default is 0.1).
-        normalization (str, optional): Type of normalization ('batch' or 'layer', default is 'batch').
+        normalization (str, optional): Type of normalization ('batch' or 'layer').
         res (bool, optional): Whether to use residual connections (default is False).
 
     Returns:
