@@ -4,7 +4,6 @@ import os
 import pyfaidx
 import numpy as np
 import shutil
-import random
 import json
 
 
