@@ -276,6 +276,7 @@ def main(args: argparse.Namespace, config: dict):
     elif os.path.exists(checkpoint_dir):
         shutil.rmtree(checkpoint_dir)
         os.makedirs(checkpoint_dir)
+    shutil.copyfile("configs/user.yml", os.path.join(checkpoint_dir, "user.yml"))
 
     # Train on GPU
     gpus_found = tf.config.list_physical_devices("GPU")
