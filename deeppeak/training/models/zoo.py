@@ -116,7 +116,7 @@ def simple_convnet(
 
 def chrombpnet(
     input_shape: tuple,
-    output_shape: int,
+    output_shape: tuple,
     first_conv_filters: int = 512,
     first_conv_filter_size: int = 5,
     first_conv_pool_size: int = 0,
@@ -307,7 +307,7 @@ def basenji(
         bn_momentum=0.9,
     )
 
-    current = layers.AveragePooling1D(pool_size=window_size)(current)
+    current = layers.GlobalAveragePooling1D()(current)
 
     outputs = layers.Dense(
         units=output_shape[-1],
