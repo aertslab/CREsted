@@ -20,12 +20,12 @@ specificity_filtering: False  # filter regions based on region specificity
 
 # Training
 wandb: True
-model_architecture: 'basenji'  # simple_convnet, basenji, chrombpnet
+model_architecture: 'chrombpnet'  # simple_convnet, basenji, chrombpnet
 target: 'mean'  # max, mean, count, or logcount
 epochs: 40
 batch_size: 128
 learning_rate: 0.001
-patience: 5  # number of epochs to wait before early stopping
+patience: 10  # number of epochs to wait before early stopping
 pretrained_model_path: ''  # continue from .keras checkpoint. Leave empty if starting from scratch
 shuffle: True
 mixed_precision: True  # use mixed precision training (recent GPUs only)
