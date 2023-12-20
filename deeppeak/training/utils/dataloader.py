@@ -26,14 +26,19 @@ class CustomDataset:
             genome_fasta_file, sequence_always_upper=True
         )
         self.targets = np.load(targets)["targets"]
-        if target_goal == "max":
+
+        if self.targets.shape[0] == 1:
+            print("Only found one target type in target array. Using that one.")
             self.targets = self.targets[0, :]
-        elif target_goal == "mean":
-            self.targets = self.targets[1, :]
-        elif target_goal == "count":
-            self.targets = self.targets[2, :]
-        elif target_goal == "logcount":
-            self.targets = self.targets[3, :]
+        else:
+            if target_goal == "max":
+                self.targets = self.targets[0, :]
+            elif target_goal == "mean":
+                self.targets = self.targets[1, :]
+            elif target_goal == "count":
+                self.targets = self.targets[2, :]
+            elif target_goal == "logcount":
+                self.targets = self.targets[3, :]
         self.split_dict = split_dict
 
         self.num_classes = num_classes

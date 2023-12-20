@@ -104,8 +104,6 @@ In progress
 * ISM
 * Prediction (& plots)
 * Normalization checking
-* Logfreq as targets
-
 
 ## Acknowledgments
 Authors:

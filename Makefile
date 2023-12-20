@@ -92,8 +92,8 @@ data_bed_targets:
 
 ## Data: match bigwig files to target bed file
 data_bigwig:
-	echo "Matching bigwig files to target bed regions..."
-	echo "Warning: removing data/interim/bw/"
+	@echo "Matching bigwig files to target bed regions..."
+	@echo "Warning: removing data/interim/bw/"
 	rm -rf data/interim/bw
 	scripts/all_ct_bigwigAverageOverBed.sh -o "data/interim/bw/" -b "data/raw/bw/" -p "data/interim/consensus_peaks_targets.bed"
 
@@ -101,8 +101,16 @@ data_bigwig:
 data_targets:
 	python deeppeak/data/create_targets.py --bigwig_dir "data/interim/bw/" --output_dir "data/processed/"
 
+## Data: save the original data paths to the output directory
+data_save_original_paths:
+	mkdir -p data/output
+	@echo "Saving original data paths and their new names from symbolic links in data/raw..."
+	@echo -e "New Filename\tOriginal Path" > data/processed/original_data_paths.tsv
+	@find data/raw -type l -exec sh -c 'printf "%s\t" "$$0"; readlink "$$0"' {} \; >> data/processed/original_data_paths.tsv
+	@echo "Original paths and new filenames saved to data/processed/original_data_paths.tsv"
+
 ## Data: run full preprocessing pipeline
-data_pipeline: data_bed_inputs data_bed_targets data_bigwig data_targets
+data_pipeline: data_bed_inputs data_bed_targets data_bigwig data_targets data_save_original_paths
 
 ## Model training
 train:

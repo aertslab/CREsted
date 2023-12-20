@@ -56,11 +56,18 @@ def main(args: argparse.Namespace):
                 target_vector[3, region_idx, cell_type_idx] = np.log(count + 1)
 
     # Save target vector
-    print(f"Saving target vectors to {args.output_dir}/targets.npz...")
+    print(f"Saving target vectors to {args.output_dir}targets.npz...")
     np.savez_compressed(
         os.path.join(args.output_dir, "targets.npz"),
         targets=target_vector,
     )
+
+    # Save cell type mapping file
+    print(f"Saving cell type mapping to {args.output_dir}cell_type_mapping.tsv...")
+    with open(os.path.join(args.output_dir, "cell_type_mapping.tsv"), "w") as f:
+        for cell_type_idx, tsv_file in enumerate(tsv_files):
+            out_path = os.path.join(args.bigwig_dir, tsv_file)
+            f.write(f"{cell_type_idx}\t{tsv_file.split('.')[0]}\t{out_path}\n")
 
 
 if __name__ == "__main__":
