@@ -99,7 +99,7 @@ data_bigwig:
 
 ## Data: create target vectors from bigwigs
 data_targets:
-	python deeppeak/data/create_targets.py --bigwig_dir "data/interim/bw/" --output_dir "data/processed/"
+	python deeppeak/data/create_targets.py --bigwig_dir "data/interim/bw/" --regions_bed_file "data/processed/consensus_peaks_inputs.bed" --output_dir "data/processed/"
 
 ## Data: save the original data paths to the output directory
 data_save_original_paths:

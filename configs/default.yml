@@ -20,7 +20,7 @@ specificity_filtering: False  # filter regions based on region specificity
 
 # Training
 wandb: True
-model_architecture: 'chrombpnet'  # simple_convnet, basenji, chrombpnet
+model_architecture: 'basenji'  # simple_convnet, basenji, chrombpnet
 target: 'mean'  # max, mean, count, or logcount
 epochs: 40
 batch_size: 128

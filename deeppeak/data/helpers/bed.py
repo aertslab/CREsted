@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+import numpy as np
 from contextlib import contextmanager
 
 
@@ -105,6 +106,21 @@ def get_regions_from_bed(regions_bed_filename: str):
             start, end = [int(x) for x in columns[1:3]]
             region = chrom, start, end
             yield region
+
+
+def filter_bed_on_idx(regions_bed_filename: str, idx: np.ndarray):
+    """
+    Keeps regions in a BED file that are on the given index.
+    """
+    idx = set(idx)
+
+    with open(regions_bed_filename, "r") as infile:
+        lines = infile.readlines()
+    with open(regions_bed_filename, "w") as outfile:
+        for i, line in enumerate(lines):
+            if i in idx:
+                cols = line.strip().split()
+                outfile.write("\t".join(cols) + "\n")
 
 
 def get_bed_region_width(regions_bed_filename: str):

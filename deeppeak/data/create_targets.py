@@ -4,7 +4,9 @@ import os
 import yaml
 import argparse
 import numpy as np
+from typing import Tuple
 from tqdm import tqdm
+from helpers.bed import filter_bed_on_idx
 
 
 def parse_arguments():
@@ -17,6 +19,13 @@ def parse_arguments():
         "--bigwig_dir",
         type=str,
         help="Path to the folder containing the preprocessed bigwig files.",
+        required=True,
+    )
+    parser.add_argument(
+        "-r",
+        "--regions_bed_file",
+        type=str,
+        help="Path to the input regions BED file.",
         required=True,
     )
     parser.add_argument(
@@ -83,6 +92,7 @@ def normalize_peaks(
     top_k_percent_means = []
     gini_scores_all = []
 
+    print("Filtering on top k Gini scores...")
     for i in range(num_cell_types):
         filtered_col = target_vector[1][:, i][target_vector[1][:, i] > threshold]
         sorted_col = np.sort(filtered_col)[::-1]
@@ -92,7 +102,6 @@ def normalize_peaks(
             target_vector[1, np.argsort(filtered_col)[::-1][:top_k_index]]
         )
         high_gini_indices = np.where(np.max(gini_scores, axis=1) < gini_threshold)[0]
-        print("Filtering on top k Gini scores...")
         print(f"{len(high_gini_indices)} out of {top_k_index} remain for {bws[i]}.")
 
         if len(high_gini_indices) > 0:
@@ -113,6 +122,35 @@ def normalize_peaks(
 
     target_vector[3] = np.log(target_vector[2] + 1)
     return target_vector
+
+
+def filter_regions_on_specificity(
+    target_vector: np.ndarray,
+    bed_filename: str,
+    gini_threshold: float = 0.5,
+    target_idx: int = 1,
+) -> Tuple[np.ndarray, list, np.ndarray]:
+    """
+    Filter bed regions & targets based on high Gini score. Saves filtered bed regions
+    back to original file and returns filtered targets.
+
+    Args:
+        target_vector (np.ndarray): targets
+        bed_filename (str): path to BED file
+        gini_threshold (float): Threshold for Gini scores to identify high variability.
+        target_idx (int): Type of targets to use for filtering decision (1='mean')
+    """
+
+    gini_scores = calc_gini(target_vector[target_idx])
+    selected_indices = np.argwhere(np.max(gini_scores, axis=1) > gini_threshold)[:, 0]
+
+    target_vector_filt = target_vector[:, selected_indices]
+    filter_bed_on_idx(bed_filename, selected_indices)
+    print(
+        f"Kept {len(target_vector_filt[0,:])} out of {len(target_vector[0,:])} regions."
+    )
+
+    return target_vector_filt
 
 
 def main(args: argparse.Namespace, config: dict):
@@ -147,9 +185,11 @@ def main(args: argparse.Namespace, config: dict):
         print("Normalizing peaks...")
         target_vector = normalize_peaks(target_vector, tsv_files, num_cell_types)
 
-    # if config["specificity_filtering"]:
-    #     print("Filtering regions based on region specificity...")
-    #     target_vector
+    if config["specificity_filtering"]:
+        print("Filtering regions based on region specificity...")
+        target_vector = filter_regions_on_specificity(
+            target_vector, args.regions_bed_file
+        )
 
     # Save target vector
     print(f"Saving target vectors to {args.output_dir}targets.npz...")
