@@ -103,7 +103,11 @@ In progress
 ### To Do
 * ISM
 * Prediction (& plots)
-* Normalization checking
+  - Predict on test set & show highest predicted regions for a cell type
+  - Show example prediction histogram vs actual ATAC
+  - Prediction performance with several metrics accross cell types
+  - Prediction vs average peak value
+  - Explainers on roi
 
 ## Acknowledgments
 Authors:
