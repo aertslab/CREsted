@@ -41,6 +41,13 @@ def parse_arguments() -> argparse.Namespace:
         default="data/processed/targets.npz",
     )
     parser.add_argument(
+        "-m",
+        "--cell_mapping_file",
+        type=str,
+        help="Path to cell type mapping file",
+        default="data/processed/cell_type_mapping.tsv",
+    )
+    parser.add_argument(
         "-o",
         "--output_dir",
         type=str,
@@ -278,7 +285,10 @@ def main(args: argparse.Namespace, config: dict):
         shutil.rmtree(checkpoint_dir)
         os.makedirs(checkpoint_dir)
     shutil.copyfile("configs/user.yml", os.path.join(checkpoint_dir, "user.yml"))
-
+    shutil.copyfile(
+        args.cell_mapping_file, os.path.join(checkpoint_dir, "cell_type_mapping.tsv")
+    )
+    exit()
     # Train on GPU
     gpus_found = tf.config.list_physical_devices("GPU")
 
