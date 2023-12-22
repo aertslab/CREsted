@@ -12,6 +12,7 @@ The goal of the model is to learn to denoise the signal and to be able to interp
   - [Installation](#installation)
   - [Dependencies](#dependencies)
   - [Useful commands](#useful-commands)
+  - [Infrastructure](#infrastructure)
   - [Quick Start](#quick-start)
 - [Usage](#usage)
   - [Data Preprocessing](#data-preprocessing)
@@ -63,6 +64,14 @@ For example, you can delete all compiled python files using:
 ```bash
 make clean_compiled
 ```
+
+### Infrastructure
+
+Deeppeak is optimized to work quickly on recent GPUs using limited amount of memory. 
+For a model with 6M parameters and a dataset containing 500K regions, working on 8 cores with 5GB each should more than suffice to perform both data preprocessing, training, and validation.
+If you have larger datasets you might need to increase the memory a little bit.
+
+Increasing the number of GPUs will simply speed up training by a factor of the number of GPUs available.
 
 ### Quick Start
 In progress...
@@ -149,6 +158,34 @@ python deeppeak/training/train.py --genome_fasta_file /path/to/genome.fa --bed_f
 This will output all model checkpoints during training to your *output_dir/{project_name}/{timestamp}*, as well as save the required data files to the output directory to ensure the training is fully reproducible. Of course, this means that you will have a lot of duplicate files saved, so don't forget to **remove any checkpoint directories of runs you don't plan on keeping!**
 
 Renaming interesting runs to something more informative than the timestamp is also a good idea.
+
+An example slurm script to perform model training (on one GPU) would look like this:
+
+```bash
+#!/usr/bin/env bash
+#SBATCH -n 1
+#SBATCH -c 8
+#SBATCH --mem=30G
+#SBATCH --time=08:00:00
+#SBATCH -A lp_big_wice_gpu
+#SBATCH -p dedicated_big_gpu
+#SBATCH -G 1
+#SBATCH --cluster=wice
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=my.user@my.email
+
+##TRAINING MODEL
+workdir={/path/to/your/Deeppeak/repository/}
+
+source /lustre1/project/stg_00002/mambaforge/{your_user}/etc/profile.d/conda.sh
+conda activate deeppeak
+
+module load cuDNN/8.7.0.84-CUDA-11.8.0
+
+make train
+```
+
+You can store your personal slurm scripts under *scripts/personal*, which is ignored by git.
 
 ### Evaluation
 
