@@ -288,7 +288,7 @@ def main(args: argparse.Namespace, config: dict):
     shutil.copyfile(
         args.cell_mapping_file, os.path.join(checkpoint_dir, "cell_type_mapping.tsv")
     )
-    exit()
+
     # Train on GPU
     gpus_found = tf.config.list_physical_devices("GPU")
 
