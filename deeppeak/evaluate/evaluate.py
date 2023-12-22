@@ -1,4 +1,6 @@
-"""Load a trained model, predict on the test set and show performance scores."""
+"""Load a trained model, predict on the test set and show performance scores/plots.
+"""
+
 import argparse
 import os
 import pandas as pd

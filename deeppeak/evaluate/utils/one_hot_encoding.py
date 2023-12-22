@@ -42,6 +42,8 @@ def regions_to_hot_encoding(
 
     regions = _get_regions_from_bed(regions_bed_filename, idx)
     n_regions = len(regions)
+    if n_regions == 0:
+        raise ValueError("No regions found for this specification")
     region_width = regions[0][2] - regions[0][1]
     num_alphabets = hot_encoding_table.shape[1]
 

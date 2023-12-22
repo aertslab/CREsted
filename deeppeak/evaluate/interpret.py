@@ -1,8 +1,7 @@
-"""Interpret a trained model using SHAP or ISM."""
+"""Interpret a trained model using gradientxinput explainers."""
 
 import argparse
 import numpy as np
-import tempfile
 from datetime import datetime
 import os
 import pyfaidx
@@ -11,11 +10,6 @@ from utils.one_hot_encoding import get_hot_encoding_table, regions_to_hot_encodi
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import tensorflow as tf
-from tensorflow.keras.models import load_model
-
-CLASS_NAMES = os.listdir("data/interim/bw/")
-CLASS_NAMES = [name.split(".")[0] for name in CLASS_NAMES]
-CLASS_NAMES.sort()
 
 
 def parse_arguments():
@@ -31,22 +25,16 @@ def parse_arguments():
         default="data/raw/genome.fa",
     )
     parser.add_argument(
-        "-r",
-        "--regions_bed_file",
+        "--model_dir",
         type=str,
-        help="Path to BED file which was input to the model",
-        default="data/processed/consensus_peaks_inputs.bed",
-    )
-    parser.add_argument(
-        "-m", "--model", type=str, required=True, help="Path to trained keras model"
-    )
-    parser.add_argument(
-        "-o",
-        "--output_dir",
-        type=str,
+        help="Path to output model directory (e.g. 'checkpoints/mouse/2023-12-20_15:32/')",
         required=True,
-        help="Output dir",
-        default="data/output/",
+    )
+    parser.add_argument(
+        "--model_name",
+        type=str,
+        help="Trained .keras model name inside model_dir/checkpoints. \
+        If empty, will load last model in directory.",
     )
     parser.add_argument(
         "-chr",
@@ -130,7 +118,9 @@ def calculate_gradient_scores(
         class_indices = [None]
     scores = np.zeros((x.shape[0], n_classes, x.shape[1], x.shape[2]))  # (N, C, W, 4)
     for i, class_index in tqdm(
-        enumerate(class_indices), desc="Calculating scores per class", total=n_classes
+        enumerate(class_indices),
+        desc="Calculating scores per class for all regions",
+        total=n_classes,
     ):
         explainer = Explainer(model, class_index=class_index)
         if method == "integrated_grad":
@@ -152,8 +142,10 @@ def visualize_scores(
     scores: np.ndarray,
     seqs_one_hot: np.ndarray,
     output_dir: str,
+    chr_start_ends: str,
     class_indices: list,
     zoom_n_bases: int,
+    class_names: list,
 ):
     """Visualize interpretation scores."""
     # Center and zoom
@@ -168,9 +160,6 @@ def visualize_scores(
 
     # Plot
     now = datetime.now()
-    output_dir = os.path.join(output_dir, "interpretation_plots")
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
     print(f"Plotting scores and saving to {output_dir}...")
     for seq in tqdm(range(seqs_one_hot.shape[0]), desc="Plotting scores per seq"):
         fig_height_per_class = 2
@@ -180,13 +169,14 @@ def visualize_scores(
             seq_class_x = seqs_one_hot[seq, :, :]
             intgrad_df = grad_times_input_to_df(seq_class_x, seq_class_scores)
             ax = plt.subplot(len(class_indices), 1, i + 1)
-            plt.ylabel(CLASS_NAMES[class_index])
+            plt.ylabel(class_names[class_index])
             plot_attribution_map(intgrad_df, ax=ax)
 
             ax.set_ylim([global_min, global_max])
         plt.xlabel("Position")
         plt.xticks(np.arange(0, zoom_n_bases, 50))
-        plt.savefig(os.path.join(output_dir, f"seq_{seq}.jpeg"))
+        chr, start, end = chr_start_ends[seq]
+        plt.savefig(os.path.join(output_dir, f"{chr}_{start}_{end}_explained.jpeg"))
         plt.close(fig)
     end = datetime.now()
     print(f"Plotting took {end - now}")
@@ -202,57 +192,69 @@ def main(args):
     # Load data
     one_hot_encoding_table = get_hot_encoding_table()
     genomic_pyfasta = pyfaidx.Fasta(args.genome_fasta_file, sequence_always_upper=True)
+    regions_bed_file = os.path.join(args.model_dir, "regions.bed")
+
+    classnames = []
+    with open(
+        os.path.join(args.model_dir, "cell_type_mapping.tsv"), "r"
+    ) as cell_mapping:
+        for line in cell_mapping:
+            classnames.append(line.strip().split("\t")[1])
 
     # Read regions and one hot encode
-    with open(args.regions_bed_file, "r") as f:
+    with open(regions_bed_file, "r") as f:
         lines = f.readlines()
         lines = [line.strip().split("\n") for line in lines]
 
         # Subset if required
         if args.chromosome is not None:
+            print(f"Filtering on chromosome {args.chromosome}")
             lines = [
                 line for line in lines if line[0].split("\t")[0] == args.chromosome
             ]
         if args.region_start is not None:
+            print(f"Filtering on region >= {args.region_start}")
             lines = [
                 line
                 for line in lines
-                if int(line[0].split("\t")[1]) >= args.region_start
+                if int(line[0].split("\t")[1]) >= int(args.region_start)
             ]
         if args.region_end is not None:
+            print(f"Filtering on region <= {args.region_end}")
             lines = [
-                line for line in lines if int(line[0].split("\t")[2]) <= args.region_end
+                line
+                for line in lines
+                if int(line[0].split("\t")[2]) <= int(args.region_end)
             ]
+    print("Found", len(lines), "regions to explain")
+    chr_start_ends = [line[0].split("\t")[0:3] for line in lines]
 
-        # One hot encode
-        width_region = int(lines[0][0].split("\t")[2]) - int(lines[0][0].split("\t")[1])
-        seqs_one_hot = np.zeros((len(lines), width_region, 4))
+    # Save lines back to new_region
+    new_bed_file = os.path.join(args.model_dir, "regions.explainer.bed")
+    with open(new_bed_file, "w") as f:
+        for line in lines:
+            f.write("\t".join(line) + "\n")
 
-        print(f"One hot encoding {len(lines)} regions...")
-        with tempfile.NamedTemporaryFile(
-            mode="w", dir=args.output_dir, delete=True
-        ) as tmp:
-            tmp.writelines(["\n".join(line) for line in lines])
-            tmp.flush()
+    # One hot encode
+    seqs_one_hot = regions_to_hot_encoding(
+        regions_bed_filename=new_bed_file,
+        genomic_pyfasta=genomic_pyfasta,
+        hot_encoding_table=one_hot_encoding_table,
+    )
 
-            args.regions_bed_file = tmp.name
-
-            # Convert to one hot encoding
-            for i, hot_encoded_region in tqdm(
-                enumerate(
-                    regions_to_hot_encoding(
-                        args.regions_bed_file, genomic_pyfasta, one_hot_encoding_table
-                    )
-                ),
-                total=len(lines),
-            ):
-                seqs_one_hot[i] = hot_encoded_region
-
-            # Delete temporary file
-            tmp.close()
-
-    model = load_model(args.model, compile=False)
-    model.summary()
+    # Load model
+    if args.model_name:
+        model = tf.keras.models.load_model(
+            os.path.join(args.model_dir, "checkpoints", args.model_name), compile=False
+        )
+    else:
+        model_checkpoints = os.listdir(os.path.join(args.model_dir, "checkpoints"))
+        model_checkpoints.sort()
+        last_model = model_checkpoints[-1]
+        print(f"No model selected. Loading last model {last_model} in directory...")
+        model = tf.keras.models.load_model(
+            os.path.join(args.model_dir, "checkpoints", last_model), compile=False
+        )
     print("Model loaded successfully")
 
     # Set class index
@@ -263,15 +265,19 @@ def main(args):
     elif args.class_index == "combined":
         args.class_index = None
 
+    output_folder = os.path.join(args.model_dir, "evaluation_outputs")
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
     scores = calculate_gradient_scores(
         model,
         seqs_one_hot,
-        args.output_dir,
+        output_folder,
         class_indices=args.class_index,
         method=args.method,
     )
 
-    output_path = os.path.join(args.output_dir, f"{args.method}_scores.npy")
+    output_path = os.path.join(output_folder, f"{args.method}_scores.npy")
     print(f"Saving {args.method} scores to {output_path}...")
     np.save(output_path, scores)
 
@@ -279,9 +285,11 @@ def main(args):
         visualize_scores(
             scores,
             seqs_one_hot,
-            args.output_dir,
+            output_folder,
+            chr_start_ends,
             class_indices=args.class_index,
             zoom_n_bases=args.zoom_n_bases,
+            class_names=classnames,
         )
 
 

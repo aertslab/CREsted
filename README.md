@@ -16,7 +16,7 @@ The goal of the model is to learn to denoise the signal and to be able to interp
 - [Usage](#usage)
   - [Data Preprocessing](#data-preprocessing)
   - [Model Training](#model-training)
-  - [Prediction](#prediction)
+  - [Evaluation](#evaluation)
 - [Results](#results)
 - [Contributing](#contributing)
 - [Acknowledgments](#acknowledgments)
@@ -30,7 +30,7 @@ To install the dependencies, make sure you have conda installed and run the foll
 ```bash
 # Creates a new conda environment if it does not exist yet
 # Updates the environment if it does exist
-make requirements
+make requirements  # run from terminal
 ```
 
 Alternatively, you can install the dependencies using the following commands:
@@ -48,8 +48,10 @@ Tensorflow requires CUDA and cuDNN to be installed. If you have multiple version
 module spider cudnn
 
 # Load the correct versions for tensorflow
+# !Run this each time you start a new terminal!
 module load cuDNN/8.7.0.84-CUDA-11.8.0  # CUDA 11.8
 ```
+If you don't load cuDNN/CUDA in your terminal before running the training scripts when you have multiple versions available, you will encounter the error: `tensorflow/tsl/platform/default/subprocess.cc:304] Start cannot spawn child process: No such file or directory` or `Could not load library libcudnn_cnn_infer.so.8. Error: libnvrtc.so: cannot open shared object file: No such file or director`
 
 ### Useful commands
 
@@ -77,37 +79,126 @@ The most important changes  you need to make in your *user.yml* for each project
 - **target_len**: The length your want your target region to be (in bp).
 
 
+All the processing and training can be run from the command line.  
+If you prefer working in notebooks, you can do so but remember to not commit them to the git repository. Place them in the *notebooks/personal* folder, which is ignored by git (and remember to use relative imports/runs, e.g. from '../../deeppeak/training import ...').
+
 ### Data Preprocessing
-In progress...
+
+The data preprocessing will create target vectors of shape (4, N, C) where N is the number of regions and C is the number of cells types. For each of these, you will have four scalar values representing the *max, mean, count, and logcount* ATAC of the target region.  
+The region sizes considered for creating the target vectors are defined by the **target_len** parameter in your config file.  
+As inputs, the model will use the preprocessed region bed file with region sizes that are defined by the **seq_len** parameter in your config file.  
+Matching the regions to the genome and one hot encoding them happens online during training to save on both RAM and disk memory.  
+These files will be created in *data/processed* by running the data pipeline.
+
+As inputs for the data preprocessing pipeline, you'll need four types of files:
+* Reference genome fasta file
+* Consensus regions bed file
+* Chrom.sizes file
+* Folder containing bigwigs files per cell type
+
+#### Linking the raw data
+
+The easiest way to control your data pipeline is to create symbolic links from your original input data paths to the project's *data/raw* folder. If you want to work with the default parser arguments without having to provide the data paths each time throughout data preprocessing and training, you should see that they are named in the following way:
+```
+genome fasta == > data/raw/genome.fa
+chromosome sizes ==> data/raw/chrom.sizes
+consensus regions ==> data/raw/consensus_peaks.bed
+bigwig folder ==> data/raw/bw/{cell_type_name}.bw
+```
+
+You can create the symbolic links manually yourself with the ```ln -s``` command, or you can use the following handy command which will create the symbolic links and name them correctly given certain patterns in the input data path:
+
+```bash
+# Command
+make linkdata path='/path/to/your/source/file_or_folder'  # you should do this 4 times, once for each filetype
+
+# For example, if your input path contains the pattern '.fa'
+# This command will automatically create a symbolic path from that path 
+# to data/raw/genome.fa
+
+# Bigwigs mouse example
+make linkdata path='/staging/leuven/stg_00002/lcb/lcb_projects/biccn_okt_2023/analysis/cistopic/Mouse/outs/pseudobulks/subclass_Bakken_2022/bw/'
+```
+
+#### Data pipeline
+
+If you have set up your data in *data/raw* and named them correctly, you can easily run the full preprocessing pipeline with one command.
+
+```bash
+make data_pipeline
+```
+
+This will:
+* Clean the bed files by extending start/end positions, filtering out negative & out of bounds coordinates
+* Create two bed files with different region sizes, one that will be used as model inputs and one that is needed for creating the target vectors
+* Match bigwigs to region bed files by running the all_ct_bigwigAverageOverBed.sh script (**Kentools will be required and loaded for this**)
+* Create the target vectors
+
+Alternatively, you can run through all the steps yourself by running the python scripts and bash scripts in the correct order. I don't recommend doing this, but if you want to do so you can follow the steps under "#datasets" in the *Makefile* and run the python scripts with the correct parser arguments in the correct order.
 
 ### Model Training
 
-To train the model, change the necessary training configs in *user.yml*, ensure your environment is loaded correctly (see [Getting started](#getting-started)) and run the following command:
+To train the model, change the necessary training configs in *user.yml*, ensure your environment is loaded correctly (see [Getting started](#getting-started)), ensure that you have your input bed file and targets file from the data processing pipeline in the *data/processed* folder,  and run the following command:
 ```bash
 make train  # shortcut with default paths
 
 # or
-python deeppeak/training/train.py --genome_fasta_file /path/to/genome.fa --bed_file /path/to/consensus_peaks_inputs.bed --targets_file /path/to/targets.npy --output_dir /path/to/output
+python deeppeak/training/train.py --genome_fasta_file /path/to/genome.fa --bed_file /path/to/consensus_peaks_inputs.bed --targets_file /path/to/targets.npz --output_dir /path/to/checkpoints_dir/
 ```
 
-### Prediction
-In progress...
+This will output all model checkpoints during training to your *output_dir/{project_name}/{timestamp}*, as well as save the required data files to the output directory to ensure the training is fully reproducible. Of course, this means that you will have a lot of duplicate files saved, so don't forget to **remove any checkpoint directories of runs you don't plan on keeping!**
 
+Renaming interesting runs to something more informative than the timestamp is also a good idea.
 
-## Results
-In progress...
+### Evaluation
 
-## Contributing
-In progress
+#### Evaluate on test set
 
-### To Do
-* ISM
-* Prediction (& plots)
-  - Predict on test set & show highest predicted regions for a cell type
-  - Show example prediction histogram vs actual ATAC
-  - Prediction performance with several metrics accross cell types
-  - Prediction vs average peak value
-  - Explainers on roi
+To evaluate your trained models performance on the test set, you can run the following command:
+
+```bash
+# Without checkpoint specification, will load the last epoch from checkpoints
+python deeppeak/evaluate/evaluate.py --model_dir checkpoints/{project_name}/{model_timestamp}
+
+# Specifying model epoch
+python deeppeak/evaluate/evalute.py --model_dir checkpoints/{project_name}/{model_timestamp} --model_name {epoch}.keras
+```
+
+This will output and save overall performance metrics and performance metrics per cell types for the test set, as well as save some useful plots to your *{model_dir}/evaluation_outputs/*
+
+#### Gradient x input interpretation
+
+To get integrated gradients explainers (very similar to shap.deepexplainer), run the `python deeppeak/evaluate/interpret.py` script with the required parser arguments. Outputs will be saved to the *{model_dir}/evaluation_outputs* (scores as a numpy file, plots as .jpeg).
+Supported methods for now are 'integrated gradients' and 'expected integrated gradients'. Integrated gradients is much faster, but expected integrated gradients is more accurate since it uses more baselines.
+
+Some examples: 
+
+```bash
+# Calculate and save gradientxinput score across entire dataset.
+python deeppeak/evaluate/interpret.py --model_dir checkpoints/{project_name}/{timestamp}/
+
+# Specify chromosome and regions and save the plots of the results (can be a wide range of regions).
+# Plotting will take a long time.
+python deeppeak/evaluate/interpret.py --model_dir checkpoints/{project_name}/{timestamp}/ --chromosome chr1 --region_start 3206136 --region_end 3382988 --visualize
+
+# Use expected integrated gradients instead of integrated gradients
+python deeppeak/evaluate/interpret.py --model_dir checkpoints/{project_name}/{timestamp}/--method integrated_grad
+
+# Focus on specific cell types only
+python deeppeak/evaluate/interpret.py --model_dir checkpoints/{project_name}/{timestamp}/ --class_index "[0,1,2]"
+
+# Zoom in on center number of bases in input region and visualize
+python deeppeak/evaluate/interpret.py --model_dir checkpoints/{project_name}/{timestamp}/ --zoom_n_bases 500 --visualize
+
+# Plot fire enhancer
+python deeppeak/evaluate/interpret.py --model_dir checkpoints/{project_name}/{timestamp}/ --chromosome chr18 --region_start 61107570 --region_end 61109684 --zoom_n_bases 500 --class_index "[10]" --visualize
+```
+
+**WARNING:** calculating these explainers can take a long time for many regions (IGs should be quite a bit faster than shap.deepexplainer though), and plotting them will take an even longer time. Make sure to only focus on the regions of interest.
+
+## To Do
+* FastISM
+* Evaluation notebook for inspecting individual samples
 
 ## Acknowledgments
 Authors:

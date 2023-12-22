@@ -93,7 +93,6 @@ class Explainer:
 # Fast functions to calculate gradients and hessians
 
 
-@tf.function
 def saliency_map(X, model, class_index=None, func=tf.math.reduce_mean):
     """fast function to generate saliency maps"""
     if not tf.is_tensor(X):
