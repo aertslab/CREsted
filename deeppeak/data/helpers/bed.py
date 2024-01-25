@@ -49,7 +49,7 @@ def filter_bed_negative_regions(input_path: str, output_path: str):
     the second or third column.
     """
     with smart_open(input_path, output_path) as (infile, outfile):
-        for line_number, line in enumerate(infile, start=1):
+        for line_number, line in enumerate(infile, start=0):
             cols = line.strip().split()
             if int(cols[1]) < 0 or int(cols[2]) < 0:
                 print(f"Negative coordinate found on line: {line_number}")
@@ -67,7 +67,7 @@ def filter_bed_chrom_regions(input_path: str, output_path: str, chrom_sizes_file
 
     with open(chrom_sizes_file, "r") as sizes:
         for line in sizes:
-            chrom, size = line.strip().split("\t")
+            chrom, size = line.strip().split("\t")[0:2]
             size = int(size)
             chrom_sizes[chrom] = size
 
@@ -145,10 +145,8 @@ def fix_bed_labels(regions_bed_file: str):
             cols = line.strip().split()
             if len(cols) == 3:
                 cols.append(f"{cols[0]}:{cols[1]}-{cols[2]}")
-            elif len(cols) == 4:
+            elif len(cols) >= 4:
                 cols[3] = f"{cols[0]}:{cols[1]}-{cols[2]}"
-            else:
-                raise ValueError(
-                    f"Expected 3 or 4 columns in BED file, got {len(cols)}."
-                )
+            if len(cols) > 4:
+                cols = cols[:4]
             outfile.write("\t".join(cols) + "\n")
