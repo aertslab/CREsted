@@ -70,6 +70,9 @@ def preprocess_bed(
     value, and filtering out negative and out of bounds coordinates.
     """
     print(f"\nPreprocessing BED file: {input_path} to {output_path}...")
+    if not os.path.exists(output_path):
+        open(output_path, "a").close()
+
     if n_extend > 0:
         print(f"Extending start and end positions by {n_extend}...")
         bed.extend_bed_file(input_path, output_path, n_extend)
