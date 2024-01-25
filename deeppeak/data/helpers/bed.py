@@ -38,11 +38,11 @@ def filter_bed_negative_regions(input_path: str, output_path: str):
         lines = infile.readlines()
     with open(output_path, "w") as outfile:
         for line_number, line in enumerate(lines, start=0):
-            cols = line.strip().split()
+            cols = line.strip().split("\t")
             if int(cols[1]) < 0 or int(cols[2]) < 0:
-                print(f"Negative coordinate found on line: {line_number}")
-                continue
-            outfile.write(line)
+                print(f"Negative coordinate found on line: {line_number}. Skipping.")
+            else:
+                outfile.write(line)
 
 
 def filter_bed_chrom_regions(input_path: str, output_path: str, chrom_sizes_file: str):

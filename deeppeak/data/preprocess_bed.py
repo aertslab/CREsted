@@ -78,14 +78,17 @@ def preprocess_bed(
     if n_extend > 0:
         print(f"Extending start and end positions by {n_extend}...")
         bed.extend_bed_file(input_path, output_path, n_extend)
+        input_path = output_path
 
     if filter_negative:
         print("Filtering out negative coordinates...")
         bed.filter_bed_negative_regions(input_path, output_path)
+        input_path = output_path
 
     if filter_chrom:
         print("Filtering out out of bounds coordinates...")
         bed.filter_bed_chrom_regions(input_path, output_path, chrom_sizes_file)
+        input_path = output_path
 
     # Ensure labels of bed file are correct again
     bed.fix_bed_labels(output_path)
