@@ -41,6 +41,11 @@ conda env create -f environment.yml
 
 This will install the required packages and **tensorflow version 2.14**, which is compatible with CUDA 11.8. If you want to use a different version of CUDA, make sure you install the compatible version of tensorflow instead (see [here](https://www.tensorflow.org/install/source#gpu) for more information).
 
+Don't forget to activate your environment before running any of the scripts:
+```bash
+conda activate deeppeak
+```
+
 ### Dependencies
 
 Tensorflow requires CUDA and cuDNN to be installed. If you have multiple versions installed on your machine, ensure that you have the correct versions of CUDA and cuDNN loaded in your environment. 
