@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+import shutil
 import numpy as np
 from contextlib import contextmanager
 
@@ -14,29 +15,14 @@ def _raw_assertion(path: str):
     Select a different directory."
 
 
-@contextmanager
-def smart_open(input_path, output_path):
-    """Open a file for reading and another for writing, handling the case where
-    paths are the same."""
-    _raw_assertion(output_path)
-
-    if input_path == output_path:
-        dir_name = os.path.dirname(input_path)
-        with tempfile.NamedTemporaryFile(mode="w", dir=dir_name, delete=False) as tmp:
-            yield open(input_path, "r"), tmp
-            temp_name = tmp.name
-        os.replace(temp_name, output_path)
-    else:
-        with open(output_path, "w") as outfile:
-            yield open(input_path, "r"), outfile
-
-
 def extend_bed_file(input_path: str, output_path: str, value: int):
     """
     Extend the start and end positions of a BED file by a given value.
     """
-    with smart_open(input_path, output_path) as (infile, outfile):
-        for line in infile:
+    with open(input_path, "r") as infile:
+        lines = infile.readlines()
+    with open(output_path, "w") as outfile:
+        for line in lines:
             cols = line.strip().split()
             cols[1] = str(int(cols[1]) - value)
             cols[2] = str(int(cols[2]) + value)
@@ -48,8 +34,10 @@ def filter_bed_negative_regions(input_path: str, output_path: str):
     Filters out lines from a BED file that have negative values in
     the second or third column.
     """
-    with smart_open(input_path, output_path) as (infile, outfile):
-        for line_number, line in enumerate(infile, start=0):
+    with open(input_path, "r") as infile:
+        lines = infile.readlines()
+    with open(output_path, "w") as outfile:
+        for line_number, line in enumerate(lines, start=0):
             cols = line.strip().split()
             if int(cols[1]) < 0 or int(cols[2]) < 0:
                 print(f"Negative coordinate found on line: {line_number}")
@@ -71,8 +59,10 @@ def filter_bed_chrom_regions(input_path: str, output_path: str, chrom_sizes_file
             size = int(size)
             chrom_sizes[chrom] = size
 
-    with smart_open(input_path, output_path) as (infile, outfile):
-        for bed_line in infile:
+    with open(input_path, "r") as infile:
+        lines = infile.readlines()
+    with open(output_path, "w") as outfile:
+        for bed_line in lines:
             total_lines += 1
             bed_cols = bed_line.strip().split("\t")
             chrom = bed_cols[0]

@@ -6,6 +6,7 @@ as input data for the model
 import os
 import yaml
 import argparse
+import shutil
 from helpers import bed
 
 
@@ -70,8 +71,9 @@ def preprocess_bed(
     value, and filtering out negative and out of bounds coordinates.
     """
     print(f"\nPreprocessing BED file: {input_path} to {output_path}...")
-    if not os.path.exists(output_path):
-        open(output_path, "a").close()
+    if os.path.exists(output_path):
+        print(f"File already exists at {output_path}. Overwriting...")
+        os.remove(output_path)
 
     if n_extend > 0:
         print(f"Extending start and end positions by {n_extend}...")
@@ -79,11 +81,11 @@ def preprocess_bed(
 
     if filter_negative:
         print("Filtering out negative coordinates...")
-        bed.filter_bed_negative_regions(output_path, output_path)
+        bed.filter_bed_negative_regions(input_path, output_path)
 
     if filter_chrom:
         print("Filtering out out of bounds coordinates...")
-        bed.filter_bed_chrom_regions(output_path, output_path, chrom_sizes_file)
+        bed.filter_bed_chrom_regions(input_path, output_path, chrom_sizes_file)
 
     # Ensure labels of bed file are correct again
     bed.fix_bed_labels(output_path)
