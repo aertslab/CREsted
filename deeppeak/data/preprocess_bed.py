@@ -62,7 +62,7 @@ def preprocess_bed(
     input_path: str,
     output_path: str,
     chrom_sizes_file: str,
-    n_extend: int,
+    final_regions_width: int,
     filter_negative: bool = False,
     filter_chrom: bool = False,
 ):
@@ -75,10 +75,9 @@ def preprocess_bed(
         print(f"File already exists at {output_path}. Overwriting...")
         os.remove(output_path)
 
-    if n_extend > 0:
-        print(f"Extending start and end positions by {n_extend}...")
-        bed.extend_bed_file(input_path, output_path, n_extend)
-        input_path = output_path
+    print(f"Correcting start and end positions to regionds width {final_regions_width}")
+    bed.extend_bed_file(input_path, output_path, final_regions_width)
+    input_path = output_path
 
     if filter_negative:
         print("Filtering out negative coordinates...")
@@ -106,8 +105,8 @@ def main(args: argparse.Namespace, config: dict):
             "Please specify either 'inputs' or 'targets' for --inputs_or_targets."
         )
     regions_bed_name = os.path.basename(args.regions_bed_file).split(".")[0]
-    regions_width = bed.get_bed_region_width(args.regions_bed_file)
-    n_extend = (final_regions_width - regions_width) // 2
+    # regions_width = bed.get_bed_region_width(args.regions_bed_file)
+    # n_extend = (final_regions_width - regions_width) // 2
 
     # Preprocess peaks BED file
     preprocess_bed(
@@ -116,7 +115,7 @@ def main(args: argparse.Namespace, config: dict):
             args.output_folder, f"{regions_bed_name}_{args.inputs_or_targets}.bed"
         ),
         chrom_sizes_file=args.chrom_sizes_file,
-        n_extend=n_extend,
+        final_regions_width=final_regions_width,
         filter_negative=args.filter_negative,
         filter_chrom=args.filter_chrom,
     )

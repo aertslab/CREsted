@@ -5,6 +5,7 @@ import tempfile
 import shutil
 import numpy as np
 from contextlib import contextmanager
+import numpy as np
 
 
 def _raw_assertion(path: str):
@@ -15,7 +16,7 @@ def _raw_assertion(path: str):
     Select a different directory."
 
 
-def extend_bed_file(input_path: str, output_path: str, value: int):
+def extend_bed_file(input_path: str, output_path: str, final_regions_width: int):
     """
     Extend the start and end positions of a BED file by a given value.
     """
@@ -24,9 +25,23 @@ def extend_bed_file(input_path: str, output_path: str, value: int):
     with open(output_path, "w") as outfile:
         for line in lines:
             cols = line.strip().split()
-            cols[1] = str(int(cols[1]) - value)
-            cols[2] = str(int(cols[2]) + value)
-            outfile.write("\t".join(cols) + "\n")
+            current_width = int(cols[2]) - int(cols[1])
+            if current_width == final_regions_width:
+                outfile.write(line)
+            else:
+                width_diff = final_regions_width - current_width
+                if width_diff % 2 == 0:
+                    n_extend = width_diff // 2
+                    cols[1] = str(int(cols[1]) - n_extend)
+                    cols[2] = str(int(cols[2]) + n_extend)
+                else:
+                    n_extend = width_diff // 2
+                    cols[1] = str(int(cols[1]) - n_extend)
+                    cols[2] = str(int(cols[2]) + n_extend + 1)
+                assert (
+                    int(cols[2]) - int(cols[1]) == final_regions_width
+                ), f"cols: {cols}"
+                outfile.write("\t".join(cols) + "\n")
 
 
 def filter_bed_negative_regions(input_path: str, output_path: str):
