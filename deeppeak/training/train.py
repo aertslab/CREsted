@@ -10,7 +10,7 @@ from wandb.keras import WandbMetricsLogger, WandbCallback
 
 from models.zoo import simple_convnet, chrombpnet, basenji
 
-from utils.metrics import get_lr_metric, PearsonCorrelation
+from utils.metrics import get_lr_metric, PearsonCorrelation, LogMSEPerClassCallback
 from utils.loss import CustomLoss
 from utils.augment import complement_base
 from utils.dataloader import CustomDataset
@@ -59,7 +59,13 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def model_callbacks(
-    checkpoint_dir: str, patience: int, use_wandb: bool, profile: bool
+    checkpoint_dir: str,
+    patience: int,
+    use_wandb: bool,
+    profile: bool,
+    validation_data=None,
+    class_names: list = None,
+    val_steps_per_epoch: int = None,
 ) -> list:
     """Get model callbacks."""
     callbacks = []
@@ -94,9 +100,16 @@ def model_callbacks(
         wandb_callback_epoch = WandbMetricsLogger(log_freq="epoch")
         wandb_callback_batch = WandbMetricsLogger(log_freq=10)
         wandb_model_callback = WandbCallback()
+        log_mse_per_class_callback = LogMSEPerClassCallback(
+            validation_data=validation_data,
+            class_names=class_names,
+            val_steps=val_steps_per_epoch,
+        )
+
         callbacks.append(wandb_callback_epoch)
         callbacks.append(wandb_callback_batch)
         callbacks.append(wandb_model_callback)
+        callbacks.append(log_mse_per_class_callback)
 
     if profile:
         print("Profiling enabled. Saving to logs/")
@@ -368,14 +381,25 @@ def main(args: argparse.Namespace, config: dict):
         )
 
     # Get callbacks
-    callbacks = model_callbacks(
-        checkpoint_dir, config["patience"], config["wandb"], config["profile"]
-    )
+    class_names = []
+    with open(checkpoint_dir + "/cell_type_mapping.tsv", "r") as f:
+        for line in f:
+            class_names.append(line.strip().split("\t")[1])
 
-    # Train the model
     train_steps_per_epoch = total_number_of_training_samples // global_batch_size
     val_steps_per_epoch = total_number_of_validation_samples // global_batch_size
 
+    callbacks = model_callbacks(
+        checkpoint_dir,
+        config["patience"],
+        config["wandb"],
+        config["profile"],
+        val,
+        class_names,
+        val_steps_per_epoch,
+    )
+
+    # Train the model
     model.fit(
         train,
         steps_per_epoch=train_steps_per_epoch,

@@ -1,6 +1,8 @@
 """Custom metrics used in DeepPeak training."""
 
 import tensorflow as tf
+import numpy as np
+import wandb
 
 tf.keras.utils.get_custom_objects().clear()
 
@@ -14,6 +16,44 @@ def get_lr_metric(optimizer):
         return optimizer.lr
 
     return lr
+
+
+class LogMSEPerClassCallback(tf.keras.callbacks.Callback):
+    def __init__(self, validation_data, class_names: list, val_steps: int):
+        super().__init__()
+        self.validation_data = validation_data
+        self.class_names = class_names
+        self.validation_steps = val_steps
+
+    def on_epoch_end(self, epoch, logs=None):
+        # Storage for predictions and labels
+        predictions = []
+        labels = []
+        steps_done = 0
+
+        # Iterate over one epoch of the validation data
+        for x_val, y_val in self.validation_data:
+            if steps_done == self.validation_steps:
+                break
+            preds = self.model.predict(x_val, verbose=0)
+            predictions.extend(preds)
+            labels.extend(y_val)
+            steps_done += 1
+
+        predictions = np.array(predictions)
+        labels = np.array(labels)
+
+        # Calculate MSE for each class
+        mse_per_class = np.mean((predictions - labels) ** 2, axis=0)
+        mae_per_class = np.mean(np.abs(predictions - labels), axis=0)
+
+        log_data = {}
+        for i, class_name in enumerate(self.class_names):
+            log_data[f"celltype/mse/{class_name}"] = mse_per_class[i]
+            log_data[f"celltype/mae/{class_name}"] = mae_per_class[i]
+
+        # Log the MSE for each class to wandb
+        wandb.log(log_data, commit=True)
 
 
 @tf.keras.utils.register_keras_serializable(package="Metrics")
