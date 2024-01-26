@@ -129,8 +129,8 @@ make linkdata path='/path/to/your/source/file_or_folder'  # you should do this 4
 # This command will automatically create a symbolic path from that path 
 # to data/raw/genome.fa
 
-# Bigwigs mouse example
-make linkdata path='/staging/leuven/stg_00002/lcb/lcb_projects/biccn_okt_2023/analysis/cistopic/Mouse/outs/pseudobulks/subclass_Bakken_2022/bw/'
+# Bigwigs example
+make linkdata path='/path/to/my/bigwigs/folder/bw/'
 ```
 
 #### Data pipeline
