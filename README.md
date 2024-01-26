@@ -92,7 +92,6 @@ The most important changes  you need to make in your *user.yml* for each project
 - **seq_len**: The length you want your input sequences to be (in bp). We recommend to have this wider than your target region, so that the model can also learn patterns outside of the center of the target region.
 - **target_len**: The length your want your target region to be (in bp).
 
-
 All the processing and training can be run from the command line.  
 If you prefer working in notebooks, you can do so but remember to not commit them to the git repository. Place them in the *notebooks/personal* folder, which is ignored by git (and remember to use relative imports/runs, e.g. from '../../deeppeak/training import ...').
 
@@ -152,7 +151,18 @@ Alternatively, you can run through all the steps yourself by running the python 
 
 ### Model Training
 
-To train the model, change the necessary training configs in *user.yml*, ensure your environment is loaded correctly (see [Getting started](#getting-started)), ensure that you have your input bed file and targets file from the data processing pipeline in the *data/processed* folder,  and run the following command:
+To train the model, change the necessary training configs in *user.yml*, ensure your environment is loaded correctly (see [Getting started](#getting-started)), and ensure that you have your input bed file and targets file from the data processing pipeline in the *data/processed* folder.
+
+Important configs to change are:
+- **model_architecture**: The model architecture to use for training. simple_convnet can be used as a baseline.
+- **batch_size**: The batch size used for training. This will depend on the amount of memory you have available on your GPU. If you have a lot of memory, you can increase this to speed up training.
+- **num_epochs**: The number of epochs to train for.
+- **patience**: The number of epochs to wait before early stopping if the validation loss does not improve.
+- **learning_rate**: The learning rate used for training. Decrease/increase if your model is not learning.
+- **pretrained_model_path**: If you want to continue training from a pretrained model, you can specify the path to the model checkpoint here.
+- **mixed_precision**: WARNING: This can cause numerical instability and NaNs in the loss. If you have a recent GPU you can leave this on True to speed up training. Set to False if you encounter NaNs in the loss.
+
+Afterwards, run the following command:
 ```bash
 make train  # shortcut with default paths
 
