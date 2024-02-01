@@ -89,7 +89,7 @@ def model_callbacks(
     reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(
         monitor=early_stop_metric,
         factor=0.25,
-        patience=patience,
+        patience=int(patience // 2),
         min_lr=0.000001,
         mode="max",
     )
