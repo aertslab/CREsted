@@ -44,8 +44,8 @@ class LogMSEPerClassCallback(tf.keras.callbacks.Callback):
         labels = np.array(labels)
 
         # Calculate MSE for each class
-        mse_per_class = np.mean((predictions - labels) ** 2, axis=0)
-        mae_per_class = np.mean(np.abs(predictions - labels), axis=0)
+        mse_per_class = np.mean((predictions - labels) ** 2, axis=1)
+        mae_per_class = np.mean(np.abs(predictions - labels), axis=1)
 
         log_data = {}
         for i, class_name in enumerate(self.class_names):
