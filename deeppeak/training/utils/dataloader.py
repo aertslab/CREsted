@@ -1,4 +1,5 @@
 """Helper functions for loading data from tfRecords."""
+from __future__ import annotations
 import tensorflow as tf
 import os
 import pyfaidx
@@ -18,7 +19,8 @@ class CustomDataset:
         num_classes: int,
         shift_n_bp: int = 0,
         fraction_of_data: float = 1.0,
-        output_dir: str = None,
+        output_dir: str | None = None,
+        chromsizes: dict[str, int] | None = None
     ):
         # Load datasets
         self.all_regions = self._load_bed_file(bed_file)
@@ -43,6 +45,19 @@ class CustomDataset:
 
         self.num_classes = num_classes
         self.shift_n_bp = shift_n_bp
+        if chromsizes is None:
+            # chromsizes must be provided for shift augmentation
+            if shift_n_bp > 0:
+                raise ValueError("Chromsizes must be provided for shift augmentation.")
+        else:
+            # Check wether all chromosomes are present in the chromsizes dict
+            chroms = set(chrom for chrom, _, _ in self.all_regions)
+            chroms_not_in_chromsizes = chroms - set(chromsizes.keys())
+            if len(chroms_not_in_chromsizes) > 0:
+                raise ValueError(
+                    f"Chromsizes dict does not contain all chromosomes in the bed file.\nMissing: {', '.join(chroms_not_in_chromsizes)}"
+                )
+        self.chromsizes = chromsizes
 
         # Get indices for each set type
         val_indices, val_chroms = self._get_indices_for_set_type(
@@ -93,14 +108,17 @@ class CustomDataset:
             raise ValueError("subset must be 'train' or 'val'")
         return len(self.indices[subset])
 
-    def generator(self, split: str):
+    def generator(self, split: str | bytes):
         split = split.decode() if isinstance(split, bytes) else split
         for sample_idx in self.indices[split]:
             region = self.all_regions[sample_idx]
             chrom, start, end = region
             if (self.shift_n_bp > 0) and (split == "train"):
                 # shift augmentation
-                shift = np.random.randint(-self.shift_n_bp, self.shift_n_bp)
+                shift = np.random.randint(
+                    - min(self.shift_n_bp, start),                       # make sure start does not go below 0
+                      min(self.shift_n_bp, self.chromsizes[chrom] - end) # make sure end does not go above chromsize
+                )
                 start += shift
                 end += shift
             sequence = str(self.genomic_pyfasta[chrom][start:end].seq)

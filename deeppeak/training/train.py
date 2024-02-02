@@ -54,9 +54,25 @@ def parse_arguments() -> argparse.Namespace:
         help="Path to output directory",
         default="checkpoints/",
     )
+    parser.add_argument(
+        "-c",
+        "--chrom_sizes_file",
+        type=str,
+        default="data/raw/chrom.sizes",
+        help="Path to the chromosome sizes file. Required if --filter_chrom is True.",
+    )
 
     return parser.parse_args()
 
+
+def _load_chromsizes(chrom_sizes_file: str) -> dict[str, int]:
+    chrom_sizes = {}
+    with open(chrom_sizes_file, "r") as sizes:
+        for line in sizes:
+            chrom, s_size = line.strip().split("\t")[0:2]
+            i_size = int(s_size)
+            chrom_sizes[chrom] = i_size
+    return chrom_sizes
 
 def model_callbacks(
     checkpoint_dir: str,
@@ -128,6 +144,7 @@ def load_datasets(
     config: dict,
     batch_size: int,
     checkpoint_dir: str,
+    chromsizes: dict[str, int],
 ):
     """Load train & val datasets."""
     # Load data
@@ -143,6 +160,7 @@ def load_datasets(
         config["augment_shift_n_bp"],
         config["fraction_of_data"],
         checkpoint_dir,
+        chromsizes,
     )
 
     seq_len = config["seq_len"]
@@ -322,6 +340,8 @@ def main(args: argparse.Namespace, config: dict):
     batch_size = config["batch_size"]
     global_batch_size = batch_size * strategy.num_replicas_in_sync
 
+    chromsizes = _load_chromsizes(args.chrom_sizes_file)
+
     (
         train,
         val,
@@ -334,6 +354,7 @@ def main(args: argparse.Namespace, config: dict):
         config,
         global_batch_size,
         checkpoint_dir,
+        chromsizes
     )
 
     if config["wandb"]:
