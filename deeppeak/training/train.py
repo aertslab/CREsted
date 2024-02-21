@@ -397,7 +397,7 @@ def main(args: argparse.Namespace, config: dict):
                 tf.keras.metrics.MeanSquaredError(),
                 tf.keras.metrics.CosineSimilarity(axis=1),
                 PearsonCorrelation(),
-                SpermanCorrelationPerClass(num_classes=config["num_classes"]),
+                SpearmanCorrelationPerClass(num_classes=config["num_classes"]),
                 PearsonCorrelationLog(),
                 ZeroPenaltyMetric(),
                 lr_metric,
@@ -423,6 +423,7 @@ def main(args: argparse.Namespace, config: dict):
         val_steps_per_epoch,
     )
 
+    print(model.summary())
     # Train the model
     model.fit(
         train,
