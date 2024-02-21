@@ -254,7 +254,7 @@ python deeppeak/evaluate/interpret.py --model_dir checkpoints/{project_name}/{ti
 
 ## Acknowledgments
 Authors:
-  - Niklas Kemp (Niklas.Kemp@kuleuven.be)  
+  - Niklas Kemp (Niklas.Kempynck@kuleuven.be)  
 
 Contributors:
   - Lukas Mahieu (Lukas.Mahieu@kuleuven.be)

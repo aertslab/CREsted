@@ -10,7 +10,7 @@ from wandb.keras import WandbMetricsLogger, WandbCallback
 
 from models.zoo import simple_convnet, chrombpnet, basenji
 
-from utils.metrics import get_lr_metric, PearsonCorrelation, LogMSEPerClassCallback
+from utils.metrics import get_lr_metric, PearsonCorrelation, LogMSEPerClassCallback, SpearmanCorrelationPerClass, PearsonCorrelationLog, ZeroPenaltyMetric
 from utils.loss import CustomLoss
 from utils.augment import complement_base
 from utils.dataloader import CustomDataset
@@ -65,7 +65,7 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _load_chromsizes(chrom_sizes_file: str) -> dict[str, int]:
+def _load_chromsizes(chrom_sizes_file: str) -> 'dict[str, int]':
     chrom_sizes = {}
     with open(chrom_sizes_file, "r") as sizes:
         for line in sizes:
@@ -144,7 +144,7 @@ def load_datasets(
     config: dict,
     batch_size: int,
     checkpoint_dir: str,
-    chromsizes: dict[str, int],
+    chromsizes: 'dict[str, int]',
 ):
     """Load train & val datasets."""
     # Load data
@@ -397,6 +397,9 @@ def main(args: argparse.Namespace, config: dict):
                 tf.keras.metrics.MeanSquaredError(),
                 tf.keras.metrics.CosineSimilarity(axis=1),
                 PearsonCorrelation(),
+                SpermanCorrelationPerClass(num_classes=config["num_classes"]),
+                PearsonCorrelationLog(),
+                ZeroPenaltyMetric(),
                 lr_metric,
             ],
         )
