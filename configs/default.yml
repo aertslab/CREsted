@@ -20,10 +20,11 @@ specificity_filtering: False  # filter regions based on region specificity
 
 # Training
 wandb: True
+wandb_project: '' # Name of Weights & Biases project. Leave empty for automatic naming based on project_name.
 model_architecture: 'chrombpnet'  # simple_convnet, basenji, chrombpnet
 target: 'mean'  # max, mean, count, or logcount
 epochs: 40
-batch_size: 128
+batch_size: 256
 learning_rate: 0.001
 patience: 10  # number of epochs to wait before early stopping
 pretrained_model_path: ''  # continue from .keras checkpoint. Leave empty if starting from scratch
@@ -36,6 +37,7 @@ profile: False  # profile training with TensorBoard profiler
 seed: 0  # set seed for reproducibility. Set to 0 for random seed
 
 # augmentations (online)
+rev_complement: False # reverse complement all training regions during every epoch
 augment_complement: True  # inverse complement base pairs during training (50 % chance)
 augment_shift_n_bp: 0  # stochastic shift up to n base pairs without recalculating targets
 

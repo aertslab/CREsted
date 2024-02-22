@@ -20,7 +20,7 @@ class CustomLoss(tf.keras.losses.Loss):
         squared_difference_loss = K.mean(
             tf.math.squared_difference(y_pred, y_true), axis=-1
         )
-        return (cosine_loss + squared_difference_loss) / self.global_batch_size
+        return (cosine_loss + squared_difference_loss) #/ self.global_batch_size
 
     def get_config(self):
         config = super().get_config()
@@ -72,10 +72,19 @@ class CustomLossMSELogV2(Loss):
 
         # Calculate cosine similarity loss
         cosine_loss = -tf.reduce_sum(y_true1 * y_pred1, axis=-1)
-        # Penalty for non-zero predictions when GT is zero
-        zero_gt_mask = tf.cast(tf.equal(y_true, 0), tf.float32)
-        zero_penalty = tf.reduce_sum(zero_gt_mask * tf.abs(log_y_pred))
-        scaled_zero_penalty = 0.001 * zero_penalty  # Scale the penalty
-        total_loss = weight * cosine_loss + mse_loss + scaled_zero_penalty
+        ## Penalty for non-zero predictions when GT is zero
+        #zero_gt_mask = tf.cast(tf.equal(y_true, 0), tf.float32)
+        #zero_penalty = tf.reduce_sum(zero_gt_mask * tf.abs(log_y_pred))
+        #scaled_zero_penalty = 0.001 * zero_penalty  # Scale the penalty
+        total_loss = weight * cosine_loss + mse_loss #+ scaled_zero_penalty
 
         return total_loss
+    
+    def get_config(self):
+        config = super().get_config()
+        config.update({"max_weight": self.max_weight})
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)

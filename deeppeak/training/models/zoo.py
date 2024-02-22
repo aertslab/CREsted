@@ -188,7 +188,7 @@ def chrombpnet(
             padding="valid",
             kernel_initializer="he_normal",
             kernel_regularizer=tf.keras.regularizers.l2(l2),
-            use_bias=True,
+            use_bias=False,
             dilation_rate=2**i,
             name=conv_layer_name,
         )(x)

@@ -2,7 +2,7 @@
 
 import tensorflow as tf
 import numpy as np
-import scipy.stats
+##from scipy.stats import spearmanr #FIX
 import wandb
 
 tf.keras.utils.get_custom_objects().clear()
@@ -46,13 +46,13 @@ class LogMSEPerClassCallback(tf.keras.callbacks.Callback):
 
         # Calculate MSE for each class
         mse_per_class = np.mean((predictions - labels) ** 2, axis=0)
-        #mae_per_class = np.mean(np.abs(predictions - labels), axis=1)
-        spearman_per_class = [scipy.stats.spearmanr(predictions[:, i], labels[:, i]).correlation for i in range(predictions.shape[1])]
+        mae_per_class = np.mean(np.abs(predictions - labels), axis=1)
+        #spearman_per_class = [spearmanr(predictions[:, i], labels[:, i]).correlation for i in range(predictions.shape[1])]
 
         log_data = {}
         for i, class_name in enumerate(self.class_names):
             log_data[f"celltype/mse/{class_name}"] = mse_per_class[i]
-            log_data[f"celltype/spc/{class_name}"] = spearman_per_class[i]
+            log_data[f"celltype/mae/{class_name}"] = mae_per_class[i]
 
         # Log the MSE for each class to wandb
         wandb.log(log_data, commit=True)

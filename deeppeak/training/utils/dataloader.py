@@ -20,9 +20,11 @@ class CustomDataset:
         shift_n_bp: int = 0,
         fraction_of_data: float = 1.0,
         output_dir: str | None = None,
-        chromsizes: dict[str, int] | None = None
+        chromsizes: dict[str, int] | None = None,
+        reverse_complement: bool = False
     ):
         # Load datasets
+        self.reverse_complement = reverse_complement
         self.all_regions = self._load_bed_file(bed_file)
         self.genomic_pyfasta = pyfaidx.Fasta(
             genome_fasta_file, sequence_always_upper=True
@@ -41,6 +43,9 @@ class CustomDataset:
                 self.targets = self.targets[2, :]
             elif target_goal == "logcount":
                 self.targets = self.targets[3, :]
+
+        if self.reverse_complement:
+            self.targets = np.repeat(self.targets, 2, axis=0)  # double targets for each region
         self.split_dict = split_dict
 
         self.num_classes = num_classes
@@ -51,7 +56,7 @@ class CustomDataset:
                 raise ValueError("Chromsizes must be provided for shift augmentation.")
         else:
             # Check wether all chromosomes are present in the chromsizes dict
-            chroms = set(chrom for chrom, _, _ in self.all_regions)
+            chroms = set(chrom for chrom, _, _, _ in self.all_regions)
             chroms_not_in_chromsizes = chroms - set(chromsizes.keys())
             if len(chroms_not_in_chromsizes) > 0:
                 raise ValueError(
@@ -69,6 +74,11 @@ class CustomDataset:
         train_indices, train_chroms = self._get_indices_for_set_type(
             self.split_dict, "train", self.all_regions, fraction_of_data
         )
+        
+        if(self.reverse_complement):
+            val_indices = val_indices[::2]
+            test_indices = test_indices[::2]
+    
         self.indices = {
             "train": train_indices,
             "val": val_indices,
@@ -112,7 +122,7 @@ class CustomDataset:
         split = split.decode() if isinstance(split, bytes) else split
         for sample_idx in self.indices[split]:
             region = self.all_regions[sample_idx]
-            chrom, start, end = region
+            chrom, start, end, strand = region
             if (self.shift_n_bp > 0) and (split == "train"):
                 # shift augmentation
                 shift = np.random.randint(
@@ -121,7 +131,12 @@ class CustomDataset:
                 )
                 start += shift
                 end += shift
-            sequence = str(self.genomic_pyfasta[chrom][start:end].seq)
+            if(strand=='+'):
+                sequence = str(self.genomic_pyfasta[chrom][start:end].seq)
+            elif(strand == '-'):
+                sequence = str(self.genomic_pyfasta[chrom][start:end].complement.seq)
+            else:
+                raise ValueError("Strand must be '+' or '-'")
             target = self.targets[sample_idx]
             yield sequence, target
 
@@ -164,7 +179,7 @@ class CustomDataset:
             excluded_chromosomes = set(
                 split_dict.get("val", []) + split_dict.get("test", [])
             )
-            all_chromosomes = set(chrom for chrom, _, _ in all_regions)
+            all_chromosomes = set(chrom for chrom, _, _,_ in all_regions)
             selected_chromosomes = all_chromosomes - excluded_chromosomes
 
         indices = [
@@ -191,13 +206,15 @@ class CustomDataset:
                 columns = line.split("\t")
                 chrom = columns[0]
                 start, end = [int(x) for x in columns[1:3]]
-                regions.append((chrom, start, end))
+                regions.append((chrom, start, end,'+'))
+                if(self.reverse_complement):
+                    regions.append((chrom, start, end, '-'))
         return regions
 
     def _get_chromosome_counts(self):
         """Count occurrences of each chromosome."""
         chromosome_counts = {}
-        for chrom, _, _ in self.all_regions:
+        for chrom, _, _, _ in self.all_regions:
             if chrom not in chromosome_counts:
                 chromosome_counts[chrom] = 0
             chromosome_counts[chrom] += 1

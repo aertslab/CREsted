@@ -11,7 +11,7 @@ from wandb.keras import WandbMetricsLogger, WandbCallback
 from models.zoo import simple_convnet, chrombpnet, basenji
 
 from utils.metrics import get_lr_metric, PearsonCorrelation, LogMSEPerClassCallback, SpearmanCorrelationPerClass, PearsonCorrelationLog, ZeroPenaltyMetric
-from utils.loss import CustomLoss
+from utils.loss import CustomLoss, CustomLossMSELogV2
 from utils.augment import complement_base
 from utils.dataloader import CustomDataset
 
@@ -45,7 +45,7 @@ def parse_arguments() -> argparse.Namespace:
         "--cell_mapping_file",
         type=str,
         help="Path to cell type mapping file",
-        default="data/processed/cell_type_mapping.tsv",
+        default="data/processed/cell_type_mapping.tsv", ## TO DO: Fix cell type mapping file
     )
     parser.add_argument(
         "-o",
@@ -161,6 +161,7 @@ def load_datasets(
         config["fraction_of_data"],
         checkpoint_dir,
         chromsizes,
+        config['rev_complement'],
     )
 
     seq_len = config["seq_len"]
@@ -300,8 +301,12 @@ def main(args: argparse.Namespace, config: dict):
     now = datetime.now().strftime("%Y-%m-%d_%H:%M")
 
     if config["wandb"]:
+        if(config["wandb_project"] == ""):
+            project_name = f"deeppeak_{config['project_name']}"
+        else:
+            project_name = config["wandb_project"]
         run = wandb.init(
-            project=f"deeppeak_{config['project_name']}",
+            project=project_name,
             config=config,
             name=now,
         )
@@ -338,7 +343,7 @@ def main(args: argparse.Namespace, config: dict):
 
     # Load data
     batch_size = config["batch_size"]
-    global_batch_size = batch_size * strategy.num_replicas_in_sync
+    global_batch_size = batch_size# * strategy.num_replicas_in_sync
 
     chromsizes = _load_chromsizes(args.chrom_sizes_file)
 
@@ -391,7 +396,7 @@ def main(args: argparse.Namespace, config: dict):
         # Compile the model
         model.compile(
             optimizer=optimizer,
-            loss=CustomLoss(global_batch_size),
+            loss=CustomLossMSELogV2(),#CustomLoss(global_batch_size),
             metrics=[
                 tf.keras.metrics.MeanAbsoluteError(),
                 tf.keras.metrics.MeanSquaredError(),
