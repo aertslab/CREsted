@@ -32,6 +32,45 @@ class CustomLoss(tf.keras.losses.Loss):
         return cls(**config)
     
 class CustomLossMSELogV2(Loss):
+    def __init__(self, max_weight=500, name="CustomLossMSELogV2"):
+        super().__init__(name=name)
+        self.max_weight = max_weight
+
+    @tf.function
+    def call(self, y_true, y_pred):
+        # Ensure y_true and y_pred are float32 for consistency
+        y_true = tf.cast(y_true, tf.float32)
+        y_pred = tf.cast(y_pred, tf.float32)
+
+        # Normalize y_true and y_pred for cosine similarity
+        y_true1 = tf.nn.l2_normalize(y_true, axis=-1)
+        y_pred1 = tf.nn.l2_normalize(y_pred, axis=-1)
+
+        mse_loss = tf.reduce_mean(tf.square(y_pred - y_true))
+
+        # Calculate dynamic weight (absolute value of MSE), with lower limit of 0 and an optional upper limit
+        weight = tf.abs(mse_loss)
+        weight = tf.minimum(tf.maximum(weight, 1.0), self.max_weight)  # Ensure weight does not exceed max_weight and minimum of 1.0
+
+        # Calculate cosine similarity loss
+        cosine_loss = -tf.reduce_sum(y_true1 * y_pred1, axis=-1)
+        ## Penalty for non-zero predictions when GT is zero
+        #zero_gt_mask = tf.cast(tf.equal(y_true, 0), tf.float32)
+        #zero_penalty = tf.reduce_sum(zero_gt_mask * tf.abs(log_y_pred))
+        #scaled_zero_penalty = 0.001 * zero_penalty  # Scale the penalty
+        total_loss = weight * cosine_loss + mse_loss #+ scaled_zero_penalty
+
+        return total_loss
+    
+    def get_config(self):
+        config = super().get_config()
+        config.update({"max_weight": self.max_weight})
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+class CustomLossMSELogV2_(Loss):
     def __init__(self, max_weight=20, name="CustomLossMSELogV2"):
         super().__init__(name=name)
         self.max_weight = max_weight
