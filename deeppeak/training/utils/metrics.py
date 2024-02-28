@@ -253,3 +253,45 @@ class PearsonCorrelationLog(tf.keras.metrics.Metric):
         self.y_pred_squared_sum.assign(0.0)
         self.y_true_y_pred_sum.assign(0.0)
         self.count.assign(0.0)
+
+@tf.keras.utils.register_keras_serializable(package="Metrics")
+class ConcordanceCorrelationCoefficient(tf.keras.metrics.Metric):
+    def __init__(self, name='concordance_correlation_coefficient', **kwargs):
+        super(ConcordanceCorrelationCoefficient, self).__init__(name=name, **kwargs)
+        self.y_true_mean = self.add_weight(name='y_true_mean', initializer='zeros')
+        self.y_pred_mean = self.add_weight(name='y_pred_mean', initializer='zeros')
+        self.y_true_var = self.add_weight(name='y_true_var', initializer='zeros')
+        self.y_pred_var = self.add_weight(name='y_pred_var', initializer='zeros')
+        self.covariance = self.add_weight(name='covariance', initializer='zeros')
+        self.count = self.add_weight(name='count', initializer='zeros')
+
+    @tf.function
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        # Ensure y_true and y_pred are float32 for consistency
+        y_true = tf.cast(y_true, tf.float32)
+        y_pred = tf.cast(y_pred, tf.float32)
+
+        self.y_true_mean.assign_add(tf.reduce_mean(y_true))
+        self.y_pred_mean.assign_add(tf.reduce_mean(y_pred))
+        self.y_true_var.assign_add(tf.reduce_mean(tf.square(y_true - self.y_true_mean)))
+        self.y_pred_var.assign_add(tf.reduce_mean(tf.square(y_pred - self.y_pred_mean)))
+        self.covariance.assign_add(tf.reduce_mean((y_true - self.y_true_mean) * (y_pred - self.y_pred_mean)))
+        self.count.assign_add(tf.cast(tf.size(y_true), tf.float32))
+
+    @tf.function
+    def result(self):
+        mean_difference = self.y_true_mean - self.y_pred_mean
+        numerator = 2 * self.covariance
+        denominator = self.y_true_var + self.y_pred_var + tf.square(mean_difference)
+
+        return numerator / (denominator + tf.keras.backend.epsilon())
+
+    @tf.function
+    def reset_state(self):
+        self.y_true_mean.assign(0.0)
+        self.y_pred_mean.assign(0.0)
+        self.y_true_var.assign(0.0)
+        self.y_pred_var.assign(0.0)
+        self.covariance.assign(0.0)
+        self.count.assign(0.0)
+

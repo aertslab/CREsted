@@ -9,6 +9,7 @@ project_name: 'mouse'  # used for naming output folders
 num_classes: 19
 seq_len: 2114
 target_len: 1000
+output_dir : ''  # output directory for model checkpoints and logs, leave empty for default ('DeepPeak/checkpoints')
 
 # Train/val/test
 val: ['chr8', 'chr10']  # leave list empty for auto val chrom selection (0.1 of data)
@@ -19,11 +20,12 @@ gini_normalization: False  # gini normalization of target peaks
 specificity_filtering: False  # filter regions based on region specificity
 
 # Training
+loss: 'mse_cosine'  
 wandb: True
 wandb_project: '' # Name of Weights & Biases project. Leave empty for automatic naming based on project_name.
 model_architecture: 'chrombpnet'  # simple_convnet, basenji, chrombpnet
 target: 'mean'  # max, mean, count, or logcount
-epochs: 40
+epochs: 100
 batch_size: 256
 learning_rate: 0.001
 patience: 10  # number of epochs to wait before early stopping

@@ -49,11 +49,12 @@ class CustomLossMSELogV2(Loss):
         mse_loss = tf.reduce_mean(tf.square(y_pred - y_true))
 
         # Calculate dynamic weight (absolute value of MSE), with lower limit of 0 and an optional upper limit
-        weight = tf.abs(mse_loss)
-        weight = tf.minimum(tf.maximum(weight, 1.0), self.max_weight)  # Ensure weight does not exceed max_weight and minimum of 1.0
+        #weight = tf.abs(mse_loss)
+        #weight = tf.minimum(tf.maximum(weight, 1.0), self.max_weight)  # Ensure weight does not exceed max_weight and minimum of 1.0
+        weight=1.0
 
         # Calculate cosine similarity loss
-        cosine_loss = -tf.reduce_sum(y_true1 * y_pred1, axis=-1)
+        #cosine_loss = -tf.reduce_sum(y_true1 * y_pred1, axis=-1)
         ## Penalty for non-zero predictions when GT is zero
         #zero_gt_mask = tf.cast(tf.equal(y_true, 0), tf.float32)
         #zero_penalty = tf.reduce_sum(zero_gt_mask * tf.abs(log_y_pred))

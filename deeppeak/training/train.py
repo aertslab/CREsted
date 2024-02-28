@@ -10,8 +10,8 @@ from wandb.keras import WandbMetricsLogger, WandbCallback
 
 from models.zoo import simple_convnet, chrombpnet, basenji
 
-from utils.metrics import get_lr_metric, PearsonCorrelation, LogMSEPerClassCallback, SpearmanCorrelationPerClass, PearsonCorrelationLog, ZeroPenaltyMetric
-from utils.loss import CustomLoss, CustomLossMSELogV2
+from utils.metrics import get_lr_metric, PearsonCorrelation, LogMSEPerClassCallback, SpearmanCorrelationPerClass, PearsonCorrelationLog, ZeroPenaltyMetric, ConcordanceCorrelationCoefficient
+from utils.loss import *
 from utils.augment import complement_base
 from utils.dataloader import CustomDataset
 
@@ -313,7 +313,12 @@ def main(args: argparse.Namespace, config: dict):
     if int(config["seed"]) > 0:
         tf.random.set_seed(int(config["seed"]))
 
-    checkpoint_dir = os.path.join(args.output_dir, config["project_name"], now)
+    if config['output_dir'] == "":
+        checkpoint_dir = os.path.join(args.output_dir, config["project_name"], now)
+    else:
+        if not os.path.exists(config['output_dir']):
+            raise Exception(f"Output directory {config['output_dir']} does not exist.")
+        checkpoint_dir = os.path.join(args.output_dir, now)
 
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
@@ -370,6 +375,20 @@ def main(args: argparse.Namespace, config: dict):
             }
         )
 
+    if config['loss'] == "mse_cosine":
+        loss = CustomLoss(global_batch_size)
+        loss_fn = CustomLoss
+    elif config['loss'] == "mse_cosine_log":
+        loss = CustomLossMSELogV2()
+        loss_fn = CustomLossMSELogV2_
+    elif config['loss'] == "mse_cosine_nk":
+        loss = CustomLossMSELogV2_()
+        loss_fn = CustomLossMSELogV2_
+    else:
+        loss = CustomLossMSELogV2_() #default
+        loss_fn = CustomLossMSELogV2_
+
+
     # Initialize the model
     with strategy.scope():
         pt_model = config["pretrained_model_path"]
@@ -382,7 +401,7 @@ def main(args: argparse.Namespace, config: dict):
                 custom_objects={
                     "lr": get_lr_metric,
                     "PearsonCorrelation": PearsonCorrelation,
-                    "custom_loss": CustomLoss,
+                    "custom_loss": loss_fn,
                 },
             )
 
@@ -396,13 +415,14 @@ def main(args: argparse.Namespace, config: dict):
         # Compile the model
         model.compile(
             optimizer=optimizer,
-            loss=CustomLossMSELogV2(),#CustomLoss(global_batch_size),
+            loss=loss,
             metrics=[
                 tf.keras.metrics.MeanAbsoluteError(),
                 tf.keras.metrics.MeanSquaredError(),
                 tf.keras.metrics.CosineSimilarity(axis=1),
                 PearsonCorrelation(),
                 SpearmanCorrelationPerClass(num_classes=config["num_classes"]),
+                ConcordanceCorrelationCoefficient(),
                 PearsonCorrelationLog(),
                 ZeroPenaltyMetric(),
                 lr_metric,
