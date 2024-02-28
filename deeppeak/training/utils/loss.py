@@ -54,7 +54,7 @@ class CustomLossMSELogV2(Loss):
         weight=1.0
 
         # Calculate cosine similarity loss
-        #cosine_loss = -tf.reduce_sum(y_true1 * y_pred1, axis=-1)
+        cosine_loss = -tf.reduce_sum(y_true1 * y_pred1, axis=-1)
         ## Penalty for non-zero predictions when GT is zero
         #zero_gt_mask = tf.cast(tf.equal(y_true, 0), tf.float32)
         #zero_penalty = tf.reduce_sum(zero_gt_mask * tf.abs(log_y_pred))
