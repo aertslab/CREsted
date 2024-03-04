@@ -162,6 +162,7 @@ def load_datasets(
         checkpoint_dir,
         chromsizes,
         config['rev_complement'],
+        config['specificity_filtering']
     )
 
     seq_len = config["seq_len"]
@@ -406,19 +407,15 @@ def main(args: argparse.Namespace, config: dict):
             print(f"Continuing training from pretrained model {pt_model}...")
             model = tf.keras.models.load_model(
                 pt_model,
-                compile=True,
-                custom_objects={
-                    "lr": get_lr_metric,
-                    "PearsonCorrelation": PearsonCorrelation,
-                    "custom_loss": loss_fn,
-                },
+                compile=False
             )
+            optimizer = tf.keras.optimizers.Adam(learning_rate=config["TL_learning_rate"]) 
 
         else:
             print("Training from scratch...")
             model = load_model(config)
-
-        optimizer = tf.keras.optimizers.Adam(learning_rate=config["learning_rate"])
+            optimizer = tf.keras.optimizers.Adam(learning_rate=config["learning_rate"])
+        
         lr_metric = get_lr_metric(optimizer)
 
         # Compile the model

@@ -6,6 +6,65 @@ import pyfaidx
 import numpy as np
 import shutil
 import json
+from typing import Tuple
+
+def calc_gini(targets: np.ndarray) -> np.ndarray:
+    """Returns gini scores for the given targets"""
+
+    def _gini(array):
+        """Calculate the Gini coefficient of a numpy array."""
+        array = (
+            array.flatten().clip(0, None) + 0.0000001
+        )  # Ensure non-negative values and avoid zero
+        array = np.sort(array)
+        index = np.arange(1, array.size + 1)
+        return (np.sum((2 * index - array.size - 1) * array)) / (
+            array.size * np.sum(array)
+        )
+
+    gini_scores = np.zeros_like(targets)
+
+    for region_idx in range(targets.shape[0]):
+        region_scores = targets[region_idx]
+        max_idx = np.argmax(region_scores)
+        gini_scores[region_idx, max_idx] = _gini(region_scores)
+
+    return gini_scores
+
+def filter_regions_on_specificity(
+    target_vector: np.ndarray,
+    regions_bed: list,
+    gini_std_threshold: float = 1,
+) -> Tuple[np.ndarray, list, np.ndarray]:
+    """
+    Filter bed regions & targets based on high Gini score. Saves filtered bed regions
+    back to original file and returns filtered targets.
+
+    Args:
+        target_vector (np.ndarray): targets
+        bed_filename (str): path to BED file
+        gini_threshold (float): Threshold for Gini scores to identify high variability.
+        target_idx (int): Type of targets to use for filtering decision (1='mean')
+    """
+
+    gini_scores = calc_gini(target_vector)
+    mean = np.mean(np.max(gini_scores, axis=1))
+    std_dev = np.std(np.max(gini_scores, axis=1))
+    gini_threshold =  mean + gini_std_threshold * std_dev
+    selected_indices = np.argwhere(np.max(gini_scores, axis=1) > gini_threshold)[:, 0]
+
+    target_vector_filt = target_vector[:, selected_indices]
+    regions_filt = [regions_bed[i] for i in selected_indices]
+    print(
+        f"Kept {len(target_vector_filt[0,:])} out of {len(target_vector[0,:])} regions."
+    )
+
+    return target_vector_filt, regions_filt
+
+def write_to_bedfile(regions, output_path):
+    with open(output_path, "w") as outfile:
+        for region in regions:
+            outfile.write("\t".join([str(x) for x in region]) + "\n")
 
 
 class CustomDataset:
@@ -21,7 +80,8 @@ class CustomDataset:
         fraction_of_data: float = 1.0,
         output_dir: str | None = None,
         chromsizes: dict[str, int] | None = None,
-        reverse_complement: bool = False
+        reverse_complement: bool = False,
+        specificity_filtering: bool = False
     ):
         # Load datasets
         self.reverse_complement = reverse_complement
@@ -44,6 +104,8 @@ class CustomDataset:
             elif target_goal == "logcount":
                 self.targets = self.targets[3, :]
 
+        if(specificity_filtering):
+            self.targets, self.all_regions = filter_regions_on_specificity(self.targets, self.all_regions)
         if self.reverse_complement:
             self.targets = np.repeat(self.targets, 2, axis=0)  # double targets for each region
         self.split_dict = split_dict
@@ -110,7 +172,7 @@ class CustomDataset:
                 val=val_targets,
                 test=test_targets,
             )
-            shutil.copyfile(bed_file, os.path.join(output_dir, "regions.bed"))
+            write_to_bedfile(self.all_regions, os.path.join(output_dir, "regions.bed"))
             print(f"Saved bed regions, split ids and split targets to {output_dir}")
 
     def len(self, subset: str):
