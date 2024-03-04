@@ -254,44 +254,46 @@ class PearsonCorrelationLog(tf.keras.metrics.Metric):
         self.y_true_y_pred_sum.assign(0.0)
         self.count.assign(0.0)
 
+import tensorflow as tf
+
 @tf.keras.utils.register_keras_serializable(package="Metrics")
 class ConcordanceCorrelationCoefficient(tf.keras.metrics.Metric):
     def __init__(self, name='concordance_correlation_coefficient', **kwargs):
-        super(ConcordanceCorrelationCoefficient, self).__init__(name=name, **kwargs)
-        self.y_true_mean = self.add_weight(name='y_true_mean', initializer='zeros')
-        self.y_pred_mean = self.add_weight(name='y_pred_mean', initializer='zeros')
-        self.y_true_var = self.add_weight(name='y_true_var', initializer='zeros')
-        self.y_pred_var = self.add_weight(name='y_pred_var', initializer='zeros')
-        self.covariance = self.add_weight(name='covariance', initializer='zeros')
+        super().__init__(name=name, **kwargs)
+        self.y_true_sum = self.add_weight(name='y_true_sum', initializer='zeros')
+        self.y_pred_sum = self.add_weight(name='y_pred_sum', initializer='zeros')
+        self.y_true_sq_sum = self.add_weight(name='y_true_sq_sum', initializer='zeros')
+        self.y_pred_sq_sum = self.add_weight(name='y_pred_sq_sum', initializer='zeros')
+        self.y_true_pred_sum = self.add_weight(name='y_true_pred_sum', initializer='zeros')
         self.count = self.add_weight(name='count', initializer='zeros')
 
-    @tf.function
     def update_state(self, y_true, y_pred, sample_weight=None):
-        # Ensure y_true and y_pred are float32 for consistency
         y_true = tf.cast(y_true, tf.float32)
         y_pred = tf.cast(y_pred, tf.float32)
+        batch_size = tf.cast(tf.size(y_true), tf.float32)
+        
+        self.y_true_sum.assign_add(tf.reduce_sum(y_true))
+        self.y_pred_sum.assign_add(tf.reduce_sum(y_pred))
+        self.y_true_sq_sum.assign_add(tf.reduce_sum(tf.square(y_true)))
+        self.y_pred_sq_sum.assign_add(tf.reduce_sum(tf.square(y_pred)))
+        self.y_true_pred_sum.assign_add(tf.reduce_sum(y_true * y_pred))
+        self.count.assign_add(batch_size)
 
-        self.y_true_mean.assign_add(tf.reduce_mean(y_true))
-        self.y_pred_mean.assign_add(tf.reduce_mean(y_pred))
-        self.y_true_var.assign_add(tf.reduce_mean(tf.square(y_true - self.y_true_mean)))
-        self.y_pred_var.assign_add(tf.reduce_mean(tf.square(y_pred - self.y_pred_mean)))
-        self.covariance.assign_add(tf.reduce_mean((y_true - self.y_true_mean) * (y_pred - self.y_pred_mean)))
-        self.count.assign_add(tf.cast(tf.size(y_true), tf.float32))
-
-    @tf.function
     def result(self):
-        mean_difference = self.y_true_mean - self.y_pred_mean
-        numerator = 2 * self.covariance
-        denominator = self.y_true_var + self.y_pred_var + tf.square(mean_difference)
+        y_true_mean = tf.math.divide_no_nan(self.y_true_sum, self.count)
+        y_pred_mean = tf.math.divide_no_nan(self.y_pred_sum, self.count)
+        y_true_var = tf.math.divide_no_nan(self.y_true_sq_sum, self.count) - tf.square(y_true_mean)
+        y_pred_var = tf.math.divide_no_nan(self.y_pred_sq_sum, self.count) - tf.square(y_pred_mean)
+        covariance = tf.math.divide_no_nan(self.y_true_pred_sum, self.count) - y_true_mean * y_pred_mean
+        
+        numerator = 2 * covariance
+        denominator = y_true_var + y_pred_var + tf.square(y_true_mean - y_pred_mean)
+        
+        return tf.math.divide_no_nan(numerator, denominator + tf.keras.backend.epsilon())
 
-        return numerator / (denominator + tf.keras.backend.epsilon())
-
-    @tf.function
     def reset_state(self):
-        self.y_true_mean.assign(0.0)
-        self.y_pred_mean.assign(0.0)
-        self.y_true_var.assign(0.0)
-        self.y_pred_var.assign(0.0)
-        self.covariance.assign(0.0)
-        self.count.assign(0.0)
+        for s in self.variables:
+            s.assign(tf.zeros_like(s))
+
+
 

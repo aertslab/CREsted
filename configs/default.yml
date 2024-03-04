@@ -20,9 +20,11 @@ gini_normalization: False  # gini normalization of target peaks
 specificity_filtering: False  # filter regions based on region specificity
 
 # Training
-loss: 'mse_cosine'  
+loss: 'mse_cosine'  # mse_cosine, mse_cosine_log, mse_cosine_nk
+cosine_weight: 'static' # Leave weight of cosine function fixed ('static') or equal to the magnitude of the MSE ('dynamic')
 wandb: True
 wandb_project: '' # Name of Weights & Biases project. Leave empty for automatic naming based on project_name.
+run_name: '' # Name of run used for both W&B and output folder for checkpoints, leave empty for start datetime as title
 model_architecture: 'chrombpnet'  # simple_convnet, basenji, chrombpnet
 target: 'mean'  # max, mean, count, or logcount
 epochs: 100
@@ -76,7 +78,7 @@ chrombpnet:
 
   ## Dilated Conv blocks after first conv layer
   num_filters: 512
-  n_dil_layers: 3
+  n_dil_layers: 8
   filter_size: 3
   activation: 'relu'  # 'activation_name' or 'none'
   l2: 0.00001

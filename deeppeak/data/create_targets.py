@@ -127,7 +127,7 @@ def normalize_peaks(
 def filter_regions_on_specificity(
     target_vector: np.ndarray,
     bed_filename: str,
-    gini_threshold: float = 0.5,
+    gini_std_threshold: float = 1,
     target_idx: int = 1,
 ) -> Tuple[np.ndarray, list, np.ndarray]:
     """
@@ -141,6 +141,9 @@ def filter_regions_on_specificity(
         target_idx (int): Type of targets to use for filtering decision (1='mean')
     """
 
+    mean = np.mean(data)
+    std_dev = np.std(data)
+    gini_threshold =  mean + gini_std_threshold * std_dev
     gini_scores = calc_gini(target_vector[target_idx])
     selected_indices = np.argwhere(np.max(gini_scores, axis=1) > gini_threshold)[:, 0]
 

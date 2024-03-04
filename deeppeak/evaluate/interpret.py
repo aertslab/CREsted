@@ -146,6 +146,7 @@ def visualize_scores(
     class_indices: list,
     zoom_n_bases: int,
     class_names: list,
+    savefig: bool=False
 ):
     """Visualize interpretation scores."""
     # Center and zoom
@@ -169,15 +170,22 @@ def visualize_scores(
             seq_class_x = seqs_one_hot[seq, :, :]
             intgrad_df = grad_times_input_to_df(seq_class_x, seq_class_scores)
             ax = plt.subplot(len(class_indices), 1, i + 1)
-            plt.ylabel(class_names[class_index])
+            #plt.ylabel(class_names[class_index])
             plot_attribution_map(intgrad_df, ax=ax)
+            x_pos = 5  # Adjust this value to set the x-coordinate where you want the text
+            y_pos = 0.75*global_max
+            text_to_add = class_names[class_index]  
+            ax.text(x_pos, y_pos, text_to_add, fontsize=16, ha='left', va='center')
 
             ax.set_ylim([global_min, global_max])
         plt.xlabel("Position")
         plt.xticks(np.arange(0, zoom_n_bases, 50))
         chr, start, end = chr_start_ends[seq]
-        plt.savefig(os.path.join(output_dir, f"{chr}_{start}_{end}_explained.jpeg"))
-        plt.close(fig)
+        if(savefig):
+            plt.savefig(os.path.join(output_dir, f"{chr}_{start}_{end}_explained.jpeg"))
+            plt.close(fig)
+        else:
+            plt.show()
     end = datetime.now()
     print(f"Plotting took {end - now}")
 

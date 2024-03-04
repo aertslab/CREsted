@@ -300,6 +300,10 @@ def main(args: argparse.Namespace, config: dict):
     # Init configs and wandb
     now = datetime.now().strftime("%Y-%m-%d_%H:%M")
 
+    if (len(config["run_name"])>0):
+        run_name = config["run_name"]
+    else:
+        run_name = now
     if config["wandb"]:
         if(config["wandb_project"] == ""):
             project_name = f"deeppeak_{config['project_name']}"
@@ -308,17 +312,17 @@ def main(args: argparse.Namespace, config: dict):
         run = wandb.init(
             project=project_name,
             config=config,
-            name=now,
+            name=run_name,
         )
     if int(config["seed"]) > 0:
         tf.random.set_seed(int(config["seed"]))
 
     if config['output_dir'] == "":
-        checkpoint_dir = os.path.join(args.output_dir, config["project_name"], now)
+        checkpoint_dir = os.path.join(args.output_dir, config['project_name'], config["run_name"])
     else:
         if not os.path.exists(config['output_dir']):
             raise Exception(f"Output directory {config['output_dir']} does not exist.")
-        checkpoint_dir = os.path.join(args.output_dir, now)
+        checkpoint_dir = os.path.join(config['output_dir'], config["run_name"])
 
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
@@ -375,18 +379,23 @@ def main(args: argparse.Namespace, config: dict):
             }
         )
 
+    if (config['cosine_weight']=='dynamic'):
+        cos_weight = 100.0
+    else:
+        cos_weight = 1.0 # default or 'static'
+
     if config['loss'] == "mse_cosine":
         loss = CustomLoss(global_batch_size)
         loss_fn = CustomLoss
     elif config['loss'] == "mse_cosine_log":
-        loss = CustomLossMSELogV2()
+        loss = CustomLossMSELogV2_(max_weight=cos_weight)
         loss_fn = CustomLossMSELogV2_
     elif config['loss'] == "mse_cosine_nk":
-        loss = CustomLossMSELogV2_()
-        loss_fn = CustomLossMSELogV2_
+        loss = CustomLossMSELogV2(max_weight=cos_weight)
+        loss_fn = CustomLossMSELogV2
     else:
-        loss = CustomLossMSELogV2_() #default
-        loss_fn = CustomLossMSELogV2_
+        loss = CustomLossMSELogV2(max_weight=cos_weight) #default
+        loss_fn = CustomLossMSELogV2
 
 
     # Initialize the model
