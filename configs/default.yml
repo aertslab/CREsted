@@ -29,6 +29,7 @@ model_architecture: 'chrombpnet'  # simple_convnet, basenji, chrombpnet
 target: 'mean'  # max, mean, count, or logcount
 epochs: 100
 batch_size: 256
+TL_batch_size : 64
 learning_rate: 0.001
 TL_learning_rate: 0.0001  # learning rate for transfer learning
 patience: 10  # number of epochs to wait before early stopping

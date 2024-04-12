@@ -352,7 +352,8 @@ def main(args: argparse.Namespace, config: dict):
         tf.keras.mixed_precision.set_global_policy("mixed_float16")
 
     # Load data
-    batch_size = config["batch_size"]
+    batch_size = config["batch_size"] if len(config['pretrained_model_path']) == 0 else config['TL_batch_size']
+    print('Batch size for training: '+str(batch_size))
     global_batch_size = batch_size# * strategy.num_replicas_in_sync
 
     chromsizes = _load_chromsizes(args.chrom_sizes_file)
@@ -392,11 +393,11 @@ def main(args: argparse.Namespace, config: dict):
         loss = CustomLossMSELogV2_(max_weight=cos_weight)
         loss_fn = CustomLossMSELogV2_
     elif config['loss'] == "mse_cosine_nk":
-        loss = CustomLossMSELogV2(max_weight=cos_weight)
-        loss_fn = CustomLossMSELogV2
+        loss = CustomLossV2(max_weight=cos_weight)
+        loss_fn = CustomLossV2
     else:
-        loss = CustomLossMSELogV2(max_weight=cos_weight) #default
-        loss_fn = CustomLossMSELogV2
+        loss = CustomLossV2(max_weight=cos_weight) #default
+        loss_fn = CustomLossV2
 
 
     # Initialize the model
@@ -455,6 +456,7 @@ def main(args: argparse.Namespace, config: dict):
     )
 
     print(model.summary())
+    print(type(train))
     # Train the model
     model.fit(
         train,

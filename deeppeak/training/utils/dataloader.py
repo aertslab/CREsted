@@ -53,10 +53,10 @@ def filter_regions_on_specificity(
     gini_threshold =  mean + gini_std_threshold * std_dev
     selected_indices = np.argwhere(np.max(gini_scores, axis=1) > gini_threshold)[:, 0]
 
-    target_vector_filt = target_vector[:, selected_indices]
+    target_vector_filt = target_vector[selected_indices]
     regions_filt = [regions_bed[i] for i in selected_indices]
     print(
-        f"Kept {len(target_vector_filt[0,:])} out of {len(target_vector[0,:])} regions."
+        f"After specificity filtering, kept {len(target_vector_filt)} out of {len(target_vector)} regions."
     )
 
     return target_vector_filt, regions_filt

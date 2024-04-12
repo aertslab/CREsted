@@ -26,3 +26,6 @@ dependencies:
     - chardet # wandb issue
     - fastism
     - tabulate
+    - seaborn==0.12.2
+    - modisco-lite
+    - vizsequence

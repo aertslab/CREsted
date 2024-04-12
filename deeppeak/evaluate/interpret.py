@@ -107,7 +107,7 @@ def parse_arguments():
 def calculate_gradient_scores(
     model: tf.keras.Model,
     x: np.ndarray,
-    output_dir: str,
+    output_file: str,
     class_indices: list,
     method: str = "integrated_grad",
 ):
@@ -135,6 +135,8 @@ def calculate_gradient_scores(
             scores[:, i, :, :] = explainer.saliency_maps(x)
         elif method == "expected_integrated_grad":
             scores[:, i, :, :] = explainer.expected_integrated_grad(x, num_baseline=25)
+
+    np.savez(output_file, scores)
     return scores
 
 
@@ -146,6 +148,8 @@ def visualize_scores(
     class_indices: list,
     zoom_n_bases: int,
     class_names: list,
+    ylim: tuple = None,
+    verbose: bool=True,
     savefig: bool=False
 ):
     """Visualize interpretation scores."""
@@ -161,7 +165,8 @@ def visualize_scores(
 
     # Plot
     now = datetime.now()
-    print(f"Plotting scores and saving to {output_dir}...")
+    if(verbose):
+        print(f"Plotting scores and saving to {output_dir}...")
     for seq in tqdm(range(seqs_one_hot.shape[0]), desc="Plotting scores per seq"):
         fig_height_per_class = 2
         fig = plt.figure(figsize=(50, fig_height_per_class * len(class_indices)))
@@ -181,13 +186,16 @@ def visualize_scores(
         plt.xlabel("Position")
         plt.xticks(np.arange(0, zoom_n_bases, 50))
         chr, start, end = chr_start_ends[seq]
+        if(ylim is not None):
+            plt.ylim(ylim[0],ylim[1])
         if(savefig):
             plt.savefig(os.path.join(output_dir, f"{chr}_{start}_{end}_explained.jpeg"))
             plt.close(fig)
         else:
             plt.show()
     end = datetime.now()
-    print(f"Plotting took {end - now}")
+    if(verbose):
+        print(f"Plotting took {end - now}")
 
 
 def main(args):

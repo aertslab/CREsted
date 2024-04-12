@@ -31,8 +31,8 @@ class CustomLoss(tf.keras.losses.Loss):
     def from_config(cls, config):
         return cls(**config)
     
-class CustomLossMSELogV2(Loss):
-    def __init__(self, max_weight=1.0, name="CustomLossMSELogV2"):
+class CustomLossV2(Loss):
+    def __init__(self, max_weight=1.0, name="CustomLossV2"):
         super().__init__(name=name)
         self.max_weight = max_weight
 
