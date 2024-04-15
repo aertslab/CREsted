@@ -323,9 +323,9 @@ def basenji(
     return model
 
 
-def DeepTopicCNN(
+def deeptopiccnn(
     input_shape: tuple,
-    num_classes: tuple,
+    output_shape: tuple,
     filters: int = 1024,
     first_kernel_size: int = 17,
     pool_size: int = 4,
@@ -423,7 +423,7 @@ def DeepTopicCNN(
         normalization=normalization,
     )
     logits = layers.Dense(
-        num_classes, activation="linear", dropout=dense_do, use_bias=True
+        output_shape[-1], activation="linear", dropout=dense_do, use_bias=True
     )(x)
     outputs = layers.Activation("sigmoid")(logits)
     return tf.keras.Model(inputs=inputs, outputs=outputs)

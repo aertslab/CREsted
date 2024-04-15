@@ -2,16 +2,12 @@
 
 import tensorflow as tf
 from tensorflow.python.keras import backend as K
-from tensorflow.keras.losses import Reduction
-import tensorflow as tf
-from tensorflow.python.keras import backend as K
-from tensorflow.keras.losses import Loss
+from tensorflow.keras.losses import Reduction, Loss
 
 
-class CustomLoss(tf.keras.losses.Loss):
-    def __init__(self, global_batch_size, reduction=Reduction.SUM, name="CustomLoss"):
+class CustomLoss(Loss):
+    def __init__(self, reduction=Reduction.SUM, name="CustomLoss"):
         super().__init__(reduction=reduction, name=name)
-        self.global_batch_size = global_batch_size
 
     @tf.function
     def call(self, y_true, y_pred):
@@ -21,11 +17,10 @@ class CustomLoss(tf.keras.losses.Loss):
         squared_difference_loss = K.mean(
             tf.math.squared_difference(y_pred, y_true), axis=-1
         )
-        return cosine_loss + squared_difference_loss  # / self.global_batch_size
+        return cosine_loss + squared_difference_loss
 
     def get_config(self):
         config = super().get_config()
-        config.update({"global_batch_size": self.global_batch_size})
         return config
 
     @classmethod

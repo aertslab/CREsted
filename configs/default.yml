@@ -20,10 +20,10 @@ gini_normalization: False  # gini normalization of target peaks
 specificity_filtering: False  # filter regions based on region specificity
 
 # General Training configs
+task: ''  # !!REQUIRED!! name of the task. 'deeppeak' or 'deeptopic'
 wandb: True
 wandb_project: '' # Name of Weights & Biases project. Leave empty for automatic naming based on project_name.
 run_name: '' # Name of run used for both W&B and output folder for checkpoints, leave empty for start datetime as title
-task: ''  # REQUIRED: name of the task. 'DeepPeak' or 'DeepTopic'
 epochs: 100
 batch_size: 256
 TL_batch_size : 64  # batch_size for transfer learning

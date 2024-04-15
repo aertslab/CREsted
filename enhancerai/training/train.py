@@ -8,10 +8,18 @@ from datetime import datetime
 import wandb
 from wandb.keras import WandbMetricsLogger, WandbCallback
 
-from models.zoo import simple_convnet, chrombpnet, basenji
+from models.zoo import simple_convnet, chrombpnet, basenji, deeptopiccnn
 
-from utils.metrics import get_lr_metric, PearsonCorrelation, LogMSEPerClassCallback, SpearmanCorrelationPerClass, PearsonCorrelationLog, ZeroPenaltyMetric, ConcordanceCorrelationCoefficient
-from utils.loss import *
+from utils.metrics import (
+    get_lr_metric,
+    PearsonCorrelation,
+    LogMSEPerClassCallback,
+    SpearmanCorrelationPerClass,
+    PearsonCorrelationLog,
+    ZeroPenaltyMetric,
+    ConcordanceCorrelationCoefficient,
+)
+from utils.loss import CustomLoss, CustomLossV2, CustomLossMSELogV2_
 from utils.augment import complement_base
 from utils.dataloader import CustomDataset
 
@@ -45,7 +53,7 @@ def parse_arguments() -> argparse.Namespace:
         "--cell_mapping_file",
         type=str,
         help="Path to cell type mapping file",
-        default="data/processed/cell_type_mapping.tsv", ## TO DO: Fix cell type mapping file
+        default="data/processed/cell_type_mapping.tsv",  ## TO DO: Fix cell type mapping file
     )
     parser.add_argument(
         "-o",
@@ -65,7 +73,7 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _load_chromsizes(chrom_sizes_file: str) -> 'dict[str, int]':
+def _load_chromsizes(chrom_sizes_file: str) -> "dict[str, int]":
     chrom_sizes = {}
     with open(chrom_sizes_file, "r") as sizes:
         for line in sizes:
@@ -73,6 +81,7 @@ def _load_chromsizes(chrom_sizes_file: str) -> 'dict[str, int]':
             i_size = int(s_size)
             chrom_sizes[chrom] = i_size
     return chrom_sizes
+
 
 def model_callbacks(
     checkpoint_dir: str,
@@ -144,7 +153,7 @@ def load_datasets(
     config: dict,
     batch_size: int,
     checkpoint_dir: str,
-    chromsizes: 'dict[str, int]',
+    chromsizes: "dict[str, int]",
 ):
     """Load train & val datasets."""
     # Load data
@@ -161,8 +170,8 @@ def load_datasets(
         config["fraction_of_data"],
         checkpoint_dir,
         chromsizes,
-        config['rev_complement'],
-        config['specificity_filtering']
+        config["rev_complement"],
+        config["specificity_filtering"],
     )
 
     seq_len = config["seq_len"]
@@ -207,7 +216,7 @@ def load_datasets(
     train_data = (
         dataset.subset("train")
         .map(mapped_function, num_parallel_calls=tf.data.AUTOTUNE)
-        .shuffle(buffer_size=1024, reshuffle_each_iteration=True)
+        .shuffle(buffer_size=2048, reshuffle_each_iteration=True)
         .batch(batch_size, drop_remainder=True)
         .repeat(config["epochs"])
         .prefetch(tf.data.AUTOTUNE)
@@ -232,10 +241,16 @@ def load_datasets(
     )
 
 
-def load_model(config: dict) -> tf.keras.Model:
+def load_model_architecture(config: dict) -> tf.keras.Model:
     """Load requested model from zoo using the given configuration"""
     model_name = config["model_architecture"]
-    options = ["basenji", "chrombpnet", "simple_convnet"]
+    options = [
+        "basenji",
+        "chrombpnet",
+        "simple_convnet",
+        "deeptopiccnn",
+        "deeptopiclstm",
+    ]
     if model_name not in options:
         raise ValueError(f"Model {model_name} not supported.")
 
@@ -294,20 +309,117 @@ def load_model(config: dict) -> tf.keras.Model:
             dense_size=model_config["dense_size"],
             bottleneck=model_config["bottleneck"],
         )
+    elif model_name == "deeptopiccnn":
+        model = deeptopiccnn(
+            input_shape=(config["seq_len"], 4),
+            output_shape=(1, config["num_classes"]),
+            filters=model_config["filters"],
+            first_kernel_size=model_config["first_kernel_size"],
+            pool_size=model_config["pool_size"],
+            dense_out=model_config["dense_out"],
+            first_activation=model_config["first_activation"],
+            activation=model_config["activation"],
+            normalization=model_config["normalization"],
+            conv_do=model_config["conv_do"],
+            dense_do=model_config["dense_do"],
+            pre_dense_do=model_config["pre_dense_do"],
+            first_kernel_l2=model_config["first_kernel_l2"],
+            kernel_l2=model_config["kernel_l2"],
+        )
+
+    return model
+
+
+def get_compiled_model(task, config):
+    pt_model = config["pretrained_model_path"]
+
+    # Model architecture
+    if pt_model:
+        print(f"Continuing training from pretrained model {pt_model}...")
+        model = tf.keras.models.load_model(pt_model, compile=False)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=config["TL_learning_rate"])
+
+    else:
+        print("Training from scratch...")
+        model = load_model_architecture(config)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=config["learning_rate"])
+
+    # Losses and metrics
+    if task == "deeppeak":
+        # Losses
+        if config["cosine_weight"] == "dynamic":
+            cos_weight = 100.0
+        else:
+            cos_weight = 1.0  # default or 'static'
+
+        if config["loss"] == "mse_cosine":
+            loss = CustomLoss()
+        elif config["loss"] == "mse_cosine_log":
+            loss = CustomLossMSELogV2_(max_weight=cos_weight)
+        elif config["loss"] == "mse_cosine_nk":
+            loss = CustomLossV2(max_weight=cos_weight)
+        else:
+            loss = CustomLossV2(max_weight=cos_weight)  # default
+
+        # Metrics
+        lr_metric = get_lr_metric(optimizer)
+        metrics = [
+            tf.keras.metrics.MeanAbsoluteError(),
+            tf.keras.metrics.MeanSquaredError(),
+            tf.keras.metrics.CosineSimilarity(axis=1),
+            PearsonCorrelation(),
+            SpearmanCorrelationPerClass(num_classes=config["num_classes"]),
+            ConcordanceCorrelationCoefficient(),
+            PearsonCorrelationLog(),
+            ZeroPenaltyMetric(),
+            lr_metric,
+        ]
+
+    elif task == "deeptopic":
+        # Losses
+        loss = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+
+        # Metrics
+        metrics = [
+            tf.keras.metrics.AUC(
+                num_thresholds=200,
+                curve="ROC",
+                summation_method="interpolation",
+                name="auROC",
+                thresholds=None,
+                multi_label=True,
+                label_weights=None,
+            ),
+            tf.keras.metrics.AUC(
+                num_thresholds=200,
+                curve="PR",
+                summation_method="interpolation",
+                name="auPR",
+                thresholds=None,
+                multi_label=True,
+                label_weights=None,
+            ),
+            tf.keras.metrics.CategoricalAccuracy(),
+        ]
+
+    # Compile the model
+    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
     return model
 
 
 def main(args: argparse.Namespace, config: dict):
     # Init configs and wandb
     now = datetime.now().strftime("%Y-%m-%d_%H:%M")
+    task = config["task"]  # deeppeak or deeptopic
+    assert task in ["deeptopic", "deeppeak"], "Task must be 'deeptopic' or 'deeppeak'"
 
-    if (len(config["run_name"])>0):
+    if len(config["run_name"]) > 0:
         run_name = config["run_name"]
     else:
         run_name = now
     if config["wandb"]:
-        if(config["wandb_project"] == ""):
-            project_name = f"deeppeak_{config['project_name']}"
+        if config["wandb_project"] == "":
+            project_name = f"{task}_{config['project_name']}"
         else:
             project_name = config["wandb_project"]
         run = wandb.init(
@@ -318,12 +430,14 @@ def main(args: argparse.Namespace, config: dict):
     if int(config["seed"]) > 0:
         tf.random.set_seed(int(config["seed"]))
 
-    if config['output_dir'] == "":
-        checkpoint_dir = os.path.join(args.output_dir, config['project_name'], config["run_name"])
+    if config["output_dir"] == "":
+        checkpoint_dir = os.path.join(
+            args.output_dir, config["project_name"], config["run_name"]
+        )
     else:
-        if not os.path.exists(config['output_dir']):
+        if not os.path.exists(config["output_dir"]):
             raise Exception(f"Output directory {config['output_dir']} does not exist.")
-        checkpoint_dir = os.path.join(config['output_dir'], config["run_name"])
+        checkpoint_dir = os.path.join(config["output_dir"], config["run_name"])
 
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
@@ -352,9 +466,12 @@ def main(args: argparse.Namespace, config: dict):
         tf.keras.mixed_precision.set_global_policy("mixed_float16")
 
     # Load data
-    batch_size = config["batch_size"] if len(config['pretrained_model_path']) == 0 else config['TL_batch_size']
-    print('Batch size for training: '+str(batch_size))
-    global_batch_size = batch_size# * strategy.num_replicas_in_sync
+    batch_size = (
+        config["batch_size"]
+        if len(config["pretrained_model_path"]) == 0
+        else config["TL_batch_size"]
+    )
+    print("Batch size for training: " + str(batch_size))
 
     chromsizes = _load_chromsizes(args.chrom_sizes_file)
 
@@ -368,9 +485,9 @@ def main(args: argparse.Namespace, config: dict):
         args.genome_fasta_file,
         args.targets_file,
         config,
-        global_batch_size,
+        batch_size,
         checkpoint_dir,
-        chromsizes
+        chromsizes,
     )
 
     if config["wandb"]:
@@ -381,60 +498,9 @@ def main(args: argparse.Namespace, config: dict):
             }
         )
 
-    if (config['cosine_weight']=='dynamic'):
-        cos_weight = 100.0
-    else:
-        cos_weight = 1.0 # default or 'static'
-
-    if config['loss'] == "mse_cosine":
-        loss = CustomLoss(global_batch_size)
-        loss_fn = CustomLoss
-    elif config['loss'] == "mse_cosine_log":
-        loss = CustomLossMSELogV2_(max_weight=cos_weight)
-        loss_fn = CustomLossMSELogV2_
-    elif config['loss'] == "mse_cosine_nk":
-        loss = CustomLossV2(max_weight=cos_weight)
-        loss_fn = CustomLossV2
-    else:
-        loss = CustomLossV2(max_weight=cos_weight) #default
-        loss_fn = CustomLossV2
-
-
     # Initialize the model
     with strategy.scope():
-        pt_model = config["pretrained_model_path"]
-
-        if pt_model:
-            print(f"Continuing training from pretrained model {pt_model}...")
-            model = tf.keras.models.load_model(
-                pt_model,
-                compile=False
-            )
-            optimizer = tf.keras.optimizers.Adam(learning_rate=config["TL_learning_rate"]) 
-
-        else:
-            print("Training from scratch...")
-            model = load_model(config)
-            optimizer = tf.keras.optimizers.Adam(learning_rate=config["learning_rate"])
-        
-        lr_metric = get_lr_metric(optimizer)
-
-        # Compile the model
-        model.compile(
-            optimizer=optimizer,
-            loss=loss,
-            metrics=[
-                tf.keras.metrics.MeanAbsoluteError(),
-                tf.keras.metrics.MeanSquaredError(),
-                tf.keras.metrics.CosineSimilarity(axis=1),
-                PearsonCorrelation(),
-                SpearmanCorrelationPerClass(num_classes=config["num_classes"]),
-                ConcordanceCorrelationCoefficient(),
-                PearsonCorrelationLog(),
-                ZeroPenaltyMetric(),
-                lr_metric,
-            ],
-        )
+        model = get_compiled_model(config)
 
     # Get callbacks
     class_names = []
@@ -442,8 +508,8 @@ def main(args: argparse.Namespace, config: dict):
         for line in f:
             class_names.append(line.strip().split("\t")[1])
 
-    train_steps_per_epoch = total_number_of_training_samples // global_batch_size
-    val_steps_per_epoch = total_number_of_validation_samples // global_batch_size
+    train_steps_per_epoch = total_number_of_training_samples // batch_size
+    val_steps_per_epoch = total_number_of_validation_samples // batch_size
 
     callbacks = model_callbacks(
         checkpoint_dir,
@@ -456,7 +522,7 @@ def main(args: argparse.Namespace, config: dict):
     )
 
     print(model.summary())
-    print(type(train))
+
     # Train the model
     model.fit(
         train,
