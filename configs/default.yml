@@ -43,7 +43,7 @@ DeepPeak:
 
 DeepTopic:
   loss : 'crossentropy'
-  model_architecture: 'DeepTopicCNN'  # DeepTopicCNN, DeepTopicLSTM
+  model_architecture: 'deeptopiccnn'  # deeptopiccnn, deeptopiclstm
 
 # augmentations (online)
 rev_complement: False # reverse complement all training regions during every epoch
@@ -104,3 +104,17 @@ basenji:
   filters: 2048
   first_kernel_size: 15
   kernel_size: 3
+
+deeptopiccnn:
+  filters: 1024
+  first_kernel_size: 17
+  pool_size: 4
+  dense_out: 1024
+  first_activation: 'gelu'
+  activation: 'relu'
+  normalization: 'batch'
+  conv_do: 0.15
+  dense_do: 0.5
+  pre_dense_do: 0.5
+  first_kernel_l2: 0.0001
+  kernel_l2: 0.00001
