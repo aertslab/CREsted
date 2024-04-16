@@ -1,18 +1,11 @@
 """Functions for preprocessing ATAC-seq peak bed files."""
 
-import os
-import tempfile
-import shutil
-import numpy as np
-from contextlib import contextmanager
 import numpy as np
 
 
 def _raw_assertion(path: str):
     """Assert that a file is not in the "raw" directory."""
-    assert (
-        "raw" not in path
-    ), f"Out file {path} is in the raw directory. \
+    assert "raw" not in path, f"Out file {path} is in the raw directory. \
     Select a different directory."
 
 

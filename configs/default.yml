@@ -35,19 +35,19 @@ shuffle: True
 mixed_precision: True  # use mixed precision training (recent GPUs only)
 
 # Tasks specific configs
-DeepPeak:
+deeppeak:
   loss: 'mse_cosine'  # mse_cosine, mse_cosine_log, mse_cosine_nk
   cosine_weight: 'static' # Leave weight of cosine function fixed ('static') or equal to the magnitude of the MSE ('dynamic')
   model_architecture: 'chrombpnet'  # simple_convnet, basenji, chrombpnet
   target: 'mean'  # max, mean, count, or logcount
 
-DeepTopic:
+deeptopic:
   loss : 'crossentropy'
   model_architecture: 'deeptopiccnn'  # deeptopiccnn, deeptopiclstm
 
 # augmentations (online)
 rev_complement: False # reverse complement all training regions during every epoch
-augment_complement: True  # inverse complement base pairs during training (50 % chance)
+augment_complement: True  # reverse complement base pairs during training (50 % chance)
 augment_shift_n_bp: 0  # stochastic shift up to n base pairs without recalculating targets
 
 # Debugging

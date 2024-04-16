@@ -122,6 +122,9 @@ def main(args: argparse.Namespace, config: dict):
 
 
 if __name__ == "__main__":
+    assert os.path.exists(
+        "configs/user.yml"
+    ), "users.yml file not found. Please run `make copyconfig` first"
     with open("configs/user.yml", "r") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
     args = parse_arguments()

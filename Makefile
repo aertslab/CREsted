@@ -8,7 +8,7 @@ ifeq (,$(shell which conda))
 $(error "Error: Conda must be installed")
 endif
 
-ENV_NAME=deeppeak
+ENV_NAME=enhancerai
 
 ifeq (,$(shell conda env list | grep -w $(ENV_NAME)))
 HAS_ENV=False
@@ -43,9 +43,9 @@ clean_wandb:
 clean_logs:
 	find . -type f -name "*slurm*" -delete
 
-## Lint using flake8 on deeppeak/ while ignoring 'line too long' & whitespace ':' errors
+## Lint using flake8 on enhancerai/ while ignoring 'line too long' & whitespace ':' errors
 lint:
-	flake8 deeppeak/ --ignore=E501,E203
+	flake8 enhancerai/ --ignore=E501,E203
 
 ## Link data to raw and rename (use absolute paths)
 linkdata:
@@ -69,14 +69,21 @@ endif
 		fi \
 	elif [ -d $(path) ]; then \
 		BW_COUNT=$(shell find $(path) -maxdepth 1 -name "*.bw" | wc -l); \
-		if [ "$$BW_COUNT" -eq "0" ]; then \
-			echo "No .bw files found in $(path)."; \
-		else \
+		BED_COUNT=$(shell find $(path) -maxdepth 1 -name "*.bed" | wc -l); \
+		if [ "$$BW_COUNT" -gt "0" ]; then \
 			echo "Creating symlinks for .bw files in $(path) to data/raw/bw..."; \
 			mkdir -p data/raw/bw; \
 			for file in $(path)/*.bw; do \
 				ln -s $$file data/raw/bw/; \
 			done \
+		elif [ "$$BED_COUNT" -gt "0" ]; then \
+			echo "Creating symlinks for .bed files in $(path) to data/raw/topics..."; \
+			mkdir -p data/raw/topics; \
+			for file in $(path)/*.bed; do \
+				ln -s $$file data/raw/topics/; \
+			done \
+		else \
+			echo "No .bw or .bed files found in $(path)."; \
 		fi \
 	else \
 		echo "$(path) is neither a file nor a directory!"; \
@@ -85,10 +92,10 @@ endif
 # Datasets
 ## Data: clean region bed file for inputs
 data_bed_inputs:
-	python deeppeak/data/preprocess_bed.py -it "inputs"
+	python enhancerai/data/preprocess_bed.py -it "inputs"
 ## Data: clean region bed file for targets
 data_bed_targets:
-	python deeppeak/data/preprocess_bed.py -it "targets" -o "data/interim"
+	python enhancerai/data/preprocess_bed.py -it "targets" -o "data/interim"
 
 ## Data: match bigwig files to target bed file
 data_bigwig:
@@ -98,8 +105,11 @@ data_bigwig:
 	scripts/all_ct_bigwigAverageOverBed.sh -o "data/interim/bw/" -b "data/raw/bw/" -p "data/interim/consensus_peaks_targets.bed"
 
 ## Data: create target vectors from bigwigs
-data_targets:
-	python deeppeak/data/create_targets.py --bigwig_dir "data/interim/bw/" --regions_bed_file "data/processed/consensus_peaks_inputs.bed" --output_dir "data/processed/"
+data_targets_deeppeak:
+	python enhancerai/data/create_targets_deeppeak.py --bigwig_dir "data/interim/bw/" --regions_bed_file "data/processed/consensus_peaks_inputs.bed" --output_dir "data/processed/"
+
+data_targets_deeptopic:
+	python enhancerai/data/create_targets_deeptopic.py --topics_dir "data/raw/topics/" --regions_bed_file "data/raw/consensus_peaks.bed" --output_dir "data/processed/"
 
 ## Data: save the original data paths to the output directory
 data_save_original_paths:
@@ -110,11 +120,12 @@ data_save_original_paths:
 	@echo "Original paths and new filenames saved to data/processed/original_data_paths.tsv"
 
 ## Data: run full preprocessing pipeline
-data_pipeline: data_bed_inputs data_bed_targets data_bigwig data_targets data_save_original_paths
+data_pipeline_deeppeak: data_bed_inputs data_bed_targets data_bigwig data_targets_deeppeak data_save_original_paths
+data_pipeline_deeptopic: data_bed_inputs data_bed_targets data_targets_deeptopic data_save_original_paths
 
 ## Model training
 train:
-	python deeppeak/training/train.py
+	python enhancerai/training/train.py
 
 ## Copy configs/default.yml to configs/user.yml
 copyconfig:

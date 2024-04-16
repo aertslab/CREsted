@@ -241,9 +241,10 @@ def load_datasets(
     )
 
 
-def load_model_architecture(config: dict) -> tf.keras.Model:
+def load_model_architecture(task: str, config: dict) -> tf.keras.Model:
     """Load requested model from zoo using the given configuration"""
-    model_name = config["model_architecture"]
+    model_name = config[task]["model_architecture"]
+
     options = [
         "basenji",
         "chrombpnet",
@@ -341,22 +342,22 @@ def get_compiled_model(task, config):
 
     else:
         print("Training from scratch...")
-        model = load_model_architecture(config)
+        model = load_model_architecture(task, config)
         optimizer = tf.keras.optimizers.Adam(learning_rate=config["learning_rate"])
 
     # Losses and metrics
     if task == "deeppeak":
         # Losses
-        if config["cosine_weight"] == "dynamic":
+        if config["deeppeak"]["cosine_weight"] == "dynamic":
             cos_weight = 100.0
         else:
             cos_weight = 1.0  # default or 'static'
 
-        if config["loss"] == "mse_cosine":
+        if config["deeppeak"]["loss"] == "mse_cosine":
             loss = CustomLoss()
-        elif config["loss"] == "mse_cosine_log":
+        elif config["deeppeak"]["loss"] == "mse_cosine_log":
             loss = CustomLossMSELogV2_(max_weight=cos_weight)
-        elif config["loss"] == "mse_cosine_nk":
+        elif config["deeppeak"]["loss"] == "mse_cosine_nk":
             loss = CustomLossV2(max_weight=cos_weight)
         else:
             loss = CustomLossV2(max_weight=cos_weight)  # default
