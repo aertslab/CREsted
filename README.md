@@ -107,7 +107,7 @@ As inputs for the data preprocessing pipeline, you'll need four types of files:
 * Reference genome fasta file
 * Consensus regions bed file
 * Chrom.sizes file
-* Folder containing bigwigs files per cell type
+* Folder containing bigwigs files per cell type (deeppeak) or topic bed files (deeptopic)
 
 #### Linking the raw data
 
@@ -138,7 +138,8 @@ make linkdata path='/path/to/my/bigwigs/folder/bw/'
 If you have set up your data in *data/raw* and named them correctly, you can easily run the full preprocessing pipeline with one command.
 
 ```bash
-make data_pipeline
+make data_pipeline_deeppeak  # deeppeak data pipeline
+make data_pipeline_deeptopic  # deeptopic data pipeline
 ```
 
 This will:
@@ -164,10 +165,11 @@ Important configs to change are:
 
 Afterwards, run the following command:
 ```bash
-make train  # shortcut with default paths
+make train_deeppeak  # deeppeak shortcut with default paths
+make train_deeptopic  # deeptopic shortcut with default paths
 
 # or
-python deeppeak/training/train.py --genome_fasta_file /path/to/genome.fa --bed_file /path/to/consensus_peaks_inputs.bed --targets_file /path/to/targets.npz --output_dir /path/to/checkpoints_dir/
+python enhancerai/training/train.py --genome_fasta_file /path/to/genome.fa --bed_file /path/to/consensus_peaks_inputs.bed --targets_file /path/to/targets_{task}.npz --output_dir /path/to/checkpoints_dir/
 ```
 
 This will output all model checkpoints during training to your *output_dir/{project_name}/{timestamp}*, as well as save the required data files to the output directory to ensure the training is fully reproducible. Of course, this means that you will have a lot of duplicate files saved, so don't forget to **remove any checkpoint directories of runs you don't plan on keeping!**
