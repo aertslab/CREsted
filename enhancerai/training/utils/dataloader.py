@@ -1,4 +1,5 @@
 """Helper functions for loading data from tfRecords."""
+
 from __future__ import annotations
 import tensorflow as tf
 import os
@@ -7,6 +8,7 @@ import numpy as np
 import shutil
 import json
 from typing import Tuple
+
 
 def calc_gini(targets: np.ndarray) -> np.ndarray:
     """Returns gini scores for the given targets"""
@@ -31,6 +33,7 @@ def calc_gini(targets: np.ndarray) -> np.ndarray:
 
     return gini_scores
 
+
 def filter_regions_on_specificity(
     target_vector: np.ndarray,
     regions_bed: list,
@@ -50,7 +53,7 @@ def filter_regions_on_specificity(
     gini_scores = calc_gini(target_vector)
     mean = np.mean(np.max(gini_scores, axis=1))
     std_dev = np.std(np.max(gini_scores, axis=1))
-    gini_threshold =  mean + gini_std_threshold * std_dev
+    gini_threshold = mean + gini_std_threshold * std_dev
     selected_indices = np.argwhere(np.max(gini_scores, axis=1) > gini_threshold)[:, 0]
 
     target_vector_filt = target_vector[selected_indices]
@@ -60,6 +63,7 @@ def filter_regions_on_specificity(
     )
 
     return target_vector_filt, regions_filt
+
 
 def write_to_bedfile(regions, output_path):
     with open(output_path, "w") as outfile:
@@ -72,6 +76,7 @@ class CustomDataset:
         self,
         bed_file: str,
         genome_fasta_file: str,
+        task: str,
         targets: str,
         target_goal: str,
         split_dict: dict,
@@ -81,7 +86,7 @@ class CustomDataset:
         output_dir: str | None = None,
         chromsizes: dict[str, int] | None = None,
         reverse_complement: bool = False,
-        specificity_filtering: bool = False
+        specificity_filtering: bool = False,
     ):
         # Load datasets
         self.reverse_complement = reverse_complement
@@ -91,23 +96,30 @@ class CustomDataset:
         )
         self.targets = np.load(targets)["targets"]
 
-        if self.targets.shape[0] == 1:
-            print("Only found one target type in target array. Using that one.")
-            self.targets = self.targets[0, :]
-        else:
-            if target_goal == "max":
+        if task == "deeppeak":
+            if self.targets.shape[0] == 1:
+                print("Only found one target type in target array. Using that one.")
                 self.targets = self.targets[0, :]
-            elif target_goal == "mean":
-                self.targets = self.targets[1, :]
-            elif target_goal == "count":
-                self.targets = self.targets[2, :]
-            elif target_goal == "logcount":
-                self.targets = self.targets[3, :]
+            else:
+                if target_goal == "max":
+                    self.targets = self.targets[0, :]
+                elif target_goal == "mean":
+                    self.targets = self.targets[1, :]
+                elif target_goal == "count":
+                    self.targets = self.targets[2, :]
+                elif target_goal == "logcount":
+                    self.targets = self.targets[3, :]
 
-        if(specificity_filtering):
-            self.targets, self.all_regions = filter_regions_on_specificity(self.targets, self.all_regions)
+            if specificity_filtering:
+                self.targets, self.all_regions = filter_regions_on_specificity(
+                    self.targets, self.all_regions
+                )
+        # if task is deeptopic, then already in correct shape
+
         if self.reverse_complement:
-            self.targets = np.repeat(self.targets, 2, axis=0)  # double targets for each region
+            self.targets = np.repeat(
+                self.targets, 2, axis=0
+            )  # double targets for each region
         self.split_dict = split_dict
 
         self.num_classes = num_classes
@@ -136,11 +148,11 @@ class CustomDataset:
         train_indices, train_chroms = self._get_indices_for_set_type(
             self.split_dict, "train", self.all_regions, fraction_of_data
         )
-        
-        if(self.reverse_complement):
+
+        if self.reverse_complement:
             val_indices = val_indices[::2]
             test_indices = test_indices[::2]
-    
+
         self.indices = {
             "train": train_indices,
             "val": val_indices,
@@ -188,14 +200,16 @@ class CustomDataset:
             if (self.shift_n_bp > 0) and (split == "train"):
                 # shift augmentation
                 shift = np.random.randint(
-                    - min(self.shift_n_bp, start),                       # make sure start does not go below 0
-                      min(self.shift_n_bp, self.chromsizes[chrom] - end) # make sure end does not go above chromsize
+                    -min(self.shift_n_bp, start),  # make sure start does not go below 0
+                    min(
+                        self.shift_n_bp, self.chromsizes[chrom] - end
+                    ),  # make sure end does not go above chromsize
                 )
                 start += shift
                 end += shift
-            if(strand=='+'):
+            if strand == "+":
                 sequence = str(self.genomic_pyfasta[chrom][start:end].seq)
-            elif(strand == '-'):
+            elif strand == "-":
                 sequence = str(self.genomic_pyfasta[chrom][start:end].complement.seq)
             else:
                 raise ValueError("Strand must be '+' or '-'")
@@ -241,7 +255,7 @@ class CustomDataset:
             excluded_chromosomes = set(
                 split_dict.get("val", []) + split_dict.get("test", [])
             )
-            all_chromosomes = set(chrom for chrom, _, _,_ in all_regions)
+            all_chromosomes = set(chrom for chrom, _, _, _ in all_regions)
             selected_chromosomes = all_chromosomes - excluded_chromosomes
 
         indices = [
@@ -268,9 +282,9 @@ class CustomDataset:
                 columns = line.split("\t")
                 chrom = columns[0]
                 start, end = [int(x) for x in columns[1:3]]
-                regions.append((chrom, start, end,'+'))
-                if(self.reverse_complement):
-                    regions.append((chrom, start, end, '-'))
+                regions.append((chrom, start, end, "+"))
+                if self.reverse_complement:
+                    regions.append((chrom, start, end, "-"))
         return regions
 
     def _get_chromosome_counts(self):
