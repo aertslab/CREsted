@@ -344,7 +344,7 @@ def deeptopiccnn(
 
     Args:
         input_shape (tuple): Shape of the input data.
-        num_classes (tuple): Number of classes for output.
+        output_shape (tuple): Shape of the output data (1, C).
         filters (int): Number of filters in the first convolutional layer.
         first_kernel_size (int): Size of the kernel in the first convolutional layer.
         pool_size (int): Size of the pooling kernel.
@@ -370,9 +370,12 @@ def deeptopiccnn(
         pool_size=pool_size,
         activation=first_activation,
         dropout=conv_do,
+        conv_bias=False,
         normalization=normalization,
         res=False,
-        kernel_regularizer=first_kernel_l2,
+        padding="same",
+        l2=first_kernel_l2,
+        batchnorm_momentum=0.9,
     )
     # conv blocks without residual connections
     for _ in range(2):
@@ -383,9 +386,12 @@ def deeptopiccnn(
             pool_size=pool_size,
             activation=activation,
             dropout=conv_do,
+            conv_bias=False,
             normalization=normalization,
             res=False,
-            kernel_regularizer=kernel_l2,
+            padding="same",
+            l2=kernel_l2,
+            batchnorm_momentum=0.9,
         )
 
     # conv blocks with residual connections
@@ -396,21 +402,27 @@ def deeptopiccnn(
         pool_size=pool_size,
         activation=activation,
         dropout=conv_do,
+        conv_bias=False,
         normalization=normalization,
         res=True,
-        kernel_regularizer=kernel_l2,
+        padding="same",
+        l2=kernel_l2,
+        batchnorm_momentum=0.9,
     )
 
     x = conv_block(
         x,
         filters=int(filters / 2),
         kernel_size=2,
-        pool_size=pool_size,
+        pool_size=0,  # no pooling
         activation=activation,
         dropout=0,
         normalization=normalization,
+        conv_bias=False,
         res=True,
-        kernel_regularizer=kernel_l2,
+        padding="same",
+        l2=kernel_l2,
+        batchnorm_momentum=0.9,
     )
 
     x = layers.Flatten()(x)
@@ -422,9 +434,7 @@ def deeptopiccnn(
         dropout=dense_do,
         normalization=normalization,
     )
-    logits = layers.Dense(
-        output_shape[-1], activation="linear", dropout=dense_do, use_bias=True
-    )(x)
+    logits = layers.Dense(output_shape[-1], activation="linear", use_bias=True)(x)
     outputs = layers.Activation("sigmoid")(logits)
     return tf.keras.Model(inputs=inputs, outputs=outputs)
 
@@ -487,10 +497,13 @@ def conv_block(
     kernel_size,
     pool_size,
     activation,
+    conv_bias=True,
     dropout=0.1,
     normalization="batch",
     res=False,
+    padding="valid",
     l2=1e-5,
+    batchnorm_momentum=0.99,
 ):
     """
     Convolution building block.
@@ -514,18 +527,15 @@ def conv_block(
     x = layers.Convolution1D(
         filters=filters,
         kernel_size=kernel_size,
-        padding="valid",
+        padding=padding,
         kernel_regularizer=regularizers.L2(l2),
+        use_bias=conv_bias,
     )(inputs)
     if normalization == "batch":
-        x = layers.BatchNormalization()(x)
+        x = layers.BatchNormalization(momentum=batchnorm_momentum)(x)
     elif normalization == "layer":
         x = layers.LayerNormalization()(x)
     x = layers.Activation(activation)(x)
-    x = layers.MaxPooling1D(pool_size=pool_size)(x)
-    if dropout > 0:
-        x = layers.Dropout(dropout)(x)
-
     if res:
         if filters != residual.shape[2]:
             residual = layers.Convolution1D(filters=filters, kernel_size=1, strides=1)(
@@ -537,6 +547,11 @@ def conv_block(
             x = layers.BatchNormalization()(x)
         elif normalization == "layer":
             x = layers.LayerNormalization()(x)
+
+    if pool_size > 1:
+        x = layers.MaxPooling1D(pool_size=pool_size, padding=padding)(x)
+    if dropout > 0:
+        x = layers.Dropout(dropout)(x)
 
     return x
 
@@ -646,7 +661,7 @@ def conv_block_bs(
         use_bias=False,
         dilation_rate=dilation_rate,
         kernel_initializer=kernel_initializer,
-        kernel_regularizer=tf.keras.regularizers.l2(l2_scale),
+        l2=tf.keras.regularizers.l2(l2_scale),
     )(current)
 
     # batch norm
