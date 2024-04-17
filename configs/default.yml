@@ -50,8 +50,8 @@ deeptopic:
   model_architecture: 'deeptopiccnn'  # deeptopiccnn, deeptopiclstm
 
 # augmentations (online)
-rev_complement: False # reverse complement all training regions during every epoch
-augment_complement: True  # reverse complement base pairs during training (50 % chance)
+rev_complement: True # reverse complement all training regions during every epoch
+augment_complement: False  # reverse complement base pairs during training (50 % chance)
 augment_shift_n_bp: 0  # stochastic shift up to n base pairs without recalculating targets
 
 # Debugging
