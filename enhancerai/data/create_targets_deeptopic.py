@@ -76,8 +76,9 @@ def main(args, config):
         binary_row = binary_matrix.columns.isin(topic_peaks["region"]).astype(int)
         binary_matrix.loc[topic_name] = binary_row
 
-    # Convert to numpy array (topics x regions matrix)
+    # Convert to numpy array
     binary_matrix_np = binary_matrix.to_numpy()
+    binary_matrix_np = binary_matrix_np.T  # (regions x topics)
 
     # Save the binary matrix using numpy
     print(
@@ -87,6 +88,16 @@ def main(args, config):
         os.path.join(args.output_dir, "targets_deeptopic.npz"),
         targets=binary_matrix_np,
     )
+
+    # Save cell type/topic mapping file
+    topic_files = [
+        f.name for f in sorted(topics_folder.glob("*.bed"), key=extract_topic_number)
+    ]
+    print(f"Saving topic mapping to {args.output_dir}cell_type_mapping.tsv...")
+    with open(os.path.join(args.output_dir, "cell_type_mapping.tsv"), "w") as f:
+        for cell_type_idx, tsv_file in enumerate(topic_files):
+            out_path = os.path.join(args.topics_dir, tsv_file)
+            f.write(f"{cell_type_idx}\t{str(tsv_file).split('.')[0]}\t{out_path}\n")
 
 
 if __name__ == "__main__":
