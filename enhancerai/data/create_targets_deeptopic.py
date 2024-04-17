@@ -74,11 +74,19 @@ def main(args, config):
 
         # Create binary row for the current topic (topics x regions matrix in sorted folder order)
         binary_row = binary_matrix.columns.isin(topic_peaks["region"]).astype(int)
+
         binary_matrix.loc[topic_name] = binary_row
 
     # Convert to numpy array
     binary_matrix_np = binary_matrix.to_numpy()
     binary_matrix_np = binary_matrix_np.T  # (regions x topics)
+
+    if config["shift_augmentation"]["use"]:
+        print("Warning: extending target matrix since shift augmentation was used.")
+        total_rows_per_region = int(config["shift_augmentation"]["n_shifts"]) * 2 + 1
+        binary_matrix_np = np.repeat(
+            binary_matrix_np, repeats=total_rows_per_region, axis=0
+        )
 
     # Save the binary matrix using numpy
     print(

@@ -87,6 +87,8 @@ class CustomDataset:
         chromsizes: dict[str, int] | None = None,
         reverse_complement: bool = False,
         specificity_filtering: bool = False,
+        shift_augmentation_pre_used: bool = False,
+        shift_augmentation_pre_used_n_shifts: int = 2,
     ):
         # Load datasets
         self.reverse_complement = reverse_complement
@@ -148,6 +150,12 @@ class CustomDataset:
         train_indices, train_chroms = self._get_indices_for_set_type(
             self.split_dict, "train", self.all_regions, fraction_of_data
         )
+
+        # Remove augmented regions from val and test set if augmented in preprocessing
+        if shift_augmentation_pre_used:
+            n_shifts = shift_augmentation_pre_used_n_shifts
+            val_indices = [i for i in val_indices if i % (n_shifts * 2 + 1) == 0]
+            test_indices = [i for i in test_indices if i % (n_shifts * 2 + 1) == 0]
 
         if self.reverse_complement:
             val_indices = val_indices[::2]

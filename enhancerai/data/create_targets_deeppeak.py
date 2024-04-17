@@ -194,6 +194,13 @@ def main(args: argparse.Namespace, config: dict):
             target_vector, args.regions_bed_file
         )
 
+    if config["shift_augmentation"]["use"]:
+        print("Warning: extending target matrix since shift augmentation was used.")
+        total_rows_per_region = int(config["shift_augmentation"]["n_shifts"]) * 2 + 1
+        binary_matrix_np = np.repeat(
+            binary_matrix_np, repeats=total_rows_per_region, axis=1
+        )
+
     # Save target vector
     print(f"Saving deeppeak target vectors to {args.output_dir}targets_deeppeak.npz...")
     np.savez_compressed(
