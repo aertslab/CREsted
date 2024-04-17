@@ -178,10 +178,11 @@ def load_datasets(
         chromsizes,
         config["rev_complement"],
         config["specificity_filtering"],
+        config["shift_augmentation"]["use"],
+        config["shift_augmentation"]["n_shifts"],
     )
 
     seq_len = config["seq_len"]
-    augment_complement = config["augment_complement"]
 
     base_to_int_mapping = {"A": 0, "C": 1, "G": 2, "T": 3}
     table = tf.lookup.StaticHashTable(
@@ -193,7 +194,7 @@ def load_datasets(
     )
 
     @tf.function
-    def mapped_function(sequence, target):
+    def mapped_function(sequence, target, augment_complement=False):
         if isinstance(sequence, str):
             sequence = tf.constant([sequence])
         elif isinstance(sequence, tf.Tensor) and sequence.ndim == 0:
@@ -221,7 +222,12 @@ def load_datasets(
 
     train_data = (
         dataset.subset("train")
-        .map(mapped_function, num_parallel_calls=tf.data.AUTOTUNE)
+        .map(
+            lambda seq, tgt: mapped_function(
+                seq, tgt, augment_complement=config["augment_complement"]
+            ),
+            num_parallel_calls=tf.data.AUTOTUNE,
+        )
         .shuffle(buffer_size=2048, reshuffle_each_iteration=True)
         .batch(batch_size, drop_remainder=True)
         .repeat(config["epochs"])
