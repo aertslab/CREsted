@@ -18,6 +18,10 @@ test: ['chr9', 'chr18']  # leave list empty for auto test chrom selection (0.1 o
 # Preprocessing
 gini_normalization: False  # gini normalization of target peaks
 specificity_filtering: False  # filter regions based on region specificity
+shift_augmentation:  # Legacy shift augmentation, that will shift all input sequences two times in both directions in strides of 50 bp.
+  use: True  #  Recommended to use `augment_shift_n_bp` during training instead.
+  stride_bp: 50  # stride for shift augmentation
+  n_shifts: 2  # number of shifts in both directions
 
 # General Training configs
 task: ''  # !!REQUIRED!! name of the task. 'deeppeak' or 'deeptopic'

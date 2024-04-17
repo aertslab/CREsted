@@ -124,8 +124,11 @@ data_pipeline_deeppeak: data_bed_inputs data_bed_targets data_bigwig data_target
 data_pipeline_deeptopic: data_bed_inputs data_bed_targets data_targets_deeptopic data_save_original_paths
 
 ## Model training
-train:
-	python enhancerai/training/train.py
+train_deeppeak:
+	python enhancerai/training/train.py --targets_file "data/processed/targets_deeppeak.npz"
+
+train_deeptopic:
+	python enhancerai/training/train.py --targets_file "data/processed/targets_deeptopic.npz"
 
 ## Copy configs/default.yml to configs/user.yml
 copyconfig:
