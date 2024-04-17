@@ -45,8 +45,8 @@ def parse_arguments() -> argparse.Namespace:
         "-t",
         "--targets_file",
         type=str,
-        help="Path to targets file",
-        default="data/processed/targets.npz",
+        help="Path to targets file (npz format). Deeppeak or deeptopic.",
+        required=True,
     )
     parser.add_argument(
         "-m",
@@ -85,6 +85,7 @@ def _load_chromsizes(chrom_sizes_file: str) -> "dict[str, int]":
 
 def model_callbacks(
     checkpoint_dir: str,
+    task: str,
     patience: int,
     use_wandb: bool,
     profile: bool,
@@ -104,7 +105,10 @@ def model_callbacks(
     callbacks.append(checkpoint)
 
     # Early stopping
-    early_stop_metric = "val_pearson_correlation"
+    if task == "deeppeak":
+        early_stop_metric = "val_pearson_correlation"
+    elif task == "deeptopic":
+        early_stop_metric = "val_auPR"
     early_stop = tf.keras.callbacks.EarlyStopping(
         monitor=early_stop_metric, patience=patience, mode="max"
     )
@@ -125,16 +129,17 @@ def model_callbacks(
         wandb_callback_epoch = WandbMetricsLogger(log_freq="epoch")
         wandb_callback_batch = WandbMetricsLogger(log_freq=10)
         wandb_model_callback = WandbCallback()
-        log_mse_per_class_callback = LogMSEPerClassCallback(
-            validation_data=validation_data,
-            class_names=class_names,
-            val_steps=val_steps_per_epoch,
-        )
 
         callbacks.append(wandb_callback_epoch)
         callbacks.append(wandb_callback_batch)
         callbacks.append(wandb_model_callback)
-        callbacks.append(log_mse_per_class_callback)
+        if task == "deeppeak":
+            log_mse_per_class_callback = LogMSEPerClassCallback(
+                validation_data=validation_data,
+                class_names=class_names,
+                val_steps=val_steps_per_epoch,
+            )
+            callbacks.append(log_mse_per_class_callback)
 
     if profile:
         print("Profiling enabled. Saving to logs/")
@@ -162,8 +167,9 @@ def load_datasets(
     dataset = CustomDataset(
         bed_file,
         genome_fasta_file,
+        config["task"],
         targets_file,
-        config["target"],
+        config["deeppeak"]["target"],
         split_dict,
         config["num_classes"],
         config["augment_shift_n_bp"],
@@ -378,7 +384,7 @@ def get_compiled_model(task, config):
 
     elif task == "deeptopic":
         # Losses
-        loss = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+        loss = "binary_crossentropy"
 
         # Metrics
         metrics = [
@@ -501,7 +507,7 @@ def main(args: argparse.Namespace, config: dict):
 
     # Initialize the model
     with strategy.scope():
-        model = get_compiled_model(config)
+        model = get_compiled_model(task, config)
 
     # Get callbacks
     class_names = []
@@ -514,6 +520,7 @@ def main(args: argparse.Namespace, config: dict):
 
     callbacks = model_callbacks(
         checkpoint_dir,
+        task,
         config["patience"],
         config["wandb"],
         config["profile"],
