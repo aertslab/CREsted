@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import tensorflow as tf
 import yaml
 import os
@@ -21,7 +23,7 @@ from utils.metrics import (
 )
 from utils.loss import CustomLoss, CustomLossV2, CustomLossMSELogV2_
 from utils.augment import complement_base
-from utils.dataloader import CustomDataset
+from utils.dataloader import SequenceDataset
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -158,29 +160,17 @@ def load_datasets(
     config: dict,
     batch_size: int,
     checkpoint_dir: str,
-    chromsizes: "dict[str, int]",
+    chromsizes: dict[str, int],
 ):
     """Load train & val datasets."""
     # Load data
-    split_dict = {"val": config["split"]["val"], "test": config["split"]["test"]}
-
-    dataset = CustomDataset(
-        bed_file=bed_file,
+    dataset = SequenceDataset(
+        regions_bed_file=bed_file,
         genome_fasta_file=genome_fasta_file,
-        task=config["task"],
-        targets=targets_file,
-        target_goal=config["deeppeak"]["target"],
-        split_type=config["split"]["type"],
-        split_dict=split_dict,
-        num_classes=config["num_classes"],
-        shift_n_bp=config["augment_shift_n_bp"],
-        fraction_of_data=config["fraction_of_data"],
-        output_dir=checkpoint_dir,
+        targets_file=targets_file,
+        config=config,
         chromsizes=chromsizes,
-        reverse_complement=config["rev_complement"],
-        specificity_filtering=config["specificity_filtering"],
-        shift_augmentation_pre_used=config["shift_augmentation"]["use"],
-        shift_augmentation_pre_used_n_shifts=config["shift_augmentation"]["n_shifts"],
+        output_dir=checkpoint_dir,
     )
 
     seq_len = config["seq_len"]
@@ -431,6 +421,8 @@ def main(args: argparse.Namespace, config: dict):
         run_name = config["run_name"]
     else:
         run_name = now
+    if config["project_name"] == "":
+        config["project_name"] = task
     if config["wandb"]:
         if config["wandb_project"] == "":
             project_name = f"{task}_{config['project_name']}"

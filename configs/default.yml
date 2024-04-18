@@ -29,7 +29,7 @@ shift_augmentation:  # Legacy shift augmentation, that will shift all input sequ
 
 # General Training configs
 task: ''  # !!REQUIRED!! name of the task. 'deeppeak' or 'deeptopic'
-wandb: True
+wandb: False
 wandb_project: '' # Name of Weights & Biases project. Leave empty for automatic naming based on project_name.
 run_name: '' # Name of run used for both W&B and output folder for checkpoints, leave empty for start datetime as title
 epochs: 100
@@ -40,7 +40,7 @@ TL_learning_rate: 0.0001  # learning rate for transfer learning
 patience: 10  # number of epochs to wait before early stopping
 pretrained_model_path: ''  # continue from .keras checkpoint. Leave empty if starting from scratch
 shuffle: True
-mixed_precision: True  # use mixed precision training (recent GPUs only)
+mixed_precision: False  # use mixed precision training (recent GPUs only)
 
 # Tasks specific configs
 deeppeak:
