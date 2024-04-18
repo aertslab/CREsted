@@ -485,7 +485,7 @@ if __name__ == "__main__":
             "val_chroms": ["chr10"],
             "test_chroms": [],
         },
-        "rev_complement": False,
+        "rev_complement": True,
         "specificity_filtering": False,
         "augment_shift_n_bp": 0,
         "task": "deeptopic",

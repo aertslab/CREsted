@@ -52,6 +52,7 @@ deeppeak:
 deeptopic:
   loss : 'crossentropy'
   model_architecture: 'deeptopiccnn'  # deeptopiccnn, deeptopiclstm
+  transferlearn: False  # transfer learning. If True, set `pretrained_model_path` to the path of the model to transfer learn from.
 
 # augmentations (online)
 rev_complement: True # reverse complement all training regions during every epoch

@@ -433,6 +433,7 @@ def deeptopiccnn(
         activation,
         dropout=dense_do,
         normalization=normalization,
+        name_prefix="DenseBlock",
     )
     logits = layers.Dense(output_shape[-1], activation="linear", use_bias=True)(x)
     outputs = layers.Activation("sigmoid")(logits)
@@ -453,6 +454,7 @@ def dense_block(
     bn_gamma=None,
     bn_momentum=0.90,
     normalization="batch",
+    name_prefix=None,
 ):
     """
     Dense building block.
@@ -476,17 +478,26 @@ def dense_block(
         use_bias=True,
         kernel_initializer="he_normal",
         kernel_regularizer=tf.keras.regularizers.l2(l2),
+        name=name_prefix + "_dense" if name_prefix else None,
     )(inputs)
 
     if normalization == "batch":
-        x = layers.BatchNormalization(momentum=bn_momentum, gamma_initializer=bn_gamma)(
-            x
-        )
+        x = layers.BatchNormalization(
+            momentum=bn_momentum,
+            gamma_initializer=bn_gamma,
+            name=name_prefix + "_batchnorm" if name_prefix else None,
+        )(x)
     elif normalization == "layer":
-        x = layers.LayerNormalization()(x)
+        x = layers.LayerNormalization(
+            name=name_prefix + "_layernorm" if name_prefix else None
+        )(x)
 
-    x = layers.Activation(activation)(x)
-    x = layers.Dropout(dropout)(x)
+    x = layers.Activation(
+        activation, name=name_prefix + "_activation" if name_prefix else None
+    )(x)
+    x = layers.Dropout(dropout, name=name_prefix + "_dropout" if name_prefix else None)(
+        x
+    )
 
     return x
 

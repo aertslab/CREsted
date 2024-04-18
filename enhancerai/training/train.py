@@ -339,10 +339,27 @@ def get_compiled_model(task, config):
 
     # Model architecture
     if pt_model:
-        print(f"Continuing training from pretrained model {pt_model}...")
+        print(
+            f"Continuing training/transfer learning from pretrained model {pt_model}..."
+        )
         model = tf.keras.models.load_model(pt_model, compile=False)
         optimizer = tf.keras.optimizers.Adam(learning_rate=config["TL_learning_rate"])
 
+        if (task == "deeptopic") and (config["deeptopic"]["transferlearn"] == True):
+            print(
+                "First phase of transfer learning. Freezing all layers before the DenseBlock..."
+            )
+            # Freeze all layers before the DenseBlock
+            for layer in model.layers:
+                layer.trainable = False
+
+            # Unfreeze the DenseBlock and all layers after it
+            start_unfreezing = False
+            for layer in model.layers:
+                if dense_block_name in layer.name:
+                    start_unfreezing = True
+                if start_unfreezing:
+                    layer.trainable = True
     else:
         print("Training from scratch...")
         model = load_model_architecture(task, config)
@@ -539,6 +556,27 @@ def main(args: argparse.Namespace, config: dict):
         epochs=config["epochs"],
         callbacks=callbacks,
     )
+
+    # If transfer learning deeptopic, we unfreeze everything after training the DenseBlock
+    # and train further with a lower learning rate
+    if (task == "deeptopic") and (config["deeptopic"]["transferlearn"] == True):
+        print(
+            "First phase of transfer learning done. Unfreezing all layers and training further with even lower learning rate..."
+        )
+        for layer in model.layers:
+            layer.trainable = True
+
+        optimizer = tf.keras.optimizers.Adam(learning_rate=1e-6)
+        model.compile(optimizer=optimizer, loss="binary_crossentropy", metrics=metrics)
+
+        model.fit(
+            train,
+            steps_per_epoch=train_steps_per_epoch,
+            validation_steps=val_steps_per_epoch,
+            validation_data=val,
+            epochs=config["epochs"],
+            callbacks=callbacks,
+        )
 
     if config["wandb"]:
         run.finish()
