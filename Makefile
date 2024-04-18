@@ -4,10 +4,6 @@
 # GLOBALS                                                                       #
 #################################################################################
 
-ifeq (,$(shell which conda))
-$(error "Error: Conda must be installed")
-endif
-
 ENV_NAME=enhancerai
 
 ifeq (,$(shell conda env list | grep -w $(ENV_NAME)))
