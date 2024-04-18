@@ -3,9 +3,8 @@
 from __future__ import annotations
 import tensorflow as tf
 import os
-import pyfaidx
+from pyfaidx import Fasta
 import numpy as np
-import shutil
 import json
 from typing import Tuple
 
@@ -93,9 +92,7 @@ class CustomDataset:
         # Load datasets
         self.reverse_complement = reverse_complement
         self.all_regions = self._load_bed_file(bed_file)
-        self.genomic_pyfasta = pyfaidx.Fasta(
-            genome_fasta_file, sequence_always_upper=True
-        )
+        self.genomic_pyfasta = Fasta(genome_fasta_file, sequence_always_upper=True)
         self.targets = np.load(targets)["targets"]
 
         if task == "deeppeak":
@@ -392,13 +389,14 @@ def stochastic_shift_augment(start: int, end: int, chromsize: int, shift_n_bp: i
     return start, end
 
 
-class CustomDataset:
+class SequenceDataset:
     def __init__(
         self,
         config: dict,
         regions_bed_file: str,
         genome_fasta_file: str,
         chromsizes: dict[str, int] | None = None,
+        output_dir: str | None = None,
     ):
         self.regionloader = GenomicRegionLoader(
             regions_bed_file,
@@ -411,6 +409,7 @@ class CustomDataset:
             config["target_goal"],
             config["reverse_complement"],
         )
+        self.num_classes = int(config["num_classes"])
         self.chromsizes = chromsizes
         self.shift_n_bp = int(config["augment_shift_n_bp"])
 
@@ -423,6 +422,43 @@ class CustomDataset:
             self.targets, self.regionloader.regions = filter_regions_on_specificity(
                 self.targets, self.regionloader.regions
             )
+
+        # Get split indices
+        self.splitter = DatasetSplitter(self.regionloader.regions)
+        self.indices = self.splitter.split_datasets(config["split"])  # dict of lists
+
+        if float(config["fraction_of_data"]) != 1.0:
+            # debugging purposes
+            for subset in self.indices:
+                self.indices[subset] = self.indices[subset][
+                    : int(
+                        np.ceil(
+                            len(self.indices[subset])
+                            * float(config["fraction_of_data"])
+                        )
+                    )
+                ]
+
+        # Remove augmented regions from val and test set if augmented in preprocessing
+        if config["shift_augmentation"]["use"]:
+            n_shifts = int(config["shift_augmentation"]["n_shifts"])
+            for subset in ["val", "test"]:
+                self.indices[subset] = [
+                    i for i in self.indices[subset] if i % (n_shifts * 2 + 1) == 0
+                ]
+
+        # Remove reverse complement regions if reverse complement is used
+        if config["reverse_complement"]:
+            for subset in ["val", "test"]:
+                self.indices[subset] = self.indices[subset][::2]
+
+        # Save outputs
+        if output_dir is not None:
+            self.save_outputs(output_dir, self.splitter.split_dict)
+
+    def __len__(self, subset: str):
+        """Return the number of samples in the given split."""
+        return len(self.indices[subset])
 
     def generator(self, split: str | bytes):
         """Yield sequences and targets for the given split."""
@@ -439,6 +475,7 @@ class CustomDataset:
             yield sequence, target
 
     def subset(self, split: str):
+        """Returns dataset generator for the given split."""
         return tf.data.Dataset.from_generator(
             self.generator,
             output_signature=(
@@ -448,18 +485,47 @@ class CustomDataset:
             args=(split,),
         )
 
+    def save_outputs(self, output_dir: str, split_dict: dict):
+        """Save the split indices and targets to the output directory."""
+        with open(os.path.join(output_dir, "chrom_mapping.json"), "w") as f:
+            json.dump(split_dict, f)
+
+        np.savez(
+            os.path.join(output_dir, "region_split_ids.npz"),
+            train=self.indices["train"],
+            val=self.indices["val"],
+            test=self.indices["test"],
+        )
+
+        train_targets = self.targets[self.indices["train"]]
+        val_targets = self.targets[self.indices["val"]]
+        test_targets = self.targets[self.indices["test"]]
+        np.savez(
+            os.path.join(output_dir, "targets.npz"),
+            train=train_targets,
+            val=val_targets,
+            test=test_targets,
+        )
+
+        write_to_bedfile(
+            self.regionloader.regions, os.path.join(output_dir, "regions.bed")
+        )
+        print(f"Saved bed regions, split ids and split targets to {output_dir}")
+
 
 class GenomicRegionLoader:
     """Handles loading of genomic regions from a BED file."""
 
-    def __init__(self, bed_file: str, genome_fasta_file: str, reverse_complement: bool):
+    def __init__(
+        self, bed_file: str, genome_fasta_file: str, reverse_complement: bool = False
+    ):
         self.regions = self.load_bed_file(bed_file, reverse_complement)
         self.genome = self.load_genomic_data(genome_fasta_file)
 
     def load_genomic_data(self):
         return Fasta(self.genome_fasta_file, sequence_always_upper=True)
 
-    def load_bed_file(self, reverse_complement: bool = False):
+    def load_bed_file(self, reverse_complement: bool = False) -> list:
         regions = []
         with open(self.bed_file, "r") as fh_bed:
             for line in fh_bed:
@@ -470,7 +536,7 @@ class GenomicRegionLoader:
                 chrom = columns[0]
                 start, end = [int(x) for x in columns[1:3]]
                 regions.append((chrom, start, end, "+"))
-                if self.reverse_complement:
+                if reverse_complement:
                     regions.append((chrom, start, end, "-"))
         return regions
 
@@ -489,50 +555,166 @@ class GenomicRegionLoader:
 class DatasetSplitter:
     """Handles splitting of dataset into train, val, test sets."""
 
-    def __init__(self, regions, split_config, fraction_of_data=1.0):
+    def __init__(self, regions):
         self.regions = regions
-        self.split_config = split_config
-        self.fraction_of_data = fraction_of_data
         self.indices = {"train": [], "val": [], "test": []}
-        self.split_datasets()
+        self.split_dict = {}
 
-    def split_datasets(self):
-        if self.split_config.get("strategy") == "chromosome":
-            self._split_by_chromosome()
-        elif self.split_config.get("strategy") == "random":
-            self._split_randomly()
-        # Additional splitting strategies can be added here
+    def split_datasets(self, split_config: dict):
+        """
+        Split the dataset into train, val, test sets using given strategy.
 
-    def _split_by_chromosome(self):
-        chroms = set(chrom for chrom, _, _, _ in self.regions)
-        chroms_for_train = set(self.split_config.get("train", []))
-        chroms_for_val = set(self.split_config.get("val", []))
-        chroms_for_test = set(self.split_config.get("test", []))
+        Args:
+            split_config (dict): Dictionary containing keys: 'strategy', 'val_chroms', 'test_chroms', 'train_fraction', 'val_fraction'
+        """
+        self.split_dict = split_config
+        if split_config["strategy"] == "chr":
+            self._split_by_chromosome(
+                val_chroms=self.split_config["val_chroms"],
+                test_chroms=self.split_config["test_chroms"],
+            )
+        elif split_config["strategy"] == "random":
+            self._split_randomly(
+                val_fraction=split_config["val_fraction"],
+                test_fraction=split_config["test_fraction"],
+            )
+        elif split_config["strategy"] == "chr_auto":
+            self._split_by_chromosome_auto(
+                val_fraction=split_config["val_fraction"],
+                test_fraction=split_config["test_fraction"],
+            )
+        else:
+            raise ValueError(
+                "Invalid splitting strategy. Choose 'chr', 'random', or 'chr_auto'"
+            )
+
+    def _split_by_chromosome(
+        self, val_chroms: list[str], test_chroms: list[str]
+    ) -> dict[str, list[int]]:
+        """Split the dataset based on selected chrosomomes. If the same chromosomes are supplied
+        to both val and test, then the regions while be divided evenly between.
+
+        Args:
+            val_chroms (list): List of chromosome names to include in val set.
+            test_chroms (list): List of chromosome names to include in test set.
+        """
+        print("Using selected chromosomes for val and test sets...")
+        overlap_chroms = set(val_chroms) & set(test_chroms)
+        val_chroms = set(val_chroms) - overlap_chroms
+        test_chroms = set(test_chroms) - overlap_chroms
+        chrom_counter = {}  # Used if same chroms in val and test
+
+        if (len(val_chroms)) == 0 or (len(test_chroms) == 0):
+            raise ValueError(
+                "No chromosomes specified for val or test set. Select chromosomes or choose a different splitting strategy."
+            )
 
         for i, region in enumerate(self.regions):
-            if region[0] in chroms_for_train:
-                self.indices["train"].append(i)
-            elif region[0] in chroms_for_val:
+            chrom = region[0]
+            if chrom in overlap_chroms:
+                if chrom not in chrom_counter:
+                    chrom_counter[chrom] = 0
+                # Alternate between validation and test for overlapping chromosomes
+                if chrom_counter[chrom] % 2 == 0:
+                    self.indices["val"].append(i)
+                else:
+                    self.indices["test"].append(i)
+                chrom_counter[chrom] += 1
+            elif chrom in val_chroms:
                 self.indices["val"].append(i)
-            elif region[0] in chroms_for_test:
+            elif chrom in test_chroms:
                 self.indices["test"].append(i)
+            else:
+                self.indices["train"].append(i)
 
-        if self.fraction_of_data != 1.0:
-            for key in self.indices:
-                cutoff = int(len(self.indices[key]) * self.fraction_of_data)
-                self.indices[key] = self.indices[key][:cutoff]
+        return self.indices
 
-    def _split_randomly(self):
+    def _split_by_chromosome_auto(
+        self, val_fraction: float = 0.1, test_fraction: float = 0.1
+    ) -> dict[str, list[int]]:
+        """Split the dataset based on chromosome, automatically selecting chromosomes for val and test sets.
+
+        Args:
+            val_fraction (float): Fraction of regions to include in val set.
+            test_fraction (float): Fraction of regions to include in test set.
+        """
+        from collections import defaultdict
+
+        print("Auto-splitting on chromosomes...")
+
+        # Count regions per chromosome
+        chrom_count = defaultdict(int)
+        for region in self.regions:
+            chrom_count[region[0]] += 1
+
+        total_regions = sum(chrom_count.values())
+        target_val_size = int(val_fraction * total_regions)  # 10% each for val and test
+        target_test_size = int(test_fraction * total_regions)
+
+        # Shuffle chromosomes to randomize selection
+        chromosomes = list(chrom_count.keys())
+        np.random.shuffle(chromosomes)
+
+        val_chroms = set()
+        test_chroms = set()
+        current_val_size = 0
+        current_test_size = 0
+
+        # Assign chromosomes to val and test sets
+        for chrom in chromosomes:
+            if current_val_size < target_val_size:
+                val_chroms.add(chrom)
+                current_val_size += chrom_count[chrom]
+            elif current_test_size < target_test_size:
+                test_chroms.add(chrom)
+                current_test_size += chrom_count[chrom]
+            if (
+                current_val_size >= target_val_size
+                and current_test_size >= target_test_size
+            ):
+                break
+
+        # Assign indices to train, val, test based on the selected chromosomes
+        for i, region in enumerate(self.regions):
+            if region[0] in val_chroms:
+                self.indices["val"].append(i)
+            elif region[0] in test_chroms:
+                self.indices["test"].append(i)
+            else:
+                self.indices["train"].append(i)
+
+        print(
+            f"Val chromosomes: {val_chroms}, fraction: {current_val_size/total_regions:.2f}"
+        )
+        print(
+            f"Test chromosomes: {test_chroms}, fraction: {current_test_size/total_regions:.2f}"
+        )
+        self.split_dict["val_chroms"] = list(val_chroms)
+        self.split_dict["test_chroms"] = list(test_chroms)
+        return self.indices
+
+    def _split_randomly(
+        self, val_fraction: float = 0.1, test_fraction: float = 0.1
+    ) -> dict[str, list[int]]:
+        """Split the regions randomly into train, val, test sets.
+
+        Args:
+            val_fraction (float): Fraction of regions to include in val set.
+            test_fraction (float): Fraction of regions to include in test set.
+        """
+        print(
+            f"Splitting randomly on regions with fractions: {val_fraction}, {test_fraction}"
+        )
         total_indices = np.arange(len(self.regions))
         np.random.shuffle(total_indices)
-        num_train = int(
-            len(total_indices) * self.split_config.get("train_fraction", 0.7)
-        )
-        num_val = int(len(total_indices) * self.split_config.get("val_fraction", 0.15))
+        num_val = int(len(total_indices) * val_fraction)
+        num_test = int(len(total_indices) * test_fraction)
+        num_train = len(total_indices) - num_val - num_test
 
         self.indices["train"] = total_indices[:num_train]
         self.indices["val"] = total_indices[num_train : num_train + num_val]
         self.indices["test"] = total_indices[num_train + num_val :]
+        return self.indices
 
     def get_indices(self, subset):
         return self.indices.get(subset, [])

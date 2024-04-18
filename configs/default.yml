@@ -13,10 +13,11 @@ output_dir : ''  # output directory for model checkpoints and logs, leave empty 
 
 # Train/val/test
 split:
-  type: 'chr'  # 'chr' or 'random'. If 'chr', 'val' and 'test' are used. If random, will split on regions.
-  percent: 0.1  # percentage of data to use for validation and test set
-  val: ['chr8', 'chr10']  # Used if type = 'chr'. leave list empty for auto val chrom selection (0.1 of data)
-  test: ['chr9', 'chr18']  # Used if type = 'chr'. leave list empty for auto test chrom selection (0.1 of data)
+  strategy: 'chr'  # 'chr', 'random', or 'chr_auto'. If 'chr', 'val' and 'test' are used. If random, will split on regions. If chr_auto, will auto split on chromosomes trying to achieve split percentage.
+  val_chroms: ['chr8', 'chr10']  # Used if type = 'chr'. If same chrom in val and test, will split regions of that chrom evenly between.
+  test_chroms: ['chr9', 'chr18']  # Used if type = 'chr'. If same chrom in val and test, will split regions of that chrom evenly between.
+  val_fraction: 0.1  # fraction of data to use for validation set if 'random' or 'chr_auto'
+  test_fraction: 0.1  # fraction of data to use for test set if 'random' or 'chr_auto'
 
 # Preprocessing
 gini_normalization: False  # gini normalization of target peaks
