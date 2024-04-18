@@ -345,6 +345,202 @@ class CustomDataset:
         return selected_chroms
 
 
+def load_targets(
+    targets: str, task: str, target_goal: str, reverse_complement: bool = False
+) -> np.ndarray:
+    """Load the preprocessed targets from a compressed numpy file.
+
+    Args:
+        targets (str): Path to the compressed numpy file containing targets.
+        task (str): The task for which the targets were created.
+        target_goal (str): The target goal to use (max, mean, count, logcount).
+
+    Returns:
+        np.ndarray: Target vector with shape (regions x cell types/topics).
+    """
+    targets = np.load(targets)["targets"]
+
+    # Select deeppeak targets (deep topic targets are already in correct shape)
+    if task == "deeppeak":
+        if targets.shape[0] == 1:
+            print("Only found one target type in target array. Using that one.")
+            targets = targets[0, :]
+        else:
+            if target_goal == "max":
+                targets = targets[0, :]
+            elif target_goal == "mean":
+                targets = targets[1, :]
+            elif target_goal == "count":
+                targets = targets[2, :]
+            elif target_goal == "logcount":
+                targets = targets[3, :]
+
+    if reverse_complement:
+        targets = np.repeat(targets, 2, axis=0)  # double targets for each region
+
+    return targets  # (regions x cell types/topics)
+
+
+def stochastic_shift_augment(start: int, end: int, chromsize: int, shift_n_bp: int):
+    """Shift augmentation for data augmentation."""
+    shift = np.random.randint(
+        -min(shift_n_bp, start),  # make sure start does not go below 0
+        min(shift_n_bp, chromsize - end),  # make sure end does not go above chromsize
+    )
+    start += shift
+    end += shift
+    return start, end
+
+
+class CustomDataset:
+    def __init__(
+        self,
+        config: dict,
+        regions_bed_file: str,
+        genome_fasta_file: str,
+        chromsizes: dict[str, int] | None = None,
+    ):
+        self.regionloader = GenomicRegionLoader(
+            regions_bed_file,
+            genome_fasta_file,
+            config["reverse_complement"],
+        )
+        self.targets = load_targets(
+            config["targets"],
+            config["task"],
+            config["target_goal"],
+            config["reverse_complement"],
+        )
+        self.chromsizes = chromsizes
+        self.shift_n_bp = int(config["augment_shift_n_bp"])
+
+        if self.chromsizes is None and self.shift_n_bp > 0:
+            raise ValueError(
+                "Chromsizes must be provided for stochastic shift augmentation."
+            )
+
+        if config["specificity_filtering"]:
+            self.targets, self.regionloader.regions = filter_regions_on_specificity(
+                self.targets, self.regionloader.regions
+            )
+
+    def generator(self, split: str | bytes):
+        """Yield sequences and targets for the given split."""
+        split = split.decode() if isinstance(split, bytes) else split
+        for sample_idx in self.indices[split]:
+            region = self.regionloader.get_region(sample_idx)
+            chrom, start, end, strand = region
+            if split == "train" and self.shift_n_bp > 0:
+                start, end = stochastic_shift_augment(
+                    start, end, self.chromsizes[chrom], self.shift_n_bp
+                )
+            sequence = str(self.regionloader.get_sequence(chrom, start, end, strand))
+            target = self.targets[sample_idx]
+            yield sequence, target
+
+    def subset(self, split: str):
+        return tf.data.Dataset.from_generator(
+            self.generator,
+            output_signature=(
+                tf.TensorSpec(shape=(), dtype=tf.string),
+                tf.TensorSpec(shape=(self.num_classes,), dtype=tf.float32),
+            ),
+            args=(split,),
+        )
+
+
+class GenomicRegionLoader:
+    """Handles loading of genomic regions from a BED file."""
+
+    def __init__(self, bed_file: str, genome_fasta_file: str, reverse_complement: bool):
+        self.regions = self.load_bed_file(bed_file, reverse_complement)
+        self.genome = self.load_genomic_data(genome_fasta_file)
+
+    def load_genomic_data(self):
+        return Fasta(self.genome_fasta_file, sequence_always_upper=True)
+
+    def load_bed_file(self, reverse_complement: bool = False):
+        regions = []
+        with open(self.bed_file, "r") as fh_bed:
+            for line in fh_bed:
+                line = line.rstrip("\r\n")
+                if line.startswith("#"):
+                    continue
+                columns = line.split("\t")
+                chrom = columns[0]
+                start, end = [int(x) for x in columns[1:3]]
+                regions.append((chrom, start, end, "+"))
+                if self.reverse_complement:
+                    regions.append((chrom, start, end, "-"))
+        return regions
+
+    def get_region(self, idx):
+        return self.regions[idx]
+
+    def get_sequence(self, chrom, start, end, strand):
+        if strand == "+":
+            return self.genome[chrom][start:end].seq
+        elif strand == "-":
+            return self.genome[chrom][start:end].complement.seq
+        else:
+            raise ValueError("Strand must be '+' or '-'")
+
+
+class DatasetSplitter:
+    """Handles splitting of dataset into train, val, test sets."""
+
+    def __init__(self, regions, split_config, fraction_of_data=1.0):
+        self.regions = regions
+        self.split_config = split_config
+        self.fraction_of_data = fraction_of_data
+        self.indices = {"train": [], "val": [], "test": []}
+        self.split_datasets()
+
+    def split_datasets(self):
+        if self.split_config.get("strategy") == "chromosome":
+            self._split_by_chromosome()
+        elif self.split_config.get("strategy") == "random":
+            self._split_randomly()
+        # Additional splitting strategies can be added here
+
+    def _split_by_chromosome(self):
+        chroms = set(chrom for chrom, _, _, _ in self.regions)
+        chroms_for_train = set(self.split_config.get("train", []))
+        chroms_for_val = set(self.split_config.get("val", []))
+        chroms_for_test = set(self.split_config.get("test", []))
+
+        for i, region in enumerate(self.regions):
+            if region[0] in chroms_for_train:
+                self.indices["train"].append(i)
+            elif region[0] in chroms_for_val:
+                self.indices["val"].append(i)
+            elif region[0] in chroms_for_test:
+                self.indices["test"].append(i)
+
+        if self.fraction_of_data != 1.0:
+            for key in self.indices:
+                cutoff = int(len(self.indices[key]) * self.fraction_of_data)
+                self.indices[key] = self.indices[key][:cutoff]
+
+    def _split_randomly(self):
+        total_indices = np.arange(len(self.regions))
+        np.random.shuffle(total_indices)
+        num_train = int(
+            len(total_indices) * self.split_config.get("train_fraction", 0.7)
+        )
+        num_val = int(len(total_indices) * self.split_config.get("val_fraction", 0.15))
+
+        self.indices["train"] = total_indices[:num_train]
+        self.indices["val"] = total_indices[num_train : num_train + num_val]
+        self.indices["test"] = total_indices[num_train + num_val :]
+
+    def get_indices(self, subset):
+        return self.indices.get(subset, [])
+
+    def get_subset(self, subset):
+        return [self.regions[idx] for idx in self.indices.get(subset, [])]
+
+
 if __name__ == "__main__":
     # test dataloader
     bed_file = "data/processed/consensus_peaks_inputs.bed"

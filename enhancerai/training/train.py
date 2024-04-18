@@ -162,24 +162,25 @@ def load_datasets(
 ):
     """Load train & val datasets."""
     # Load data
-    split_dict = {"val": config["val"], "test": config["test"]}
+    split_dict = {"val": config["split"]["val"], "test": config["split"]["test"]}
 
     dataset = CustomDataset(
-        bed_file,
-        genome_fasta_file,
-        config["task"],
-        targets_file,
-        config["deeppeak"]["target"],
-        split_dict,
-        config["num_classes"],
-        config["augment_shift_n_bp"],
-        config["fraction_of_data"],
-        checkpoint_dir,
-        chromsizes,
-        config["rev_complement"],
-        config["specificity_filtering"],
-        config["shift_augmentation"]["use"],
-        config["shift_augmentation"]["n_shifts"],
+        bed_file=bed_file,
+        genome_fasta_file=genome_fasta_file,
+        task=config["task"],
+        targets=targets_file,
+        target_goal=config["deeppeak"]["target"],
+        split_type=config["split"]["type"],
+        split_dict=split_dict,
+        num_classes=config["num_classes"],
+        shift_n_bp=config["augment_shift_n_bp"],
+        fraction_of_data=config["fraction_of_data"],
+        output_dir=checkpoint_dir,
+        chromsizes=chromsizes,
+        reverse_complement=config["rev_complement"],
+        specificity_filtering=config["specificity_filtering"],
+        shift_augmentation_pre_used=config["shift_augmentation"]["use"],
+        shift_augmentation_pre_used_n_shifts=config["shift_augmentation"]["n_shifts"],
     )
 
     seq_len = config["seq_len"]

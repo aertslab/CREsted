@@ -12,8 +12,11 @@ target_len: 1000
 output_dir : ''  # output directory for model checkpoints and logs, leave empty for default ('DeepPeak/checkpoints')
 
 # Train/val/test
-val: ['chr8', 'chr10']  # leave list empty for auto val chrom selection (0.1 of data)
-test: ['chr9', 'chr18']  # leave list empty for auto test chrom selection (0.1 of data)
+split:
+  type: 'chr'  # 'chr' or 'random'. If 'chr', 'val' and 'test' are used. If random, will split on regions.
+  percent: 0.1  # percentage of data to use for validation and test set
+  val: ['chr8', 'chr10']  # Used if type = 'chr'. leave list empty for auto val chrom selection (0.1 of data)
+  test: ['chr9', 'chr18']  # Used if type = 'chr'. leave list empty for auto test chrom selection (0.1 of data)
 
 # Preprocessing
 gini_normalization: False  # gini normalization of target peaks
