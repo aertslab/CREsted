@@ -20,7 +20,7 @@ class CustomLoss(tf.keras.losses.Loss):
         squared_difference_loss = K.mean(
             tf.math.squared_difference(y_pred, y_true), axis=-1
         )
-        return (cosine_loss + squared_difference_loss) #/ self.global_batch_size
+        return (cosine_loss + squared_difference_loss) / self.global_batch_size
 
     def get_config(self):
         config = super().get_config()

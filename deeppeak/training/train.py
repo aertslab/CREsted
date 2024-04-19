@@ -95,7 +95,7 @@ def model_callbacks(
     callbacks.append(checkpoint)
 
     # Early stopping
-    early_stop_metric = "val_pearson_correlation"
+    early_stop_metric = "val_cosine_similarity"#"val_pearson_correlation"
     early_stop = tf.keras.callbacks.EarlyStopping(
         monitor=early_stop_metric, patience=patience, mode="max"
     )
@@ -162,7 +162,8 @@ def load_datasets(
         checkpoint_dir,
         chromsizes,
         config['rev_complement'],
-        config['specificity_filtering']
+        config['specificity_filtering'],
+        config['gini_normalization']
     )
 
     seq_len = config["seq_len"]
@@ -313,6 +314,7 @@ def main(args: argparse.Namespace, config: dict):
         run = wandb.init(
             project=project_name,
             config=config,
+            #entity='deep-lcb',
             name=run_name,
         )
     if int(config["seed"]) > 0:
@@ -469,7 +471,6 @@ def main(args: argparse.Namespace, config: dict):
 
     if config["wandb"]:
         run.finish()
-
 
 if __name__ == "__main__":
     # Load args and config

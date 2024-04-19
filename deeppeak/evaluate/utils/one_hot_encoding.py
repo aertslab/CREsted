@@ -62,6 +62,32 @@ def regions_to_hot_encoding(
 
     return seq_one_hot
 
+def region_to_one_hot_encoding(
+    chrom: str,
+    start: int,
+    end: int,
+    genomic_pyfasta: pyfaidx.Fasta,
+    hot_encoding_table: np.ndarray
+) -> np.ndarray:
+    """
+    Encode the sequence associated with a specified region to a one-hot encoded numpy array.
+
+    Args:
+        chrom (str): Chromosome name.
+        start (int): Start position of the region.
+        end (int): End position of the region.
+        genomic_pyfasta (pyfaidx.Fasta): Genome FASTA object for sequence retrieval.
+        hot_encoding_table (np.ndarray): One-hot encoding reference table for nucleotide encoding.
+
+    Returns:
+        np.ndarray: One-hot encoded numpy array with shape (region length, alphabet size).
+    """
+    sequence = str(genomic_pyfasta[chrom][start:end].seq)
+    sequence_bytes = np.frombuffer(sequence.encode('ascii'), dtype=np.uint8)
+    encoded_sequence = hot_encoding_table[sequence_bytes]
+
+    return np.expand_dims(encoded_sequence,axis=0)
+
 
 def get_hot_encoding_table(
     alphabet: str = "ACGT",

@@ -70,10 +70,10 @@ def normalize_peaks(
     top_k_percent: float = 0.01,
 ) -> np.ndarray:
     """
-    Normalize the given target vector based on top Gini coefficients.
+    Normalize the given target vector based on top peaks per cell type.
 
     Calculates gini scores for the top_k highest peaks. Gini scores
-    below gini_threshold are considered 'high' (in variability) and are used to
+    below gini_threshold are considered 'low' (in variability) and are used to
     calculate weights per cell type, which are then used to normalize the targets
     accross cells types.
 

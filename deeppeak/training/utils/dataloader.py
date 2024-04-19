@@ -34,7 +34,7 @@ def calc_gini(targets: np.ndarray) -> np.ndarray:
 def filter_regions_on_specificity(
     target_vector: np.ndarray,
     regions_bed: list,
-    gini_std_threshold: float = 1,
+    gini_std_threshold: float = 1.0,
 ) -> Tuple[np.ndarray, list, np.ndarray]:
     """
     Filter bed regions & targets based on high Gini score. Saves filtered bed regions
@@ -44,7 +44,6 @@ def filter_regions_on_specificity(
         target_vector (np.ndarray): targets
         bed_filename (str): path to BED file
         gini_threshold (float): Threshold for Gini scores to identify high variability.
-        target_idx (int): Type of targets to use for filtering decision (1='mean')
     """
 
     gini_scores = calc_gini(target_vector)
@@ -60,6 +59,66 @@ def filter_regions_on_specificity(
     )
 
     return target_vector_filt, regions_filt
+
+def normalize_peaks(
+    target_vector: np.ndarray,
+    num_cell_types: int,
+    peak_threshold: int = 0,
+    gini_std_threshold: float = 1.0,
+    top_k_percent: float = 0.01,
+) -> np.ndarray:
+    """
+    Normalize the given target vector based on top peaks per cell type.
+
+    Calculates gini scores for the top_k highest peaks. Gini scores
+    below gini_threshold are considered 'low' (in variability) and are used to
+    calculate weights per cell type, which are then used to normalize the targets
+    accross cells types.
+
+    Parameters:
+    - target_vector (np.ndarray): The target vector to be normalized.
+    - num_cell_types (int): The number of cell types in the target vector.
+    - threshold (int): A threshold value for filtering the target vector.
+    - gini_threshold (float): Threshold for Gini scores to identify high variability.
+    - top_k_percent (float): The percentage (expressed as a fraction) of top values to
+      consider for Gini score calculation.
+
+    Returns:
+    - np.ndarray: The normalized target vector with adjustments based on Gini score.
+    """
+    top_k_percent_means = []
+    gini_scores_all = []
+
+    print("Filtering on top k Gini scores...")
+    for i in range(num_cell_types):
+        filtered_col = target_vector[:, i][target_vector[:, i] > peak_threshold]
+        sorted_col = np.sort(filtered_col)[::-1]
+        top_k_index = int(len(sorted_col) * top_k_percent)
+
+        gini_scores = calc_gini(
+            target_vector[np.argsort(filtered_col)[::-1][:top_k_index]]
+        )
+        mean = np.mean(np.max(gini_scores, axis=1))
+        std_dev = np.std(np.max(gini_scores, axis=1))
+        gini_threshold =  mean - gini_std_threshold * std_dev
+        low_gini_indices = np.where(np.max(gini_scores, axis=1) < gini_threshold)[0]
+        print(f"{len(low_gini_indices)} out of {top_k_index} remain for cell type {i}.")
+
+        if len(low_gini_indices) > 0:
+            top_k_mean = np.mean(sorted_col[low_gini_indices])
+            gini_scores_all.append(np.max(gini_scores[low_gini_indices], axis=1))
+        else:
+            top_k_mean = 0
+            gini_scores_all.append(0)
+
+        top_k_percent_means.append(top_k_mean)
+
+    max_mean = np.max(top_k_percent_means)
+    weights = max_mean / np.array(top_k_percent_means)
+    print("Cell type weights:", weights)
+
+    target_vector = target_vector * weights
+    return target_vector, weights
 
 def write_to_bedfile(regions, output_path):
     with open(output_path, "w") as outfile:
@@ -81,7 +140,8 @@ class CustomDataset:
         output_dir: str | None = None,
         chromsizes: dict[str, int] | None = None,
         reverse_complement: bool = False,
-        specificity_filtering: bool = False
+        specificity_filtering: bool = False,
+        peak_normalization: bool = False
     ):
         # Load datasets
         self.reverse_complement = reverse_complement
@@ -103,13 +163,20 @@ class CustomDataset:
                 self.targets = self.targets[2, :]
             elif target_goal == "logcount":
                 self.targets = self.targets[3, :]
+        print(self.targets.shape)
 
-        if(specificity_filtering):
-            self.targets, self.all_regions = filter_regions_on_specificity(self.targets, self.all_regions)
+        if(peak_normalization):
+            self.targets, norm_weights = normalize_peaks(target_vector=self.targets, num_cell_types=self.targets.shape[1])
+            np.savez(os.path.join(output_dir, 'normalization_weights.npz'), weights=norm_weights)
+
         if self.reverse_complement:
             self.targets = np.repeat(self.targets, 2, axis=0)  # double targets for each region
-        self.split_dict = split_dict
+        
+        if(specificity_filtering):
+            self.targets, self.all_regions = filter_regions_on_specificity(self.targets, self.all_regions)
 
+        self.split_dict = split_dict
+        print(self.targets.shape)
         self.num_classes = num_classes
         self.shift_n_bp = shift_n_bp
         if chromsizes is None:
@@ -159,20 +226,21 @@ class CustomDataset:
             # Save split ids & targets to output directory for safekeeping.
             np.savez(
                 os.path.join(output_dir, "region_split_ids.npz"),
-                train=train_indices,
-                val=val_indices,
-                test=test_indices,
+                train=train_indices[::2]//2 if self.reverse_complement else train_indices,
+                val=val_indices//2 if self.reverse_complement else val_indices,
+                test=test_indices//2 if self.reverse_complement else test_indices,
             )
             train_targets = self.targets[train_indices]
             val_targets = self.targets[val_indices]
             test_targets = self.targets[test_indices]
             np.savez(
                 os.path.join(output_dir, "targets.npz"),
-                train=train_targets,
+                train=train_targets[::2] if self.reverse_complement else train_targets,
                 val=val_targets,
                 test=test_targets,
             )
-            write_to_bedfile(self.all_regions, os.path.join(output_dir, "regions.bed"))
+            regions_to_bed = self.all_regions[::2] if self.reverse_complement else self.all_regions
+            write_to_bedfile(regions_to_bed, os.path.join(output_dir, "regions.bed"))
             print(f"Saved bed regions, split ids and split targets to {output_dir}")
 
     def len(self, subset: str):
@@ -251,7 +319,7 @@ class CustomDataset:
         ]
         if fraction_of_data != 1.0:
             indices = indices[: int(np.ceil(len(indices) * fraction_of_data))]
-        return indices, selected_chromosomes
+        return np.array(indices), selected_chromosomes
 
     def _load_bed_file(self, regions_bed_filename: str):
         """
