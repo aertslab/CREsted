@@ -20,7 +20,7 @@ split:
   test_fraction: 0.1  # fraction of data to use for test set if 'region' or 'chr_auto'
 
 # Preprocessing
-gini_normalization: False  # gini normalization of target peaks
+peak_normalization: False  # gini normalization of target peaks
 specificity_filtering: False  # filter regions based on region specificity
 shift_augmentation:  # Legacy shift augmentation, that will shift all input sequences two times in both directions in strides of 50 bp.
   use: False  #  Recommended to use `augment_shift_n_bp` during training instead.

@@ -101,7 +101,7 @@ def normalize_peaks(
         sorted_col = np.sort(filtered_col)[::-1]
         top_k_index = int(len(sorted_col) * top_k_percent)
 
-        gini_scores = calc_gini(
+        gini_scores = _calc_gini(
             target_vector[np.argsort(filtered_col)[::-1][:top_k_index]]
         )
         mean = np.mean(np.max(gini_scores, axis=1))
@@ -213,11 +213,13 @@ class SequenceDataset:
             )
 
         if config["peak_normalization"]:
+            print("Normalizing peaks...")
             self.targets, norm_weights = normalize_peaks(
                 target_vector=self.targets, num_cell_types=self.targets.shape[1]
             )
 
         if config["specificity_filtering"]:
+            print("Filtering regions based on region specificity...")
             self.targets, self.regionloader.regions = filter_regions_on_specificity(
                 self.targets, self.regionloader.regions
             )
@@ -256,10 +258,11 @@ class SequenceDataset:
             self.save_outputs(
                 output_dir, self.splitter.split_dict, config["rev_complement"]
             )
-            np.savez(
-                os.path.join(output_dir, "normalization_weights.npz"),
-                weights=norm_weights,
-            )
+            if config["peak_normalization"]:
+                np.savez(
+                    os.path.join(output_dir, "normalization_weights.npz"),
+                    weights=norm_weights,
+                )
 
     def len(self, subset: str):
         """Return the number of samples in the given split."""
