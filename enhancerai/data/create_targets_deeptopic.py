@@ -33,9 +33,26 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def extract_topic_number(filename):
-    """Extracts the integer part from the filename. Assumes format 'Topic_X.bed'."""
-    return int(filename.stem.split("_")[1])
+def sort_topic_files(filename):
+    """Sorts files by prioritizing numeric extraction from filenames of the format 'Topic_X.bed',
+    where X is an integer. Other filenames are sorted alphabetically, with 'Topic_' files coming last if numeric extraction fails.
+    """
+    filename = Path(filename)  # Ensure the input is treated as a Path object
+    parts = filename.stem.split("_")
+
+    if len(parts) > 1:
+        try:
+            # Returning (False, int) because False < True in Python, to sort these first if numeric
+            return (False, int(parts[1]))
+        except ValueError:
+            # If the numeric part is not an integer, handle gracefully
+            return (True, filename.stem)
+
+    # Return True for the first element to sort non-'Topic_X' filenames alphabetically after 'Topic_X'
+    return (
+        True,
+        filename.stem,
+    )
 
 
 def main(args, config):
@@ -60,8 +77,8 @@ def main(args, config):
 
     binary_matrix = pd.DataFrame(0, index=[], columns=consensus_peaks["region"])
 
-    # Which topic regions are present in the consensu regions
-    for topic_file in sorted(topics_folder.glob("*.bed"), key=extract_topic_number):
+    # Which topic regions are present in the consensus regions
+    for topic_file in sorted(topics_folder.glob("*.bed"), key=sort_topic_files):
         topic_name = topic_file.stem
         topic_peaks = pd.read_csv(topic_file, sep="\t", header=None, usecols=[0, 1, 2])
         topic_peaks["region"] = (
@@ -99,7 +116,7 @@ def main(args, config):
 
     # Save cell type/topic mapping file
     topic_files = [
-        f.name for f in sorted(topics_folder.glob("*.bed"), key=extract_topic_number)
+        f.name for f in sorted(topics_folder.glob("*.bed"), key=sort_topic_files)
     ]
     print(f"Saving topic mapping to {args.output_dir}cell_type_mapping.tsv...")
     with open(os.path.join(args.output_dir, "cell_type_mapping.tsv"), "w") as f:
