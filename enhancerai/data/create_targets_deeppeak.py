@@ -184,15 +184,16 @@ def main(args: argparse.Namespace, config: dict):
                 target_vector[3, region_idx, cell_type_idx] = np.log(count + 1)
 
     # Normalization & specificity filtering
-    if config["gini_normalization"]:
-        print("Normalizing peaks...")
-        target_vector = normalize_peaks(target_vector, tsv_files, num_cell_types)
+    # TODO: Moved to dataloader, test if it works
+    # if config["gini_normalization"]:
+    #     print("Normalizing peaks...")
+    #     target_vector = normalize_peaks(target_vector, tsv_files, num_cell_types)
 
-    if config["specificity_filtering"]:
-        print("Filtering regions based on region specificity...")
-        target_vector = filter_regions_on_specificity(
-            target_vector, args.regions_bed_file
-        )
+    # if config["specificity_filtering"]:
+    #     print("Filtering regions based on region specificity...")
+    #     target_vector = filter_regions_on_specificity(
+    #         target_vector, args.regions_bed_file
+    #     )
 
     if config["shift_augmentation"]["use"]:
         print("Warning: extending target matrix since shift augmentation was used.")
