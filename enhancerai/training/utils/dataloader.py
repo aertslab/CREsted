@@ -1,4 +1,4 @@
-"""Helper functions for loading data from tfRecords."""
+"""Helper functions for loading data."""
 
 from __future__ import annotations
 
@@ -309,8 +309,8 @@ class DatasetSplitter:
                 val_chroms=split_config["val_chroms"],
                 test_chroms=split_config["test_chroms"],
             )
-        elif split_config["strategy"] == "random":
-            self._split_randomly(
+        elif split_config["strategy"] == "region":
+            self._split_regions(
                 val_fraction=split_config["val_fraction"],
                 test_fraction=split_config["test_fraction"],
             )
@@ -442,18 +442,15 @@ class DatasetSplitter:
         self.split_dict["val_chroms"] = list(val_chroms)
         self.split_dict["test_chroms"] = list(test_chroms)
 
-    def _split_randomly(self, val_fraction: float = 0.1, test_fraction: float = 0.1):
-        """Split the regions randomly into train, val, test sets.
+    def _split_regions(self, val_fraction: float = 0.1, test_fraction: float = 0.1):
+        """Split into train, val, test sets based on regions.
 
         Args:
             val_fraction (float): Fraction of regions to include in val set.
             test_fraction (float): Fraction of regions to include in test set.
         """
-        print(
-            f"Splitting randomly on regions with fractions: {val_fraction}, {test_fraction}"
-        )
+        print(f"Splitting on regions with fractions: {val_fraction}, {test_fraction}")
         total_indices = np.arange(len(self.regions))
-        np.random.shuffle(total_indices)
         num_val = int(len(total_indices) * val_fraction)
         num_test = int(len(total_indices) * test_fraction)
         num_train = len(total_indices) - num_val - num_test

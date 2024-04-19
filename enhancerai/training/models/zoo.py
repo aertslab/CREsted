@@ -433,7 +433,7 @@ def deeptopiccnn(
         activation,
         dropout=dense_do,
         normalization=normalization,
-        name_prefix="DenseBlock",
+        name_prefix="denseblock",
     )
     logits = layers.Dense(output_shape[-1], activation="linear", use_bias=True)(x)
     outputs = layers.Activation("sigmoid")(logits)

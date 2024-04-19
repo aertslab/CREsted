@@ -94,6 +94,7 @@ def model_callbacks(
     validation_data=None,
     class_names: list = None,
     val_steps_per_epoch: int = None,
+    deeptopic_TL: bool = False,
 ) -> list:
     """Get model callbacks."""
     callbacks = []
@@ -117,14 +118,15 @@ def model_callbacks(
     callbacks.append(early_stop)
 
     # Lr reduction
-    reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(
-        monitor=early_stop_metric,
-        factor=0.25,
-        patience=int(patience // 2),
-        min_lr=0.000001,
-        mode="max",
-    )
-    callbacks.append(reduce_lr)
+    if not deeptopic_TL:
+        reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(
+            monitor=early_stop_metric,
+            factor=0.25,
+            patience=int(patience // 2),
+            min_lr=0.000001,
+            mode="max",
+        )
+        callbacks.append(reduce_lr)
 
     # Wandb
     if use_wandb:
@@ -350,6 +352,7 @@ def get_compiled_model(task, config):
                 "First phase of transfer learning. Freezing all layers before the DenseBlock..."
             )
             # Freeze all layers before the DenseBlock
+            dense_block_name = "denseblock"
             for layer in model.layers:
                 layer.trainable = False
 
@@ -425,7 +428,7 @@ def get_compiled_model(task, config):
 
     # Compile the model
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
-    return model
+    return model, metrics
 
 
 def main(args: argparse.Namespace, config: dict):
@@ -523,7 +526,7 @@ def main(args: argparse.Namespace, config: dict):
 
     # Initialize the model
     with strategy.scope():
-        model = get_compiled_model(task, config)
+        model, metrics = get_compiled_model(task, config)
 
     # Get callbacks
     class_names = []
@@ -535,14 +538,15 @@ def main(args: argparse.Namespace, config: dict):
     val_steps_per_epoch = total_number_of_validation_samples // batch_size
 
     callbacks = model_callbacks(
-        checkpoint_dir,
-        task,
-        config["patience"],
-        config["wandb"],
-        config["profile"],
-        val,
-        class_names,
-        val_steps_per_epoch,
+        checkpoint_dir=checkpoint_dir,
+        task=task,
+        patience=config["patience"],
+        use_wandb=config["wandb"],
+        profile=config["profile"],
+        validation_data=val,
+        class_names=class_names,
+        val_steps_per_epoch=val_steps_per_epoch,
+        deeptopic_TL=config["deeptopic"]["transferlearn"],
     )
 
     print(model.summary())
@@ -568,7 +572,7 @@ def main(args: argparse.Namespace, config: dict):
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=1e-6)
         model.compile(optimizer=optimizer, loss="binary_crossentropy", metrics=metrics)
-
+        print(model.summary())
         model.fit(
             train,
             steps_per_epoch=train_steps_per_epoch,
