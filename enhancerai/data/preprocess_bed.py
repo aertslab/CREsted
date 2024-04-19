@@ -65,6 +65,9 @@ def preprocess_bed(
     final_regions_width: int,
     filter_negative: bool = False,
     filter_chrom: bool = False,
+    augment_shift: bool = False,
+    augment_shift_stride_bp: int = 50,
+    augment_shift_n_shifts: int = 2,
 ):
     """
     Preprocess a BED file by extending the start and end positions by a given
@@ -75,9 +78,19 @@ def preprocess_bed(
         print(f"File already exists at {output_path}. Overwriting...")
         os.remove(output_path)
 
-    print(f"Correcting start and end positions to regionds width {final_regions_width}")
+    print(f"Correcting start and end positions to regions width {final_regions_width}")
     bed.extend_bed_file(input_path, output_path, final_regions_width)
     input_path = output_path
+
+    if augment_shift:
+        print("Augmenting data with shifted regions...")
+        bed.augment_bed_shift(
+            input_path,
+            output_path,
+            n_shifts=augment_shift_n_shifts,
+            stride_bp=augment_shift_stride_bp,
+        )
+        input_path = output_path
 
     if filter_negative:
         print("Filtering out negative coordinates...")
@@ -105,8 +118,6 @@ def main(args: argparse.Namespace, config: dict):
             "Please specify either 'inputs' or 'targets' for --inputs_or_targets."
         )
     regions_bed_name = os.path.basename(args.regions_bed_file).split(".")[0]
-    # regions_width = bed.get_bed_region_width(args.regions_bed_file)
-    # n_extend = (final_regions_width - regions_width) // 2
 
     # Preprocess peaks BED file
     preprocess_bed(
@@ -118,10 +129,16 @@ def main(args: argparse.Namespace, config: dict):
         final_regions_width=final_regions_width,
         filter_negative=args.filter_negative,
         filter_chrom=args.filter_chrom,
+        augment_shift=config["shift_augmentation"]["use"],
+        augment_shift_n_shifts=config["shift_augmentation"]["n_shifts"],
+        augment_shift_stride_bp=config["shift_augmentation"]["stride_bp"],
     )
 
 
 if __name__ == "__main__":
+    assert os.path.exists(
+        "configs/user.yml"
+    ), "users.yml file not found. Please run `make copyconfig` first"
     with open("configs/user.yml", "r") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
     args = parse_arguments()

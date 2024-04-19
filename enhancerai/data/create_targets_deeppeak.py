@@ -144,7 +144,7 @@ def filter_regions_on_specificity(
     gini_scores = calc_gini(target_vector[target_idx])
     mean = np.mean(np.max(gini_scores, axis=1))
     std_dev = np.std(np.max(gini_scores, axis=1))
-    gini_threshold =  mean + gini_std_threshold * std_dev
+    gini_threshold = mean + gini_std_threshold * std_dev
     selected_indices = np.argwhere(np.max(gini_scores, axis=1) > gini_threshold)[:, 0]
 
     target_vector_filt = target_vector[:, selected_indices]
@@ -194,10 +194,17 @@ def main(args: argparse.Namespace, config: dict):
             target_vector, args.regions_bed_file
         )
 
+    if config["shift_augmentation"]["use"]:
+        print("Warning: extending target matrix since shift augmentation was used.")
+        total_rows_per_region = int(config["shift_augmentation"]["n_shifts"]) * 2 + 1
+        binary_matrix_np = np.repeat(
+            binary_matrix_np, repeats=total_rows_per_region, axis=1
+        )
+
     # Save target vector
-    print(f"Saving target vectors to {args.output_dir}targets.npz...")
+    print(f"Saving deeppeak target vectors to {args.output_dir}targets_deeppeak.npz...")
     np.savez_compressed(
-        os.path.join(args.output_dir, "targets.npz"),
+        os.path.join(args.output_dir, "targets_deeppeak.npz"),
         targets=target_vector,
     )
 
@@ -213,7 +220,7 @@ if __name__ == "__main__":
     args = parse_arguments()
     assert os.path.exists(
         "configs/user.yml"
-    ), "users.yml file not found. Please run `make copyconfig first`"
+    ), "users.yml file not found. Please run `make copyconfig` first"
     with open("configs/user.yml", "r") as f:
         config = yaml.safe_load(f)
     main(args, config)

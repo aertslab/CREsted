@@ -1,4 +1,4 @@
-name: deeppeak
+name: enhancerai
 channels:
   - bioconda
   - conda-forge

@@ -12,40 +12,57 @@ target_len: 1000
 output_dir : ''  # output directory for model checkpoints and logs, leave empty for default ('DeepPeak/checkpoints')
 
 # Train/val/test
-val: ['chr8', 'chr10']  # leave list empty for auto val chrom selection (0.1 of data)
-test: ['chr9', 'chr18']  # leave list empty for auto test chrom selection (0.1 of data)
+split:
+  strategy: 'chr'  # 'chr', 'region', or 'chr_auto'. If 'chr', 'val' and 'test' are used. If 'region', will split on regions. If 'chr_auto', will auto split on chromosomes (randomly) trying to achieve split percentage.
+  val_chroms: ['chr8', 'chr10']  # Used if type = 'chr'. If same chrom in val and test, will split regions of that chrom evenly between.
+  test_chroms: ['chr9', 'chr18']  # Used if type = 'chr'. If same chrom in val and test, will split regions of that chrom evenly between.
+  val_fraction: 0.1  # fraction of data to use for validation set if 'region' or 'chr_auto'
+  test_fraction: 0.1  # fraction of data to use for test set if 'region' or 'chr_auto'
 
 # Preprocessing
 gini_normalization: False  # gini normalization of target peaks
 specificity_filtering: False  # filter regions based on region specificity
+shift_augmentation:  # Legacy shift augmentation, that will shift all input sequences two times in both directions in strides of 50 bp.
+  use: False  #  Recommended to use `augment_shift_n_bp` during training instead.
+  stride_bp: 50  # stride for shift augmentation
+  n_shifts: 2  # number of shifts in both directions
 
-# Training
-loss: 'mse_cosine'  # mse_cosine, mse_cosine_log, mse_cosine_nk
-cosine_weight: 'static' # Leave weight of cosine function fixed ('static') or equal to the magnitude of the MSE ('dynamic')
-wandb: True
+# General Training configs
+task: ''  # !!REQUIRED!! name of the task. 'deeppeak' or 'deeptopic'
+wandb: False
 wandb_project: '' # Name of Weights & Biases project. Leave empty for automatic naming based on project_name.
 run_name: '' # Name of run used for both W&B and output folder for checkpoints, leave empty for start datetime as title
-model_architecture: 'chrombpnet'  # simple_convnet, basenji, chrombpnet
-target: 'mean'  # max, mean, count, or logcount
 epochs: 100
 batch_size: 256
-TL_batch_size : 64
+TL_batch_size : 64  # batch_size for transfer learning
 learning_rate: 0.001
 TL_learning_rate: 0.0001  # learning rate for transfer learning
 patience: 10  # number of epochs to wait before early stopping
 pretrained_model_path: ''  # continue from .keras checkpoint. Leave empty if starting from scratch
 shuffle: True
-mixed_precision: True  # use mixed precision training (recent GPUs only)
+mixed_precision: False  # use mixed precision training (recent GPUs only)
+
+# Tasks specific configs
+deeppeak:
+  loss: 'mse_cosine'  # mse_cosine, mse_cosine_log, mse_cosine_nk
+  cosine_weight: 'static' # Leave weight of cosine function fixed ('static') or equal to the magnitude of the MSE ('dynamic')
+  model_architecture: 'chrombpnet'  # simple_convnet, basenji, chrombpnet
+  target: 'mean'  # max, mean, count, or logcount
+
+deeptopic:
+  loss : 'crossentropy'
+  model_architecture: 'deeptopiccnn'  # deeptopiccnn, deeptopiclstm
+  transferlearn: False  # transfer learning. If True, set `pretrained_model_path` to the path of the model to transfer learn from.
+
+# augmentations (online)
+rev_complement: True # reverse complement all training regions during every epoch
+augment_complement: False  # reverse complement base pairs during training (50 % chance)
+augment_shift_n_bp: 0  # stochastic shift up to n base pairs without recalculating targets
 
 # Debugging
 fraction_of_data: 1.0  # fraction of data to use for training. Only lower for debugging.
 profile: False  # profile training with TensorBoard profiler
 seed: 0  # set seed for reproducibility. Set to 0 for random seed
-
-# augmentations (online)
-rev_complement: False # reverse complement all training regions during every epoch
-augment_complement: True  # inverse complement base pairs during training (50 % chance)
-augment_shift_n_bp: 0  # stochastic shift up to n base pairs without recalculating targets
 
 # Model architectures
 simple_convnet:
@@ -96,3 +113,17 @@ basenji:
   filters: 2048
   first_kernel_size: 15
   kernel_size: 3
+
+deeptopiccnn:
+  filters: 1024
+  first_kernel_size: 17
+  pool_size: 4
+  dense_out: 1024
+  first_activation: 'gelu'
+  activation: 'relu'
+  normalization: 'batch'
+  conv_do: 0.15
+  dense_do: 0.5
+  pre_dense_do: 0.5
+  first_kernel_l2: 0.0001
+  kernel_l2: 0.00001

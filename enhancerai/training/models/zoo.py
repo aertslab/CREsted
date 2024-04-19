@@ -3,6 +3,7 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras.layers as layers
+from tensorflow.keras import regularizers
 from tensorflow.keras.backend import int_shape
 
 
@@ -322,6 +323,123 @@ def basenji(
     return model
 
 
+def deeptopiccnn(
+    input_shape: tuple,
+    output_shape: tuple,
+    filters: int = 1024,
+    first_kernel_size: int = 17,
+    pool_size: int = 4,
+    dense_out: int = 1024,
+    first_activation: str = "gelu",
+    activation: str = "relu",
+    conv_do: float = 0.15,
+    normalization: str = "batch",
+    dense_do: float = 0.5,
+    pre_dense_do: float = 0.5,
+    first_kernel_l2: float = 1e-4,
+    kernel_l2: float = 1e-5,
+):
+    """
+    Construct a DeepTopicCNN model.
+
+    Args:
+        input_shape (tuple): Shape of the input data.
+        output_shape (tuple): Shape of the output data (1, C).
+        filters (int): Number of filters in the first convolutional layer.
+        first_kernel_size (int): Size of the kernel in the first convolutional layer.
+        pool_size (int): Size of the pooling kernel.
+        dense_out (int): Number of neurons in the dense layer.
+        first_activation (str): Activation function for the first conv block.
+        activation (str): Activation function for subsequent blocks.
+        conv_do (float): Dropout rate for the convolutional layers.
+        normalization (str): Type of normalization ('batch' or 'layer').
+        dense_do (float): Dropout rate for the dense layers.
+        pre_dense_do (float): Dropout rate before the dense layers.
+        first_kernel_l2 (float): L2 regularization for the first convolutional layer.
+        kernel_l2 (float): L2 regularization for the convolutional layers.
+
+    Returns:
+        tf.keras.Model: A TensorFlow Keras model.
+    """
+    inputs = layers.Input(shape=input_shape, name="sequence")
+
+    x = conv_block(
+        inputs,
+        filters=filters,
+        kernel_size=first_kernel_size,
+        pool_size=pool_size,
+        activation=first_activation,
+        dropout=conv_do,
+        conv_bias=False,
+        normalization=normalization,
+        res=False,
+        padding="same",
+        l2=first_kernel_l2,
+        batchnorm_momentum=0.9,
+    )
+    # conv blocks without residual connections
+    for _ in range(2):
+        x = conv_block(
+            x,
+            filters=int(filters / 2),
+            kernel_size=11,
+            pool_size=pool_size,
+            activation=activation,
+            dropout=conv_do,
+            conv_bias=False,
+            normalization=normalization,
+            res=False,
+            padding="same",
+            l2=kernel_l2,
+            batchnorm_momentum=0.9,
+        )
+
+    # conv blocks with residual connections
+    x = conv_block(
+        x,
+        filters=int(filters / 2),
+        kernel_size=5,
+        pool_size=pool_size,
+        activation=activation,
+        dropout=conv_do,
+        conv_bias=False,
+        normalization=normalization,
+        res=True,
+        padding="same",
+        l2=kernel_l2,
+        batchnorm_momentum=0.9,
+    )
+
+    x = conv_block(
+        x,
+        filters=int(filters / 2),
+        kernel_size=2,
+        pool_size=0,  # no pooling
+        activation=activation,
+        dropout=0,
+        normalization=normalization,
+        conv_bias=False,
+        res=True,
+        padding="same",
+        l2=kernel_l2,
+        batchnorm_momentum=0.9,
+    )
+
+    x = layers.Flatten()(x)
+    x = layers.Dropout(pre_dense_do)(x)
+    x = dense_block(
+        x,
+        dense_out,
+        activation,
+        dropout=dense_do,
+        normalization=normalization,
+        name_prefix="denseblock",
+    )
+    logits = layers.Dense(output_shape[-1], activation="linear", use_bias=True)(x)
+    outputs = layers.Activation("sigmoid")(logits)
+    return tf.keras.Model(inputs=inputs, outputs=outputs)
+
+
 ######################################################
 # Helper layers
 ######################################################
@@ -336,6 +454,7 @@ def dense_block(
     bn_gamma=None,
     bn_momentum=0.90,
     normalization="batch",
+    name_prefix=None,
 ):
     """
     Dense building block.
@@ -359,17 +478,26 @@ def dense_block(
         use_bias=True,
         kernel_initializer="he_normal",
         kernel_regularizer=tf.keras.regularizers.l2(l2),
+        name=name_prefix + "_dense" if name_prefix else None,
     )(inputs)
 
     if normalization == "batch":
-        x = layers.BatchNormalization(momentum=bn_momentum, gamma_initializer=bn_gamma)(
-            x
-        )
+        x = layers.BatchNormalization(
+            momentum=bn_momentum,
+            gamma_initializer=bn_gamma,
+            name=name_prefix + "_batchnorm" if name_prefix else None,
+        )(x)
     elif normalization == "layer":
-        x = layers.LayerNormalization()(x)
+        x = layers.LayerNormalization(
+            name=name_prefix + "_layernorm" if name_prefix else None
+        )(x)
 
-    x = layers.Activation(activation)(x)
-    x = layers.Dropout(dropout)(x)
+    x = layers.Activation(
+        activation, name=name_prefix + "_activation" if name_prefix else None
+    )(x)
+    x = layers.Dropout(dropout, name=name_prefix + "_dropout" if name_prefix else None)(
+        x
+    )
 
     return x
 
@@ -380,9 +508,13 @@ def conv_block(
     kernel_size,
     pool_size,
     activation,
+    conv_bias=True,
     dropout=0.1,
     normalization="batch",
     res=False,
+    padding="valid",
+    l2=1e-5,
+    batchnorm_momentum=0.99,
 ):
     """
     Convolution building block.
@@ -403,18 +535,18 @@ def conv_block(
     if res:
         residual = inputs
 
-    x = layers.Convolution1D(filters=filters, kernel_size=kernel_size, padding="valid")(
-        inputs
-    )
+    x = layers.Convolution1D(
+        filters=filters,
+        kernel_size=kernel_size,
+        padding=padding,
+        kernel_regularizer=regularizers.L2(l2),
+        use_bias=conv_bias,
+    )(inputs)
     if normalization == "batch":
-        x = layers.BatchNormalization()(x)
+        x = layers.BatchNormalization(momentum=batchnorm_momentum)(x)
     elif normalization == "layer":
         x = layers.LayerNormalization()(x)
     x = layers.Activation(activation)(x)
-    x = layers.MaxPooling1D(pool_size=pool_size)(x)
-    if dropout > 0:
-        x = layers.Dropout(dropout)(x)
-
     if res:
         if filters != residual.shape[2]:
             residual = layers.Convolution1D(filters=filters, kernel_size=1, strides=1)(
@@ -426,6 +558,11 @@ def conv_block(
             x = layers.BatchNormalization()(x)
         elif normalization == "layer":
             x = layers.LayerNormalization()(x)
+
+    if pool_size > 1:
+        x = layers.MaxPooling1D(pool_size=pool_size, padding=padding)(x)
+    if dropout > 0:
+        x = layers.Dropout(dropout)(x)
 
     return x
 
@@ -535,7 +672,7 @@ def conv_block_bs(
         use_bias=False,
         dilation_rate=dilation_rate,
         kernel_initializer=kernel_initializer,
-        kernel_regularizer=tf.keras.regularizers.l2(l2_scale),
+        l2=tf.keras.regularizers.l2(l2_scale),
     )(current)
 
     # batch norm

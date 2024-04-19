@@ -1,10 +1,5 @@
 """Functions for preprocessing ATAC-seq peak bed files."""
 
-import os
-import tempfile
-import shutil
-import numpy as np
-from contextlib import contextmanager
 import numpy as np
 
 
@@ -93,6 +88,45 @@ def filter_bed_chrom_regions(input_path: str, output_path: str, chrom_sizes_file
         outfile.writelines(sorted_lines)
 
     print(f"chrom size: removed {total_lines - len(sorted_lines)}/{total_lines} lines.")
+
+
+def augment_bed_shift(input_path: str, output_path: str, n_shifts=2, stride_bp=50):
+    """
+    Augments a BED file by shifting regions in both directions. Will increase file size
+    with n_shifts * 2.
+
+    :param input_path: Path to the input BED file.
+    :param output_path: Path to the output augmented BED file.
+    :param n_shifts: Number of times to shift each region in both directions.
+    :param stride_bp: Number of base pairs to shift in each step.
+    """
+    with open(input_path, "r") as infile:
+        lines = infile.readlines()
+    with open(output_path, "w") as outfile:
+        for bed_line in lines:
+            bed_cols = bed_line.strip().split("\t")
+            if len(bed_cols) == 3:
+                chrom, start, end = bed_cols
+            elif len(bed_cols) == 4:
+                chrom, start, end, _ = bed_cols
+            start, end = int(start), int(end)
+
+            # Write the original non-augmented region
+            outfile.write(bed_line)
+
+            # Generate and write shifted regions
+            for i in range(1, n_shifts + 1):
+                # Shifts to the right
+                new_start = start + i * stride_bp
+                new_end = end + i * stride_bp
+                new_name = f"{chrom}:{new_start}-{new_end}"
+                outfile.write(f"{chrom}\t{new_start}\t{new_end}\t{new_name}\n")
+
+                # Shifts to the left
+                new_start = start - i * stride_bp
+                new_end = end - i * stride_bp
+                new_name = f"{chrom}:{new_start}-{new_end}"
+                outfile.write(f"{chrom}\t{new_start}\t{new_end}\t{new_name}\n")
 
 
 def get_regions_from_bed(regions_bed_filename: str):
