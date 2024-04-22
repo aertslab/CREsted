@@ -71,6 +71,13 @@ def parse_arguments() -> argparse.Namespace:
         default="data/raw/chrom.sizes",
         help="Path to the chromosome sizes file. Required if --filter_chrom is True.",
     )
+    parser.add_argument(
+        "--config_file",
+        type=str,
+        help="Path to the config file.",
+        required=False,
+        default='configs/user.yml'
+    )
 
     return parser.parse_args()
 
@@ -473,7 +480,7 @@ def main(args: argparse.Namespace, config: dict):
     elif os.path.exists(checkpoint_dir):
         shutil.rmtree(checkpoint_dir)
         os.makedirs(checkpoint_dir)
-    shutil.copyfile("configs/user.yml", os.path.join(checkpoint_dir, "user.yml"))
+    shutil.copyfile(args.config_file, os.path.join(checkpoint_dir, "user.yml"))
     shutil.copyfile(
         args.cell_mapping_file, os.path.join(checkpoint_dir, "cell_type_mapping.tsv")
     )
@@ -590,14 +597,10 @@ def main(args: argparse.Namespace, config: dict):
 
 
 if __name__ == "__main__":
-    # Load args and config
     args = parse_arguments()
-
     assert os.path.exists(
-        "configs/user.yml"
-    ), "users.yml file not found. Please run `make copyconfig first`"
-    with open("configs/user.yml", "r") as f:
+        args.config_file
+    ), f"{args.config_file} file not found. Please run `make copyconfig` first or specify a valid config file."
+    with open(args.config_file, "r") as f:
         config = yaml.safe_load(f)
-
-    # Train
     main(args, config)

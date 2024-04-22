@@ -34,6 +34,13 @@ def parse_arguments():
         help="Path to the folder to save the target vectors.",
         required=True,
     )
+    parser.add_argument(
+        "--config_file",
+        type=str,
+        help="Path to the config file.",
+        required=False,
+        default='configs/user.yml'
+    )
     return parser.parse_args()
 
 
@@ -220,8 +227,8 @@ def main(args: argparse.Namespace, config: dict):
 if __name__ == "__main__":
     args = parse_arguments()
     assert os.path.exists(
-        "configs/user.yml"
-    ), "users.yml file not found. Please run `make copyconfig` first"
-    with open("configs/user.yml", "r") as f:
+        args.config_file
+    ), f"{args.config_file} file not found. Please run `make copyconfig` first or specify a valid config file."
+    with open(args.config_file, "r") as f:
         config = yaml.safe_load(f)
     main(args, config)

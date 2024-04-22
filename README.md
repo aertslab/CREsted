@@ -116,7 +116,7 @@ The easiest way to control your data pipeline is to create symbolic links from y
 genome fasta == > data/raw/genome.fa
 chromosome sizes ==> data/raw/chrom.sizes
 consensus regions ==> data/raw/consensus_peaks.bed
-bigwig folder ==> data/raw/bw/{cell_type_name}.bw
+bigwig folder ==> data/raw/bw/{cell_type_name}.bw OR topics folder ==> data/raw/topics/{topic_number}.bed
 ```
 
 You can create the symbolic links manually yourself with the ```ln -s``` command, or you can use the following handy command which will create the symbolic links and name them correctly given certain patterns in the input data path:

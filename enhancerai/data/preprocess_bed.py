@@ -45,6 +45,13 @@ def parse_arguments():
         default="data/processed/",
         help="Path to the folder where the processed data will be saved.",
     )
+    parser.add_argument(
+        "--config_file",
+        type=str,
+        help="Path to the config file.",
+        required=False,
+        default='configs/user.yml'
+    )
     # check if chrom_sizes_file exists if filter_chrom is True
     args = parser.parse_args()
     if args.filter_chrom and not os.path.exists(args.chrom_sizes_file):
@@ -136,10 +143,10 @@ def main(args: argparse.Namespace, config: dict):
 
 
 if __name__ == "__main__":
-    assert os.path.exists(
-        "configs/user.yml"
-    ), "users.yml file not found. Please run `make copyconfig` first"
-    with open("configs/user.yml", "r") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
     args = parse_arguments()
+    assert os.path.exists(
+        args.config_file
+    ), f"{args.config_file} file not found. Please run `make copyconfig` first or specify a valid config file."
+    with open(args.config_file, "r") as f:
+        config = yaml.safe_load(f)
     main(args, config)
