@@ -126,6 +126,30 @@ def normalize_peaks(
     target_vector = target_vector * weights
     return target_vector, weights
 
+def filter_regions_on_targets(
+    target_vector: np.ndarray,
+    regions_bed: list,
+    targets_n_to_remove: np.array = np.array([0]),
+) -> Tuple[np.ndarray, list, np.ndarray]:
+    """
+    Filter bed regions & targets based on number of positive targets. Saves filtered bed regions
+    back to original file and returns filtered targets. Mainly for deeptopic where truth is binary.
+
+    Args:
+        target_vector (np.ndarray): targets
+        bed_filename (str): path to BED file
+        targets_n_to_remove (tuple): Remove regions with n positive targets.
+    """
+    
+    selected_indices = np.argwhere(np.isin(np.sum(target_vector, axis=1), targets_n_to_remove, invert=True))[:, 0]
+    
+    target_vector_filt = target_vector[selected_indices]
+    regions_filt = [regions_bed[i] for i in selected_indices]
+    print(
+        f"After deeptopic target filtering, kept {len(target_vector_filt)} out of {len(target_vector)} regions."
+    )
+
+    return target_vector_filt, regions_filt
 
 def write_to_bedfile(regions, output_path):
     with open(output_path, "w") as outfile:
@@ -203,6 +227,9 @@ class SequenceDataset:
             config["deeppeak"]["target"],
             config["rev_complement"],
         )
+        
+        
+        
         self.num_classes = int(config["num_classes"])
         self.chromsizes = chromsizes
         self.shift_n_bp = int(config["augment_shift_n_bp"])
@@ -211,6 +238,10 @@ class SequenceDataset:
             raise ValueError(
                 "Chromsizes must be provided for stochastic shift augmentation."
             )
+            
+        assert len(self.targets) == len(self.regionloader.regions), f'''Target vector and regions are not the same length,
+        please make sure that you are using the correct inputs, target vector length: {len(target_vector)},
+        regions length: {len(regions_bed)}'''
 
         if config["peak_normalization"]:
             print("Normalizing peaks...")
@@ -221,6 +252,12 @@ class SequenceDataset:
         if config["specificity_filtering"]:
             print("Filtering regions based on region specificity...")
             self.targets, self.regionloader.regions = filter_regions_on_specificity(
+                self.targets, self.regionloader.regions
+            )
+
+        if config['task'] == 'deeptopic':
+            print("Filtering regions with zero targets...")
+            self.targets, self.regionloader.regions = filter_regions_on_targets(
                 self.targets, self.regionloader.regions
             )
 

@@ -84,11 +84,30 @@ def preprocess_bed(
     if os.path.exists(output_path):
         print(f"File already exists at {output_path}. Overwriting...")
         os.remove(output_path)
-
+    
     print(f"Correcting start and end positions to regions width {final_regions_width}")
     bed.extend_bed_file(input_path, output_path, final_regions_width)
     input_path = output_path
 
+    
+    if augment_shift:
+        shift_size =  augment_shift_stride_bp * augment_shift_n_shifts + 1
+    else:
+        shift_size = 0
+        
+    if filter_negative:
+        print("Filtering out negative coordinates...")
+        bed.filter_bed_negative_regions(input_path, output_path, shift_size)
+        input_path = output_path
+
+    if filter_chrom:
+        print("Filtering out out of bounds coordinates...")
+        bed.filter_bed_chrom_regions(input_path, output_path, chrom_sizes_file, shift_size)
+        input_path = output_path
+        
+    output_path_nonaugmented = output_path.replace('_inputs.bed', '_inputs_nonaugmented.bed')
+    shutil.copyfile(input_path, output_path_nonaugmented)
+    
     if augment_shift:
         print("Augmenting data with shifted regions...")
         bed.augment_bed_shift(
@@ -99,18 +118,9 @@ def preprocess_bed(
         )
         input_path = output_path
 
-    if filter_negative:
-        print("Filtering out negative coordinates...")
-        bed.filter_bed_negative_regions(input_path, output_path)
-        input_path = output_path
-
-    if filter_chrom:
-        print("Filtering out out of bounds coordinates...")
-        bed.filter_bed_chrom_regions(input_path, output_path, chrom_sizes_file)
-        input_path = output_path
-
     # Ensure labels of bed file are correct again
     bed.fix_bed_labels(output_path)
+
     print("Done!")
 
 
@@ -138,7 +148,7 @@ def main(args: argparse.Namespace, config: dict):
         filter_chrom=args.filter_chrom,
         augment_shift=config["shift_augmentation"]["use"],
         augment_shift_n_shifts=config["shift_augmentation"]["n_shifts"],
-        augment_shift_stride_bp=config["shift_augmentation"]["stride_bp"],
+        augment_shift_stride_bp=config["shift_augmentation"]["stride_bp"]
     )
 
 

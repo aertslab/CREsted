@@ -39,25 +39,31 @@ def extend_bed_file(input_path: str, output_path: str, final_regions_width: int)
                 outfile.write("\t".join(cols) + "\n")
 
 
-def filter_bed_negative_regions(input_path: str, output_path: str):
+def filter_bed_negative_regions(input_path: str, output_path: str, shift_size: int):
     """
     Filters out lines from a BED file that have negative values in
     the second or third column.
+
+    Takes into account shift augmentation so that if a region would have negative
+    coordinates after shiting, also removes that region.
     """
     with open(input_path, "r") as infile:
         lines = infile.readlines()
     with open(output_path, "w") as outfile:
         for line_number, line in enumerate(lines, start=0):
             cols = line.strip().split("\t")
-            if int(cols[1]) < 0 or int(cols[2]) < 0:
+            if int(cols[1]) < shift_size or int(cols[2]) < shift_size:
                 print(f"Negative coordinate found on line: {line_number}. Skipping.")
             else:
                 outfile.write(line)
 
 
-def filter_bed_chrom_regions(input_path: str, output_path: str, chrom_sizes_file: str):
+def filter_bed_chrom_regions(input_path: str, output_path: str, chrom_sizes_file: str, shift_size: int):
     """
     Filters out lines from a BED file that are out of bounds of the chromosome size.
+
+    Takes into account shift augmentation so that if a region would be out of bounds
+    after shiting, also removes that region.
     """
     filtered_lines = []
     total_lines = 0
@@ -76,7 +82,7 @@ def filter_bed_chrom_regions(input_path: str, output_path: str, chrom_sizes_file
             total_lines += 1
             bed_cols = bed_line.strip().split("\t")
             chrom = bed_cols[0]
-            if chrom in chrom_sizes and int(bed_cols[2]) <= chrom_sizes[chrom]:
+            if chrom in chrom_sizes and int(bed_cols[2]) <= chrom_sizes[chrom] - shift_size:
                 filtered_lines.append(bed_line)
 
     # Sort the filtered BED file
@@ -105,10 +111,9 @@ def augment_bed_shift(input_path: str, output_path: str, n_shifts=2, stride_bp=5
     with open(output_path, "w") as outfile:
         for bed_line in lines:
             bed_cols = bed_line.strip().split("\t")
-            if len(bed_cols) == 3:
-                chrom, start, end = bed_cols
-            elif len(bed_cols) == 4:
-                chrom, start, end, _ = bed_cols
+            
+            chrom, start, end = bed_cols[0], bed_cols[1], bed_cols[2]
+
             start, end = int(start), int(end)
 
             # Write the original non-augmented region
