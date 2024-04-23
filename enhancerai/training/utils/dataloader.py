@@ -239,9 +239,10 @@ class SequenceDataset:
                 "Chromsizes must be provided for stochastic shift augmentation."
             )
             
-        assert len(self.targets) == len(self.regionloader.regions), f'''Target vector and regions are not the same length,
-        please make sure that you are using the correct inputs, target vector length: {len(target_vector)},
-        regions length: {len(regions_bed)}'''
+        assert len(self.targets) == len(self.regionloader.regions), f'''Target vector and regions 
+        are not the same length,
+        please make sure that you are using the correct inputs, target vector length: {len(self.targets)},
+        regions length: {len(self.regionloader.regions)}'''
 
         if config["peak_normalization"]:
             print("Normalizing peaks...")

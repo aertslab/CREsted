@@ -105,7 +105,7 @@ data_targets_deeppeak:
 	python enhancerai/data/create_targets_deeppeak.py --bigwig_dir "data/interim/bw/" --regions_bed_file "data/processed/consensus_peaks_inputs.bed" --output_dir "data/processed/"
 
 data_targets_deeptopic:
-	python enhancerai/data/create_targets_deeptopic.py --topics_dir "data/raw/topics/" --regions_bed_file "data/raw/consensus_peaks.bed" --output_dir "data/processed/"
+	python enhancerai/data/create_targets_deeptopic.py --topics_dir "data/raw/topics/" --regions_bed_file "data/processed/consensus_peaks_inputs_nonaugmented.bed" --output_dir "data/processed/"
 
 ## Data: save the original data paths to the output directory
 data_save_original_paths:
