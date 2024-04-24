@@ -104,9 +104,10 @@ def preprocess_bed(
         print("Filtering out out of bounds coordinates...")
         bed.filter_bed_chrom_regions(input_path, output_path, chrom_sizes_file, shift_size)
         input_path = output_path
-        
-    output_path_nonaugmented = output_path.replace('_inputs.bed', '_inputs_nonaugmented.bed')
-    shutil.copyfile(input_path, output_path_nonaugmented)
+
+    if '_inputs.bed' in output_path:
+        output_path_nonaugmented = output_path.replace('_inputs.bed', '_inputs_nonaugmented.bed')
+        shutil.copyfile(input_path, output_path_nonaugmented)
     
     if augment_shift:
         print("Augmenting data with shifted regions...")
