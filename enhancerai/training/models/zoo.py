@@ -217,7 +217,7 @@ def chrombpnet(
 
     x = layers.GlobalAveragePooling1D()(x)
     outputs = layers.Dense(
-        units=output_shape[-1], activation="linear", use_bias=dense_bias
+        units=output_shape[-1], activation="softplus", use_bias=dense_bias
     )(x)
 
     model = tf.keras.Model(inputs=inputs, outputs=outputs)

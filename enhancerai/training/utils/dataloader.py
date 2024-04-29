@@ -299,14 +299,25 @@ class SequenceDataset:
         """Save the split indices and targets to the output directory."""
         with open(os.path.join(output_dir, "chrom_mapping.json"), "w") as f:
             json.dump(split_dict, f)
+
+        train_targets = self.targets[self.indices['train'][::2]]
+        val_targets = self.targets[self.indices['val']]
+        test_targets = self.targets[self.indices['test']]
+        np.savez(
+            os.path.join(output_dir, "targets.npz"),
+            train=train_targets,
+            val=val_targets,
+            test=test_targets,
+        )
+
         indices_train = (
-            self.indices["train"][::2] if reverse_complement else self.indices["train"]
+            [index // 2 for index in self.indices["train"][::2]] if reverse_complement else self.indices["train"]
         )
         indices_val = (
-            self.indices["val"][::2] if reverse_complement else self.indices["val"]
+            [index // 2 for index in self.indices["val"]] if reverse_complement else self.indices["val"]
         )
         indices_test = (
-            self.indices["test"][::2] if reverse_complement else self.indices["test"]
+            [index // 2 for index in self.indices["test"]] if reverse_complement else self.indices["test"]
         )
 
         np.savez(
@@ -316,15 +327,6 @@ class SequenceDataset:
             test=indices_test,
         )
 
-        train_targets = self.targets[indices_train]
-        val_targets = self.targets[indices_val]
-        test_targets = self.targets[indices_test]
-        np.savez(
-            os.path.join(output_dir, "targets.npz"),
-            train=train_targets,
-            val=val_targets,
-            test=test_targets,
-        )
 
         write_to_bedfile(
             (
