@@ -193,13 +193,14 @@ An example slurm script to perform model training (on one GPU) would look like t
 
 ##TRAINING MODEL
 workdir={/path/to/your/Deeppeak/repository/}
+cd $workdir
 
 source /lustre1/project/stg_00002/mambaforge/{your_user}/etc/profile.d/conda.sh
 conda activate deeppeak
 
 module load cuDNN/8.7.0.84-CUDA-11.8.0
 
-make train
+make train_deeppeak
 ```
 
 You can store your personal slurm scripts under *scripts/personal*, which is ignored by git.

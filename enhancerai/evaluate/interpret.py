@@ -5,8 +5,8 @@ import numpy as np
 from datetime import datetime
 import os
 import pyfaidx
-from utils.explain import Explainer, grad_times_input_to_df, plot_attribution_map
-from utils.one_hot_encoding import get_hot_encoding_table, regions_to_hot_encoding
+from .utils.explain import Explainer, grad_times_input_to_df, plot_attribution_map, grad_times_input_to_df_mutagenesis, plot_mutagenesis_map
+from .utils.one_hot_encoding import get_hot_encoding_table, regions_to_hot_encoding
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import tensorflow as tf
@@ -103,13 +103,18 @@ def parse_arguments():
 
     return args
 
-
+def conditional_tqdm(iterable, verbose=True, **kwargs):
+    if verbose:
+        return tqdm(iterable, **kwargs)
+    return iterable
+    
 def calculate_gradient_scores(
     model: tf.keras.Model,
     x: np.ndarray,
     output_file: str,
     class_indices: list,
     method: str = "integrated_grad",
+    verbose: bool = True
 ):
     if class_indices is not None:
         n_classes = len(class_indices)
@@ -117,10 +122,11 @@ def calculate_gradient_scores(
         n_classes = 1  # 'combined' class
         class_indices = [None]
     scores = np.zeros((x.shape[0], n_classes, x.shape[1], x.shape[2]))  # (N, C, W, 4)
-    for i, class_index in tqdm(
+    for i, class_index in conditional_tqdm(
         enumerate(class_indices),
         desc="Calculating scores per class for all regions",
         total=n_classes,
+        verbose=verbose
     ):
         explainer = Explainer(model, class_index=class_index)
         if method == "integrated_grad":
@@ -167,7 +173,7 @@ def visualize_scores(
     now = datetime.now()
     if(verbose):
         print(f"Plotting scores and saving to {output_dir}...")
-    for seq in tqdm(range(seqs_one_hot.shape[0]), desc="Plotting scores per seq"):
+    for seq in conditional_tqdm(range(seqs_one_hot.shape[0]), desc="Plotting scores per seq", verbose=verbose):
         fig_height_per_class = 2
         fig = plt.figure(figsize=(50, fig_height_per_class * len(class_indices)))
         for i, class_index in enumerate(class_indices):
@@ -181,13 +187,13 @@ def visualize_scores(
             y_pos = 0.75*global_max
             text_to_add = class_names[class_index]  
             ax.text(x_pos, y_pos, text_to_add, fontsize=16, ha='left', va='center')
-
-            ax.set_ylim([global_min, global_max])
+            if(ylim):
+                ax.set_ylim(ylim[0],ylim[1])
+            else:
+                ax.set_ylim([global_min, global_max])
         plt.xlabel("Position")
         plt.xticks(np.arange(0, zoom_n_bases, 50))
         chr, start, end = chr_start_ends[seq]
-        if(ylim is not None):
-            plt.ylim(ylim[0],ylim[1])
         if(savefig):
             plt.savefig(os.path.join(output_dir, f"{chr}_{start}_{end}_explained.jpeg"))
             plt.close(fig)
@@ -197,6 +203,63 @@ def visualize_scores(
     if(verbose):
         print(f"Plotting took {end - now}")
 
+def visualize_mutagenesis_effects(
+    scores: np.ndarray,
+    seqs_one_hot: np.ndarray,
+    output_dir: str,
+    chr_start_ends: str,
+    class_indices: list,
+    zoom_n_bases: int,
+    class_names: list,
+    ylim: tuple = None,
+    verbose: bool = True,
+    savefig: bool = False
+):
+    """Visualize in silico mutagenesis effects with dots indicating the effect of variants."""
+    # Center and zoom
+    center = int(scores.shape[2] / 2)
+    start_idx = center - int(zoom_n_bases / 2)
+    scores = scores[:, :, start_idx:start_idx + zoom_n_bases, :]
+    seqs_one_hot = seqs_one_hot[:, start_idx:start_idx + zoom_n_bases, :]
+    zoom_n_bases = scores.shape[2]
+
+    global_min = scores.min()
+    global_max = scores.max()
+
+    # Plot
+    now = datetime.now()
+    if verbose:
+        print(f"Plotting scores and saving to {output_dir}...")
+    for seq in conditional_tqdm(range(seqs_one_hot.shape[0]), desc="Plotting mutagenesis effects per seq", verbose=verbose):
+        fig_height_per_class = 2
+        fig = plt.figure(figsize=(50, fig_height_per_class * len(class_indices)))
+        for i, class_index in enumerate(class_indices):
+            seq_class_scores = scores[seq, i, :, :]
+            seq_class_x = seqs_one_hot[seq, :, :]
+            mutagenesis_df = grad_times_input_to_df_mutagenesis(seq_class_x, seq_class_scores)
+            ax = plt.subplot(len(class_indices), 1, i + 1)
+
+            plot_mutagenesis_map(mutagenesis_df, ax=ax)
+            x_pos = 5  # Adjust this value to set the x-coordinate where you want the text
+            y_pos = 0.75*global_max
+            text_to_add = class_names[class_index]  
+            ax.text(x_pos, y_pos, text_to_add, fontsize=16, ha='left', va='center')
+
+            if ylim:
+                ax.set_ylim(ylim)
+            else:
+                ax.set_ylim([global_min*1.2, global_max*1.2])
+        plt.xlabel("Position")
+        plt.xticks(np.arange(0, zoom_n_bases, 50))
+        chr, start, end = chr_start_ends[seq]
+        if savefig:
+            plt.savefig(os.path.join(output_dir, f"{chr}_{start}_{end}_mutagenesis_explained.jpeg"))
+            plt.close(fig)
+        else:
+            plt.show()
+    end = datetime.now()
+    if verbose:
+        print(f"Plotting took {end - now}")
 
 def main(args):
     """
