@@ -409,7 +409,7 @@ class GenomicRegionLoader:
         if strand == "+":
             return self.genome[chrom][start:end].seq
         elif strand == "-":
-            return self.genome[chrom][start:end].complement.seq
+            return self.genome[chrom][start:end].reverse.complement.seq
         else:
             raise ValueError("Strand must be '+' or '-'")
 

@@ -39,7 +39,7 @@ def extend_bed_file(input_path: str, output_path: str, final_regions_width: int)
                 outfile.write("\t".join(cols) + "\n")
 
 
-def filter_bed_negative_regions(input_path: str, output_path: str, shift_size: int):
+def filter_bed_negative_regions(input_path: str, output_path: str, filtering_size: int):
     """
     Filters out lines from a BED file that have negative values in
     the second or third column.
@@ -52,13 +52,13 @@ def filter_bed_negative_regions(input_path: str, output_path: str, shift_size: i
     with open(output_path, "w") as outfile:
         for line_number, line in enumerate(lines, start=0):
             cols = line.strip().split("\t")
-            if int(cols[1]) < shift_size or int(cols[2]) < shift_size:
+            if int(cols[1]) < filtering_size or int(cols[2]) < filtering_size:
                 print(f"Negative coordinate found on line: {line_number}. Skipping.")
             else:
                 outfile.write(line)
 
 
-def filter_bed_chrom_regions(input_path: str, output_path: str, chrom_sizes_file: str, shift_size: int):
+def filter_bed_chrom_regions(input_path: str, output_path: str, chrom_sizes_file: str, filtering_size: int):
     """
     Filters out lines from a BED file that are out of bounds of the chromosome size.
 
@@ -82,7 +82,7 @@ def filter_bed_chrom_regions(input_path: str, output_path: str, chrom_sizes_file
             total_lines += 1
             bed_cols = bed_line.strip().split("\t")
             chrom = bed_cols[0]
-            if chrom in chrom_sizes and int(bed_cols[2]) <= chrom_sizes[chrom] - shift_size:
+            if chrom in chrom_sizes and int(bed_cols[2]) <= chrom_sizes[chrom] - filtering_size:
                 filtered_lines.append(bed_line)
 
     # Sort the filtered BED file
