@@ -76,7 +76,7 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         help="Path to the config file.",
         required=False,
-        default='configs/user.yml'
+        default="configs/user.yml",
     )
 
     return parser.parse_args()
@@ -573,7 +573,7 @@ def main(args: argparse.Namespace, config: dict):
 
     # If transfer learning deeptopic, we unfreeze everything after training the DenseBlock
     # and train further with a lower learning rate
-    if (task == "deeptopic") and (config["deeptopic"]["transferlearn"] == True):
+    if (task == "deeptopic") and (config["deeptopic"]["transferlearn"]):
         print(
             "First phase of transfer learning done. Unfreezing all layers and training further with even lower learning rate..."
         )
