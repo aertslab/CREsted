@@ -323,12 +323,16 @@ class SequenceDataset:
         for sample_idx in self.indices[split]:
             region = self.regionloader.get_region(sample_idx)
             chrom, start, end, strand = region
-            if split == "train" and self.shift_n_bp > 0:
-                shift_n = np.random.randint(-self.shift_n_bp, self.shift_n_bp)
+            if self.shift_n_bp > 0:
+                # stochastic shifting
+                if split == "train":
+                    shift_n = np.random.randint(-self.shift_n_bp, self.shift_n_bp)
+                else:
+                    shift_n = 0
                 seq_start = self.shift_n_bp + shift_n
                 seq_end = (end - start) + seq_start
             sequence = str(self.regionloader.get_sequence(region))
-            if split == "train" and self.shift_n_bp > 0:
+            if self.shift_n_bp > 0:
                 sequence = sequence[seq_start:seq_end]
             target = self.targets[sample_idx]
             yield sequence, target
@@ -404,9 +408,6 @@ class GenomicRegionLoader:
             genome_fasta_file, self.regions, max_stochastic_shift, chromsizes
         )
 
-    # def load_genomic_data(self, genome_fasta_file: str):
-    #     return Fasta(genome_fasta_file, sequence_always_upper=True)
-
     def load_genomic_data(
         self,
         genome_fasta_file: str,
@@ -425,6 +426,7 @@ class GenomicRegionLoader:
             if region not in genome_dict:
                 chrom, start, end, strand = region
                 if max_stochastic_shift > 0:
+                    # Loading wider regions if stochastic shifting. Corrected in the generator.
                     start -= max_stochastic_shift
                     end += max_stochastic_shift
                     chromsize = chromsizes[chrom]
@@ -462,14 +464,6 @@ class GenomicRegionLoader:
 
     def get_sequence(self, region):
         return self.genome[region]
-
-    # def get_sequence(self, chrom, start, end, strand):
-    #     if strand == "+":
-    #         return self.genome[chrom][start:end].seq
-    #     elif strand == "-":
-    #         return self.genome[chrom][start:end].reverse.complement.seq
-    #     else:
-    #         raise ValueError("Strand must be '+' or '-'")
 
 
 class DatasetSplitter:
