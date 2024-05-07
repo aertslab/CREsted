@@ -434,6 +434,7 @@ def deeptopiccnn(
         dropout=dense_do,
         normalization=normalization,
         name_prefix="denseblock",
+        use_bias=False
     )
     logits = layers.Dense(output_shape[-1], activation="linear", use_bias=True)(x)
     outputs = layers.Activation("sigmoid")(logits)
@@ -455,6 +456,7 @@ def dense_block(
     bn_momentum=0.90,
     normalization="batch",
     name_prefix=None,
+    use_bias=True
 ):
     """
     Dense building block.
@@ -475,7 +477,7 @@ def dense_block(
     x = layers.Dense(
         units,
         activation=None,
-        use_bias=True,
+        use_bias=use_bias,
         kernel_initializer="he_normal",
         kernel_regularizer=tf.keras.regularizers.l2(l2),
         name=name_prefix + "_dense" if name_prefix else None,
@@ -553,11 +555,6 @@ def conv_block(
                 residual
             )
         x = layers.Add()([x, residual])
-        x = layers.Activation(activation)(x)
-        if normalization == "batch":
-            x = layers.BatchNormalization()(x)
-        elif normalization == "layer":
-            x = layers.LayerNormalization()(x)
 
     if pool_size > 1:
         x = layers.MaxPooling1D(pool_size=pool_size, padding=padding)(x)

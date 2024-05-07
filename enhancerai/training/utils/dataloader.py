@@ -9,6 +9,7 @@ from pyfaidx import Fasta
 import numpy as np
 import json
 from typing import Tuple
+from tqdm import tqdm
 
 
 def _calc_gini(targets: np.ndarray) -> np.ndarray:
@@ -127,6 +128,34 @@ def normalize_peaks(
     return target_vector, weights
 
 
+def filter_regions_on_targets(
+    target_vector: np.ndarray,
+    regions_bed: list,
+    targets_n_to_remove: np.array = np.array([0]),
+) -> Tuple[np.ndarray, list, np.ndarray]:
+    """
+    Filter bed regions & targets based on number of positive targets. Saves filtered bed regions
+    back to original file and returns filtered targets. Mainly for deeptopic where truth is binary.
+
+    Args:
+        target_vector (np.ndarray): targets
+        bed_filename (str): path to BED file
+        targets_n_to_remove (tuple): Remove regions with n positive targets.
+    """
+
+    selected_indices = np.argwhere(
+        np.isin(np.sum(target_vector, axis=1), targets_n_to_remove, invert=True)
+    )[:, 0]
+
+    target_vector_filt = target_vector[selected_indices]
+    regions_filt = [regions_bed[i] for i in selected_indices]
+    print(
+        f"After deeptopic target filtering, kept {len(target_vector_filt)} out of {len(target_vector)} regions."
+    )
+
+    return target_vector_filt, regions_filt
+
+
 def write_to_bedfile(regions, output_path):
     with open(output_path, "w") as outfile:
         for region in regions:
@@ -192,17 +221,6 @@ class SequenceDataset:
         chromsizes: dict[str, int] | None = None,
         output_dir: str | None = None,
     ):
-        self.regionloader = GenomicRegionLoader(
-            regions_bed_file,
-            genome_fasta_file,
-            config["rev_complement"],
-        )
-        self.targets = load_targets(
-            targets_file,
-            config["task"],
-            config["deeppeak"]["target"],
-            config["rev_complement"],
-        )
         self.num_classes = int(config["num_classes"])
         self.chromsizes = chromsizes
         self.shift_n_bp = int(config["augment_shift_n_bp"])
@@ -211,6 +229,27 @@ class SequenceDataset:
             raise ValueError(
                 "Chromsizes must be provided for stochastic shift augmentation."
             )
+
+        self.regionloader = GenomicRegionLoader(
+            regions_bed_file,
+            genome_fasta_file,
+            config["rev_complement"],
+            int(config["augment_shift_n_bp"]),
+            self.chromsizes,
+        )
+        self.targets = load_targets(
+            targets_file,
+            config["task"],
+            config["deeppeak"]["target"],
+            config["rev_complement"],
+        )
+
+        assert len(self.targets) == len(
+            self.regionloader.regions
+        ), f"""Target vector and regions 
+        are not the same length,
+        please make sure that you are using the correct inputs, target vector length: {len(self.targets)},
+        regions length: {len(self.regionloader.regions)}"""
 
         if config["peak_normalization"]:
             print("Normalizing peaks...")
@@ -221,6 +260,12 @@ class SequenceDataset:
         if config["specificity_filtering"]:
             print("Filtering regions based on region specificity...")
             self.targets, self.regionloader.regions = filter_regions_on_specificity(
+                self.targets, self.regionloader.regions
+            )
+
+        if config["task"] == "deeptopic":
+            print("Filtering regions with zero targets...")
+            self.targets, self.regionloader.regions = filter_regions_on_targets(
                 self.targets, self.regionloader.regions
             )
 
@@ -264,6 +309,10 @@ class SequenceDataset:
                     weights=norm_weights,
                 )
 
+        # shuffle train indices
+        if config["shuffle"]:
+            np.random.shuffle(self.indices["train"])
+
     def len(self, subset: str):
         """Return the number of samples in the given split."""
         return len(self.indices[subset])
@@ -274,11 +323,17 @@ class SequenceDataset:
         for sample_idx in self.indices[split]:
             region = self.regionloader.get_region(sample_idx)
             chrom, start, end, strand = region
-            if split == "train" and self.shift_n_bp > 0:
-                start, end = stochastic_shift_augment(
-                    start, end, self.chromsizes[chrom], self.shift_n_bp
-                )
-            sequence = str(self.regionloader.get_sequence(chrom, start, end, strand))
+            if self.shift_n_bp > 0:
+                # stochastic shifting
+                if split == "train":
+                    shift_n = np.random.randint(-self.shift_n_bp, self.shift_n_bp)
+                else:
+                    shift_n = 0
+                seq_start = self.shift_n_bp + shift_n
+                seq_end = (end - start) + seq_start
+            sequence = str(self.regionloader.get_sequence(region))
+            if self.shift_n_bp > 0:
+                sequence = sequence[seq_start:seq_end]
             target = self.targets[sample_idx]
             yield sequence, target
 
@@ -340,16 +395,56 @@ class SequenceDataset:
 
 
 class GenomicRegionLoader:
-    """Handles loading of genomic regions from a BED file."""
+    """Handles loading of genomic regions and sequences from a BED & Fasta file."""
 
     def __init__(
-        self, bed_file: str, genome_fasta_file: str, reverse_complement: bool = False
+        self,
+        bed_file: str,
+        genome_fasta_file: str,
+        reverse_complement: bool = False,
+        max_stochastic_shift: int = 0,
+        chromsizes: dict[str, int] | None = None,
     ):
         self.regions = self.load_bed_file(bed_file, reverse_complement)
-        self.genome = self.load_genomic_data(genome_fasta_file)
+        self.genome = self.load_genomic_data(
+            genome_fasta_file, self.regions, max_stochastic_shift, chromsizes
+        )
 
-    def load_genomic_data(self, genome_fasta_file: str):
-        return Fasta(genome_fasta_file, sequence_always_upper=True)
+    def load_genomic_data(
+        self,
+        genome_fasta_file: str,
+        regions: list,
+        max_stochastic_shift: int,
+        chromsizes: dict[str, int] | None = None,
+    ) -> dict[str, str]:
+        """
+        Load genomic data into memory for faster access and to be able to fully shuffle
+        the data without running into Fasta binning issues. Load some extra letters into
+        memory per region if stochastic shifting.
+        """
+        genome_dict = {}
+        genome = Fasta(genome_fasta_file, sequence_always_upper=True)
+        for region in tqdm(regions, desc="Loading sequences into memory..."):
+            if region not in genome_dict:
+                chrom, start, end, strand = region
+                if max_stochastic_shift > 0:
+                    # Loading wider regions if stochastic shifting. Corrected in the generator.
+                    start -= max_stochastic_shift
+                    end += max_stochastic_shift
+                    chromsize = chromsizes[chrom]
+                    if start < 0:
+                        end = abs(start) + end
+                        start = 0
+                    if end > chromsize:
+                        start = start - (end - chromsize)
+                        end = chromsize
+                if strand == "+":
+                    genome_dict[region] = genome[chrom][start:end].seq
+                elif strand == "-":
+                    genome_dict[region] = genome[chrom][
+                        start:end
+                    ].reverse.complement.seq
+        return genome_dict
 
     def load_bed_file(self, bed_file: str, reverse_complement: bool = False) -> list:
         regions = []
@@ -369,13 +464,8 @@ class GenomicRegionLoader:
     def get_region(self, idx):
         return self.regions[idx]
 
-    def get_sequence(self, chrom, start, end, strand):
-        if strand == "+":
-            return self.genome[chrom][start:end].seq
-        elif strand == "-":
-            return self.genome[chrom][start:end].reverse.complement.seq
-        else:
-            raise ValueError("Strand must be '+' or '-'")
+    def get_sequence(self, region):
+        return self.genome[region]
 
 
 class DatasetSplitter:
@@ -565,6 +655,7 @@ if __name__ == "__main__":
     bed_file = "data/processed/consensus_peaks_inputs.bed"
     genome_fasta_file = "data/raw/genome.fa"
     targets = "data/processed/targets_deeptopic.npz"
+    chromsizes = "data/raw/chrom.sizes"
 
     config = {
         "num_classes": 80,
@@ -577,13 +668,27 @@ if __name__ == "__main__":
         },
         "rev_complement": True,
         "specificity_filtering": False,
-        "augment_shift_n_bp": 0,
+        "augment_shift_n_bp": 100,
         "task": "deeptopic",
         "deeppeak": {"target": "mean"},
         "fraction_of_data": 1.0,
         "shift_augmentation": {"use": False, "n_shifts": 2},
+        "peak_normalization": False,
+        "shuffle": True,
     }
-    dataset = SequenceDataset(bed_file, genome_fasta_file, targets, config)
+
+    def _load_chromsizes(chrom_sizes_file: str) -> dict[str, int]:
+        chrom_sizes = {}
+        with open(chrom_sizes_file, "r") as sizes:
+            for line in sizes:
+                chrom, s_size = line.strip().split("\t")[0:2]
+                i_size = int(s_size)
+                chrom_sizes[chrom] = i_size
+        return chrom_sizes
+
+    dataset = SequenceDataset(
+        bed_file, genome_fasta_file, targets, config, _load_chromsizes(chromsizes)
+    )
 
     seq_len = 500
 

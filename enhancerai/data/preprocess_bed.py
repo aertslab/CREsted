@@ -45,6 +45,13 @@ def parse_arguments():
         default="data/processed/",
         help="Path to the folder where the processed data will be saved.",
     )
+    parser.add_argument(
+        "--config_file",
+        type=str,
+        help="Path to the config file.",
+        required=False,
+        default='configs/user.yml'
+    )
     # check if chrom_sizes_file exists if filter_chrom is True
     args = parser.parse_args()
     if args.filter_chrom and not os.path.exists(args.chrom_sizes_file):
@@ -63,6 +70,7 @@ def preprocess_bed(
     output_path: str,
     chrom_sizes_file: str,
     final_regions_width: int,
+    max_size: int,
     filter_negative: bool = False,
     filter_chrom: bool = False,
     augment_shift: bool = False,
@@ -77,11 +85,33 @@ def preprocess_bed(
     if os.path.exists(output_path):
         print(f"File already exists at {output_path}. Overwriting...")
         os.remove(output_path)
+    
+    
+    if augment_shift:
+        shift_size =  augment_shift_stride_bp * augment_shift_n_shifts + 1
+    else:
+        shift_size = 0
+
+    filtering_size = max_size + shift_size
+        
+    if filter_negative:
+        print("Filtering out negative coordinates...")
+        bed.filter_bed_negative_regions(input_path, output_path, filtering_size)
+        input_path = output_path
+
+    if filter_chrom:
+        print("Filtering out out of bounds coordinates...")
+        bed.filter_bed_chrom_regions(input_path, output_path, chrom_sizes_file, filtering_size)
+        input_path = output_path
 
     print(f"Correcting start and end positions to regions width {final_regions_width}")
     bed.extend_bed_file(input_path, output_path, final_regions_width)
     input_path = output_path
-
+    
+    if '_inputs.bed' in output_path:
+        output_path_nonaugmented = output_path.replace('_inputs.bed', '_inputs_nonaugmented.bed')
+        shutil.copyfile(input_path, output_path_nonaugmented)
+    
     if augment_shift:
         print("Augmenting data with shifted regions...")
         bed.augment_bed_shift(
@@ -92,18 +122,9 @@ def preprocess_bed(
         )
         input_path = output_path
 
-    if filter_negative:
-        print("Filtering out negative coordinates...")
-        bed.filter_bed_negative_regions(input_path, output_path)
-        input_path = output_path
-
-    if filter_chrom:
-        print("Filtering out out of bounds coordinates...")
-        bed.filter_bed_chrom_regions(input_path, output_path, chrom_sizes_file)
-        input_path = output_path
-
     # Ensure labels of bed file are correct again
     bed.fix_bed_labels(output_path)
+
     print("Done!")
 
 
@@ -117,6 +138,8 @@ def main(args: argparse.Namespace, config: dict):
         raise ValueError(
             "Please specify either 'inputs' or 'targets' for --inputs_or_targets."
         )
+
+    max_size = max(int(config["seq_len"]), int(config["target_len"]))
     regions_bed_name = os.path.basename(args.regions_bed_file).split(".")[0]
 
     # Preprocess peaks BED file
@@ -129,17 +152,18 @@ def main(args: argparse.Namespace, config: dict):
         final_regions_width=final_regions_width,
         filter_negative=args.filter_negative,
         filter_chrom=args.filter_chrom,
+        max_size=max_size, 
         augment_shift=config["shift_augmentation"]["use"],
         augment_shift_n_shifts=config["shift_augmentation"]["n_shifts"],
-        augment_shift_stride_bp=config["shift_augmentation"]["stride_bp"],
+        augment_shift_stride_bp=config["shift_augmentation"]["stride_bp"]
     )
 
 
 if __name__ == "__main__":
-    assert os.path.exists(
-        "configs/user.yml"
-    ), "users.yml file not found. Please run `make copyconfig` first"
-    with open("configs/user.yml", "r") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
     args = parse_arguments()
+    assert os.path.exists(
+        args.config_file
+    ), f"{args.config_file} file not found. Please run `make copyconfig` first or specify a valid config file."
+    with open(args.config_file, "r") as f:
+        config = yaml.safe_load(f)
     main(args, config)
