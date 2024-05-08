@@ -1,10 +1,10 @@
 [build-system]
 build-backend = "hatchling.build"
-requires = ["hatchling","hatch-vcs"]
+requires = ["hatchling"]
 
 [project]
 name = "EnhancerAI"
-dynamic = ["version"]
+version = "0.0.1"
 description = "A deep learning toolkit for investigating the gene regulatory code"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -68,9 +68,6 @@ xfail_strict = true
 addopts = [
     "--import-mode=importlib",  # allow using test files with same name
 ]
-
-[tool.hatch.version]
-source = "vcs"
 
 [tool.ruff]
 line-length = 88
