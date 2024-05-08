@@ -20,13 +20,15 @@ urls.Source = "https://github.com/aertslab/EnhancerAI/"
 urls.Home-page = "https://github.com/aertslab/EnhancerAI/"
 dependencies = [
     "anndata",
-    "session-info",
     "pandas",
     "tqdm",
-    "Pyarrow",
-    "seaborn",
     "wandb>=0.12.10",
-    "pysam",
+    "pyfaidx",
+    "numpy<1.25.0",
+    "scikit-learn",
+    "tqdm",
+    "shap",
+    "ipykernel",
 ]
 
 [project.optional-dependencies]
