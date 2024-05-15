@@ -3,7 +3,7 @@ build-backend = "hatchling.build"
 requires = ["hatchling"]
 
 [project]
-name = "EnhancerAI"
+name = "enhancerai"
 version = "0.0.1"
 description = "A deep learning toolkit for investigating the gene regulatory code"
 readme = "README.md"
