@@ -14,7 +14,7 @@ def import_topics(
     regions_file: PathLike,
     chromsizes_file: PathLike | None = None,
     topics_subset: list | None = None,
-    remove_no_topics: bool = True,
+    remove_empty_regions: bool = True,
     compress: bool = True,
 ) -> AnnData:
     """
@@ -47,7 +47,7 @@ def import_topics(
         Topics should be named after the topics file name without the extension.
     chromsizes_file
         File path of the chromsizes file.
-    remove_no_topics
+    remove_empty_regions
         Remove regions that are not open in any topic.
     compress
         Compress the AnnData.X matrix. If True, the matrix will be stored as
@@ -98,14 +98,6 @@ def import_topics(
         chromsizes = pd.read_csv(
             chromsizes_file, sep="\t", header=None, names=["chr", "size"]
         )
-        # consensus_peaks_filtered = consensus_peaks[
-        #     consensus_peaks[0].isin(chromsizes["chr"])
-        #     & (consensus_peaks[1] >= 0)
-        #     & (
-        #         consensus_peaks[2]
-        #         <= chromsizes.set_index("chr").loc[consensus_peaks[0]]["size"]
-        #     )
-        # ]
         chromsizes_dict = chromsizes.set_index("chr")["size"].to_dict()
         valid_mask = consensus_peaks.apply(
             lambda row: row[0] in chromsizes_dict
@@ -171,7 +163,7 @@ def import_topics(
         )
     regions_no_topics = ann_data.var[ann_data.var["n_topics"] == 0]
     if not regions_no_topics.empty:
-        if remove_no_topics:
+        if remove_empty_regions:
             warnings.warn(
                 f"{len(regions_no_topics.index)} consensus regions are not open in any topic. Removing them from the AnnData object.",
                 stacklevel=1,
