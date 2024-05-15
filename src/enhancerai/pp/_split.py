@@ -1,3 +1,5 @@
+"""Module for splitting datasets into train, validation, and test sets."""
+
 from __future__ import annotations
 
 import math
@@ -263,23 +265,3 @@ def train_val_test_split(
         split = _split_by_chromosome_auto(regions, val_size, test_size)
 
     adata.var["split"] = split
-
-
-if __name__ == "__main__":
-    # Test train_val_test_split
-    import enhancerai as enhai
-
-    adata = enhai.import_topics(
-        topics_folder="/staging/leuven/stg_00002/lcb/lmahieu/projects/DeepPeak/tests/data/test_topics",
-        regions_file="/staging/leuven/stg_00002/lcb/lmahieu/projects/DeepPeak/tests/data/test.regions.bed",
-    )
-    train_val_test_split(adata, strategy="region", random_state=41)
-    assert "split" in adata.var.columns
-
-    train_val_test_split(
-        adata, strategy="chr", val_chroms=["chr2", "chr1"], test_chroms=["chr2", "chr1"]
-    )
-    print(adata.var["split"].value_counts())
-
-    train_val_test_split(adata, strategy="chr_auto")
-    print(adata.var["split"].value_counts())
