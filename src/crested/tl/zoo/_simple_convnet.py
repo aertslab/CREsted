@@ -2,8 +2,7 @@
 
 import tensorflow as tf
 import tensorflow.keras.layers as layers
-
-from enhancerai.tl.zoo.utils import conv_block, dense_block
+from utils import conv_block, dense_block
 
 
 def simple_convnet(

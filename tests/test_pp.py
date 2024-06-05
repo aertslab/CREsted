@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 import scipy.sparse as sp
 
-import enhancerai as enhai
+import crested
 
 
 def create_anndata_with_regions(
@@ -41,7 +41,7 @@ def test_train_val_test_split_by_region():
     ]
     adata = create_anndata_with_regions(regions)
 
-    enhai.pp.train_val_test_split(
+    crested.pp.train_val_test_split(
         adata,
         strategy="region",
         val_size=0.2,
@@ -66,7 +66,7 @@ def test_train_val_test_split_by_chromosome():
     ]
     adata = create_anndata_with_regions(regions)
 
-    enhai.pp.train_val_test_split(
+    crested.pp.train_val_test_split(
         adata,
         strategy="chr",
         val_chroms=["chr1"],
@@ -95,7 +95,7 @@ def test_train_val_test_split_by_chromosome_auto():
     ]
     adata = create_anndata_with_regions(regions)
 
-    enhai.pp.train_val_test_split(
+    crested.pp.train_val_test_split(
         adata,
         strategy="chr_auto",
         val_size=0.2,
@@ -129,13 +129,13 @@ def test_train_val_test_split_by_chromosome_auto():
 #     adata_dense = create_anndata_with_regions(regions, random_state=42)
 #     adata_sparse = create_anndata_with_regions(regions, compress=True, random_state=42)
 
-#     normalized_dense = enhai.pp.normalize_peaks(
+#     normalized_dense = crested.pp.normalize_peaks(
 #         adata_dense,
 #         peak_threshold=0.2,
 #         gini_std_threshold=1.0,
 #         top_k_percent=0.2,
 #     )
-#     normalized_sparse = enhai.pp.normalize_peaks(
+#     normalized_sparse = crested.pp.normalize_peaks(
 #         adata_sparse,
 #         peak_threshold=0.2,
 #         gini_std_threshold=1.0,

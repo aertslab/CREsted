@@ -28,7 +28,7 @@ def import_topics(
 
     Example
     -------
-    >>> anndata = enhancerai.import_topics(
+    >>> anndata = crested.import_topics(
     ...     topics_folder="path/to/topics",
     ...     regions_file="path/to/regions.bed",
     ...     chromsizes_file="path/to/chrom.sizes",
@@ -191,7 +191,7 @@ def import_peaks(
 
     Example
     -------
-    >>> anndata = enhancerai.import_peaks(
+    >>> anndata = crested.import_peaks(
     ...     bigwigs_folder="path/to/bigwigs",
     ...     regions_file="path/to/peaks.bed",
     ...     chromsizes_file="path/to/chrom.sizes,

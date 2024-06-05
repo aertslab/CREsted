@@ -4,15 +4,15 @@ import numpy as np
 import pytest
 from anndata import AnnData
 
-import enhancerai as enhai
+import crested
 
 
 def test_package_has_version():
-    assert enhai.__version__ is not None
+    assert crested.__version__ is not None
 
 
 def test_import_topics_shape():
-    ann_data = enhai.import_topics(
+    ann_data = crested.import_topics(
         topics_folder="tests/data/test_topics",
         regions_file="tests/data/test.regions.bed",
     )
@@ -32,7 +32,7 @@ def test_import_topics_shape():
 
 
 def test_import_topics_topics_subset():
-    ann_data = enhai.import_topics(
+    ann_data = crested.import_topics(
         topics_folder="tests/data/test_topics",
         regions_file="tests/data/test.regions.bed",
         topics_subset=["Topic_1", "Topic_2"],
@@ -42,11 +42,13 @@ def test_import_topics_topics_subset():
 
 def test_import_topics_invalid_files():
     with pytest.raises(FileNotFoundError):
-        enhai.import_topics(topics_folder="invalid_folder", regions_file="invalid_file")
+        crested.import_topics(
+            topics_folder="invalid_folder", regions_file="invalid_file"
+        )
 
 
 def test_import_topics_compression():
-    ann_data_c = enhai.import_topics(
+    ann_data_c = crested.import_topics(
         topics_folder="tests/data/test_topics",
         regions_file="tests/data/test.regions.bed",
         compress=True,
@@ -54,7 +56,7 @@ def test_import_topics_compression():
     assert ann_data_c.X.getformat() == "csr"
     assert ann_data_c.X.shape == (3, 23186)
 
-    ann_data = enhai.import_topics(
+    ann_data = crested.import_topics(
         topics_folder="tests/data/test_topics",
         regions_file="tests/data/test.regions.bed",
         compress=False,
@@ -66,7 +68,7 @@ def test_import_topics_compression():
 
 
 def test_import_topics_chromsizes():
-    ann_data = enhai.import_topics(
+    ann_data = crested.import_topics(
         topics_folder="tests/data/test_topics",
         regions_file="tests/data/test.regions.bed",
         chromsizes_file="tests/data/test.chrom.sizes",

@@ -3,7 +3,7 @@
 import tensorflow as tf
 import tensorflow.keras.layers as layers
 
-from enhancerai.tl.zoo.utils import conv_block_bs, dilated_residual
+from crested.tl.zoo.utils import conv_block_bs, dilated_residual
 
 
 def basenji(

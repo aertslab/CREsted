@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import tensorflow as tf
 
-from enhancerai.tl.losses import CosineMSELoss
-from enhancerai.tl.metrics import (
+from crested.tl.losses import CosineMSELoss
+from crested.tl.metrics import (
     ConcordanceCorrelationCoefficient,
     PearsonCorrelation,
     PearsonCorrelationLog,

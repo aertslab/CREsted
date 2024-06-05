@@ -286,7 +286,7 @@ if __name__ == "__main__":
     import pandas as pd
     import scipy.sparse as sp
 
-    from enhancerai.pp import train_val_test_split
+    from crested.pp import train_val_test_split
 
     def create_anndata_with_regions(
         regions: list[str],
