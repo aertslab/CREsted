@@ -2,7 +2,8 @@
 
 import tensorflow as tf
 import tensorflow.keras.layers as layers
-from utils import conv_block, dense_block
+
+from crested.tl.zoo.utils import conv_block, dense_block
 
 
 def simple_convnet(

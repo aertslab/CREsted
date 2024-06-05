@@ -23,7 +23,7 @@ dependencies = [
     "pandas",
     "tqdm",
     "wandb>=0.12.10",
-    "pyfaidx",
+    "pysam",
     "numpy<1.25.0",
     "scikit-learn",
     "tqdm",
@@ -35,6 +35,7 @@ dependencies = [
 dev = [
     "pre-commit",
     "twine>=4.0.2",
+    "pytest",
 ]
 doc = [
     "docutils>=0.8,!=0.18.*,!=0.19.*",
