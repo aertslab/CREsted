@@ -2,19 +2,32 @@ import anndata as ad
 import numpy as np
 import pandas as pd
 import pytest
+import scipy.sparse as sp
 
 import enhancerai as enhai
 
 
 def create_anndata_with_regions(
-    regions: list[str], chr_var_key: str = "chr"
+    regions: list[str],
+    chr_var_key: str = "chr",
+    compress: bool = False,
+    random_state: int = None,
 ) -> ad.AnnData:
-    """Utility function to create an AnnData object with given regions."""
+    """
+    Utility function to create an AnnData object with given regions, with options for compression
+    and reproducibility.
+    """
+    if random_state is not None:
+        np.random.seed(random_state)
     data = np.random.randn(10, len(regions))
     var = pd.DataFrame(index=regions)
     var[chr_var_key] = [region.split(":")[0] for region in regions]
     var["start"] = [int(region.split(":")[1].split("-")[0]) for region in regions]
     var["end"] = [int(region.split(":")[1].split("-")[1]) for region in regions]
+
+    if compress:
+        data = sp.csr_matrix(data)
+
     return ad.AnnData(X=data, var=var)
 
 
@@ -103,3 +116,38 @@ def test_train_val_test_split_by_chromosome_auto():
     assert val_count / total_count == pytest.approx(val_fraction, rel=1e-2)
     assert test_count / total_count == pytest.approx(test_fraction, rel=1e-2)
     assert train_count / total_count == pytest.approx(train_fraction, rel=1e-2)
+
+
+# def test_normalization_consistency():
+#     regions = [
+#         "chr1:100-200",
+#         "chr1:300-400",
+#         "chr2:100-200",
+#         "chr2:300-400",
+#         "chr3:100-200",
+#     ]
+#     adata_dense = create_anndata_with_regions(regions, random_state=42)
+#     adata_sparse = create_anndata_with_regions(regions, compress=True, random_state=42)
+
+#     normalized_dense = enhai.pp.normalize_peaks(
+#         adata_dense,
+#         peak_threshold=0.2,
+#         gini_std_threshold=1.0,
+#         top_k_percent=0.2,
+#     )
+#     normalized_sparse = enhai.pp.normalize_peaks(
+#         adata_sparse,
+#         peak_threshold=0.2,
+#         gini_std_threshold=1.0,
+#         top_k_percent=0.2,
+#     )
+
+#     normalized_sparse_dense = normalized_sparse.X.toarray()
+
+#     # Check that both normalized datasets are identical
+#     np.testing.assert_array_almost_equal(
+#         normalized_dense.X,
+#         normalized_sparse_dense,
+#         decimal=5,
+#         err_msg="Normalized results differ between dense and sparse formats.",
+#     )
