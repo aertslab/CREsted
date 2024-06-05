@@ -69,6 +69,9 @@ xfail_strict = true
 addopts = [
     "--import-mode=importlib",  # allow using test files with same name
 ]
+filterwarnings = [
+    "ignore::UserWarning"
+]
 
 [tool.ruff]
 line-length = 88
