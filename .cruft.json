@@ -4,14 +4,14 @@
     "checkout": "v0.3.1",
     "context": {
       "cookiecutter": {
-        "project_name": "EnhancerAI",
-        "package_name": "enhancerai",
+        "project_name": "crested",
+        "package_name": "crested",
         "project_description": "A deep learning toolkit for investigating the gene regulatory code",
         "author_full_name": "Lukas Mahieu",
         "author_email": "lukas.mahieu@kuleuven.be",
         "github_user": "LukasMahieu",
-        "project_repo": "https://github.com/aertslab/EnhancerAI/",
-        "license": "MIT License",
+        "project_repo": "https://github.com/aertslab/crested/",
+        "license": "license",
         "_copy_without_render": [
           ".github/workflows/build.yaml",
           ".github/workflows/test.yaml",
