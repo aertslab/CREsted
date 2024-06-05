@@ -165,7 +165,7 @@ def import_topics(
     if not regions_no_topics.empty:
         if remove_empty_regions:
             warnings.warn(
-                f"{len(regions_no_topics.index)} consensus regions are not open in any topic. Removing them from the AnnData object.",
+                f"{len(regions_no_topics.index)} consensus regions are not open in any topic. Removing them from the AnnData object. Disable this behavior by setting 'remove_empty_regions=False'",
                 stacklevel=1,
             )
             ann_data = ann_data[:, ann_data.var["n_topics"] > 0]
@@ -184,7 +184,7 @@ def import_peaks(
     """
     Import bigWig files and consensus regions BED file into AnnData format.
 
-    This format is required to be able to train a DeepEnhancer model.
+    This format is required to be able to train a peak prediction model.
     The bigWig files are the inputs to the model, and the consensus regions
     are the targets. The result is an AnnData object with bigWigs as rows and
     peaks as columns, with the bigWig values at each peak.
