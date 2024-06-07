@@ -7,8 +7,8 @@ from crested.tl.zoo.utils import conv_block_bs, dilated_residual
 
 
 def basenji(
-    input_shape: tuple,
-    output_shape: tuple,
+    seq_len: int,
+    num_classes: int,
     first_activation: str = "gelu",
     activation: str = "gelu",
     output_activation: str = "softplus",
@@ -22,10 +22,10 @@ def basenji(
 
     Parameters
     ----------
-    input_shape
-        Shape of the input data (sequence_length, 4).
-    output_shape
-        Shape of the output data (output_length, num_tasks).
+    seq_len
+        Width of the input region.
+    num_classes
+        Number of classes to predict.
     first_activation
         Activation function for the first convolutional block.
     activation
@@ -46,7 +46,7 @@ def basenji(
     tf.keras.Model
         A TensorFlow Keras model.
     """
-    window_size = int(input_shape[0] // output_shape[0] // 2)
+    window_size = int(seq_len // 2)
 
     if window_size == 0:
         pool_1 = 1
@@ -54,7 +54,7 @@ def basenji(
     else:
         pool_1 = 2
 
-    sequence = layers.Input(shape=input_shape, name="sequence")
+    sequence = layers.Input(shape=(seq_len, 4), name="sequence")
 
     current = conv_block_bs(
         sequence,
@@ -104,7 +104,7 @@ def basenji(
     current = layers.GlobalAveragePooling1D()(current)
 
     outputs = layers.Dense(
-        units=output_shape[-1],
+        units=num_classes,
         use_bias=True,
         activation=output_activation,
         kernel_initializer="he_normal",

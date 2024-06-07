@@ -7,8 +7,8 @@ from crested.tl.zoo.utils import conv_block, dense_block
 
 
 def simple_convnet(
-    input_shape: tuple,
-    output_shape: tuple,
+    seq_len: int,
+    num_classes: int,
     num_conv_blocks: int = 3,
     num_dense_blocks: int = 2,
     residual: int = 0,
@@ -35,10 +35,10 @@ def simple_convnet(
 
     Parameters
     ----------
-    input_shape
-        Shape of the input data.
-    output_shape
-        Shape of the output data.
+    seq_len
+        Width of the input region.
+    num_classes
+        Number of classes to predict.
     num_conv_blocks
         Number of convolutional blocks.
     num_dense_blocks
@@ -81,8 +81,7 @@ def simple_convnet(
     tf.keras.Model
         A TensorFlow Keras model.
     """
-    output_len, num_tasks = output_shape
-    inputs = layers.Input(shape=input_shape, name="sequence")
+    inputs = layers.Input(shape=(seq_len, 4), name="sequence")
 
     x = conv_block(
         inputs,
@@ -124,11 +123,11 @@ def simple_convnet(
 
     x = dense_block(
         x,
-        output_len * bottleneck,
+        bottleneck,
         activation,
         dropout=dense_dropout,
         normalization=normalization,
     )
 
-    outputs = layers.Dense(num_tasks, activation=output_activation)(x)
+    outputs = layers.Dense(num_classes, activation=output_activation)(x)
     return tf.keras.Model(inputs=inputs, outputs=outputs)

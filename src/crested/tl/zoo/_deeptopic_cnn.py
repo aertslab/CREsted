@@ -7,8 +7,8 @@ from crested.tl.zoo.utils import conv_block, dense_block
 
 
 def deeptopic_cnn(
-    input_shape: tuple,
-    output_shape: tuple,
+    seq_len: int,
+    num_classes: int,
     filters: int = 1024,
     first_kernel_size: int = 17,
     pool_size: int = 4,
@@ -27,10 +27,10 @@ def deeptopic_cnn(
 
     Parameters
     ----------
-    input_shape
-        Shape of the input data.
-    output_shape
-        Shape of the output data (1, C).
+    seq_len
+        Width of the input region.
+    num_classes
+        Number of classes to predict.
     filters
         Number of filters in the first convolutional layer.
         Followed by halving in subsequent layers.
@@ -62,7 +62,7 @@ def deeptopic_cnn(
     tf.keras.Model
         A TensorFlow Keras model.
     """
-    inputs = layers.Input(shape=input_shape, name="sequence")
+    inputs = layers.Input(shape=(seq_len, 4), name="sequence")
 
     x = conv_block(
         inputs,
@@ -137,6 +137,6 @@ def deeptopic_cnn(
         name_prefix="denseblock",
         use_bias=False,
     )
-    logits = layers.Dense(output_shape[-1], activation="linear", use_bias=True)(x)
+    logits = layers.Dense(num_classes, activation="linear", use_bias=True)(x)
     outputs = layers.Activation("sigmoid")(logits)
     return tf.keras.Model(inputs=inputs, outputs=outputs)

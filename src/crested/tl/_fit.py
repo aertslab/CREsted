@@ -5,6 +5,8 @@ from datetime import datetime
 
 import tensorflow as tf
 
+from crested.tl import AnnDataLoader
+
 
 def _initialize_callbacks(
     project_name: str,
@@ -19,39 +21,16 @@ def _initialize_callbacks(
     """Initialize callbacks"""
     callbacks = []
     if early_stopping:
-        if early_stopping_params is None:
-            early_stopping_params = {
-                "patience": 10,
-                "mode": "min",
-                "monitor": "val/loss",
-            }
         early_stopping_callback = tf.keras.callbacks.EarlyStopping(
             **early_stopping_params
         )
         callbacks.append(early_stopping_callback)
     if model_checkpointing:
-        if model_checkpointing_params is None:
-            model_checkpointing_params = {
-                "filename": os.path.join(
-                    project_name, "checkpoints", "{epoch:02d}.keras"
-                ),
-                "monitor": "val/loss",
-                "save_weights_only": False,
-                "save_freq": "epoch",
-                "save_best_only": True,
-            }
         model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
             **model_checkpointing_params
         )
         callbacks.append(model_checkpoint_callback)
     if learning_rate_reduce:
-        if learning_rate_reduce_params is None:
-            learning_rate_reduce_params = {
-                "monitor": "val/loss",
-                "factor": 0.25,
-                "patience": 4,
-                "min_lr": 1e-6,
-            }
         learning_rate_reduce_callback = tf.keras.callbacks.ReduceLROnPlateau(
             **learning_rate_reduce_params
         )
@@ -64,13 +43,14 @@ def _initialize_callbacks(
 def fit(
     task,
     model,
-    dataloader,
+    train_data,
+    val_data,
     project_name: str,
     epochs: int = 100,
     logger_type: str | None = "wandb",
     shuffle: bool = True,
-    train_batch_size: int = 32,
-    val_batch_size: int = 32,
+    train_batch_size: int = 64,
+    val_batch_size: int = 64,
     random_reverse_complement: bool = False,
     always_reverse_complement: bool = True,
     mixed_precision: bool = False,
@@ -84,6 +64,30 @@ def fit(
     seed: int | None = None,
 ):
     # Initialize callbacks
+    if model_checkpointing_params is None:
+        model_checkpointing_params = {
+            "filepath": os.path.join(project_name, "checkpoints", "{epoch:02d}.keras"),
+            "monitor": "val_loss",
+            "save_weights_only": False,
+            "save_freq": "epoch",
+            "save_best_only": True,
+        }
+
+    if learning_rate_reduce_params is None:
+        learning_rate_reduce_params = {
+            "monitor": "val_loss",
+            "factor": 0.25,
+            "patience": 4,
+            "min_lr": 1e-6,
+        }
+
+    if early_stopping_params is None:
+        early_stopping_params = {
+            "patience": 10,
+            "mode": "min",
+            "monitor": "val_loss",
+        }
+
     callbacks = _initialize_callbacks(
         project_name,
         early_stopping,
@@ -98,6 +102,7 @@ def fit(
     # Initialize logger
     if logger_type == "wandb":
         import wandb
+        from wandb.integration.keras import WandbMetricsLogger
 
         now = datetime.now().strftime("%Y-%m-%d_%H:%M")
 
@@ -106,6 +111,12 @@ def fit(
             # entity='deep-lcb',
             name=now,
         )
+        wandb_callback_epoch = WandbMetricsLogger(log_freq="epoch")
+        wandb_callback_batch = WandbMetricsLogger(log_freq=10)
+
+        callbacks.append(wandb_callback_epoch)
+        callbacks.append(wandb_callback_batch)
+
     elif logger_type is None:
         logger = None
     else:
@@ -125,18 +136,15 @@ def fit(
         print("WARNING: Mixed precision enabled. Disable on CPU or older GPUs.")
         tf.keras.mixed_precision.set_global_policy("mixed_float16")
 
-    dataloader.setup(
-        stage="fit",
-        random_reverse_complement=random_reverse_complement,
-        always_reverse_complement=always_reverse_complement,
+    train_dataloader = AnnDataLoader(
+        train_data, batch_size=train_batch_size, shuffle=True
     )
-    train_loader = dataloader.train_loader(batch_size=train_batch_size, shuffle=shuffle)
-    val_loader = dataloader.val_loader(batch_size=val_batch_size, shuffle=False)
+    val_dataloader = AnnDataLoader(val_data, batch_size=val_batch_size)
 
-    dataset_info = dataloader.info()
+    # dataset_info = dataloader.info()
 
-    n_train_steps_per_epoch = dataset_info["n_train"] // train_batch_size
-    n_val_steps_per_epoch = dataset_info["n_val"] // val_batch_size
+    n_train_steps_per_epoch = len(train_dataloader)
+    n_val_steps_per_epoch = len(val_dataloader)
 
     # Log configs
     if logger_type == "wandb":
@@ -146,8 +154,10 @@ def fit(
                 "epochs": epochs,
                 "train_batch_size": train_batch_size,
                 "val_batch_size": val_batch_size,
-                "seq_len": dataset_info["seq_len"],
-                "num_outputs": dataset_info["num_outputs"],
+                "n_train": len(train_data),
+                "n_val": len(val_data),
+                "n_train_steps_per_epoch": n_train_steps_per_epoch,
+                "n_val_steps_per_epoch": n_val_steps_per_epoch,
                 "random_reverse_complement": random_reverse_complement,
                 "always_reverse_complement": always_reverse_complement,
                 "mixed_precision": mixed_precision,
@@ -169,10 +179,11 @@ def fit(
             loss=task.loss,
             metrics=task.metrics,
         )
+    print(model.summary())
 
     model.fit(
-        train_loader,
-        validation_data=val_loader,
+        train_dataloader.data,
+        validation_data=val_dataloader.data,
         epochs=epochs,
         steps_per_epoch=n_train_steps_per_epoch,
         validation_steps=n_val_steps_per_epoch,

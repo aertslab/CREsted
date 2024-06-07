@@ -6,8 +6,8 @@ from tensorflow.keras.backend import int_shape
 
 
 def chrombpnet(
-    input_shape: tuple,
-    output_shape: tuple,
+    seq_len: int,
+    num_classes: int,
     first_conv_filters: int = 512,
     first_conv_filter_size: int = 5,
     first_conv_pool_size: int = 0,
@@ -28,10 +28,10 @@ def chrombpnet(
 
     Parameters
     ----------
-    input_shape
-        Shape of the input sequence.
-    output_shape
-        Shape of the output data.
+    seq_len
+        Width of the input region.
+    num_classes
+        Number of classes to predict.
     first_conv_filters
         Number of filters in the first convolutional layer.
     first_conv_filter_size
@@ -67,7 +67,7 @@ def chrombpnet(
         A TensorFlow Keras model.
     """
     # Model
-    inputs = layers.Input(shape=input_shape, name="sequence")
+    inputs = layers.Input(shape=(seq_len, 4), name="sequence")
 
     # Convolutional block without dilation
     x = layers.Conv1D(
@@ -127,7 +127,7 @@ def chrombpnet(
 
     x = layers.GlobalAveragePooling1D()(x)
     outputs = layers.Dense(
-        units=output_shape[-1], activation="softplus", use_bias=dense_bias
+        units=num_classes, activation="softplus", use_bias=dense_bias
     )(x)
 
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
