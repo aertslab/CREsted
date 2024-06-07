@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from os import PathLike
 
 import numpy as np
@@ -9,29 +10,52 @@ from pysam import FastaFile
 from scipy.sparse import spmatrix
 from tqdm import tqdm
 
+BASE_TO_INT_MAPPING = {"A": 0, "C": 1, "G": 2, "T": 3}
+STATIC_HASH_TABLE = tf.lookup.StaticHashTable(
+    initializer=tf.lookup.KeyValueTensorInitializer(
+        keys=tf.constant(list(BASE_TO_INT_MAPPING.keys())),
+        values=tf.constant(list(BASE_TO_INT_MAPPING.values()), dtype=tf.int32),
+    ),
+    default_value=-1,
+)
 
-class AnnDataSet:
+
+class AnnDataset:
     def __init__(
         self,
         anndata: AnnData,
         genome_file: PathLike,
-        indices: list[str],
+        split: str | None = None,
         chromsizes_file: PathLike | None = None,
         in_memory: bool = True,
         random_reverse_complement: bool = False,
         always_reverse_complement: bool = False,
         max_stochastic_shift: int = 0,
     ):
-        self.anndata = anndata
-        self.indices = list(indices)
+        self.anndata = (
+            anndata[:, anndata.var["split"] == split].copy()
+            if split
+            else anndata.copy()
+        )
+        self.indices = list(self.anndata.var_names)
         self.in_memory = in_memory
         self.compressed = isinstance(self.anndata.X, spmatrix)
         self.genome = FastaFile(genome_file)
         self.chromsizes = chromsizes_file
+        self.index_map = {index: i for i, index in enumerate(self.indices)}
+        self.shuffle = False  # shuffle is overwritten by dataloader
+
+        self.num_outputs = self.anndata.X.shape[0]
 
         self.complement = str.maketrans("ACGT", "TGCA")
         self.random_reverse_complement = random_reverse_complement
         self.always_reverse_complement = always_reverse_complement
+
+        if chromsizes_file is None:  # TODO: add shifting check
+            warnings.warn(
+                "Chromsizes file not provided. Will not check if regions are within chromosomes",
+                stacklevel=1,
+            )
 
         if random_reverse_complement and always_reverse_complement:
             raise ValueError(
@@ -48,12 +72,14 @@ class AnnDataSet:
                         self.sequences[f"{region}:+"]
                     )
 
-        self.augmented_indices, self.augmented_indices_map = self._augment_indices()
+        self.augmented_indices, self.augmented_indices_map = self._augment_indices(
+            self.indices
+        )
 
-    def _augment_indices(self):
+    def _augment_indices(self, indices: list[str]):
         augmented_indices = []
         augmented_indices_map = {}
-        for region in self.indices:
+        for region in indices:
             augmented_indices.append(f"{region}:+")
             augmented_indices_map[f"{region}:+"] = region
             if self.always_reverse_complement:
@@ -75,7 +101,7 @@ class AnnDataSet:
 
     def _get_target(self, index):
         """Get target values"""
-        y_index = self.indices.index(index)
+        y_index = self.index_map[index]
         if self.compressed:
             return self.anndata.X[:, y_index].toarray().flatten()
         return self.anndata.X[:, y_index]
@@ -99,157 +125,87 @@ class AnnDataSet:
                 x = self._reverse_complement(x)
 
         y = self._get_target(original_index)
-
         return x, y
 
-    def __iter__(self):
+    def __call__(self):
         """Generator for iterating over the dataset"""
         for i in range(len(self)):
             yield self.__getitem__(i)
 
+        if i == (len(self) - 1):
+            # on epoch end
+            if self.shuffle:
+                self._shuffle_indices()
+
+    def _shuffle_indices(self):
+        """Shuffle indices"""
+        np.random.shuffle(self.indices)
+        self.augmented_indices, self.augmented_indices_map = self._augment_indices(
+            self.indices
+        )
+
 
 class AnnDataLoader:
+    """
+    DataLoader class for AnnDataset with options for batching, shuffling, and one-hot encoding.
+
+    Attributes
+    ----------
+    dataset
+        The dataset instance provided.
+    batch_size
+        Number of samples per batch.
+    shuffle
+        Indicates whether shuffling is enabled.
+    one_hot_encode
+        Indicates whether one-hot encoding is enabled.
+    drop_remainder
+        Indicates whether to drop the last incomplete batch.
+
+    Examples
+    --------
+    >>> dataset = AnnDataset(...)  # Your dataset instance
+    >>> batch_size = 32
+    >>> dataloader = AnnDataLoader(
+    ...     dataset, batch_size, shuffle=True, one_hot_encode=True, drop_remainder=True
+    ... )
+    >>> for x, y in dataloader.data:
+    ...     # Your training loop here
+    """
+
     def __init__(
         self,
-        anndata: AnnData,
-        genome_file: PathLike,
-        chromsizes_file: PathLike | None = None,
-    ):
-        self.anndata = anndata
-        self.genome_file = genome_file
-        self.chromsizes_file = chromsizes_file
-
-        # get seq len from region width
-        start, end = self.anndata.var_names[0].split(":")[1].split("-")
-        self.seq_len = int(end) - int(start)
-        print(f"Detected sequence length of {self.seq_len} bp.")
-
-        self.num_outputs = self.anndata.n_obs
-
-        self.base_to_int_mapping = {"A": 0, "C": 1, "G": 2, "T": 3}
-        self.table = tf.lookup.StaticHashTable(
-            initializer=tf.lookup.KeyValueTensorInitializer(
-                keys=tf.constant(list(self.base_to_int_mapping.keys())),
-                values=tf.constant(
-                    list(self.base_to_int_mapping.values()), dtype=tf.int32
-                ),
-            ),
-            default_value=-1,
-        )
-        self.train_dataset = None
-        self.val_dataset = None
-        self.test_dataset = None
-        self.predict_dataset = None
-
-    def setup(self, stage: str = "fit", **kwargs):
-        train_idx = self.anndata.var_names[self.anndata.var["split"] == "train"]
-        val_idx = self.anndata.var_names[self.anndata.var["split"] == "val"]
-        test_idx = self.anndata.var_names[self.anndata.var["split"] == "test"]
-        all_idx = self.anndata.var_names
-
-        if stage == "fit":
-            self.train_dataset = AnnDataSet(
-                self.anndata,
-                self.genome_file,
-                train_idx,
-                self.chromsizes_file,
-                **kwargs,
-            )
-            self.val_dataset = AnnDataSet(
-                self.anndata, self.genome_file, val_idx, self.chromsizes_file
-            )
-        elif stage == "test":
-            self.test_dataset = AnnDataSet(
-                self.anndata, self.genome_file, test_idx, self.chromsizes_file
-            )
-        elif stage == "predict":
-            self.predict_dataset = AnnDataSet(
-                self.anndata, self.genome_file, all_idx, self.chromsizes_file
-            )
-        else:
-            raise ValueError("Stage must be one of 'fit', 'test', or 'predict'.")
-
-    def train_dataloader(
-        self, batch_size: int, shuffle: bool = False
-    ) -> tf.data.Dataset:
-        """Train dataloader"""
-        if self.train_dataset is None:
-            raise ValueError(
-                "Train dataset is not setup. Run `setup(stage='fit') first.`"
-            )
-        return self._create_dataloader(self.train_dataset, batch_size, shuffle)
-
-    def val_dataloader(self, batch_size: int, shuffle: bool = False) -> tf.data.Dataset:
-        """Val dataloader"""
-        if self.val_dataset is None:
-            raise ValueError(
-                "Val dataset is not setup. Run `setup(stage='fit') first.`"
-            )
-        return self._create_dataloader(self.val_dataset, batch_size, shuffle)
-
-    def test_dataloader(
-        self, batch_size: int, shuffle: bool = False
-    ) -> tf.data.Dataset:
-        """Test dataloader"""
-        if self.test_dataset is None:
-            raise ValueError(
-                "Test dataset is not setup. Run `setup(stage='test') first.`"
-            )
-        return self._create_dataloader(self.test_dataset, batch_size, shuffle)
-
-    def predict_dataloader(
-        self, batch_size: int, shuffle: bool = False
-    ) -> tf.data.Dataset:
-        """Predict dataloader"""
-        if self.predict_dataset is None:
-            raise ValueError(
-                "Predict dataset is not setup. Run `setup(stage='predict') first.`"
-            )
-        return self._create_dataloader(self.predict_dataset, batch_size, shuffle)
-
-    def info(self):
-        """Get info on the current datasets."""
-        datasets = {
-            "n_train": self.train_dataset,
-            "n_val": self.val_dataset,
-            "n_test": self.test_dataset,
-            "n_predict": self.predict_dataset,
-        }
-        datasets = {
-            key: len(value) if value is not None else None
-            for key, value in datasets.items()
-        }
-        other_info = {
-            "seq_len": self.seq_len,
-            "num_outputs": self.num_outputs,
-        }
-        return {**datasets, **other_info}
-
-    def _create_dataloader(
-        self,
-        dataset: tf.data.Dataset,
+        dataset: AnnDataset,
         batch_size: int,
-        shuffle: bool,
+        shuffle: bool = False,
+        one_hot_encode: bool = True,
+        drop_remainder: bool = True,
     ):
-        ds = self._generator(dataset)
-        ds = ds.map(
-            lambda seq, tgt: self._map_one_hot_encode(seq, tgt),
-            num_parallel_calls=tf.data.AUTOTUNE,
-        )
-        if shuffle:
-            ds = ds.shuffle(buffer_size=batch_size * 8, reshuffle_each_iteration=True)
-        ds = ds.batch(batch_size).prefetch(tf.data.AUTOTUNE)
-        return ds
+        """
+        Initialize the DataLoader with the provided dataset and options.
 
-    def _generator(self, dataset) -> tf.data.Dataset:
-        """Returns tf dataset generator."""
-        return tf.data.Dataset.from_generator(
-            dataset.__iter__,
-            output_signature=(
-                tf.TensorSpec(shape=(), dtype=tf.string),
-                tf.TensorSpec(shape=(self.num_outputs,), dtype=tf.float32),
-            ),
-        )
+        Parameters
+        ----------
+        dataset
+            An instance of AnnDataset containing the data to be loaded.
+        batch_size
+            Number of samples per batch to load.
+        shuffle
+            If True, the data will be shuffled at the end of each epoch. Default is False.
+        one_hot_encode
+            If True, sequences will be one-hot encoded. Default is True.
+        drop_remainder
+            If True, the last batch will be dropped if it is smaller than batch_size. Default is True.
+
+        """
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.one_hot_encode = one_hot_encode
+        self.drop_remainder = drop_remainder
+
+        if self.shuffle:
+            self.dataset.shuffle = True
 
     @tf.function
     def _map_one_hot_encode(self, sequence, target):
@@ -259,25 +215,46 @@ class AnnDataLoader:
         elif isinstance(sequence, tf.Tensor) and sequence.ndim == 0:
             sequence = tf.expand_dims(sequence, 0)
 
-        # Define one_hot_encode function using TensorFlow operations
         def one_hot_encode(sequence):
-            # Map each base to an integer
             char_seq = tf.strings.unicode_split(sequence, "UTF-8")
-            integer_seq = self.table.lookup(char_seq)
-            # One-hot encode the integer sequence
+            integer_seq = STATIC_HASH_TABLE.lookup(char_seq)
             x = tf.one_hot(integer_seq, depth=4)
             return x
 
-        # Apply one_hot_encode to each sequence
         one_hot_sequence = tf.map_fn(
             one_hot_encode,
             sequence,
-            fn_output_signature=tf.TensorSpec(
-                shape=(self.seq_len, 4), dtype=tf.float32
-            ),
+            fn_output_signature=tf.TensorSpec(shape=(None, 4), dtype=tf.float32),
         )
         one_hot_sequence = tf.squeeze(one_hot_sequence, axis=0)  # remove extra map dim
         return one_hot_sequence, target
+
+    def _create_dataset(self):
+        ds = tf.data.Dataset.from_generator(
+            lambda: self.dataset,
+            output_signature=(
+                tf.TensorSpec(shape=(), dtype=tf.string),
+                tf.TensorSpec(shape=(self.dataset.num_outputs,), dtype=tf.float32),
+            ),
+        )
+        if self.one_hot_encode:
+            ds = ds.map(
+                lambda seq, tgt: self._map_one_hot_encode(seq, tgt),
+                num_parallel_calls=tf.data.AUTOTUNE,
+            )
+        ds = (
+            ds.batch(self.batch_size, drop_remainder=self.drop_remainder)
+            .repeat()
+            .prefetch(tf.data.AUTOTUNE)
+        )
+        return ds
+
+    @property
+    def data(self):
+        return self._create_dataset()
+
+    def __len__(self):
+        return len(self.dataset) // self.batch_size
 
 
 if __name__ == "__main__":
@@ -286,6 +263,7 @@ if __name__ == "__main__":
     import pandas as pd
     import scipy.sparse as sp
 
+    from crested import import_topics
     from crested.pp import train_val_test_split
 
     def create_anndata_with_regions(
@@ -296,7 +274,7 @@ if __name__ == "__main__":
     ) -> AnnData:
         if random_state is not None:
             np.random.seed(random_state)
-        data = np.random.randn(10, len(regions))
+        data = np.random.randn(3, len(regions))
         var = pd.DataFrame(index=regions)
         var[chr_var_key] = [region.split(":")[0] for region in regions]
         var["start"] = [int(region.split(":")[1].split("-")[0]) for region in regions]
@@ -321,8 +299,15 @@ if __name__ == "__main__":
         "chr1:3165708-3166208",
         "chr1:3166923-3167423",
     ]
+    adata = import_topics(
+        topics_folder="/staging/leuven/stg_00002/lcb/lmahieu/projects/DeepTopic/biccn_test/otsu",
+        regions_file="/staging/leuven/stg_00002/lcb/lmahieu/projects/DeepTopic/biccn_test/consensus_peaks_bicnn.bed",
+        compress=False,
+        # topics_subset=["topic_1", "topic_2"], # optional subset of topics to import
+    )
+    genome_file = "/staging/leuven/res_00001/genomes/10xgenomics/CellRangerARC/refdata-cellranger-arc-mm10-2020-A-2.0.0/fasta/genome.fa"
 
-    adata = create_anndata_with_regions(regions, compress=True, random_state=42)
+    # adata = create_anndata_with_regions(regions, compress=False, random_state=42)
     train_val_test_split(
         adata,
         strategy="region",
@@ -331,20 +316,37 @@ if __name__ == "__main__":
         shuffle=True,
         random_state=42,
     )
+    import time
 
     # Test anndataset
-    # dataset = AnnDataSet(
-    #     adata, genome_file, adata.var_names, random_reverse_complement=True
-    # )
-    # for x, y in dataset:
-    #     print(x, y)
+    train_data = AnnDataset(
+        adata,
+        genome_file,
+        split="train",
+        always_reverse_complement=True,
+    )
+    train_loader = AnnDataLoader(train_data, shuffle=True, batch_size=256)
+    print(f"LENGTH DATA: {len(train_data)}")
+    print(f"LENGTH LOADER: {len(train_loader)}")
+    # start = time.time()
+    # for i, (x, y) in enumerate(dataset):
+    #     if i == 100000:
+    #         break
+    #     if i % 10000 == 0:
+    #         print("Time taken:", time.time() - start)
+    #         start = time.time()
 
-    # # test dataloader
-    dataloader = AnnDataLoader(adata, genome_file)
-    dataloader.setup(stage="fit", random_reverse_complement=True)
-    train_loader = dataloader.train_dataloader(shuffle=True, batch_size=2)
-    val_loader = dataloader.val_dataloader(shuffle=False, batch_size=4)
+    # # # # test dataloader
 
-    for x, y in train_loader:
-        print(x.shape, y.shape)
-        break
+    # # time the code
+
+    start = time.time()
+    for i, (x, y) in enumerate(train_loader.data):
+        # if i % 50 == 0:
+        #     print("Time taken:", time.time() - start)
+        #     start = time.time()
+        # print(i)
+        if i == 300:
+            print(x.shape, y.shape)
+            print("done")
+            break
