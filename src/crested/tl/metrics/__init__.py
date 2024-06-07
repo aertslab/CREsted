@@ -1,3 +1,4 @@
+from ._collections import metrics_collection
 from ._concordancecorr import ConcordanceCorrelationCoefficient
 from ._pearsoncorr import PearsonCorrelation
 from ._pearsoncorrlog import PearsonCorrelationLog
