@@ -11,7 +11,7 @@
         "author_email": "lukas.mahieu@kuleuven.be",
         "github_user": "LukasMahieu",
         "project_repo": "https://github.com/aertslab/crested/",
-        "license": "license",
+        "license": "LICENSE",
         "_copy_without_render": [
           ".github/workflows/build.yaml",
           ".github/workflows/test.yaml",
