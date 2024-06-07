@@ -9,6 +9,29 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix
 
 
+def _sort_topic_files(filename: str):
+    """Sorts topic files.
+
+    Prioritizes numeric extraction from filenames of the format 'Topic_X.bed' (X=int).
+    Other filenames are sorted alphabetically, with 'Topic_' files coming last if numeric extraction fails.
+    """
+    filename = Path(filename)
+    parts = filename.stem.split("_")
+
+    if len(parts) > 1:
+        try:
+            return (False, int(parts[1]))
+        except ValueError:
+            # If the numeric part is not an integer, handle gracefully
+            return (True, filename.stem)
+
+    # Return True for the first element to sort non-'Topic_X' filenames alphabetically after 'Topic_X'
+    return (
+        True,
+        filename.stem,
+    )
+
+
 def import_topics(
     topics_folder: PathLike,
     regions_file: PathLike,
@@ -118,7 +141,7 @@ def import_topics(
     topic_file_paths = []
 
     # Which topic regions are present in the consensus regions
-    for topic_file in sorted(topics_folder.glob("*.bed")):
+    for topic_file in sorted(topics_folder.glob("*.bed"), key=_sort_topic_files):
         topic_name = topic_file.stem
         if topics_subset is None or topic_name in topics_subset:
             topic_peaks = pd.read_csv(
