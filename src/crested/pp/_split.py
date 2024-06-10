@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 from collections import defaultdict
 
 import numpy as np
@@ -264,4 +265,6 @@ def train_val_test_split(
     elif strategy == "chr_auto":
         split = _split_by_chromosome_auto(regions, val_size, test_size)
 
-    adata.var["split"] = split
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        adata.var["split"] = split
