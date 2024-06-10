@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import warnings
 from os import PathLike
 from pathlib import Path
 
 import pandas as pd
 from anndata import AnnData
+from loguru import logger
 from scipy.sparse import csr_matrix
 
 
@@ -93,7 +93,7 @@ def import_topics(
         if not chromsizes_file.is_file():
             raise FileNotFoundError(f"File '{chromsizes_file}' not found")
     if chromsizes_file is None:
-        warnings.warn(
+        logger.warning(
             "Chromsizes file not provided. Will not check if regions are within chromosomes",
             stacklevel=1,
         )
@@ -131,9 +131,8 @@ def import_topics(
         consensus_peaks_filtered = consensus_peaks[valid_mask]
 
         if len(consensus_peaks) != len(consensus_peaks_filtered):
-            warnings.warn(
+            logger.warning(
                 f"Filtered {len(consensus_peaks) - len(consensus_peaks_filtered)} consensus regions (not within chromosomes)",
-                stacklevel=1,
             )
         consensus_peaks = consensus_peaks_filtered
 
@@ -187,9 +186,8 @@ def import_topics(
     regions_no_topics = ann_data.var[ann_data.var["n_topics"] == 0]
     if not regions_no_topics.empty:
         if remove_empty_regions:
-            warnings.warn(
+            logger.warning(
                 f"{len(regions_no_topics.index)} consensus regions are not open in any topic. Removing them from the AnnData object. Disable this behavior by setting 'remove_empty_regions=False'",
-                stacklevel=1,
             )
             ann_data = ann_data[:, ann_data.var["n_topics"] > 0]
 
