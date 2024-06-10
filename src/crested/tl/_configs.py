@@ -70,6 +70,23 @@ def default_configs(
 ) -> tuple[
     tf.keras.optimizers.Optimizer, tf.keras.losses.Loss, list[tf.keras.metrics.Metric]
 ]:
+    """Get default loss, optimizer, and metrics for a given task.
+
+    Example
+    -------
+    >>> configs = default_configs("topic_classification")
+    >>> optimizer, loss, metrics = configs.optimizer, configs.loss, configs.metrics
+
+    Parameters
+    ----------
+    task : str
+        Task for which to get default components.
+
+    Returns
+    -------
+    tuple
+        Optimizer, loss, and metrics for the given task.
+    """
     task_classes = {
         "topic_classification": TopicClassificationConfig,
         # Add other tasks and their corresponding classes here
