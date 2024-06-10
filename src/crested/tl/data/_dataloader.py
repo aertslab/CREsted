@@ -1,14 +1,12 @@
-from __future__ import annotations
+"""Dataloader for batching, shuffling, and one-hot encoding of AnnDataset."""
 
-import warnings
-from os import PathLike
+from __future__ import annotations
 
 import numpy as np
 import tensorflow as tf
 from anndata import AnnData
-from pysam import FastaFile
-from scipy.sparse import spmatrix
-from tqdm import tqdm
+
+from crested.tl.data import AnnDataset
 
 BASE_TO_INT_MAPPING = {"A": 0, "C": 1, "G": 2, "T": 3}
 STATIC_HASH_TABLE = tf.lookup.StaticHashTable(
@@ -18,131 +16,6 @@ STATIC_HASH_TABLE = tf.lookup.StaticHashTable(
     ),
     default_value=-1,
 )
-
-
-class AnnDataset:
-    def __init__(
-        self,
-        anndata: AnnData,
-        genome_file: PathLike,
-        split: str | None = None,
-        chromsizes_file: PathLike | None = None,
-        in_memory: bool = True,
-        random_reverse_complement: bool = False,
-        always_reverse_complement: bool = False,
-        max_stochastic_shift: int = 0,
-    ):
-        self.anndata = (
-            anndata[:, anndata.var["split"] == split].copy()
-            if split
-            else anndata.copy()
-        )
-        self.indices = list(self.anndata.var_names)
-        self.in_memory = in_memory
-        self.compressed = isinstance(self.anndata.X, spmatrix)
-        self.genome = FastaFile(genome_file)
-        self.chromsizes = chromsizes_file
-        self.index_map = {index: i for i, index in enumerate(self.indices)}
-        self.shuffle = False  # shuffle is overwritten by dataloader
-
-        self.num_outputs = self.anndata.X.shape[0]
-
-        self.complement = str.maketrans("ACGT", "TGCA")
-        self.random_reverse_complement = random_reverse_complement
-        self.always_reverse_complement = always_reverse_complement
-
-        if chromsizes_file is None:  # TODO: add shifting check
-            warnings.warn(
-                "Chromsizes file not provided. Will not check if regions are within chromosomes",
-                stacklevel=1,
-            )
-
-        if random_reverse_complement and always_reverse_complement:
-            raise ValueError(
-                "Only one of `random_reverse_complement` and `always_reverse_complement` can be True."
-            )
-
-        if self.in_memory:
-            print("Loading sequences into memory...")
-            self.sequences = {}
-            for region in tqdm(self.indices):
-                self.sequences[f"{region}:+"] = self._get_sequence(region)
-                if self.always_reverse_complement:
-                    self.sequences[f"{region}:-"] = self._reverse_complement(
-                        self.sequences[f"{region}:+"]
-                    )
-
-        self.augmented_indices, self.augmented_indices_map = self._augment_indices(
-            self.indices
-        )
-
-    def _augment_indices(self, indices: list[str]):
-        augmented_indices = []
-        augmented_indices_map = {}
-        for region in indices:
-            augmented_indices.append(f"{region}:+")
-            augmented_indices_map[f"{region}:+"] = region
-            if self.always_reverse_complement:
-                augmented_indices.append(f"{region}:-")
-                augmented_indices_map[f"{region}:-"] = region
-        return augmented_indices, augmented_indices_map
-
-    def __len__(self):
-        return len(self.augmented_indices)
-
-    def _get_sequence(self, region):
-        """Get sequence from genome file"""
-        chrom, start_end = region.split(":")
-        start, end = start_end.split("-")
-        return self.genome.fetch(chrom, int(start), int(end))
-
-    def _reverse_complement(self, sequence):
-        return sequence.translate(self.complement)[::-1]
-
-    def _get_target(self, index):
-        """Get target values"""
-        y_index = self.index_map[index]
-        if self.compressed:
-            return self.anndata.X[:, y_index].toarray().flatten()
-        return self.anndata.X[:, y_index]
-
-    def __getitem__(self, idx: int) -> tuple[str, np.ndarray]:
-        """Get x, y (seq, target) by index"""
-        augmented_index = self.augmented_indices[idx]
-        original_index = self.augmented_indices_map[augmented_index]
-
-        if self.in_memory:
-            x = self.sequences[augmented_index]
-        else:
-            x = self._get_sequence(original_index)
-
-            if augmented_index.endswith(":-"):
-                # only possible if always_reverse_complement is True
-                x = self._reverse_complement(x)
-
-        if self.random_reverse_complement:
-            if np.random.rand() < 0.5:
-                x = self._reverse_complement(x)
-
-        y = self._get_target(original_index)
-        return x, y
-
-    def __call__(self):
-        """Generator for iterating over the dataset"""
-        for i in range(len(self)):
-            yield self.__getitem__(i)
-
-        if i == (len(self) - 1):
-            # on epoch end
-            if self.shuffle:
-                self._shuffle_indices()
-
-    def _shuffle_indices(self):
-        """Shuffle indices"""
-        np.random.shuffle(self.indices)
-        self.augmented_indices, self.augmented_indices_map = self._augment_indices(
-            self.indices
-        )
 
 
 class AnnDataLoader:
@@ -265,6 +138,7 @@ if __name__ == "__main__":
 
     from crested import import_topics
     from crested.pp import train_val_test_split
+    from crested.tl.data import AnnDataset
 
     def create_anndata_with_regions(
         regions: list[str],
@@ -325,6 +199,7 @@ if __name__ == "__main__":
         split="train",
         always_reverse_complement=True,
     )
+    print(train_data)
     train_loader = AnnDataLoader(train_data, shuffle=True, batch_size=256)
     print(f"LENGTH DATA: {len(train_data)}")
     print(f"LENGTH LOADER: {len(train_loader)}")
