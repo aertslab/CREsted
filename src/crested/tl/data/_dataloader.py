@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 from anndata import AnnData
 
-from crested.tl.data import AnnDataset
+from ._dataset import AnnDataset
 
 BASE_TO_INT_MAPPING = {"A": 0, "C": 1, "G": 2, "T": 3}
 STATIC_HASH_TABLE = tf.lookup.StaticHashTable(
