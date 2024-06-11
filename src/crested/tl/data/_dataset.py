@@ -136,7 +136,6 @@ class AnnDataset:
         always_reverse_complement: bool = False,
         max_stochastic_shift: int = 0,
     ):
-        self._validate_init_args(random_reverse_complement, always_reverse_complement)
         self.anndata = self._split_anndata(anndata, split)
         self.split = split
         self.indices = list(self.anndata.var_names)
@@ -149,9 +148,6 @@ class AnnDataset:
         self.max_stochastic_shift = max_stochastic_shift
         self.shuffle = False  # managed by subclass AnnDataLoader
 
-        if (chromsizes_file is None) and (max_stochastic_shift > 0):
-            self._warn_no_chromsizes_file()
-
         self.sequence_loader = SequenceLoader(
             genome_file,
             self.chromsizes,
@@ -161,21 +157,6 @@ class AnnDataset:
             self.indices,
         )
         self.index_manager = IndexManager(self.indices, always_reverse_complement)
-
-    @staticmethod
-    def _validate_init_args(
-        random_reverse_complement: bool, always_reverse_complement: bool
-    ):
-        if random_reverse_complement and always_reverse_complement:
-            raise ValueError(
-                "Only one of `random_reverse_complement` and `always_reverse_complement` can be True."
-            )
-
-    @staticmethod
-    def _warn_no_chromsizes_file():
-        logger.warning(
-            "Chromsizes file not provided when shifting. Will not check if shifted regions are within chromosomes",
-        )
 
     @staticmethod
     def _split_anndata(anndata: AnnData, split: str) -> AnnData:
