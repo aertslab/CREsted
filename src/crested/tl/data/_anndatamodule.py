@@ -180,3 +180,13 @@ class AnnDataModule:
             shuffle=False,
             drop_remainder=False,
         )
+
+    def __repr__(self):
+        return (
+            f"AnndataModule(adata={self.adata}, genome_file={self.genome_file}, "
+            f"chromsizes_file={self.chromsizes_file}, in_memory={self.in_memory}, "
+            f"always_reverse_complement={self.always_reverse_complement}, "
+            f"random_reverse_complement={self.random_reverse_complement}, "
+            f"max_stochastic_shift={self.max_stochastic_shift}, shuffle={self.shuffle}, "
+            f"batch_size={self.batch_size}, drop_remainder={self.drop_remainder})"
+        )
