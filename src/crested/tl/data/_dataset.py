@@ -11,11 +11,14 @@ from pysam import FastaFile
 from scipy.sparse import spmatrix
 from tqdm import tqdm
 
+from crested.io import _read_chromsizes
+
 
 class SequenceLoader:
     def __init__(
         self,
         genome_file: PathLike,
+        chromsizes: dict | None,
         in_memory: bool,
         always_reverse_complement: bool,
         max_stochastic_shift: int,
@@ -47,7 +50,16 @@ class SequenceLoader:
         chrom, start_end = region.split(":")
         start, end = map(int, start_end.split("-"))
         extended_start = max(0, start - self.max_stochastic_shift)
-        extended_end = end + self.max_stochastic_shift
+        extended_end = extended_start + (end - start) + (self.max_stochastic_shift * 2)
+
+        if self.chromsizes and chrom in self.chromsizes:
+            chrom_size = self.chromsizes[chrom]
+            if extended_end > chrom_size:
+                extended_start = chrom_size - (
+                    end - start + self.max_stochastic_shift * 2
+                )
+                extended_end = chrom_size
+
         return self.genome.fetch(chrom, extended_start, extended_end)
 
     def _reverse_complement(self, sequence: str) -> str:
@@ -121,7 +133,7 @@ class AnnDataset:
         self.indices = list(self.anndata.var_names)
         self.in_memory = in_memory
         self.compressed = isinstance(self.anndata.X, spmatrix)
-        self.chromsizes = chromsizes_file
+        self.chromsizes = _read_chromsizes(chromsizes_file) if chromsizes_file else None
         self.index_map = {index: i for i, index in enumerate(self.indices)}
         self.num_outputs = self.anndata.X.shape[0]
         self.random_reverse_complement = random_reverse_complement
@@ -133,6 +145,7 @@ class AnnDataset:
 
         self.sequence_loader = SequenceLoader(
             genome_file,
+            self.chromsizes,
             in_memory,
             always_reverse_complement,
             max_stochastic_shift,
