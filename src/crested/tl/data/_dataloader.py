@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import numpy as np
 import tensorflow as tf
-from anndata import AnnData
 
 from ._dataset import AnnDataset
 
