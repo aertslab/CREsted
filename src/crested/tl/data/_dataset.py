@@ -157,6 +157,7 @@ class AnnDataset:
             self.indices,
         )
         self.index_manager = IndexManager(self.indices, always_reverse_complement)
+        self.seq_len = len(self.sequence_loader.get_sequence(self.indices[0]))
 
     @staticmethod
     def _split_anndata(anndata: AnnData, split: str) -> AnnData:

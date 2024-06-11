@@ -95,7 +95,9 @@ class AnnDataLoader:
         one_hot_sequence = tf.map_fn(
             one_hot_encode,
             sequence,
-            fn_output_signature=tf.TensorSpec(shape=(None, 4), dtype=tf.float32),
+            fn_output_signature=tf.TensorSpec(
+                shape=(self.dataset.seq_len, 4), dtype=tf.float32
+            ),
         )
         one_hot_sequence = tf.squeeze(one_hot_sequence, axis=0)  # remove extra map dim
         return one_hot_sequence, target
