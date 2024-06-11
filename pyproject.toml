@@ -28,7 +28,7 @@ dependencies = [
     "scikit-learn",
     "tqdm",
     "shap",
-    "ipykernel",
+    "loguru",
 ]
 
 [project.optional-dependencies]
