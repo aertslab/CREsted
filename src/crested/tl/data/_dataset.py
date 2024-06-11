@@ -5,13 +5,21 @@ from __future__ import annotations
 from os import PathLike
 
 import numpy as np
+import pandas as pd
 from anndata import AnnData
 from loguru import logger
 from pysam import FastaFile
 from scipy.sparse import spmatrix
 from tqdm import tqdm
 
-from crested.io import _read_chromsizes
+
+def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
+    """Read chromsizes file into a dictionary."""
+    chromsizes = pd.read_csv(
+        chromsizes_file, sep="\t", header=None, names=["chr", "size"]
+    )
+    chromsizes_dict = chromsizes.set_index("chr")["size"].to_dict()
+    return chromsizes_dict
 
 
 class SequenceLoader:
@@ -25,6 +33,7 @@ class SequenceLoader:
         regions: list[str] = None,
     ):
         self.genome = FastaFile(genome_file)
+        self.chromsizes = chromsizes
         self.in_memory = in_memory
         self.always_reverse_complement = always_reverse_complement
         self.max_stochastic_shift = max_stochastic_shift
