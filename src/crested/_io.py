@@ -32,6 +32,15 @@ def _sort_topic_files(filename: str):
     )
 
 
+def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
+    """Read chromsizes file into a dictionary."""
+    chromsizes = pd.read_csv(
+        chromsizes_file, sep="\t", header=None, names=["chr", "size"]
+    )
+    chromsizes_dict = chromsizes.set_index("chr")["size"].to_dict()
+    return chromsizes_dict
+
+
 def import_topics(
     topics_folder: PathLike,
     regions_file: PathLike,
@@ -118,10 +127,7 @@ def import_topics(
 
     # Check if regions are within chromosomes
     if chromsizes_file is not None:
-        chromsizes = pd.read_csv(
-            chromsizes_file, sep="\t", header=None, names=["chr", "size"]
-        )
-        chromsizes_dict = chromsizes.set_index("chr")["size"].to_dict()
+        chromsizes_dict = _read_chromsizes(chromsizes_file)
         valid_mask = consensus_peaks.apply(
             lambda row: row[0] in chromsizes_dict
             and row[1] >= 0
