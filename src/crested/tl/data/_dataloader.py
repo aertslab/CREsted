@@ -126,3 +126,10 @@ class AnnDataLoader:
 
     def __len__(self):
         return len(self.dataset) // self.batch_size
+
+    def __repr__(self):
+        return (
+            f"AnnDataLoader(dataset={self.dataset}, batch_size={self.batch_size}, "
+            f"shuffle={self.shuffle}, one_hot_encode={self.one_hot_encode}, "
+            f"drop_remainder={self.drop_remainder})"
+        )
