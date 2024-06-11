@@ -1,3 +1,3 @@
 from . import data, losses, metrics, zoo
-from ._configs import default_configs
-from ._fit import fit
+from ._configs import TaskConfig, default_configs
+from ._crested import Crested
