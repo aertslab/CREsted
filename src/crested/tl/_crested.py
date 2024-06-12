@@ -5,9 +5,12 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+import numpy as np
 import tensorflow as tf
+from anndata import AnnData
 from loguru import logger
 
+from crested._logging import log_and_raise
 from crested.tl import TaskConfig
 from crested.tl.data import AnnDataModule
 
@@ -103,21 +106,6 @@ class Crested:
 
         return logger_type, callbacks
 
-    def _check_fit_params(self):
-        """Check if the necessary parameters are set for the fit method."""
-        if not self.model:
-            raise ValueError(
-                "Model not set. Please load a model from pretrained using Crested.load_model(...) or provide a model architecture with Crested(model=...) before calling fit."
-            )
-        if not self.config:
-            raise ValueError(
-                "Task configuration not set. Please provide a TaskConfig to Crested(config=...) before calling fit."
-            )
-        if not self.project_name:
-            raise ValueError(
-                "Project name not set. Please provide a project name to Crested(project_name=...) before calling fit."
-            )
-
     def load_model(self, model_path: os.PathLike):
         """Load a model from a file."""
         self.model = tf.keras.models.load_model(model_path, compile=True)
@@ -136,6 +124,7 @@ class Crested:
     ):
         """Fit the model."""
         self._check_fit_params()
+        self._check_gpu_availability()
 
         callbacks = self._initialize_callbacks(
             self.save_dir,
@@ -172,7 +161,7 @@ class Crested:
 
         print(self.model.summary())
         devices = tf.config.list_physical_devices("GPU")
-        logger.info(f"Number of GPUs available: {len(devices)}")
+        logger.info(f"Number of GPUs in use: {len(devices)}")
 
         # setup data
         self.anndatamodule.setup("fit")
@@ -194,8 +183,11 @@ class Crested:
         # if self.logger_type == "wandb":
         #     self.logger.finish()
 
-    def test(self, return_metrics: bool = False):
+    def test(self, return_metrics: bool = False) -> dict | None:
         """Evaluate the model."""
+        self._check_test_params()
+        self._check_gpu_availability()
+
         self.anndatamodule.setup("test")
         test_loader = self.anndatamodule.test_dataloader
 
@@ -211,3 +203,73 @@ class Crested:
 
         if return_metrics:
             return evaluation_metrics
+
+    def predict(
+        self,
+        anndata: AnnData | None = None,
+        model_name: str | None = None,
+    ) -> np.ndarray:
+        """Make predictions using the model."""
+        self._check_predict_params(anndata, model_name)
+        self._check_gpu_availability()
+
+        self.anndatamodule.setup("predict")
+        predict_loader = self.anndatamodule.predict_dataloader
+
+        n_predict_steps = len(predict_loader)
+
+        predictions = self.model.predict(predict_loader.data, steps=n_predict_steps)
+
+        # If anndata and model_name are provided, add predictions to anndata layers
+        if anndata is not None and model_name is not None:
+            anndata.layers[model_name] = predictions.T
+
+        return predictions
+
+    @staticmethod
+    def _check_gpu_availability():
+        """Check if GPUs are available."""
+        devices = tf.config.list_physical_devices("GPU")
+        if not devices:
+            logger.warning("No GPUs available.")
+
+    @log_and_raise(ValueError)
+    def _check_fit_params(self):
+        """Check if the necessary parameters are set for the fit method."""
+        if not self.model:
+            raise ValueError(
+                "Model not set. Please load a model from pretrained using Crested.load_model(...) or provide a model architecture with Crested(model=...) before calling fit."
+            )
+        if not self.config:
+            logger.error(
+                "Task configuration not set. Please provide a TaskConfig to Crested(config=...) before calling fit."
+            )
+            raise ValueError(
+                "Task configuration not set. Please provide a TaskConfig to Crested(config=...) before calling fit."
+            )
+        if not self.project_name:
+            raise ValueError(
+                "Project name not set. Please provide a project name to Crested(project_name=...) before calling fit."
+            )
+
+    @log_and_raise(ValueError)
+    def _check_test_params(self):
+        """Check if the necessary parameters are set for the test method."""
+        if not self.model:
+            raise ValueError(
+                "Model not set. Please load a model from pretrained using Crested.load_model(...) before calling test."
+            )
+
+    @log_and_raise(ValueError)
+    def _check_predict_params(self, anndata: AnnData | None, model_name: str | None):
+        """Check if the necessary parameters are set for the predict method."""
+        if not self.model:
+            raise ValueError(
+                "Model not set. Please load a model from pretrained using Crested.load_model(...) before calling predict."
+            )
+        if (anndata is not None and model_name is None) or (
+            anndata is None and model_name is not None
+        ):
+            raise ValueError(
+                "Both anndata and model_name must be provided if one of them is provided."
+            )

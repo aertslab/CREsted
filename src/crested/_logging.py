@@ -1,6 +1,7 @@
 """Setup loguru logging for the package."""
 
 import sys
+from functools import wraps
 
 from loguru import logger
 
@@ -25,3 +26,20 @@ def setup_logging(log_level: str = "INFO", log_file: str | None = None):
             format="{time} {level} {message}",
             rotation="10 MB",
         )
+
+
+def log_and_raise(exception_class: Exception):
+    """Decorator to both log and raise exceptions."""
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except exception_class as e:
+                logger.exception(e)
+                raise
+
+        return wrapper
+
+    return decorator
