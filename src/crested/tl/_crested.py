@@ -16,9 +16,9 @@ class Crested:
     def __init__(
         self,
         data: AnnDataModule,
-        model: tf.keras.Model,
-        config: TaskConfig,
-        project_name: str,
+        model: tf.keras.Model | None = None,
+        config: TaskConfig | None = None,
+        project_name: str | None = None,
         run_name: str | None = None,
         logger: str | None = None,
         seed: int = None,
@@ -26,6 +26,8 @@ class Crested:
         self.anndatamodule = data
         self.model = model
         self.config = config
+        if project_name is None:
+            project_name = "CREsted"
         self.project_name = project_name
         self.run_name = (
             run_name if run_name else datetime.now().strftime("%Y-%m-%d_%H:%M")
@@ -59,7 +61,7 @@ class Crested:
             callbacks.append(early_stopping_callback)
         if model_checkpointing:
             model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-                filepath=os.path.join(save_dir, "checkpoints", "{epoch:02d}.h5"),
+                filepath=os.path.join(save_dir, "checkpoints", "{epoch:02d}.keras"),
                 monitor="val_loss",
                 save_best_only=model_checkpointing_best_only,
                 save_freq="epoch",
@@ -101,6 +103,25 @@ class Crested:
 
         return logger_type, callbacks
 
+    def _check_fit_params(self):
+        """Check if the necessary parameters are set for the fit method."""
+        if not self.model:
+            raise ValueError(
+                "Model not set. Please load a model from pretrained using Crested.load_model(...) or provide a model architecture with Crested(model=...) before calling fit."
+            )
+        if not self.config:
+            raise ValueError(
+                "Task configuration not set. Please provide a TaskConfig to Crested(config=...) before calling fit."
+            )
+        if not self.project_name:
+            raise ValueError(
+                "Project name not set. Please provide a project name to Crested(project_name=...) before calling fit."
+            )
+
+    def load_model(self, model_path: os.PathLike):
+        """Load a model from a file."""
+        self.model = tf.keras.models.load_model(model_path, compile=True)
+
     def fit(
         self,
         epochs: int = 100,
@@ -114,6 +135,8 @@ class Crested:
         custom_callbacks: list | None = None,
     ):
         """Fit the model."""
+        self._check_fit_params()
+
         callbacks = self._initialize_callbacks(
             self.save_dir,
             model_checkpointing,
@@ -147,7 +170,7 @@ class Crested:
             metrics=self.config.metrics,
         )
 
-        logger.info(self.model.summary())
+        print(self.model.summary())
         devices = tf.config.list_physical_devices("GPU")
         logger.info(f"Number of GPUs available: {len(devices)}")
 
@@ -171,14 +194,20 @@ class Crested:
         # if self.logger_type == "wandb":
         #     self.logger.finish()
 
-    # def evaluate(
-    #     self,
-    # ):
-    #     """Evaluate the model on the test set"""
-    #     n_test_steps = len(test_dataloader)
-    #     results = model.evaluate(
-    #         test_dataloader.data,
-    #         steps=n_test_steps,
-    #     )
-    #     print(f"Test results: {results}")
-    #     return results
+    def test(self, return_metrics: bool = False):
+        """Evaluate the model."""
+        self.anndatamodule.setup("test")
+        test_loader = self.anndatamodule.test_dataloader
+
+        n_test_steps = len(test_loader)
+
+        evaluation_metrics = self.model.evaluate(
+            test_loader.data, steps=n_test_steps, return_dict=True
+        )
+
+        # Log the evaluation results
+        for metric_name, metric_value in evaluation_metrics.items():
+            logger.info(f"Test {metric_name}: {metric_value:.4f}")
+
+        if return_metrics:
+            return evaluation_metrics
