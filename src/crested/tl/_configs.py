@@ -59,7 +59,9 @@ class TopicClassificationConfig(BaseConfig):
         ]
 
 
-class ConfigComponents(NamedTuple):
+class TaskConfig(NamedTuple):
+    """Task configuration."""
+
     optimizer: tf.keras.optimizers.Optimizer
     loss: tf.keras.losses.Loss
     metrics: list[tf.keras.metrics.Metric]
@@ -102,4 +104,4 @@ def default_configs(
     optimizer = task_class.optimizer
     metrics = task_class.metrics
 
-    return ConfigComponents(optimizer=optimizer, loss=loss, metrics=metrics)
+    return TaskConfig(optimizer=optimizer, loss=loss, metrics=metrics)
