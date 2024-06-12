@@ -38,7 +38,7 @@ class AnnDataModule:
         chromsizes_file
             Path to the chromsizes file. Advised if max_stochastic_shift > 0.
         in_memory
-            If True, the sequences will be loaded into memory. Default is True.
+            If True, the train and val sequences will be loaded into memory. Default is True.
         always_reverse_complement
             If True, all sequences will be augmented with their reverse complement during training.
             Effectively increases the training dataset size by a factor of 2. Default is True.
@@ -115,7 +115,7 @@ class AnnDataModule:
                 self.adata,
                 self.genome_file,
                 split="test",
-                in_memory=self.in_memory,
+                in_memory=False,
                 always_reverse_complement=False,
                 random_reverse_complement=False,
                 max_stochastic_shift=0,
@@ -125,7 +125,7 @@ class AnnDataModule:
                 self.adata,
                 self.genome_file,
                 split=None,
-                in_memory=self.in_memory,
+                in_memory=False,
                 always_reverse_complement=False,
                 random_reverse_complement=False,
                 max_stochastic_shift=0,
