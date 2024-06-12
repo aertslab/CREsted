@@ -106,7 +106,7 @@ class Crested:
 
         return logger_type, callbacks
 
-    def load_model(self, model_path: os.PathLike):
+    def load_model(self, model_path: os.PathLike) -> None:
         """Load a model from a file."""
         self.model = tf.keras.models.load_model(model_path, compile=True)
 
@@ -121,7 +121,7 @@ class Crested:
         learning_rate_reduce: bool = False,
         learning_rate_reduce_patience: int = 5,
         custom_callbacks: list | None = None,
-    ):
+    ) -> None:
         """Fit the model."""
         self._check_fit_params()
         self._check_gpu_availability()
@@ -222,6 +222,7 @@ class Crested:
 
         # If anndata and model_name are provided, add predictions to anndata layers
         if anndata is not None and model_name is not None:
+            logger.info(f"Adding predictions to anndata.layers[{model_name}].")
             anndata.layers[model_name] = predictions.T
 
         return predictions
