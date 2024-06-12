@@ -12,6 +12,8 @@ from loguru import logger
 
 from crested._logging import log_and_raise
 from crested.tl import TaskConfig
+from crested.tl._explainer import Explainer
+from crested.tl._utils import one_hot_encode_sequence
 from crested.tl.data import AnnDataModule
 
 
@@ -46,7 +48,7 @@ class Crested:
     def _initialize_callbacks(
         save_dir: os.PathLike,
         model_checkpointing: bool,
-        model_checkpointing_best_only: bool | None,
+        model_checkpointing_best_only: bool,
         early_stopping: bool,
         early_stopping_patience: int | None,
         learning_rate_reduce: bool,
@@ -213,7 +215,8 @@ class Crested:
         self._check_predict_params(anndata, model_name)
         self._check_gpu_availability()
 
-        self.anndatamodule.setup("predict")
+        if self.anndatamodule.predict_dataset is None:
+            self.anndatamodule.setup("predict")
         predict_loader = self.anndatamodule.predict_dataloader
 
         n_predict_steps = len(predict_loader)
@@ -226,6 +229,70 @@ class Crested:
             anndata.layers[model_name] = predictions.T
 
         return predictions
+
+    def calculate_contribution_scores(
+        self,
+        region_idx: str,
+        class_indices: list | None = None,
+        method: str = "integrated_grad",
+        return_one_hot: bool = True,
+    ) -> tuple(np.ndarray, np.ndarray) | np.ndarray:
+        """Calculate contribution scores based on given method for a specified region."""
+        if self.anndatamodule.predict_dataset is None:
+            self.anndatamodule.setup("predict")
+
+        if isinstance(region_idx, str):
+            region_idx = [region_idx]
+
+        all_scores = []
+        all_one_hot_sequences = []
+
+        for region in region_idx:
+            sequence = self.anndatamodule.predict_dataset.sequence_loader.get_sequence(
+                region
+            )
+            x = one_hot_encode_sequence(sequence)
+            all_one_hot_sequences.append(x)
+
+            if class_indices is not None:
+                n_classes = len(class_indices)
+            else:
+                n_classes = 1  # 'combined' class
+                class_indices = [None]
+
+            scores = np.zeros(
+                (x.shape[0], n_classes, x.shape[1], x.shape[2])
+            )  # (N, C, W, 4)
+
+            for i, class_index in enumerate(class_indices):
+                explainer = Explainer(self.model, class_index=class_index)
+                if method == "integrated_grad":
+                    scores[:, i, :, :] = explainer.integrated_grad(
+                        x, baseline_type="zeros"
+                    )
+                elif method == "smooth_grad":
+                    scores[:, i, :, :] = explainer.smoothgrad(
+                        x, num_samples=50, mean=0.0, stddev=0.1
+                    )
+                elif method == "mutagenesis":
+                    scores[:, i, :, :] = explainer.mutagenesis(
+                        x, class_index=class_index
+                    )
+                elif method == "saliency":
+                    scores[:, i, :, :] = explainer.saliency_maps(x)
+                elif method == "expected_integrated_grad":
+                    scores[:, i, :, :] = explainer.expected_integrated_grad(
+                        x, num_baseline=25
+                    )
+
+            all_scores.append(scores)
+
+        if return_one_hot:
+            return np.concatenate(all_scores, axis=0), np.concatenate(
+                all_one_hot_sequences, axis=0
+            )
+        else:
+            return np.concatenate(all_scores, axis=0)
 
     @staticmethod
     def _check_gpu_availability():
