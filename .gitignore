@@ -1,9 +1,5 @@
-*.bed
 *__pycache__*
 .vscode
-configs/user.yml
 wandb/
-scripts/personal
 *slurm*
-logs/
 changelog.md
