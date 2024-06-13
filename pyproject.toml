@@ -29,6 +29,7 @@ dependencies = [
     "tqdm",
     "shap",
     "loguru",
+    "logomaker"
 ]
 
 [project.optional-dependencies]
