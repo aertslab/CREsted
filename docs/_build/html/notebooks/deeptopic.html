@@ -1,0 +1,980 @@
+<!doctype html>
+
+<html lang="en" data-content_root="../">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta property="og:title" content="DeepTopic" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="notebooks/deeptopic.html" />
+        <meta property="og:site_name" content="Python" />
+        <meta
+            property="og:description"
+            content="Sample notebook to train DeepTopic model. We can use function crested.import_topics() to import data into an anndata.AnnData object, with the imported topics as the AnnData.obs and the consensus pe..."
+        />
+        <meta property="og:image:width" content="1146" />
+        <meta property="og:image:height" content="600" />
+        <meta property="og:image" content="/None" />
+        <meta
+            property="og:image:alt"
+            content="Sample notebook to train DeepTopic model. We can use function crested.import_topics() to import data into an anndata.AnnData object, with the imported topics..."
+        />
+        <meta
+            name="description"
+            content="Sample notebook to train DeepTopic model. We can use function crested.import_topics() to import data into an anndata.AnnData object, with the imported topics as the AnnData.obs and the consensus pe..."
+        />
+        <meta name="twitter:card" content="summary_large_image" />
+
+        <title>DeepTopic &#8212; crested</title>
+
+        <script data-cfasync="false">
+            document.documentElement.dataset.mode =
+                localStorage.getItem("mode") || "";
+            document.documentElement.dataset.theme =
+                localStorage.getItem("theme") || "";
+        </script>
+
+        <!-- Loaded before other Sphinx assets -->
+        <link
+            href="../_static/styles/theme.css?digest=3ee479438cf8b5e0d341"
+            rel="stylesheet"
+        />
+        <link
+            href="../_static/styles/bootstrap.css?digest=3ee479438cf8b5e0d341"
+            rel="stylesheet"
+        />
+        <link
+            href="../_static/styles/pydata-sphinx-theme.css?digest=3ee479438cf8b5e0d341"
+            rel="stylesheet"
+        />
+
+        <link
+            href="../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=3ee479438cf8b5e0d341"
+            rel="stylesheet"
+        />
+        <link
+            rel="preload"
+            as="font"
+            type="font/woff2"
+            crossorigin
+            href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2"
+        />
+        <link
+            rel="preload"
+            as="font"
+            type="font/woff2"
+            crossorigin
+            href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2"
+        />
+        <link
+            rel="preload"
+            as="font"
+            type="font/woff2"
+            crossorigin
+            href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2"
+        />
+
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="../_static/pygments.css?v=80d5e7a1"
+        />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="../_static/styles/sphinx-book-theme.css?v=384b581d"
+        />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css?v=be8a1c11"
+        />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="../_static/copybutton.css?v=76b2166b"
+        />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="../_static/css/custom.css?v=366103d0"
+        />
+
+        <!-- Pre-loaded scripts that we'll load fully later -->
+        <link
+            rel="preload"
+            as="script"
+            href="../_static/scripts/bootstrap.js?digest=3ee479438cf8b5e0d341"
+        />
+        <link
+            rel="preload"
+            as="script"
+            href="../_static/scripts/pydata-sphinx-theme.js?digest=3ee479438cf8b5e0d341"
+        />
+        <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=3ee479438cf8b5e0d341"></script>
+
+        <script src="../_static/documentation_options.js?v=e645c8fa"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="../_static/copybutton.js?v=f281be69"></script>
+        <script src="../_static/scripts/sphinx-book-theme.js?v=efea14e4"></script>
+        <script>
+            DOCUMENTATION_OPTIONS.pagename = "notebooks/deeptopic";
+        </script>
+        <link rel="index" title="Index" href="../genindex.html" />
+        <link rel="search" title="Search" href="../search.html" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="docsearch:language" content="en" />
+    </head>
+
+    <body
+        data-bs-spy="scroll"
+        data-bs-target=".bd-toc-nav"
+        data-offset="180"
+        data-bs-root-margin="0px 0px -60%"
+        data-default-mode=""
+    >
+        <div id="pst-skip-link" class="skip-link d-print-none">
+            <a href="#main-content">Skip to main content</a>
+        </div>
+
+        <div id="pst-scroll-pixel-helper"></div>
+
+        <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+            <i class="fa-solid fa-arrow-up"></i>Back to top
+        </button>
+
+        <input
+            type="checkbox"
+            class="sidebar-toggle"
+            id="pst-primary-sidebar-checkbox"
+        />
+        <label
+            class="overlay overlay-primary"
+            for="pst-primary-sidebar-checkbox"
+        ></label>
+
+        <input
+            type="checkbox"
+            class="sidebar-toggle"
+            id="pst-secondary-sidebar-checkbox"
+        />
+        <label
+            class="overlay overlay-secondary"
+            for="pst-secondary-sidebar-checkbox"
+        ></label>
+
+        <div class="search-button__wrapper">
+            <div class="search-button__overlay"></div>
+            <div class="search-button__search-container">
+                <form
+                    class="bd-search d-flex align-items-center"
+                    action="../search.html"
+                    method="get"
+                >
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input
+                        type="search"
+                        class="form-control"
+                        name="q"
+                        id="search-input"
+                        placeholder="Search..."
+                        aria-label="Search..."
+                        autocomplete="off"
+                        autocorrect="off"
+                        autocapitalize="off"
+                        spellcheck="false"
+                    />
+                    <span class="search-button__kbd-shortcut"
+                        ><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd
+                            >K</kbd
+                        ></span
+                    >
+                </form>
+            </div>
+        </div>
+
+        <div class="pst-async-banner-revealer d-none">
+            <aside
+                id="bd-header-version-warning"
+                class="d-none d-print-none"
+                aria-label="Version warning"
+            ></aside>
+        </div>
+
+        <header
+            class="bd-header navbar navbar-expand-lg bd-navbar d-print-none"
+        ></header>
+
+        <div class="bd-container">
+            <div class="bd-container__inner bd-page-width">
+                <div class="bd-sidebar-primary bd-sidebar">
+                    <div
+                        class="sidebar-header-items sidebar-primary__section"
+                    ></div>
+
+                    <div
+                        class="sidebar-primary-items__start sidebar-primary__section"
+                    >
+                        <div class="sidebar-primary-item">
+                            <a class="navbar-brand logo" href="../index.html">
+                                <p class="title logo__title">crested</p>
+                            </a>
+                        </div>
+                        <div class="sidebar-primary-item">
+                            <script>
+                                document.write(`
+   <button class="btn navbar-btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+                            </script>
+                        </div>
+                        <div class="sidebar-primary-item">
+                            <nav class="bd-links bd-docs-nav" aria-label="Main">
+                                <div class="bd-toc-item navbar-nav active">
+                                    <ul class="nav bd-sidenav">
+                                        <li class="toctree-l1 has-children">
+                                            <a
+                                                class="reference internal"
+                                                href="../api/index.html"
+                                                >API</a
+                                            >
+                                            <details>
+                                                <summary>
+                                                    <span
+                                                        class="toctree-toggle"
+                                                        role="presentation"
+                                                        ><i
+                                                            class="fa-solid fa-chevron-down"
+                                                        ></i
+                                                    ></span>
+                                                </summary>
+                                                <ul>
+                                                    <li class="toctree-l2">
+                                                        <a
+                                                            class="reference internal"
+                                                            href="../api/io.html"
+                                                            >Input/Output</a
+                                                        >
+                                                    </li>
+                                                    <li class="toctree-l2">
+                                                        <a
+                                                            class="reference internal"
+                                                            href="../api/preprocessing.html"
+                                                            >Preprocessing:
+                                                            <code
+                                                                class="docutils literal notranslate"
+                                                                ><span
+                                                                    class="pre"
+                                                                    >pp</span
+                                                                ></code
+                                                            ></a
+                                                        >
+                                                    </li>
+                                                    <li class="toctree-l2">
+                                                        <a
+                                                            class="reference internal"
+                                                            href="../api/tools.html"
+                                                            >Tools:
+                                                            <code
+                                                                class="docutils literal notranslate"
+                                                                ><span
+                                                                    class="pre"
+                                                                    >tl</span
+                                                                ></code
+                                                            ></a
+                                                        >
+                                                    </li>
+                                                    <li class="toctree-l2">
+                                                        <a
+                                                            class="reference internal"
+                                                            href="../api/plotting.html"
+                                                            >Plotting:
+                                                            <code
+                                                                class="docutils literal notranslate"
+                                                                ><span
+                                                                    class="pre"
+                                                                    >pl</span
+                                                                ></code
+                                                            ></a
+                                                        >
+                                                    </li>
+                                                </ul>
+                                            </details>
+                                        </li>
+                                        <li class="toctree-l1">
+                                            <a
+                                                class="reference internal"
+                                                href="../contributing.html"
+                                                >Contributing guide</a
+                                            >
+                                        </li>
+                                        <li class="toctree-l1">
+                                            <a
+                                                class="reference internal"
+                                                href="../references.html"
+                                                >References</a
+                                            >
+                                        </li>
+                                        <li class="toctree-l1">
+                                            <a
+                                                class="reference internal"
+                                                href="example.html"
+                                                >Example notebook</a
+                                            >
+                                        </li>
+                                    </ul>
+                                </div>
+                            </nav>
+                        </div>
+                    </div>
+
+                    <div
+                        class="sidebar-primary-items__end sidebar-primary__section"
+                    ></div>
+
+                    <div id="rtd-footer-container"></div>
+                </div>
+
+                <main id="main-content" class="bd-main" role="main">
+                    <div class="sbt-scroll-pixel-helper"></div>
+
+                    <div class="bd-content">
+                        <div class="bd-article-container">
+                            <div class="bd-header-article d-print-none">
+                                <div
+                                    class="header-article-items header-article__inner"
+                                >
+                                    <div class="header-article-items__start">
+                                        <div class="header-article-item">
+                                            <label
+                                                class="sidebar-toggle primary-toggle btn btn-sm"
+                                                for="__primary"
+                                                title="Toggle primary sidebar"
+                                                data-bs-placement="bottom"
+                                                data-bs-toggle="tooltip"
+                                            >
+                                                <span
+                                                    class="fa-solid fa-bars"
+                                                ></span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="header-article-items__end">
+                                        <div class="header-article-item">
+                                            <div class="article-header-buttons">
+                                                <a
+                                                    href="https://github.com/aertslab/crested"
+                                                    target="_blank"
+                                                    class="btn btn-sm btn-source-repository-button"
+                                                    title="Source repository"
+                                                    data-bs-placement="bottom"
+                                                    data-bs-toggle="tooltip"
+                                                >
+                                                    <span
+                                                        class="btn__icon-container"
+                                                    >
+                                                        <i
+                                                            class="fab fa-github"
+                                                        ></i>
+                                                    </span>
+                                                </a>
+
+                                                <div
+                                                    class="dropdown dropdown-download-buttons"
+                                                >
+                                                    <button
+                                                        class="btn dropdown-toggle"
+                                                        type="button"
+                                                        data-bs-toggle="dropdown"
+                                                        aria-expanded="false"
+                                                        aria-label="Download this page"
+                                                    >
+                                                        <i
+                                                            class="fas fa-download"
+                                                        ></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu">
+                                                        <li>
+                                                            <a
+                                                                href="../_sources/notebooks/deeptopic.ipynb"
+                                                                target="_blank"
+                                                                class="btn btn-sm btn-download-source-button dropdown-item"
+                                                                title="Download source file"
+                                                                data-bs-placement="left"
+                                                                data-bs-toggle="tooltip"
+                                                            >
+                                                                <span
+                                                                    class="btn__icon-container"
+                                                                >
+                                                                    <i
+                                                                        class="fas fa-file"
+                                                                    ></i>
+                                                                </span>
+                                                                <span
+                                                                    class="btn__text-container"
+                                                                    >.ipynb</span
+                                                                >
+                                                            </a>
+                                                        </li>
+
+                                                        <li>
+                                                            <button
+                                                                onclick="window.print()"
+                                                                class="btn btn-sm btn-download-pdf-button dropdown-item"
+                                                                title="Print to PDF"
+                                                                data-bs-placement="left"
+                                                                data-bs-toggle="tooltip"
+                                                            >
+                                                                <span
+                                                                    class="btn__icon-container"
+                                                                >
+                                                                    <i
+                                                                        class="fas fa-file-pdf"
+                                                                    ></i>
+                                                                </span>
+                                                                <span
+                                                                    class="btn__text-container"
+                                                                    >.pdf</span
+                                                                >
+                                                            </button>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+
+                                                <button
+                                                    onclick="toggleFullScreen()"
+                                                    class="btn btn-sm btn-fullscreen-button"
+                                                    title="Fullscreen mode"
+                                                    data-bs-placement="bottom"
+                                                    data-bs-toggle="tooltip"
+                                                >
+                                                    <span
+                                                        class="btn__icon-container"
+                                                    >
+                                                        <i
+                                                            class="fas fa-expand"
+                                                        ></i>
+                                                    </span>
+                                                </button>
+
+                                                <script>
+                                                    document.write(`
+  <button class="btn btn-sm navbar-btn theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="theme-switch nav-link" data-mode="light"><i class="fa-solid fa-sun fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="dark"><i class="fa-solid fa-moon fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg"></i></span>
+  </button>
+`);
+                                                </script>
+
+                                                <script>
+                                                    document.write(`
+  <button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+                                                </script>
+                                                <label
+                                                    class="sidebar-toggle secondary-toggle btn btn-sm"
+                                                    for="__secondary"
+                                                    title="Toggle secondary sidebar"
+                                                    data-bs-placement="bottom"
+                                                    data-bs-toggle="tooltip"
+                                                >
+                                                    <span
+                                                        class="fa-solid fa-list"
+                                                    ></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="jb-print-docs-body" class="onlyprint">
+                                <h1>DeepTopic</h1>
+                                <!-- Table of contents -->
+                                <div id="print-main-content">
+                                    <div id="jb-print-toc">
+                                        <div>
+                                            <h2>Contents</h2>
+                                        </div>
+                                        <nav aria-label="Page">
+                                            <ul
+                                                class="visible nav section-nav flex-column"
+                                            >
+                                                <li
+                                                    class="toc-h2 nav-item toc-entry"
+                                                >
+                                                    <a
+                                                        class="reference internal nav-link"
+                                                        href="#train"
+                                                        >Train</a
+                                                    >
+                                                </li>
+                                            </ul>
+                                        </nav>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="searchbox"></div>
+                            <article class="bd-article">
+                                <section
+                                    class="tex2jax_ignore mathjax_ignore"
+                                    id="deeptopic"
+                                >
+                                    <h1>
+                                        DeepTopic<a
+                                            class="headerlink"
+                                            href="#deeptopic"
+                                            title="Link to this heading"
+                                            >#</a
+                                        >
+                                    </h1>
+                                    <p>
+                                        Sample notebook to train DeepTopic
+                                        model.
+                                    </p>
+                                    <div class="cell docutils container">
+                                        <div
+                                            class="cell_input docutils container"
+                                        >
+                                            <div
+                                                class="highlight-ipython3 notranslate"
+                                            >
+                                                <div class="highlight">
+                                                    <pre><span></span><span class="kn">import</span> <span class="nn">crested</span>
+</pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        We can use function
+                                        <code
+                                            class="xref py py-func docutils literal notranslate"
+                                            ><span class="pre"
+                                                >crested.import_topics()</span
+                                            ></code
+                                        >
+                                        to import data into an
+                                        <a
+                                            class="reference external"
+                                            href="https://anndata.readthedocs.io/en/stable/generated/anndata.AnnData.html#anndata.AnnData"
+                                            title="(in anndata v0.1.dev50+g73545b1)"
+                                            ><code
+                                                class="xref py py-class docutils literal notranslate"
+                                                ><span class="pre"
+                                                    >anndata.AnnData</span
+                                                ></code
+                                            ></a
+                                        >
+                                        object, with the imported topics as the
+                                        <code
+                                            class="docutils literal notranslate"
+                                            ><span class="pre"
+                                                >AnnData.obs</span
+                                            ></code
+                                        >
+                                        and the consensus peak regions as the
+                                        <code
+                                            class="docutils literal notranslate"
+                                            ><span class="pre"
+                                                >AnnData.var</span
+                                            ></code
+                                        >..
+                                    </p>
+                                    <div class="cell docutils container">
+                                        <div
+                                            class="cell_input docutils container"
+                                        >
+                                            <div
+                                                class="highlight-ipython3 notranslate"
+                                            >
+                                                <div class="highlight">
+                                                    <pre><span></span><span class="n">adata</span> <span class="o">=</span> <span class="n">crested</span><span class="o">.</span><span class="n">import_topics</span><span class="p">(</span>
+    <span class="n">topics_folder</span><span class="o">=</span><span class="s2">&quot;/staging/leuven/stg_00002/lcb/lmahieu/projects/DeepTopic/biccn_test/otsu&quot;</span><span class="p">,</span>
+    <span class="n">peaks_file</span><span class="o">=</span><span class="s2">&quot;/staging/leuven/stg_00002/lcb/lmahieu/projects/DeepTopic/biccn_test/consensus_peaks_bicnn.bed&quot;</span><span class="p">,</span>
+    <span class="n">compress</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="c1"># topics_subset=[&quot;topic_1&quot;, &quot;topic_2&quot;], # optional subset of topics to import</span>
+<span class="p">)</span>
+<span class="n">adata</span>
+</pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="cell_output docutils container"
+                                        >
+                                            <div
+                                                class="output text_plain highlight-myst-ansi notranslate"
+                                            >
+                                                <div class="highlight">
+                                                    <pre><span></span>AnnData object with n_obs × n_vars = 80 × 546993
+    obs: &#39;file_path&#39;, &#39;n_open_regions&#39;
+    var: &#39;n_topics&#39;, &#39;chr&#39;, &#39;start&#39;, &#39;end&#39;
+</pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        The
+                                        <code
+                                            class="docutils literal notranslate"
+                                            ><span class="pre"
+                                                >import_topics</span
+                                            ></code
+                                        >
+                                        function will also add a couple of
+                                        columns with variables of interest to
+                                        your
+                                        <code
+                                            class="docutils literal notranslate"
+                                            ><span class="pre"
+                                                >AnnData.obs</span
+                                            ></code
+                                        >
+                                        and
+                                        <code
+                                            class="docutils literal notranslate"
+                                            ><span class="pre"
+                                                >Anndata.var</span
+                                            ></code
+                                        >
+                                        (AnnData.obs.n_open_regions and
+                                        AnnData.var.n_topics), which you can use
+                                        to inspect and get a feel of your data.
+                                    </p>
+                                    <p>
+                                        To train a model, we’ll need to add a
+                                        <em>split</em> column to our dataset,
+                                        which we can do using
+                                        <code
+                                            class="xref py py-func docutils literal notranslate"
+                                            ><span class="pre"
+                                                >crested.pp.train_val_test_split()</span
+                                            ></code
+                                        >.<br />
+                                        We can add a
+                                        <code
+                                            class="docutils literal notranslate"
+                                            ><span class="pre"
+                                                >random_state</span
+                                            ></code
+                                        >
+                                        to ensure the data will be split in the
+                                        same manner in the future when
+                                        <code
+                                            class="docutils literal notranslate"
+                                            ><span class="pre"
+                                                >shuffle=True</span
+                                            ></code
+                                        >(default).
+                                    </p>
+                                    <div class="cell docutils container">
+                                        <div
+                                            class="cell_input docutils container"
+                                        >
+                                            <div
+                                                class="highlight-ipython3 notranslate"
+                                            >
+                                                <div class="highlight">
+                                                    <pre><span></span><span class="c1"># We can split randomly on the regions</span>
+<span class="n">crested</span><span class="o">.</span><span class="n">pp</span><span class="o">.</span><span class="n">train_val_test_split</span><span class="p">(</span>
+    <span class="n">adata</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;random&quot;</span><span class="p">,</span> <span class="n">val_size</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">test_size</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span>
+<span class="p">)</span>
+
+<span class="c1"># Or, choose the chromosomes for the validation and test sets</span>
+<span class="c1"># enhai.pp.train_val_test_split(</span>
+<span class="c1">#     adata, type=&quot;chr&quot;, chr_val=[&quot;chr4&quot;, &quot;chrX&quot;], chr_test=[&quot;chr2&quot;, &quot;chr3&quot;]</span>
+<span class="c1"># )</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">adata</span><span class="o">.</span><span class="n">var</span><span class="p">[</span><span class="s2">&quot;split&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">value_counts</span><span class="p">())</span>
+<span class="n">adata</span><span class="o">.</span><span class="n">var</span>
+</pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="cell_output docutils container"
+                                        >
+                                            <div
+                                                class="output stream highlight-myst-ansi notranslate"
+                                            >
+                                                <div class="highlight">
+                                                    <pre><span></span>split
+train    437593
+test      54700
+val       54700
+Name: count, dtype: int64
+</pre>
+                                                </div>
+                                            </div>
+                                            <div class="output text_html">
+                                                <div>
+                                                    <style scoped>
+                                                        .dataframe
+                                                            tbody
+                                                            tr
+                                                            th:only-of-type {
+                                                            vertical-align: middle;
+                                                        }
+
+                                                        .dataframe tbody tr th {
+                                                            vertical-align: top;
+                                                        }
+
+                                                        .dataframe thead th {
+                                                            text-align: right;
+                                                        }
+                                                    </style>
+                                                    <table
+                                                        border="1"
+                                                        class="dataframe"
+                                                    >
+                                                        <thead>
+                                                            <tr
+                                                                style="
+                                                                    text-align: right;
+                                                                "
+                                                            >
+                                                                <th></th>
+                                                                <th>
+                                                                    n_topics
+                                                                </th>
+                                                                <th>chr</th>
+                                                                <th>start</th>
+                                                                <th>end</th>
+                                                                <th>split</th>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>region</th>
+                                                                <th></th>
+                                                                <th></th>
+                                                                <th></th>
+                                                                <th></th>
+                                                                <th></th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <th>
+                                                                    chr1:3094805-3095305
+                                                                </th>
+                                                                <td>5</td>
+                                                                <td>chr1</td>
+                                                                <td>3094805</td>
+                                                                <td>3095305</td>
+                                                                <td>train</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    chr1:3095470-3095970
+                                                                </th>
+                                                                <td>0</td>
+                                                                <td>chr1</td>
+                                                                <td>3095470</td>
+                                                                <td>3095970</td>
+                                                                <td>train</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    chr1:3112174-3112674
+                                                                </th>
+                                                                <td>1</td>
+                                                                <td>chr1</td>
+                                                                <td>3112174</td>
+                                                                <td>3112674</td>
+                                                                <td>test</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    chr1:3113534-3114034
+                                                                </th>
+                                                                <td>2</td>
+                                                                <td>chr1</td>
+                                                                <td>3113534</td>
+                                                                <td>3114034</td>
+                                                                <td>train</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    chr1:3119746-3120246
+                                                                </th>
+                                                                <td>8</td>
+                                                                <td>chr1</td>
+                                                                <td>3119746</td>
+                                                                <td>3120246</td>
+                                                                <td>train</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>...</th>
+                                                                <td>...</td>
+                                                                <td>...</td>
+                                                                <td>...</td>
+                                                                <td>...</td>
+                                                                <td>...</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    chrX:169879313-169879813
+                                                                </th>
+                                                                <td>3</td>
+                                                                <td>chrX</td>
+                                                                <td>
+                                                                    169879313
+                                                                </td>
+                                                                <td>
+                                                                    169879813
+                                                                </td>
+                                                                <td>train</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    chrX:169880181-169880681
+                                                                </th>
+                                                                <td>0</td>
+                                                                <td>chrX</td>
+                                                                <td>
+                                                                    169880181
+                                                                </td>
+                                                                <td>
+                                                                    169880681
+                                                                </td>
+                                                                <td>train</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    chrX:169925477-169925977
+                                                                </th>
+                                                                <td>1</td>
+                                                                <td>chrX</td>
+                                                                <td>
+                                                                    169925477
+                                                                </td>
+                                                                <td>
+                                                                    169925977
+                                                                </td>
+                                                                <td>train</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    chrX:169948550-169949050
+                                                                </th>
+                                                                <td>0</td>
+                                                                <td>chrX</td>
+                                                                <td>
+                                                                    169948550
+                                                                </td>
+                                                                <td>
+                                                                    169949050
+                                                                </td>
+                                                                <td>train</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>
+                                                                    chrX:169950978-169951478
+                                                                </th>
+                                                                <td>0</td>
+                                                                <td>chrX</td>
+                                                                <td>
+                                                                    169950978
+                                                                </td>
+                                                                <td>
+                                                                    169951478
+                                                                </td>
+                                                                <td>val</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                    <p>
+                                                        546993 rows × 5 columns
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <section id="train">
+                                        <h2>
+                                            Train<a
+                                                class="headerlink"
+                                                href="#train"
+                                                title="Link to this heading"
+                                                >#</a
+                                            >
+                                        </h2>
+                                    </section>
+                                </section>
+                            </article>
+
+                            <footer class="prev-next-footer d-print-none">
+                                <div class="prev-next-area"></div>
+                            </footer>
+                        </div>
+
+                        <div class="bd-sidebar-secondary bd-toc">
+                            <div
+                                class="sidebar-secondary-items sidebar-secondary__inner"
+                            >
+                                <div class="sidebar-secondary-item">
+                                    <div class="page-toc tocsection onthispage">
+                                        <i class="fa-solid fa-list"></i>
+                                        Contents
+                                    </div>
+                                    <nav class="bd-toc-nav page-toc">
+                                        <ul
+                                            class="visible nav section-nav flex-column"
+                                        >
+                                            <li
+                                                class="toc-h2 nav-item toc-entry"
+                                            >
+                                                <a
+                                                    class="reference internal nav-link"
+                                                    href="#train"
+                                                    >Train</a
+                                                >
+                                            </li>
+                                        </ul>
+                                    </nav>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <footer class="bd-footer-content">
+                        <div class="bd-footer-content__inner container">
+                            <div class="footer-item">
+                                <p class="component-author">By Lukas Mahieu</p>
+                            </div>
+
+                            <div class="footer-item">
+                                <p class="copyright">
+                                    © Copyright 2024, Lukas Mahieu..
+                                    <br />
+                                </p>
+                            </div>
+
+                            <div class="footer-item"></div>
+
+                            <div class="footer-item"></div>
+                        </div>
+                    </footer>
+                </main>
+            </div>
+        </div>
+
+        <!-- Scripts loaded after <body> so the DOM is not blocked -->
+        <script src="../_static/scripts/bootstrap.js?digest=3ee479438cf8b5e0d341"></script>
+        <script src="../_static/scripts/pydata-sphinx-theme.js?digest=3ee479438cf8b5e0d341"></script>
+
+        <footer class="bd-footer"></footer>
+    </body>
+</html>

@@ -1,9 +1,9 @@
 # API
 
-Import EnhancerAI as:
+Import CREsted as:
 
 ```
-import enhancerai as enhai
+import crested
 ```
 
 ```{toctree}

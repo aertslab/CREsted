@@ -3,11 +3,11 @@
 Preprocessing description
 
 ```{eval-rst}
-.. module:: enhancerai.pp
+.. module:: crested.pp
 ```
 
 ```{eval-rst}
-.. currentmodule:: enhancerai
+.. currentmodule:: crested
 ```
 
 ## Basic preprocessing

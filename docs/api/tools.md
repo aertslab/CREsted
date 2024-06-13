@@ -3,11 +3,11 @@
 Tooling description
 
 ```{eval-rst}
-.. module:: enhancerai.tl
+.. module:: crested.tl
 ```
 
 ```{eval-rst}
-.. currentmodule:: enhancerai
+.. currentmodule:: crested
 ```
 
 ## Basic Tooling

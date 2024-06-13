@@ -1,599 +1,1470 @@
+<!doctype html>
 
-<!DOCTYPE html>
+<html lang="en" data-content_root="./">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta property="og:title" content="Contributing guide" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="contributing.html" />
+        <meta property="og:site_name" content="Python" />
+        <meta
+            property="og:description"
+            content="Scanpy provides extensive developer documentation, most of which applies to this project, too. This document will not reproduce the entire content from there. Instead, it aims at summarizing the mo..."
+        />
+        <meta property="og:image:width" content="1146" />
+        <meta property="og:image:height" content="600" />
+        <meta
+            property="og:image"
+            content="/_images/social_previews/summary_contributing_156a2fee.png"
+        />
+        <meta
+            property="og:image:alt"
+            content="Scanpy provides extensive developer documentation, most of which applies to this project, too. This document will not reproduce the entire content from there..."
+        />
+        <meta
+            name="description"
+            content="Scanpy provides extensive developer documentation, most of which applies to this project, too. This document will not reproduce the entire content from there. Instead, it aims at summarizing the mo..."
+        />
+        <meta name="twitter:card" content="summary_large_image" />
 
+        <title>Contributing guide &#8212; crested</title>
 
-<html lang="en" data-content_root="./" >
+        <script data-cfasync="false">
+            document.documentElement.dataset.mode =
+                localStorage.getItem("mode") || "";
+            document.documentElement.dataset.theme =
+                localStorage.getItem("theme") || "";
+        </script>
 
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta property="og:title" content="Contributing guide" />
-<meta property="og:type" content="website" />
-<meta property="og:url" content="contributing.html" />
-<meta property="og:site_name" content="Python" />
-<meta property="og:description" content="Scanpy provides extensive developer documentation, most of which applies to this project, too. This document will not reproduce the entire content from there. Instead, it aims at summarizing the mo..." />
-<meta name="description" content="Scanpy provides extensive developer documentation, most of which applies to this project, too. This document will not reproduce the entire content from there. Instead, it aims at summarizing the mo..." />
+        <!-- Loaded before other Sphinx assets -->
+        <link
+            href="_static/styles/theme.css?digest=3ee479438cf8b5e0d341"
+            rel="stylesheet"
+        />
+        <link
+            href="_static/styles/bootstrap.css?digest=3ee479438cf8b5e0d341"
+            rel="stylesheet"
+        />
+        <link
+            href="_static/styles/pydata-sphinx-theme.css?digest=3ee479438cf8b5e0d341"
+            rel="stylesheet"
+        />
 
-    <title>Contributing guide &#8212; EnhancerAI</title>
-  
-  
-  
-  <script data-cfasync="false">
-    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
-    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
-  </script>
-  
-  <!-- Loaded before other Sphinx assets -->
-  <link href="_static/styles/theme.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
-<link href="_static/styles/bootstrap.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
-<link href="_static/styles/pydata-sphinx-theme.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
+        <link
+            href="_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=3ee479438cf8b5e0d341"
+            rel="stylesheet"
+        />
+        <link
+            rel="preload"
+            as="font"
+            type="font/woff2"
+            crossorigin
+            href="_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2"
+        />
+        <link
+            rel="preload"
+            as="font"
+            type="font/woff2"
+            crossorigin
+            href="_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2"
+        />
+        <link
+            rel="preload"
+            as="font"
+            type="font/woff2"
+            crossorigin
+            href="_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2"
+        />
 
-  
-  <link href="_static/vendor/fontawesome/6.5.1/css/all.min.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
-  <link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.5.1/webfonts/fa-solid-900.woff2" />
-<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.5.1/webfonts/fa-brands-400.woff2" />
-<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.5.1/webfonts/fa-regular-400.woff2" />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="_static/pygments.css?v=80d5e7a1"
+        />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="_static/styles/sphinx-book-theme.css?v=384b581d"
+        />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css?v=be8a1c11"
+        />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="_static/copybutton.css?v=76b2166b"
+        />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="_static/css/custom.css?v=366103d0"
+        />
 
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=384b581d" />
-    <link rel="stylesheet" type="text/css" href="_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
-    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
-    <link rel="stylesheet" type="text/css" href="_static/css/custom.css?v=366103d0" />
-  
-  <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8d27b9dea8ad943066ae" />
-<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8d27b9dea8ad943066ae" />
-  <script src="_static/vendor/fontawesome/6.5.1/js/all.min.js?digest=8d27b9dea8ad943066ae"></script>
+        <!-- Pre-loaded scripts that we'll load fully later -->
+        <link
+            rel="preload"
+            as="script"
+            href="_static/scripts/bootstrap.js?digest=3ee479438cf8b5e0d341"
+        />
+        <link
+            rel="preload"
+            as="script"
+            href="_static/scripts/pydata-sphinx-theme.js?digest=3ee479438cf8b5e0d341"
+        />
+        <script src="_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=3ee479438cf8b5e0d341"></script>
 
-    <script src="_static/documentation_options.js?v=e645c8fa"></script>
-    <script src="_static/doctools.js?v=888ff710"></script>
-    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
-    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
-    <script src="_static/copybutton.js?v=f281be69"></script>
-    <script src="_static/scripts/sphinx-book-theme.js?v=efea14e4"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'contributing';</script>
-    <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="References" href="references.html" />
-    <link rel="prev" title="Changelog" href="changelog.html" />
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="docsearch:language" content="en"/>
-  </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+        <script src="_static/documentation_options.js?v=e645c8fa"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+        <script src="_static/copybutton.js?v=f281be69"></script>
+        <script src="_static/scripts/sphinx-book-theme.js?v=efea14e4"></script>
+        <script>
+            DOCUMENTATION_OPTIONS.pagename = "contributing";
+        </script>
+        <link rel="index" title="Index" href="genindex.html" />
+        <link rel="search" title="Search" href="search.html" />
+        <link rel="next" title="References" href="references.html" />
+        <link rel="prev" title="Plotting: pl" href="api/plotting.html" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="docsearch:language" content="en" />
+    </head>
 
-  
-  
-  <a id="pst-skip-link" class="skip-link" href="#main-content">Skip to main content</a>
-  
-  <div id="pst-scroll-pixel-helper"></div>
-  
-  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
-    <i class="fa-solid fa-arrow-up"></i>
-    Back to top
-  </button>
+    <body
+        data-bs-spy="scroll"
+        data-bs-target=".bd-toc-nav"
+        data-offset="180"
+        data-bs-root-margin="0px 0px -60%"
+        data-default-mode=""
+    >
+        <div id="pst-skip-link" class="skip-link d-print-none">
+            <a href="#main-content">Skip to main content</a>
+        </div>
 
-  
-  <input type="checkbox"
-          class="sidebar-toggle"
-          name="__primary"
-          id="__primary"/>
-  <label class="overlay overlay-primary" for="__primary"></label>
-  
-  <input type="checkbox"
-          class="sidebar-toggle"
-          name="__secondary"
-          id="__secondary"/>
-  <label class="overlay overlay-secondary" for="__secondary"></label>
-  
-  <div class="search-button__wrapper">
-    <div class="search-button__overlay"></div>
-    <div class="search-button__search-container">
-<form class="bd-search d-flex align-items-center"
-      action="search.html"
-      method="get">
-  <i class="fa-solid fa-magnifying-glass"></i>
-  <input type="search"
-         class="form-control"
-         name="q"
-         id="search-input"
-         placeholder="Search..."
-         aria-label="Search..."
-         autocomplete="off"
-         autocorrect="off"
-         autocapitalize="off"
-         spellcheck="false"/>
-  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
-</form></div>
-  </div>
-  
-    <header class="bd-header navbar navbar-expand-lg bd-navbar">
-    </header>
-  
+        <div id="pst-scroll-pixel-helper"></div>
 
-  <div class="bd-container">
-    <div class="bd-container__inner bd-page-width">
-      
-      
-      
-      <div class="bd-sidebar-primary bd-sidebar">
-        
+        <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+            <i class="fa-solid fa-arrow-up"></i>Back to top
+        </button>
 
-  
-  <div class="sidebar-header-items sidebar-primary__section">
-    
-    
-    
-    
-  </div>
-  
-    <div class="sidebar-primary-items__start sidebar-primary__section">
-        <div class="sidebar-primary-item">
+        <input
+            type="checkbox"
+            class="sidebar-toggle"
+            id="pst-primary-sidebar-checkbox"
+        />
+        <label
+            class="overlay overlay-primary"
+            for="pst-primary-sidebar-checkbox"
+        ></label>
 
-  
+        <input
+            type="checkbox"
+            class="sidebar-toggle"
+            id="pst-secondary-sidebar-checkbox"
+        />
+        <label
+            class="overlay overlay-secondary"
+            for="pst-secondary-sidebar-checkbox"
+        ></label>
 
-<a class="navbar-brand logo" href="index.html">
-  
-  
-  
-  
-  
-  
-    <p class="title logo__title">EnhancerAI</p>
-  
-</a></div>
-        <div class="sidebar-primary-item">
+        <div class="search-button__wrapper">
+            <div class="search-button__overlay"></div>
+            <div class="search-button__search-container">
+                <form
+                    class="bd-search d-flex align-items-center"
+                    action="search.html"
+                    method="get"
+                >
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input
+                        type="search"
+                        class="form-control"
+                        name="q"
+                        id="search-input"
+                        placeholder="Search..."
+                        aria-label="Search..."
+                        autocomplete="off"
+                        autocorrect="off"
+                        autocapitalize="off"
+                        spellcheck="false"
+                    />
+                    <span class="search-button__kbd-shortcut"
+                        ><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd
+                            >K</kbd
+                        ></span
+                    >
+                </form>
+            </div>
+        </div>
 
- <script>
- document.write(`
+        <div class="pst-async-banner-revealer d-none">
+            <aside
+                id="bd-header-version-warning"
+                class="d-none d-print-none"
+                aria-label="Version warning"
+            ></aside>
+        </div>
+
+        <header
+            class="bd-header navbar navbar-expand-lg bd-navbar d-print-none"
+        ></header>
+
+        <div class="bd-container">
+            <div class="bd-container__inner bd-page-width">
+                <div class="bd-sidebar-primary bd-sidebar">
+                    <div
+                        class="sidebar-header-items sidebar-primary__section"
+                    ></div>
+
+                    <div
+                        class="sidebar-primary-items__start sidebar-primary__section"
+                    >
+                        <div class="sidebar-primary-item">
+                            <a class="navbar-brand logo" href="index.html">
+                                <p class="title logo__title">crested</p>
+                            </a>
+                        </div>
+                        <div class="sidebar-primary-item">
+                            <script>
+                                document.write(`
    <button class="btn navbar-btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
     <i class="fa-solid fa-magnifying-glass"></i>
     <span class="search-button__default-text">Search</span>
     <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
    </button>
  `);
- </script></div>
-        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
-    <div class="bd-toc-item navbar-nav active">
-        <ul class="current nav bd-sidenav">
-<li class="toctree-l1 has-children"><a class="reference internal" href="api.html">API</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-1"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="generated/enhancerai.tl.basic_tool.html">enhancerai.tl.basic_tool</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/enhancerai.pl.basic_plot.html">enhancerai.pl.basic_plot</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/enhancerai.pl.BasicClass.html">enhancerai.pl.BasicClass</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">Contributing guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/example.html">Example notebook</a></li>
-</ul>
+                            </script>
+                        </div>
+                        <div class="sidebar-primary-item">
+                            <nav class="bd-links bd-docs-nav" aria-label="Main">
+                                <div class="bd-toc-item navbar-nav active">
+                                    <ul class="current nav bd-sidenav">
+                                        <li class="toctree-l1 has-children">
+                                            <a
+                                                class="reference internal"
+                                                href="api/index.html"
+                                                >API</a
+                                            >
+                                            <details>
+                                                <summary>
+                                                    <span
+                                                        class="toctree-toggle"
+                                                        role="presentation"
+                                                        ><i
+                                                            class="fa-solid fa-chevron-down"
+                                                        ></i
+                                                    ></span>
+                                                </summary>
+                                                <ul>
+                                                    <li class="toctree-l2">
+                                                        <a
+                                                            class="reference internal"
+                                                            href="api/io.html"
+                                                            >Input/Output</a
+                                                        >
+                                                    </li>
+                                                    <li class="toctree-l2">
+                                                        <a
+                                                            class="reference internal"
+                                                            href="api/preprocessing.html"
+                                                            >Preprocessing:
+                                                            <code
+                                                                class="docutils literal notranslate"
+                                                                ><span
+                                                                    class="pre"
+                                                                    >pp</span
+                                                                ></code
+                                                            ></a
+                                                        >
+                                                    </li>
+                                                    <li class="toctree-l2">
+                                                        <a
+                                                            class="reference internal"
+                                                            href="api/tools.html"
+                                                            >Tools:
+                                                            <code
+                                                                class="docutils literal notranslate"
+                                                                ><span
+                                                                    class="pre"
+                                                                    >tl</span
+                                                                ></code
+                                                            ></a
+                                                        >
+                                                    </li>
+                                                    <li class="toctree-l2">
+                                                        <a
+                                                            class="reference internal"
+                                                            href="api/plotting.html"
+                                                            >Plotting:
+                                                            <code
+                                                                class="docutils literal notranslate"
+                                                                ><span
+                                                                    class="pre"
+                                                                    >pl</span
+                                                                ></code
+                                                            ></a
+                                                        >
+                                                    </li>
+                                                </ul>
+                                            </details>
+                                        </li>
+                                        <li class="toctree-l1 current active">
+                                            <a
+                                                class="current reference internal"
+                                                href="#"
+                                                >Contributing guide</a
+                                            >
+                                        </li>
+                                        <li class="toctree-l1">
+                                            <a
+                                                class="reference internal"
+                                                href="references.html"
+                                                >References</a
+                                            >
+                                        </li>
+                                        <li class="toctree-l1">
+                                            <a
+                                                class="reference internal"
+                                                href="notebooks/example.html"
+                                                >Example notebook</a
+                                            >
+                                        </li>
+                                    </ul>
+                                </div>
+                            </nav>
+                        </div>
+                    </div>
 
-    </div>
-</nav></div>
-    </div>
-  
-  
-  <div class="sidebar-primary-items__end sidebar-primary__section">
-  </div>
-  
-  <div id="rtd-footer-container"></div>
+                    <div
+                        class="sidebar-primary-items__end sidebar-primary__section"
+                    ></div>
 
+                    <div id="rtd-footer-container"></div>
+                </div>
 
-      </div>
-      
-      <main id="main-content" class="bd-main">
-        
-        
+                <main id="main-content" class="bd-main" role="main">
+                    <div class="sbt-scroll-pixel-helper"></div>
 
-<div class="sbt-scroll-pixel-helper"></div>
+                    <div class="bd-content">
+                        <div class="bd-article-container">
+                            <div class="bd-header-article d-print-none">
+                                <div
+                                    class="header-article-items header-article__inner"
+                                >
+                                    <div class="header-article-items__start">
+                                        <div class="header-article-item">
+                                            <label
+                                                class="sidebar-toggle primary-toggle btn btn-sm"
+                                                for="__primary"
+                                                title="Toggle primary sidebar"
+                                                data-bs-placement="bottom"
+                                                data-bs-toggle="tooltip"
+                                            >
+                                                <span
+                                                    class="fa-solid fa-bars"
+                                                ></span>
+                                            </label>
+                                        </div>
+                                    </div>
 
-          <div class="bd-content">
-            <div class="bd-article-container">
-              
-              <div class="bd-header-article">
-<div class="header-article-items header-article__inner">
-  
-    <div class="header-article-items__start">
-      
-        <div class="header-article-item"><label class="sidebar-toggle primary-toggle btn btn-sm" for="__primary" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <span class="fa-solid fa-bars"></span>
-</label></div>
-      
-    </div>
-  
-  
-    <div class="header-article-items__end">
-      
-        <div class="header-article-item">
+                                    <div class="header-article-items__end">
+                                        <div class="header-article-item">
+                                            <div class="article-header-buttons">
+                                                <a
+                                                    href="https://github.com/aertslab/crested"
+                                                    target="_blank"
+                                                    class="btn btn-sm btn-source-repository-button"
+                                                    title="Source repository"
+                                                    data-bs-placement="bottom"
+                                                    data-bs-toggle="tooltip"
+                                                >
+                                                    <span
+                                                        class="btn__icon-container"
+                                                    >
+                                                        <i
+                                                            class="fab fa-github"
+                                                        ></i>
+                                                    </span>
+                                                </a>
 
-<div class="article-header-buttons">
+                                                <div
+                                                    class="dropdown dropdown-download-buttons"
+                                                >
+                                                    <button
+                                                        class="btn dropdown-toggle"
+                                                        type="button"
+                                                        data-bs-toggle="dropdown"
+                                                        aria-expanded="false"
+                                                        aria-label="Download this page"
+                                                    >
+                                                        <i
+                                                            class="fas fa-download"
+                                                        ></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu">
+                                                        <li>
+                                                            <a
+                                                                href="_sources/contributing.md"
+                                                                target="_blank"
+                                                                class="btn btn-sm btn-download-source-button dropdown-item"
+                                                                title="Download source file"
+                                                                data-bs-placement="left"
+                                                                data-bs-toggle="tooltip"
+                                                            >
+                                                                <span
+                                                                    class="btn__icon-container"
+                                                                >
+                                                                    <i
+                                                                        class="fas fa-file"
+                                                                    ></i>
+                                                                </span>
+                                                                <span
+                                                                    class="btn__text-container"
+                                                                    >.md</span
+                                                                >
+                                                            </a>
+                                                        </li>
 
+                                                        <li>
+                                                            <button
+                                                                onclick="window.print()"
+                                                                class="btn btn-sm btn-download-pdf-button dropdown-item"
+                                                                title="Print to PDF"
+                                                                data-bs-placement="left"
+                                                                data-bs-toggle="tooltip"
+                                                            >
+                                                                <span
+                                                                    class="btn__icon-container"
+                                                                >
+                                                                    <i
+                                                                        class="fas fa-file-pdf"
+                                                                    ></i>
+                                                                </span>
+                                                                <span
+                                                                    class="btn__text-container"
+                                                                    >.pdf</span
+                                                                >
+                                                            </button>
+                                                        </li>
+                                                    </ul>
+                                                </div>
 
-<a href="https://github.com/aertslab/EnhancerAI" target="_blank"
-   class="btn btn-sm btn-source-repository-button"
-   title="Source repository"
-   data-bs-placement="bottom" data-bs-toggle="tooltip"
->
-  
+                                                <button
+                                                    onclick="toggleFullScreen()"
+                                                    class="btn btn-sm btn-fullscreen-button"
+                                                    title="Fullscreen mode"
+                                                    data-bs-placement="bottom"
+                                                    data-bs-toggle="tooltip"
+                                                >
+                                                    <span
+                                                        class="btn__icon-container"
+                                                    >
+                                                        <i
+                                                            class="fas fa-expand"
+                                                        ></i>
+                                                    </span>
+                                                </button>
 
-<span class="btn__icon-container">
-  <i class="fab fa-github"></i>
-  </span>
-
-</a>
-
-
-
-
-
-
-<div class="dropdown dropdown-download-buttons">
-  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
-    <i class="fas fa-download"></i>
-  </button>
-  <ul class="dropdown-menu">
-      
-      
-      
-      <li><a href="_sources/contributing.md" target="_blank"
-   class="btn btn-sm btn-download-source-button dropdown-item"
-   title="Download source file"
-   data-bs-placement="left" data-bs-toggle="tooltip"
->
-  
-
-<span class="btn__icon-container">
-  <i class="fas fa-file"></i>
-  </span>
-<span class="btn__text-container">.md</span>
-</a>
-</li>
-      
-      
-      
-      
-      <li>
-<button onclick="window.print()"
-  class="btn btn-sm btn-download-pdf-button dropdown-item"
-  title="Print to PDF"
-  data-bs-placement="left" data-bs-toggle="tooltip"
->
-  
-
-<span class="btn__icon-container">
-  <i class="fas fa-file-pdf"></i>
-  </span>
-<span class="btn__text-container">.pdf</span>
-</button>
-</li>
-      
-  </ul>
-</div>
-
-
-
-
-<button onclick="toggleFullScreen()"
-  class="btn btn-sm btn-fullscreen-button"
-  title="Fullscreen mode"
-  data-bs-placement="bottom" data-bs-toggle="tooltip"
->
-  
-
-<span class="btn__icon-container">
-  <i class="fas fa-expand"></i>
-  </span>
-
-</button>
-
-
-
-<script>
-document.write(`
+                                                <script>
+                                                    document.write(`
   <button class="btn btn-sm navbar-btn theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
     <span class="theme-switch nav-link" data-mode="light"><i class="fa-solid fa-sun fa-lg"></i></span>
     <span class="theme-switch nav-link" data-mode="dark"><i class="fa-solid fa-moon fa-lg"></i></span>
     <span class="theme-switch nav-link" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg"></i></span>
   </button>
 `);
-</script>
+                                                </script>
 
-
-<script>
-document.write(`
+                                                <script>
+                                                    document.write(`
   <button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
     <i class="fa-solid fa-magnifying-glass fa-lg"></i>
   </button>
 `);
-</script>
-<label class="sidebar-toggle secondary-toggle btn btn-sm" for="__secondary"title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
-    <span class="fa-solid fa-list"></span>
-</label>
-</div></div>
-      
-    </div>
-  
-</div>
-</div>
-              
-              
+                                                </script>
+                                                <label
+                                                    class="sidebar-toggle secondary-toggle btn btn-sm"
+                                                    for="__secondary"
+                                                    title="Toggle secondary sidebar"
+                                                    data-bs-placement="bottom"
+                                                    data-bs-toggle="tooltip"
+                                                >
+                                                    <span
+                                                        class="fa-solid fa-list"
+                                                    ></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
-<div id="jb-print-docs-body" class="onlyprint">
-    <h1>Contributing guide</h1>
-    <!-- Table of contents -->
-    <div id="print-main-content">
-        <div id="jb-print-toc">
-            
-            <div>
-                <h2> Contents </h2>
-            </div>
-            <nav aria-label="Page">
-                <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#installing-dev-dependencies">Installing dev dependencies</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#code-style">Code-style</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#writing-tests">Writing tests</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#continuous-integration">Continuous integration</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#publishing-a-release">Publishing a release</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#updating-the-version-number">Updating the version number</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#writing-documentation">Writing documentation</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tutorials-with-myst-nb-and-jupyter-notebooks">Tutorials with myst-nb and jupyter notebooks</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#hints">Hints</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#building-the-docs-locally">Building the docs locally</a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-            </nav>
-        </div>
-    </div>
-</div>
+                            <div id="jb-print-docs-body" class="onlyprint">
+                                <h1>Contributing guide</h1>
+                                <!-- Table of contents -->
+                                <div id="print-main-content">
+                                    <div id="jb-print-toc">
+                                        <div>
+                                            <h2>Contents</h2>
+                                        </div>
+                                        <nav aria-label="Page">
+                                            <ul
+                                                class="visible nav section-nav flex-column"
+                                            >
+                                                <li
+                                                    class="toc-h2 nav-item toc-entry"
+                                                >
+                                                    <a
+                                                        class="reference internal nav-link"
+                                                        href="#installing-dev-dependencies"
+                                                        >Installing dev
+                                                        dependencies</a
+                                                    >
+                                                </li>
+                                                <li
+                                                    class="toc-h2 nav-item toc-entry"
+                                                >
+                                                    <a
+                                                        class="reference internal nav-link"
+                                                        href="#code-style"
+                                                        >Code-style</a
+                                                    >
+                                                </li>
+                                                <li
+                                                    class="toc-h2 nav-item toc-entry"
+                                                >
+                                                    <a
+                                                        class="reference internal nav-link"
+                                                        href="#writing-tests"
+                                                        >Writing tests</a
+                                                    >
+                                                    <ul
+                                                        class="nav section-nav flex-column"
+                                                    >
+                                                        <li
+                                                            class="toc-h3 nav-item toc-entry"
+                                                        >
+                                                            <a
+                                                                class="reference internal nav-link"
+                                                                href="#continuous-integration"
+                                                                >Continuous
+                                                                integration</a
+                                                            >
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                                <li
+                                                    class="toc-h2 nav-item toc-entry"
+                                                >
+                                                    <a
+                                                        class="reference internal nav-link"
+                                                        href="#publishing-a-release"
+                                                        >Publishing a release</a
+                                                    >
+                                                    <ul
+                                                        class="nav section-nav flex-column"
+                                                    >
+                                                        <li
+                                                            class="toc-h3 nav-item toc-entry"
+                                                        >
+                                                            <a
+                                                                class="reference internal nav-link"
+                                                                href="#updating-the-version-number"
+                                                                >Updating the
+                                                                version
+                                                                number</a
+                                                            >
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                                <li
+                                                    class="toc-h2 nav-item toc-entry"
+                                                >
+                                                    <a
+                                                        class="reference internal nav-link"
+                                                        href="#writing-documentation"
+                                                        >Writing
+                                                        documentation</a
+                                                    >
+                                                    <ul
+                                                        class="nav section-nav flex-column"
+                                                    >
+                                                        <li
+                                                            class="toc-h3 nav-item toc-entry"
+                                                        >
+                                                            <a
+                                                                class="reference internal nav-link"
+                                                                href="#tutorials-with-myst-nb-and-jupyter-notebooks"
+                                                                >Tutorials with
+                                                                myst-nb and
+                                                                jupyter
+                                                                notebooks</a
+                                                            >
+                                                            <ul
+                                                                class="nav section-nav flex-column"
+                                                            >
+                                                                <li
+                                                                    class="toc-h4 nav-item toc-entry"
+                                                                >
+                                                                    <a
+                                                                        class="reference internal nav-link"
+                                                                        href="#hints"
+                                                                        >Hints</a
+                                                                    >
+                                                                </li>
+                                                                <li
+                                                                    class="toc-h4 nav-item toc-entry"
+                                                                >
+                                                                    <a
+                                                                        class="reference internal nav-link"
+                                                                        href="#building-the-docs-locally"
+                                                                        >Building
+                                                                        the docs
+                                                                        locally</a
+                                                                    >
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </nav>
+                                    </div>
+                                </div>
+                            </div>
 
-              
-                
-<div id="searchbox"></div>
-                <article class="bd-article">
-                  
-  <section class="tex2jax_ignore mathjax_ignore" id="contributing-guide">
-<h1>Contributing guide<a class="headerlink" href="#contributing-guide" title="Link to this heading">#</a></h1>
-<p>Scanpy provides extensive <a class="reference external" href="https://scanpy.readthedocs.io/en/latest/dev/index.html">developer documentation</a>, most of which applies to this project, too.
-This document will not reproduce the entire content from there. Instead, it aims at summarizing the most important
-information to get you started on contributing.</p>
-<p>We assume that you are already familiar with git and with making pull requests on GitHub. If not, please refer
-to the <a class="reference external" href="https://scanpy.readthedocs.io/en/latest/dev/index.html">scanpy developer guide</a>.</p>
-<section id="installing-dev-dependencies">
-<h2>Installing dev dependencies<a class="headerlink" href="#installing-dev-dependencies" title="Link to this heading">#</a></h2>
-<p>In addition to the packages needed to <em>use</em> this package, you need additional python packages to <em>run tests</em> and <em>build
-the documentation</em>. It’s easy to install them using <code class="docutils literal notranslate"><span class="pre">pip</span></code>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>EnhancerAI
+                            <div id="searchbox"></div>
+                            <article class="bd-article">
+                                <section
+                                    class="tex2jax_ignore mathjax_ignore"
+                                    id="contributing-guide"
+                                >
+                                    <h1>
+                                        Contributing guide<a
+                                            class="headerlink"
+                                            href="#contributing-guide"
+                                            title="Link to this heading"
+                                            >#</a
+                                        >
+                                    </h1>
+                                    <p>
+                                        Scanpy provides extensive
+                                        <a
+                                            class="reference external"
+                                            href="https://scanpy.readthedocs.io/en/latest/dev/index.html"
+                                            >developer documentation</a
+                                        >, most of which applies to this
+                                        project, too. This document will not
+                                        reproduce the entire content from there.
+                                        Instead, it aims at summarizing the most
+                                        important information to get you started
+                                        on contributing.
+                                    </p>
+                                    <p>
+                                        We assume that you are already familiar
+                                        with git and with making pull requests
+                                        on GitHub. If not, please refer to the
+                                        <a
+                                            class="reference external"
+                                            href="https://scanpy.readthedocs.io/en/latest/dev/index.html"
+                                            >scanpy developer guide</a
+                                        >.
+                                    </p>
+                                    <section id="installing-dev-dependencies">
+                                        <h2>
+                                            Installing dev dependencies<a
+                                                class="headerlink"
+                                                href="#installing-dev-dependencies"
+                                                title="Link to this heading"
+                                                >#</a
+                                            >
+                                        </h2>
+                                        <p>
+                                            In addition to the packages needed
+                                            to <em>use</em> this package, you
+                                            need additional python packages to
+                                            <em>run tests</em> and
+                                            <em>build the documentation</em>.
+                                            It’s easy to install them using
+                                            <code
+                                                class="docutils literal notranslate"
+                                                ><span class="pre"
+                                                    >pip</span
+                                                ></code
+                                            >:
+                                        </p>
+                                        <div class="highlight-bash notranslate">
+                                            <div class="highlight">
+                                                <pre><span></span><span class="nb">cd</span><span class="w"> </span>CREsted
 pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev,test,doc]&quot;</span>
-</pre></div>
-</div>
-</section>
-<section id="code-style">
-<h2>Code-style<a class="headerlink" href="#code-style" title="Link to this heading">#</a></h2>
-<p>This package uses <a class="reference external" href="https://pre-commit.com/">pre-commit</a> to enforce consistent code-styles.
-On every commit, pre-commit checks will either automatically fix issues with the code, or raise an error message.</p>
-<p>To enable pre-commit locally, simply run</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pre-commit<span class="w"> </span>install
-</pre></div>
-</div>
-<p>in the root of the repository. Pre-commit will automatically download all dependencies when it is run for the first time.</p>
-<p>Alternatively, you can rely on the <a class="reference external" href="https://pre-commit.ci/">pre-commit.ci</a> service enabled on GitHub. If you didn’t run <code class="docutils literal notranslate"><span class="pre">pre-commit</span></code> before
-pushing changes to GitHub it will automatically commit fixes to your pull request, or show an error message.</p>
-<p>If pre-commit.ci added a commit on a branch you still have been working on locally, simply use</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>pull<span class="w"> </span>--rebase
-</pre></div>
-</div>
-<p>to integrate the changes into yours.
-While the <a class="reference external" href="https://pre-commit.ci/">pre-commit.ci</a> is useful, we strongly encourage installing and running pre-commit locally first to understand its usage.</p>
-<p>Finally, most editors have an <em>autoformat on save</em> feature. Consider enabling this option for <a class="reference external" href="https://docs.astral.sh/ruff/integrations/">ruff</a>
-and <a class="reference external" href="https://prettier.io/docs/en/editors.html">prettier</a>.</p>
-</section>
-<section id="writing-tests">
-<h2>Writing tests<a class="headerlink" href="#writing-tests" title="Link to this heading">#</a></h2>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Remember to first install the package with <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">'-e[dev,test]'</span></code></p>
-</div>
-<p>This package uses the <a class="reference external" href="https://docs.pytest.org/">pytest</a> for automated testing. Please <a class="reference external" href="https://scanpy.readthedocs.io/en/latest/dev/testing.html#writing-tests">write tests</a> for every function added
-to the package.</p>
-<p>Most IDEs integrate with pytest and provide a GUI to run tests. Alternatively, you can run all tests from the
-command line by executing</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytest
-</pre></div>
-</div>
-<p>in the root of the repository.</p>
-<section id="continuous-integration">
-<h3>Continuous integration<a class="headerlink" href="#continuous-integration" title="Link to this heading">#</a></h3>
-<p>Continuous integration will automatically run the tests on all pull requests and test
-against the minimum and maximum supported Python version.</p>
-<p>Additionally, there’s a CI job that tests against pre-releases of all dependencies
-(if there are any). The purpose of this check is to detect incompatibilities
-of new package versions early on and gives you time to fix the issue or reach
-out to the developers of the dependency before the package is released to a wider audience.</p>
-</section>
-</section>
-<section id="publishing-a-release">
-<h2>Publishing a release<a class="headerlink" href="#publishing-a-release" title="Link to this heading">#</a></h2>
-<section id="updating-the-version-number">
-<h3>Updating the version number<a class="headerlink" href="#updating-the-version-number" title="Link to this heading">#</a></h3>
-<p>Before making a release, you need to update the version number in the <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> file. Please adhere to <a class="reference external" href="https://semver.org/">Semantic Versioning</a>, in brief</p>
-<blockquote>
-<div><p>Given a version number MAJOR.MINOR.PATCH, increment the:</p>
-<ol class="arabic simple">
-<li><p>MAJOR version when you make incompatible API changes,</p></li>
-<li><p>MINOR version when you add functionality in a backwards compatible manner, and</p></li>
-<li><p>PATCH version when you make backwards compatible bug fixes.</p></li>
-</ol>
-<p>Additional labels for pre-release and build metadata are available as extensions to the MAJOR.MINOR.PATCH format.</p>
-</div></blockquote>
-<p>Once you are done, commit and push your changes and navigate to the “Releases” page of this project on GitHub.
-Specify <code class="docutils literal notranslate"><span class="pre">vX.X.X</span></code> as a tag name and create a release. For more information, see [managing Github releases][]. This will automatically create a git tag and trigger a Github workflow that creates a release on PyPI.</p>
-</section>
-</section>
-<section id="writing-documentation">
-<h2>Writing documentation<a class="headerlink" href="#writing-documentation" title="Link to this heading">#</a></h2>
-<p>Please write documentation for new or changed features and use-cases. This project uses <a class="reference external" href="https://www.sphinx-doc.org/en/master/">sphinx</a> with the following features:</p>
-<ul class="simple">
-<li><p>the <a class="reference external" href="https://myst-parser.readthedocs.io/en/latest/intro.html">myst</a> extension allows to write documentation in markdown/Markedly Structured Text</p></li>
-<li><p><a class="reference external" href="https://numpydoc.readthedocs.io/en/latest/format.html">Numpy-style docstrings</a> (through the <a class="reference external" href="https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html">napoloen</a> extension).</p></li>
-<li><p>Jupyter notebooks as tutorials through <a class="reference external" href="https://myst-nb.readthedocs.io/en/latest/">myst-nb</a> (See <a class="reference internal" href="#tutorials-with-myst-nb-and-jupyter-notebooks">Tutorials with myst-nb</a>)</p></li>
-<li><p><a class="reference external" href="https://github.com/tox-dev/sphinx-autodoc-typehints">Sphinx autodoc typehints</a>, to automatically reference annotated input and output types</p></li>
-<li><p>Citations (like <span id="id1">[<a class="reference internal" href="references.html#id2" title="Isaac Virshup, Danila Bredikhin, Lukas Heumos, Giovanni Palla, Gregor Sturm, Adam Gayoso, Ilia Kats, Mikaela Koutrouli, Philipp Angerer, Volker Bergen, Pierre Boyeau, Maren Büttner, Gokcen Eraslan, David Fischer, Max Frank, Justin Hong, Michal Klein, Marius Lange, Romain Lopez, Mohammad Lotfollahi, Malte D. Luecken, Fidel Ramirez, Jeffrey Regier, Sergei Rybakov, Anna C. Schaar, Valeh Valiollah Pour Amiri, Philipp Weiler, Galen Xing, Bonnie Berger, Dana Pe'er, Aviv Regev, Sarah A. Teichmann, Francesca Finotello, F. Alexander Wolf, Nir Yosef, Oliver Stegle, and Fabian J. Theis and. The scverse project provides a computational ecosystem for single-cell omics data analysis. Nature Biotechnology, apr 2023. URL: https://doi.org/10.1038%2Fs41587-023-01733-8, doi:10.1038/s41587-023-01733-8.">VBH+23</a>]</span>) can be included with <a class="reference external" href="https://sphinxcontrib-bibtex.readthedocs.io/">sphinxcontrib-bibtex</a></p></li>
-</ul>
-<p>See the <a class="reference external" href="https://scanpy.readthedocs.io/en/latest/dev/documentation.html">scanpy developer docs</a> for more information
-on how to write documentation.</p>
-<section id="tutorials-with-myst-nb-and-jupyter-notebooks">
-<h3>Tutorials with myst-nb and jupyter notebooks<a class="headerlink" href="#tutorials-with-myst-nb-and-jupyter-notebooks" title="Link to this heading">#</a></h3>
-<p>The documentation is set-up to render jupyter notebooks stored in the <code class="docutils literal notranslate"><span class="pre">docs/notebooks</span></code> directory using <a class="reference external" href="https://myst-nb.readthedocs.io/en/latest/">myst-nb</a>.
-Currently, only notebooks in <code class="docutils literal notranslate"><span class="pre">.ipynb</span></code> format are supported that will be included with both their input and output cells.
-It is your responsibility to update and re-run the notebook whenever necessary.</p>
-<p>If you are interested in automatically running notebooks as part of the continuous integration, please check
-out <a class="reference external" href="https://github.com/scverse/cookiecutter-scverse/issues/40">this feature request</a> in the <code class="docutils literal notranslate"><span class="pre">cookiecutter-scverse</span></code>
-repository.</p>
-<section id="hints">
-<h4>Hints<a class="headerlink" href="#hints" title="Link to this heading">#</a></h4>
-<ul class="simple">
-<li><p>If you refer to objects from other packages, please add an entry to <code class="docutils literal notranslate"><span class="pre">intersphinx_mapping</span></code> in <code class="docutils literal notranslate"><span class="pre">docs/conf.py</span></code>. Only
-if you do so can sphinx automatically create a link to the external documentation.</p></li>
-<li><p>If building the documentation fails because of a missing link that is outside your control, you can add an entry to
-the <code class="docutils literal notranslate"><span class="pre">nitpick_ignore</span></code> list in <code class="docutils literal notranslate"><span class="pre">docs/conf.py</span></code></p></li>
-</ul>
-</section>
-<section id="building-the-docs-locally">
-<h4>Building the docs locally<a class="headerlink" href="#building-the-docs-locally" title="Link to this heading">#</a></h4>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>docs
+</pre>
+                                            </div>
+                                        </div>
+                                    </section>
+                                    <section id="code-style">
+                                        <h2>
+                                            Code-style<a
+                                                class="headerlink"
+                                                href="#code-style"
+                                                title="Link to this heading"
+                                                >#</a
+                                            >
+                                        </h2>
+                                        <p>
+                                            This package uses
+                                            <a
+                                                class="reference external"
+                                                href="https://pre-commit.com/"
+                                                >pre-commit</a
+                                            >
+                                            to enforce consistent code-styles.
+                                            On every commit, pre-commit checks
+                                            will either automatically fix issues
+                                            with the code, or raise an error
+                                            message.
+                                        </p>
+                                        <p>
+                                            To enable pre-commit locally, simply
+                                            run
+                                        </p>
+                                        <div class="highlight-bash notranslate">
+                                            <div class="highlight">
+                                                <pre><span></span>pre-commit<span class="w"> </span>install
+</pre>
+                                            </div>
+                                        </div>
+                                        <p>
+                                            in the root of the repository.
+                                            Pre-commit will automatically
+                                            download all dependencies when it is
+                                            run for the first time.
+                                        </p>
+                                        <p>
+                                            Alternatively, you can rely on the
+                                            <a
+                                                class="reference external"
+                                                href="https://pre-commit.ci/"
+                                                >pre-commit.ci</a
+                                            >
+                                            service enabled on GitHub. If you
+                                            didn’t run
+                                            <code
+                                                class="docutils literal notranslate"
+                                                ><span class="pre"
+                                                    >pre-commit</span
+                                                ></code
+                                            >
+                                            before pushing changes to GitHub it
+                                            will automatically commit fixes to
+                                            your pull request, or show an error
+                                            message.
+                                        </p>
+                                        <p>
+                                            If pre-commit.ci added a commit on a
+                                            branch you still have been working
+                                            on locally, simply use
+                                        </p>
+                                        <div class="highlight-bash notranslate">
+                                            <div class="highlight">
+                                                <pre><span></span>git<span class="w"> </span>pull<span class="w"> </span>--rebase
+</pre>
+                                            </div>
+                                        </div>
+                                        <p>
+                                            to integrate the changes into yours.
+                                            While the
+                                            <a
+                                                class="reference external"
+                                                href="https://pre-commit.ci/"
+                                                >pre-commit.ci</a
+                                            >
+                                            is useful, we strongly encourage
+                                            installing and running pre-commit
+                                            locally first to understand its
+                                            usage.
+                                        </p>
+                                        <p>
+                                            Finally, most editors have an
+                                            <em>autoformat on save</em> feature.
+                                            Consider enabling this option for
+                                            <a
+                                                class="reference external"
+                                                href="https://docs.astral.sh/ruff/integrations/"
+                                                >ruff</a
+                                            >
+                                            and
+                                            <a
+                                                class="reference external"
+                                                href="https://prettier.io/docs/en/editors.html"
+                                                >prettier</a
+                                            >.
+                                        </p>
+                                    </section>
+                                    <section id="writing-tests">
+                                        <h2>
+                                            Writing tests<a
+                                                class="headerlink"
+                                                href="#writing-tests"
+                                                title="Link to this heading"
+                                                >#</a
+                                            >
+                                        </h2>
+                                        <div class="admonition note">
+                                            <p class="admonition-title">Note</p>
+                                            <p>
+                                                Remember to first install the
+                                                package with
+                                                <code
+                                                    class="docutils literal notranslate"
+                                                    ><span class="pre"
+                                                        >pip</span
+                                                    >
+                                                    <span class="pre"
+                                                        >install</span
+                                                    >
+                                                    <span class="pre"
+                                                        >'-e[dev,test]'</span
+                                                    ></code
+                                                >
+                                            </p>
+                                        </div>
+                                        <p>
+                                            This package uses the
+                                            <a
+                                                class="reference external"
+                                                href="https://docs.pytest.org/"
+                                                >pytest</a
+                                            >
+                                            for automated testing. Please
+                                            <a
+                                                class="reference external"
+                                                href="https://scanpy.readthedocs.io/en/latest/dev/testing.html#writing-tests"
+                                                >write tests</a
+                                            >
+                                            for every function added to the
+                                            package.
+                                        </p>
+                                        <p>
+                                            Most IDEs integrate with pytest and
+                                            provide a GUI to run tests.
+                                            Alternatively, you can run all tests
+                                            from the command line by executing
+                                        </p>
+                                        <div class="highlight-bash notranslate">
+                                            <div class="highlight">
+                                                <pre><span></span>pytest
+</pre>
+                                            </div>
+                                        </div>
+                                        <p>in the root of the repository.</p>
+                                        <section id="continuous-integration">
+                                            <h3>
+                                                Continuous integration<a
+                                                    class="headerlink"
+                                                    href="#continuous-integration"
+                                                    title="Link to this heading"
+                                                    >#</a
+                                                >
+                                            </h3>
+                                            <p>
+                                                Continuous integration will
+                                                automatically run the tests on
+                                                all pull requests and test
+                                                against the minimum and maximum
+                                                supported Python version.
+                                            </p>
+                                            <p>
+                                                Additionally, there’s a CI job
+                                                that tests against pre-releases
+                                                of all dependencies (if there
+                                                are any). The purpose of this
+                                                check is to detect
+                                                incompatibilities of new package
+                                                versions early on and gives you
+                                                time to fix the issue or reach
+                                                out to the developers of the
+                                                dependency before the package is
+                                                released to a wider audience.
+                                            </p>
+                                        </section>
+                                    </section>
+                                    <section id="publishing-a-release">
+                                        <h2>
+                                            Publishing a release<a
+                                                class="headerlink"
+                                                href="#publishing-a-release"
+                                                title="Link to this heading"
+                                                >#</a
+                                            >
+                                        </h2>
+                                        <section
+                                            id="updating-the-version-number"
+                                        >
+                                            <h3>
+                                                Updating the version number<a
+                                                    class="headerlink"
+                                                    href="#updating-the-version-number"
+                                                    title="Link to this heading"
+                                                    >#</a
+                                                >
+                                            </h3>
+                                            <p>
+                                                Before making a release, you
+                                                need to update the version
+                                                number in the
+                                                <code
+                                                    class="docutils literal notranslate"
+                                                    ><span class="pre"
+                                                        >pyproject.toml</span
+                                                    ></code
+                                                >
+                                                file. Please adhere to
+                                                <a
+                                                    class="reference external"
+                                                    href="https://semver.org/"
+                                                    >Semantic Versioning</a
+                                                >, in brief
+                                            </p>
+                                            <blockquote>
+                                                <div>
+                                                    <p>
+                                                        Given a version number
+                                                        MAJOR.MINOR.PATCH,
+                                                        increment the:
+                                                    </p>
+                                                    <ol class="arabic simple">
+                                                        <li>
+                                                            <p>
+                                                                MAJOR version
+                                                                when you make
+                                                                incompatible API
+                                                                changes,
+                                                            </p>
+                                                        </li>
+                                                        <li>
+                                                            <p>
+                                                                MINOR version
+                                                                when you add
+                                                                functionality in
+                                                                a backwards
+                                                                compatible
+                                                                manner, and
+                                                            </p>
+                                                        </li>
+                                                        <li>
+                                                            <p>
+                                                                PATCH version
+                                                                when you make
+                                                                backwards
+                                                                compatible bug
+                                                                fixes.
+                                                            </p>
+                                                        </li>
+                                                    </ol>
+                                                    <p>
+                                                        Additional labels for
+                                                        pre-release and build
+                                                        metadata are available
+                                                        as extensions to the
+                                                        MAJOR.MINOR.PATCH
+                                                        format.
+                                                    </p>
+                                                </div>
+                                            </blockquote>
+                                            <p>
+                                                Once you are done, commit and
+                                                push your changes and navigate
+                                                to the “Releases” page of this
+                                                project on GitHub. Specify
+                                                <code
+                                                    class="docutils literal notranslate"
+                                                    ><span class="pre"
+                                                        >vX.X.X</span
+                                                    ></code
+                                                >
+                                                as a tag name and create a
+                                                release. For more information,
+                                                see
+                                                <a
+                                                    class="reference external"
+                                                    href="https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository"
+                                                    >managing GitHub releases</a
+                                                >. This will automatically
+                                                create a git tag and trigger a
+                                                Github workflow that creates a
+                                                release on PyPI.
+                                            </p>
+                                        </section>
+                                    </section>
+                                    <section id="writing-documentation">
+                                        <h2>
+                                            Writing documentation<a
+                                                class="headerlink"
+                                                href="#writing-documentation"
+                                                title="Link to this heading"
+                                                >#</a
+                                            >
+                                        </h2>
+                                        <p>
+                                            Please write documentation for new
+                                            or changed features and use-cases.
+                                            This project uses
+                                            <a
+                                                class="reference external"
+                                                href="https://www.sphinx-doc.org/en/master/"
+                                                >sphinx</a
+                                            >
+                                            with the following features:
+                                        </p>
+                                        <ul class="simple">
+                                            <li>
+                                                <p>
+                                                    the
+                                                    <a
+                                                        class="reference external"
+                                                        href="https://myst-parser.readthedocs.io/en/latest/intro.html"
+                                                        >myst</a
+                                                    >
+                                                    extension allows to write
+                                                    documentation in
+                                                    markdown/Markedly Structured
+                                                    Text
+                                                </p>
+                                            </li>
+                                            <li>
+                                                <p>
+                                                    <a
+                                                        class="reference external"
+                                                        href="https://numpydoc.readthedocs.io/en/latest/format.html"
+                                                        >Numpy-style
+                                                        docstrings</a
+                                                    >
+                                                    (through the
+                                                    <a
+                                                        class="reference external"
+                                                        href="https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html"
+                                                        >napoloen</a
+                                                    >
+                                                    extension).
+                                                </p>
+                                            </li>
+                                            <li>
+                                                <p>
+                                                    Jupyter notebooks as
+                                                    tutorials through
+                                                    <a
+                                                        class="reference external"
+                                                        href="https://myst-nb.readthedocs.io/en/latest/"
+                                                        >myst-nb</a
+                                                    >
+                                                    (See
+                                                    <a
+                                                        class="reference internal"
+                                                        href="#tutorials-with-myst-nb-and-jupyter-notebooks"
+                                                        >Tutorials with
+                                                        myst-nb</a
+                                                    >)
+                                                </p>
+                                            </li>
+                                            <li>
+                                                <p>
+                                                    <a
+                                                        class="reference external"
+                                                        href="https://github.com/tox-dev/sphinx-autodoc-typehints"
+                                                        >Sphinx autodoc
+                                                        typehints</a
+                                                    >, to automatically
+                                                    reference annotated input
+                                                    and output types
+                                                </p>
+                                            </li>
+                                            <li>
+                                                <p>
+                                                    Citations (like
+                                                    <span id="id1"
+                                                        >[<a
+                                                            class="reference internal"
+                                                            href="references.html#id2"
+                                                            title="Isaac Virshup, Danila Bredikhin, Lukas Heumos, Giovanni Palla, Gregor Sturm, Adam Gayoso, Ilia Kats, Mikaela Koutrouli, Philipp Angerer, Volker Bergen, Pierre Boyeau, Maren Büttner, Gokcen Eraslan, David Fischer, Max Frank, Justin Hong, Michal Klein, Marius Lange, Romain Lopez, Mohammad Lotfollahi, Malte D. Luecken, Fidel Ramirez, Jeffrey Regier, Sergei Rybakov, Anna C. Schaar, Valeh Valiollah Pour Amiri, Philipp Weiler, Galen Xing, Bonnie Berger, Dana Pe'er, Aviv Regev, Sarah A. Teichmann, Francesca Finotello, F. Alexander Wolf, Nir Yosef, Oliver Stegle, and Fabian J. Theis and. The scverse project provides a computational ecosystem for single-cell omics data analysis. Nature Biotechnology, apr 2023. URL: https://doi.org/10.1038%2Fs41587-023-01733-8, doi:10.1038/s41587-023-01733-8."
+                                                            >VBH+23</a
+                                                        >]</span
+                                                    >) can be included with
+                                                    <a
+                                                        class="reference external"
+                                                        href="https://sphinxcontrib-bibtex.readthedocs.io/"
+                                                        >sphinxcontrib-bibtex</a
+                                                    >
+                                                </p>
+                                            </li>
+                                        </ul>
+                                        <p>
+                                            See the
+                                            <a
+                                                class="reference external"
+                                                href="https://scanpy.readthedocs.io/en/latest/dev/documentation.html"
+                                                >scanpy developer docs</a
+                                            >
+                                            for more information on how to write
+                                            documentation.
+                                        </p>
+                                        <section
+                                            id="tutorials-with-myst-nb-and-jupyter-notebooks"
+                                        >
+                                            <h3>
+                                                Tutorials with myst-nb and
+                                                jupyter notebooks<a
+                                                    class="headerlink"
+                                                    href="#tutorials-with-myst-nb-and-jupyter-notebooks"
+                                                    title="Link to this heading"
+                                                    >#</a
+                                                >
+                                            </h3>
+                                            <p>
+                                                The documentation is set-up to
+                                                render jupyter notebooks stored
+                                                in the
+                                                <code
+                                                    class="docutils literal notranslate"
+                                                    ><span class="pre"
+                                                        >docs/notebooks</span
+                                                    ></code
+                                                >
+                                                directory using
+                                                <a
+                                                    class="reference external"
+                                                    href="https://myst-nb.readthedocs.io/en/latest/"
+                                                    >myst-nb</a
+                                                >. Currently, only notebooks in
+                                                <code
+                                                    class="docutils literal notranslate"
+                                                    ><span class="pre"
+                                                        >.ipynb</span
+                                                    ></code
+                                                >
+                                                format are supported that will
+                                                be included with both their
+                                                input and output cells. It is
+                                                your responsibility to update
+                                                and re-run the notebook whenever
+                                                necessary.
+                                            </p>
+                                            <p>
+                                                If you are interested in
+                                                automatically running notebooks
+                                                as part of the continuous
+                                                integration, please check out
+                                                <a
+                                                    class="reference external"
+                                                    href="https://github.com/scverse/cookiecutter-scverse/issues/40"
+                                                    >this feature request</a
+                                                >
+                                                in the
+                                                <code
+                                                    class="docutils literal notranslate"
+                                                    ><span class="pre"
+                                                        >cookiecutter-scverse</span
+                                                    ></code
+                                                >
+                                                repository.
+                                            </p>
+                                            <section id="hints">
+                                                <h4>
+                                                    Hints<a
+                                                        class="headerlink"
+                                                        href="#hints"
+                                                        title="Link to this heading"
+                                                        >#</a
+                                                    >
+                                                </h4>
+                                                <ul class="simple">
+                                                    <li>
+                                                        <p>
+                                                            If you refer to
+                                                            objects from other
+                                                            packages, please add
+                                                            an entry to
+                                                            <code
+                                                                class="docutils literal notranslate"
+                                                                ><span
+                                                                    class="pre"
+                                                                    >intersphinx_mapping</span
+                                                                ></code
+                                                            >
+                                                            in
+                                                            <code
+                                                                class="docutils literal notranslate"
+                                                                ><span
+                                                                    class="pre"
+                                                                    >docs/conf.py</span
+                                                                ></code
+                                                            >. Only if you do so
+                                                            can sphinx
+                                                            automatically create
+                                                            a link to the
+                                                            external
+                                                            documentation.
+                                                        </p>
+                                                    </li>
+                                                    <li>
+                                                        <p>
+                                                            If building the
+                                                            documentation fails
+                                                            because of a missing
+                                                            link that is outside
+                                                            your control, you
+                                                            can add an entry to
+                                                            the
+                                                            <code
+                                                                class="docutils literal notranslate"
+                                                                ><span
+                                                                    class="pre"
+                                                                    >nitpick_ignore</span
+                                                                ></code
+                                                            >
+                                                            list in
+                                                            <code
+                                                                class="docutils literal notranslate"
+                                                                ><span
+                                                                    class="pre"
+                                                                    >docs/conf.py</span
+                                                                ></code
+                                                            >
+                                                        </p>
+                                                    </li>
+                                                </ul>
+                                            </section>
+                                            <section
+                                                id="building-the-docs-locally"
+                                            >
+                                                <h4>
+                                                    Building the docs locally<a
+                                                        class="headerlink"
+                                                        href="#building-the-docs-locally"
+                                                        title="Link to this heading"
+                                                        >#</a
+                                                    >
+                                                </h4>
+                                                <div
+                                                    class="highlight-bash notranslate"
+                                                >
+                                                    <div class="highlight">
+                                                        <pre><span></span><span class="nb">cd</span><span class="w"> </span>docs
 make<span class="w"> </span>html
 open<span class="w"> </span>_build/html/index.html
-</pre></div>
-</div>
-<!-- Links -->
-</section>
-</section>
-</section>
-</section>
+</pre>
+                                                    </div>
+                                                </div>
+                                                <!-- Links -->
+                                            </section>
+                                        </section>
+                                    </section>
+                                </section>
+                            </article>
 
+                            <footer class="prev-next-footer d-print-none">
+                                <div class="prev-next-area">
+                                    <a
+                                        class="left-prev"
+                                        href="api/plotting.html"
+                                        title="previous page"
+                                    >
+                                        <i class="fa-solid fa-angle-left"></i>
+                                        <div class="prev-next-info">
+                                            <p class="prev-next-subtitle">
+                                                previous
+                                            </p>
+                                            <p class="prev-next-title">
+                                                Plotting:
+                                                <code
+                                                    class="docutils literal notranslate"
+                                                    ><span class="pre"
+                                                        >pl</span
+                                                    ></code
+                                                >
+                                            </p>
+                                        </div>
+                                    </a>
+                                    <a
+                                        class="right-next"
+                                        href="references.html"
+                                        title="next page"
+                                    >
+                                        <div class="prev-next-info">
+                                            <p class="prev-next-subtitle">
+                                                next
+                                            </p>
+                                            <p class="prev-next-title">
+                                                References
+                                            </p>
+                                        </div>
+                                        <i class="fa-solid fa-angle-right"></i>
+                                    </a>
+                                </div>
+                            </footer>
+                        </div>
 
-                </article>
-              
+                        <div class="bd-sidebar-secondary bd-toc">
+                            <div
+                                class="sidebar-secondary-items sidebar-secondary__inner"
+                            >
+                                <div class="sidebar-secondary-item">
+                                    <div class="page-toc tocsection onthispage">
+                                        <i class="fa-solid fa-list"></i>
+                                        Contents
+                                    </div>
+                                    <nav class="bd-toc-nav page-toc">
+                                        <ul
+                                            class="visible nav section-nav flex-column"
+                                        >
+                                            <li
+                                                class="toc-h2 nav-item toc-entry"
+                                            >
+                                                <a
+                                                    class="reference internal nav-link"
+                                                    href="#installing-dev-dependencies"
+                                                    >Installing dev
+                                                    dependencies</a
+                                                >
+                                            </li>
+                                            <li
+                                                class="toc-h2 nav-item toc-entry"
+                                            >
+                                                <a
+                                                    class="reference internal nav-link"
+                                                    href="#code-style"
+                                                    >Code-style</a
+                                                >
+                                            </li>
+                                            <li
+                                                class="toc-h2 nav-item toc-entry"
+                                            >
+                                                <a
+                                                    class="reference internal nav-link"
+                                                    href="#writing-tests"
+                                                    >Writing tests</a
+                                                >
+                                                <ul
+                                                    class="nav section-nav flex-column"
+                                                >
+                                                    <li
+                                                        class="toc-h3 nav-item toc-entry"
+                                                    >
+                                                        <a
+                                                            class="reference internal nav-link"
+                                                            href="#continuous-integration"
+                                                            >Continuous
+                                                            integration</a
+                                                        >
+                                                    </li>
+                                                </ul>
+                                            </li>
+                                            <li
+                                                class="toc-h2 nav-item toc-entry"
+                                            >
+                                                <a
+                                                    class="reference internal nav-link"
+                                                    href="#publishing-a-release"
+                                                    >Publishing a release</a
+                                                >
+                                                <ul
+                                                    class="nav section-nav flex-column"
+                                                >
+                                                    <li
+                                                        class="toc-h3 nav-item toc-entry"
+                                                    >
+                                                        <a
+                                                            class="reference internal nav-link"
+                                                            href="#updating-the-version-number"
+                                                            >Updating the
+                                                            version number</a
+                                                        >
+                                                    </li>
+                                                </ul>
+                                            </li>
+                                            <li
+                                                class="toc-h2 nav-item toc-entry"
+                                            >
+                                                <a
+                                                    class="reference internal nav-link"
+                                                    href="#writing-documentation"
+                                                    >Writing documentation</a
+                                                >
+                                                <ul
+                                                    class="nav section-nav flex-column"
+                                                >
+                                                    <li
+                                                        class="toc-h3 nav-item toc-entry"
+                                                    >
+                                                        <a
+                                                            class="reference internal nav-link"
+                                                            href="#tutorials-with-myst-nb-and-jupyter-notebooks"
+                                                            >Tutorials with
+                                                            myst-nb and jupyter
+                                                            notebooks</a
+                                                        >
+                                                        <ul
+                                                            class="nav section-nav flex-column"
+                                                        >
+                                                            <li
+                                                                class="toc-h4 nav-item toc-entry"
+                                                            >
+                                                                <a
+                                                                    class="reference internal nav-link"
+                                                                    href="#hints"
+                                                                    >Hints</a
+                                                                >
+                                                            </li>
+                                                            <li
+                                                                class="toc-h4 nav-item toc-entry"
+                                                            >
+                                                                <a
+                                                                    class="reference internal nav-link"
+                                                                    href="#building-the-docs-locally"
+                                                                    >Building
+                                                                    the docs
+                                                                    locally</a
+                                                                >
+                                                            </li>
+                                                        </ul>
+                                                    </li>
+                                                </ul>
+                                            </li>
+                                        </ul>
+                                    </nav>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <footer class="bd-footer-content">
+                        <div class="bd-footer-content__inner container">
+                            <div class="footer-item">
+                                <p class="component-author">By Lukas Mahieu</p>
+                            </div>
 
-              
-              
-              
-              
-                <footer class="prev-next-footer">
-                  
-<div class="prev-next-area">
-    <a class="left-prev"
-       href="changelog.html"
-       title="previous page">
-      <i class="fa-solid fa-angle-left"></i>
-      <div class="prev-next-info">
-        <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Changelog</p>
-      </div>
-    </a>
-    <a class="right-next"
-       href="references.html"
-       title="next page">
-      <div class="prev-next-info">
-        <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">References</p>
-      </div>
-      <i class="fa-solid fa-angle-right"></i>
-    </a>
-</div>
-                </footer>
-              
+                            <div class="footer-item">
+                                <p class="copyright">
+                                    © Copyright 2024, Lukas Mahieu..
+                                    <br />
+                                </p>
+                            </div>
+
+                            <div class="footer-item"></div>
+
+                            <div class="footer-item"></div>
+                        </div>
+                    </footer>
+                </main>
             </div>
-            
-            
-              
-                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+        </div>
 
+        <!-- Scripts loaded after <body> so the DOM is not blocked -->
+        <script src="_static/scripts/bootstrap.js?digest=3ee479438cf8b5e0d341"></script>
+        <script src="_static/scripts/pydata-sphinx-theme.js?digest=3ee479438cf8b5e0d341"></script>
 
-  <div class="sidebar-secondary-item">
-  <div class="page-toc tocsection onthispage">
-    <i class="fa-solid fa-list"></i> Contents
-  </div>
-  <nav class="bd-toc-nav page-toc">
-    <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#installing-dev-dependencies">Installing dev dependencies</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#code-style">Code-style</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#writing-tests">Writing tests</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#continuous-integration">Continuous integration</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#publishing-a-release">Publishing a release</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#updating-the-version-number">Updating the version number</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#writing-documentation">Writing documentation</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tutorials-with-myst-nb-and-jupyter-notebooks">Tutorials with myst-nb and jupyter notebooks</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#hints">Hints</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#building-the-docs-locally">Building the docs locally</a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-  </nav></div>
-
-</div></div>
-              
-            
-          </div>
-          <footer class="bd-footer-content">
-            
-<div class="bd-footer-content__inner container">
-  
-  <div class="footer-item">
-    
-<p class="component-author">
-By Lukas Mahieu
-</p>
-
-  </div>
-  
-  <div class="footer-item">
-    
-
-  <p class="copyright">
-    
-      © Copyright 2024, Lukas Mahieu..
-      <br/>
-    
-  </p>
-
-  </div>
-  
-  <div class="footer-item">
-    
-  </div>
-  
-  <div class="footer-item">
-    
-  </div>
-  
-</div>
-          </footer>
-        
-
-      </main>
-    </div>
-  </div>
-  
-  <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script src="_static/scripts/bootstrap.js?digest=8d27b9dea8ad943066ae"></script>
-<script src="_static/scripts/pydata-sphinx-theme.js?digest=8d27b9dea8ad943066ae"></script>
-
-  <footer class="bd-footer">
-  </footer>
-  </body>
+        <footer class="bd-footer"></footer>
+    </body>
 </html>

@@ -3,11 +3,11 @@
 I/o description
 
 ```{eval-rst}
-.. module:: enhancerai
+.. module:: crested
 ```
 
 ```{eval-rst}
-.. currentmodule:: enhancerai
+.. currentmodule:: crested
 ```
 
 ## Basic I/O

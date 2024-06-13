@@ -3,11 +3,11 @@
 Plotting description
 
 ```{eval-rst}
-.. module:: enhancerai.pl
+.. module:: crested.pl
 ```
 
 ```{eval-rst}
-.. currentmodule:: enhancerai
+.. currentmodule:: crested
 ```
 
 ## Basic Plotting
