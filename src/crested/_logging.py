@@ -1,5 +1,7 @@
 """Setup loguru logging for the package."""
 
+from __future__ import annotations
+
 import sys
 from functools import wraps
 
