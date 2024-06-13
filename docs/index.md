@@ -6,10 +6,9 @@
 :hidden: true
 :maxdepth: 1
 
+tutorials/index.md
 api/index
 changelog
 contributing
 references
-
-notebooks/example
 ```

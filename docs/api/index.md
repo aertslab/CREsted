@@ -13,4 +13,5 @@ io
 preprocessing
 tools
 plotting
+logging
 ```

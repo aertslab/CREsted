@@ -52,7 +52,7 @@ def import_topics(
     """
     Import topic and consensus regions BED files into AnnData format.
 
-    This format is required to be able to train a DeepTopic model.
+    This format is required to be able to train a topic prediction model.
     The topic and consensus regions are the outputs from running pycisTopic
     (https://pycistopic.readthedocs.io/en/latest/) on your data.
     The result is an AnnData object with topics as rows and consensus region as columns,
@@ -209,6 +209,8 @@ def import_peaks(
     compress: bool = True,
 ) -> AnnData:
     """
+    NOT IMPLEMENTED YET
+
     Import bigWig files and consensus regions BED file into AnnData format.
 
     This format is required to be able to train a peak prediction model.
@@ -221,7 +223,7 @@ def import_peaks(
     >>> anndata = crested.import_peaks(
     ...     bigwigs_folder="path/to/bigwigs",
     ...     regions_file="path/to/peaks.bed",
-    ...     chromsizes_file="path/to/chrom.sizes,
+    ...     chromsizes_file="path/to/chrom.sizes",
     ...     target="max",
     ...     target_region_width=500,
     ... )

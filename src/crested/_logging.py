@@ -12,6 +12,8 @@ def setup_logging(log_level: str = "INFO", log_file: str | None = None):
     """
     Setup loguru logging for the package.
 
+    Default is set to log_level="INFO" and log_file=None each time the package is imported.
+
     Parameters
     ----------
     log_level : str

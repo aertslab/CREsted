@@ -4,13 +4,13 @@
     "checkout": "v0.3.1",
     "context": {
       "cookiecutter": {
-        "project_name": "crested",
+        "project_name": "CREsted",
         "package_name": "crested",
-        "project_description": "A deep learning toolkit for investigating the gene regulatory code",
-        "author_full_name": "Lukas Mahieu",
-        "author_email": "lukas.mahieu@kuleuven.be",
-        "github_user": "LukasMahieu",
-        "project_repo": "https://github.com/aertslab/crested/",
+        "project_description": "Cis Regulatory Element Sequence Training, Explanation, and Design",
+        "author_full_name": "Stein Aerts Lab",
+        "author_email": "stein.aerts@kuleuven.be",
+        "github_user": "aertslab",
+        "project_repo": "https://github.com/aertslab/CREsted/",
         "license": "LICENSE",
         "_copy_without_render": [
           ".github/workflows/build.yaml",

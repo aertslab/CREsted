@@ -193,9 +193,31 @@ def train_val_test_split(
     """
     Add 'train/val/test' split column to AnnData object.
 
-    This function adds a new column to the `.var` DataFrame of the AnnData object,
+    Adds a new column `split` to the `.var` DataFrame of the AnnData object,
     indicating whether each sample should be part of the training, validation, or test set
     based on the chosen splitting strategy.
+
+    Note
+    ----
+    Model training always requires a `split` column in the `.var` DataFrame.
+
+    Examples
+    --------
+    >>> crested.train_val_test_split(
+    ...     adata,
+    ...     strategy="region",
+    ...     val_size=0.1,
+    ...     test_size=0.1,
+    ...     shuffle=True,
+    ...     random_state=42,
+    ... )
+
+    >>> crested.train_val_test_split(
+    ...     adata,
+    ...     strategy="chr",
+    ...     val_chroms=["chr1", "chr2"],
+    ...     test_chroms=["chr3", "chr4"],
+    ... )
 
     Parameters
     ----------
@@ -204,9 +226,15 @@ def train_val_test_split(
     strategy
         strategy of split. Either 'region', 'chr' or 'chr_auto'. If 'chr' or 'chr_auto', the "target" df should
         have a column "chr" with the chromosome names.
+
         region: Split randomly on region indices.
+
         chr: Split based on provided chromosomes.
+
         chr_auto: Automatically select chromosomes for val and test sets based on val and test size.
+
+        If strategy 'chr', it's also possible to provide the same chromosome(s) to both val_chroms and test_chroms.
+        In this case, the regions will be divided evenly between the two sets.
     val_size
         Proportion of the training dataset to include in the validation split.
     test_size

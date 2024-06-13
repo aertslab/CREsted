@@ -11,7 +11,51 @@ from ._dataset import AnnDataset
 
 
 class AnnDataModule:
-    """DataModule class which defines how dataloaders should be loaded in each stage."""
+    """
+    DataModule class which defines how dataloaders should be loaded in each stage.
+
+    Required input for the `tl.Crested` class.
+
+    Note
+    ----
+    Expects a `split` column in the `.var` DataFrame of the AnnData object.
+    Run `pp.train_val_test_split` first to add the `split` column to the AnnData object if not yet done.
+
+    Example
+    -------
+    >>> data_module = AnnDataModule(
+    ...     adata,
+    ...     genome_file="path/to/genome.fa",
+    ...     chromsizes_file="path/to/chrom.sizes",
+    ...     always_reverse_complement=True,
+    ...     max_stochastic_shift=50,
+    ...     batch_size=256,
+    ... )
+
+    Parameters
+    ----------
+    adata
+        An instance of AnnData containing the data to be loaded.
+    genome_file
+        Path to the genome file.
+    chromsizes_file
+        Path to the chromsizes file. Advised if max_stochastic_shift > 0.
+    in_memory
+        If True, the train and val sequences will be loaded into memory. Default is True.
+    always_reverse_complement
+        If True, all sequences will be augmented with their reverse complement during training.
+        Effectively increases the training dataset size by a factor of 2. Default is True.
+    random_reverse_complement
+        If True, the sequences will be randomly reverse complemented during training. Default is False.
+    max_stochastic_shift
+        Maximum stochastic shift (n base pairs) to apply randomly to each sequence during training. Default is 0.
+    shuffle
+        If True, the data will be shuffled at the end of each epoch during training. Default is True.
+    batch_size
+        Number of samples per batch to load. Default is 256.
+    drop_remainder
+        If True, the last batch will be dropped if it is smaller than batch_size during training. Default is False.
+    """
 
     def __init__(
         self,
@@ -24,35 +68,9 @@ class AnnDataModule:
         max_stochastic_shift: int = 0,
         shuffle: bool = True,
         batch_size: int = 256,
-        drop_remainder: bool = True,
+        drop_remainder: bool = False,
     ):
-        """
-        Initialize the DataModule with the provided dataset and options.
-
-        Parameters
-        ----------
-        adata
-            An instance of AnnData containing the data to be loaded.
-        genome_file
-            Path to the genome file.
-        chromsizes_file
-            Path to the chromsizes file. Advised if max_stochastic_shift > 0.
-        in_memory
-            If True, the train and val sequences will be loaded into memory. Default is True.
-        always_reverse_complement
-            If True, all sequences will be augmented with their reverse complement during training.
-            Effectively increases the training dataset size by a factor of 2. Default is True.
-        random_reverse_complement
-            If True, the sequences will be randomly reverse complemented during training. Default is False.
-        max_stochastic_shift
-            Maximum stochastic shift (n base pairs) to apply randomly to each sequence during training. Default is 0.
-        shuffle
-            If True, the data will be shuffled at the end of each epoch during training. Default is True.
-        batch_size
-            Number of samples per batch to load. Default is 256.
-        drop_remainder
-            If True, the last batch will be dropped if it is smaller than batch_size during training. Default is True.
-        """
+        """Initialize the DataModule with the provided dataset and options."""
         self.adata = adata
         self.genome_file = genome_file
         self.chromsizes_file = chromsizes_file
@@ -88,8 +106,19 @@ class AnnDataModule:
             "Chromsizes file not provided when shifting. Will not check if shifted regions are within chromosomes",
         )
 
-    def setup(self, stage: str):
-        """Setup the Anndatasets for a given stage."""
+    def setup(self, stage: str) -> None:
+        """
+        Setup the Anndatasets for a given stage.
+
+        Generates the train, val, test or predict dataset based on the provided stage.
+        Should always be called before accessing the dataloaders.
+        Generally you don't need to call this directly, as this is called inside the `tl.Crested` trainer class.
+
+        Parameters
+        ----------
+        stage
+            Stage for which to setup the dataloader. Either 'fit', 'test' or 'predict'.
+        """
         if stage == "fit":
             self.train_dataset = AnnDataset(
                 self.adata,
@@ -135,7 +164,7 @@ class AnnDataModule:
 
     @property
     def train_dataloader(self):
-        """Return the training dataloader."""
+        """:obj:`crested.tl.data.AnnDataLoader`: Training dataloader."""
         if self.train_dataset is None:
             raise ValueError("train_dataset is not set. Run setup('fit') first.")
         return AnnDataLoader(
@@ -147,7 +176,7 @@ class AnnDataModule:
 
     @property
     def val_dataloader(self):
-        """Return the validation dataloader."""
+        """:obj:`crested.tl.data.AnnDataLoader`: Validation dataloader."""
         if self.val_dataset is None:
             raise ValueError("val_dataset is not set. Run setup('fit') first.")
         return AnnDataLoader(
@@ -159,7 +188,7 @@ class AnnDataModule:
 
     @property
     def test_dataloader(self):
-        """Return the test dataloader."""
+        """:obj:`crested.tl.data.AnnDataLoader`: Test dataloader."""
         if self.test_dataset is None:
             raise ValueError("test_dataset is not set. Run setup('test') first.")
         return AnnDataLoader(
@@ -171,7 +200,7 @@ class AnnDataModule:
 
     @property
     def predict_dataloader(self):
-        """Return the prediction dataloader."""
+        """:obj:`crested.tl.data.AnnDataLoader`: Prediction dataloader."""
         if self.predict_dataset is None:
             raise ValueError("predict_dataset is not set. Run setup('predict') first.")
         return AnnDataLoader(

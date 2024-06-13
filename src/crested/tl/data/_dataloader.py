@@ -18,9 +18,9 @@ STATIC_HASH_TABLE = tf.lookup.StaticHashTable(
 
 class AnnDataLoader:
     """
-    DataLoader class for AnnDataset with options for batching, shuffling, and one-hot encoding.
+    Pytorch-like DataLoader class for AnnDataset with options for batching, shuffling, and one-hot encoding.
 
-    Attributes
+    Parameters
     ----------
     dataset
         The dataset instance provided.
@@ -52,23 +52,7 @@ class AnnDataLoader:
         one_hot_encode: bool = True,
         drop_remainder: bool = True,
     ):
-        """
-        Initialize the DataLoader with the provided dataset and options.
-
-        Parameters
-        ----------
-        dataset
-            An instance of AnnDataset containing the data to be loaded.
-        batch_size
-            Number of samples per batch to load.
-        shuffle
-            If True, the data will be shuffled at the end of each epoch. Default is False.
-        one_hot_encode
-            If True, sequences will be one-hot encoded. Default is True.
-        drop_remainder
-            If True, the last batch will be dropped if it is smaller than batch_size. Default is True.
-
-        """
+        """Initialize the DataLoader with the provided dataset and options."""
         self.dataset = dataset
         self.batch_size = batch_size
         self.shuffle = shuffle
@@ -124,6 +108,7 @@ class AnnDataLoader:
 
     @property
     def data(self):
+        """Return the dataset as a tf.data.Dataset instance."""
         return self._create_dataset()
 
     def __len__(self):

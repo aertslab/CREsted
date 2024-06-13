@@ -1,6 +1,6 @@
 # Preprocessing: `pp`
 
-Preprocessing description
+Preparing Anndata object for CREsted training/evaluations. 
 
 ```{eval-rst}
 .. module:: crested.pp
@@ -8,8 +8,9 @@ Preprocessing description
 
 ```{eval-rst}
 .. currentmodule:: crested
+
+.. autosummary::
+    :toctree: _autosummary
+
+    pp.train_val_test_split
 ```
-
-## Basic preprocessing
-
-Basic preprocessing description. Links will follow.

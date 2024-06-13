@@ -3,12 +3,15 @@ import sys
 from importlib.metadata import version
 
 from . import pl, pp, tl
-from ._io import import_topics
+from ._io import import_peaks, import_topics
 from ._logging import setup_logging
 
-__all__ = ["pl", "pp", "tl", "import_topics", "setup_logging"]
+__all__ = ["pl", "pp", "tl", "import_topics", "import_peaks", "setup_logging"]
 
 __version__ = version("crested")
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 os.environ["AUTOGRAPH_VERBOSITY"] = "1"
+
+# Setup loguru logging
+setup_logging(log_level="INFO", log_file=None)

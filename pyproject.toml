@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = {file = "LICENSE"}
 authors = [
-    {name = "Lukas Mahieu"},
+    {name = "Stein Aerts Lab"},
 ]
 maintainers = [
     {name = "Lukas Mahieu", email = "lukas.mahieu@kuleuven.be"},
@@ -28,7 +28,6 @@ dependencies = [
     "numpy<1.25.0",
     "scikit-learn",
     "tqdm",
-    "shap",
     "loguru",
     "logomaker"
 ]
