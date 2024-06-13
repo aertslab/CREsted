@@ -5,7 +5,7 @@ CREsted: Cis Regulatory Element Sequence Training, Explanation, and Design
 [![Tests][badge-tests]][link-tests]
 [![Documentation][badge-docs]][link-docs]
 
-[badge-tests]: https://img.shields.io/github/actions/workflow/status/aertslab/EnhancerAI/test.yaml?branch=main
+[badge-tests]: https://img.shields.io/github/actions/workflow/status/aertslab/CREsted/test.yaml?branch=main
 [link-tests]: https://github.com/aertslab/CREsted/actions/workflows/test.yaml
 [badge-docs]: https://img.shields.io/readthedocs/CREsted
 
@@ -22,13 +22,13 @@ Please refer to the [documentation][link-docs]. In particular, the
 You need to have Python 3.9 or newer installed on your system. If you don't have
 Python installed, we recommend installing [Mambaforge](https://github.com/conda-forge/miniforge#mambaforge).
 
-There are several alternative options to install EnhancerAI:
+There are several alternative options to install CREsted:
 
 <!--
-1) Install the latest release of `EnhancerAI` from `PyPI <https://pypi.org/project/EnhancerAI/>`_:
+1) Install the latest release of `CREsted` from `PyPI <https://pypi.org/project/CREsted/>`_:
 
 ```bash
-pip install EnhancerAI
+pip install CREsted
 ```
 -->
 
