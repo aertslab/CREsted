@@ -1,5 +1,7 @@
 """Plot contribution scores."""
 
+from __future__ import annotations
+
 import logomaker
 import matplotlib.pyplot as plt
 import numpy as np
