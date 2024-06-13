@@ -6,7 +6,7 @@ CREsted: Cis Regulatory Element Sequence Training, Explanation, and Design
 [![Documentation][badge-docs]][link-docs]
 
 [badge-tests]: https://img.shields.io/github/actions/workflow/status/aertslab/EnhancerAI/test.yaml?branch=main
-[link-tests]: https://github.com/aertslab/CREsted/actions/workflows/test.yml
+[link-tests]: https://github.com/aertslab/CREsted/actions/workflows/test.yaml
 [badge-docs]: https://img.shields.io/readthedocs/CREsted
 
 **IN PROGRESS, NOT RELEASED YET**
