@@ -2,4 +2,8 @@
 .vscode
 wandb/
 *slurm*
-changelog.md
+
+# Sphinx documentation
+_build
+_autosummary
+node_modules
