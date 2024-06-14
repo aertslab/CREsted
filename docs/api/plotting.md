@@ -10,6 +10,11 @@ Plotting description
 .. currentmodule:: crested
 ```
 
-## Basic Plotting
+## Contribution scores
 
-Basic plotting description. Links will follow.
+```{eval-rst}
+.. autosummary::
+    :toctree: _autosummary
+
+    pl.contribution_scores
+```

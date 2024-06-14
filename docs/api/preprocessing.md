@@ -1,4 +1,4 @@
-# Preprocessing: `pp`
+# Preprocessing `pp`
 
 Preparing Anndata object for CREsted training/evaluations. 
 

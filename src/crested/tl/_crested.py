@@ -18,6 +18,66 @@ from crested.tl.data import AnnDataModule
 
 
 class Crested:
+    """
+    Main class to handle training, testing, predicting and calculation of contribution scores.
+
+    Parameters
+    ----------
+    data : AnnDataModule
+        AnndataModule object containing the data.
+    model : tf.keras.Model
+        Model architecture to use for training.
+    config : TaskConfig
+        Task configuration (optimizer, loss, and metrics) for use in tl.Crested.
+    project_name : str
+        Name of the project. Used for logging and creating output directories.
+        If not provided, the default project name "CREsted" will be used.
+    run_name : str
+        Name of the run. Used for wandb logging and creating output directories.
+        If not provided, the current date and time will be used.
+    logger : str
+        Logger to use for logging. Can be "wandb" or "tensorboard" (tensorboard not implemented yet)
+        If not provided, no additional logging will be done.
+    seed : int
+        Seed to use for reproducibility.
+
+    Examples
+    --------
+    >>> from crested.tl import Crested
+    >>> from crested.tl import default_configs
+    >>> from crested.tl.data import AnnDataModule
+    >>> from crested.tl.zoo import deeptopic_cnn
+
+    >>> # Load data
+    >>> anndatamodule = AnnDataModule(anndata, genome_file="path/to/genome.fa")
+    >>> model_architecture = deeptopic_cnn(seq_len=1000, n_classes=10)
+    >>> configs = default_configs("topic_classification")
+
+    >>> # Initialize trainer
+    >>> trainer = Crested(
+    ...     data=anndatamodule,
+    ...     model=model_architecture,
+    ...     config=configs,
+    ...     project_name="test",
+    ... )
+
+    >>> # Fit the model
+    >>> trainer.fit(epochs=100)
+
+    >>> # Evaluate the model
+    >>> trainer.test()
+
+    >>> # Make predictions and add them to anndata as a .layers attribute
+    >>> trainer.predict(anndata, model_name="predictions")
+
+    >>> # Calculate contribution scores
+    >>> scores, seqs_one_hot = trainer.calculate_contribution_scores(
+    ...     region_idx="chr1:1000-2000",
+    ...     class_indices=[0, 1, 2],
+    ...     method="integrated_grad",
+    ... )
+    """
+
     def __init__(
         self,
         data: AnnDataModule,
@@ -109,7 +169,14 @@ class Crested:
         return logger_type, callbacks
 
     def load_model(self, model_path: os.PathLike) -> None:
-        """Load a model from a file."""
+        """
+        Load a (pretrained) model from a file.
+
+        Parameters
+        ----------
+        model_path : os.PathLike
+            Path to the model file.
+        """
         self.model = tf.keras.models.load_model(model_path, compile=True)
 
     def fit(
@@ -124,7 +191,30 @@ class Crested:
         learning_rate_reduce_patience: int = 5,
         custom_callbacks: list | None = None,
     ) -> None:
-        """Fit the model."""
+        """
+        Fit the model on the training and validation set.
+
+        Parameters
+        ----------
+        epochs : int
+            Number of epochs to train the model.
+        mixed_precision : bool
+            Enable mixed precision training.
+        model_checkpointing : bool
+            Save model checkpoints.
+        model_checkpointing_best_only : bool
+            Save only the best model checkpoint.
+        early_stopping : bool
+            Enable early stopping.
+        early_stopping_patience : int
+            Number of epochs with no improvement after which training will be stopped.
+        learning_rate_reduce : bool
+            Enable learning rate reduction.
+        learning_rate_reduce_patience : int
+            Number of epochs with no improvement after which learning rate will be reduced.
+        custom_callbacks : list
+            List of custom callbacks to use during training.
+        """
         self._check_fit_params()
         self._check_gpu_availability()
 
@@ -186,7 +276,14 @@ class Crested:
         #     self.logger.finish()
 
     def test(self, return_metrics: bool = False) -> dict | None:
-        """Evaluate the model."""
+        """
+        Evaluate the model on the test set.
+
+        Parameters
+        ----------
+        return_metrics : bool
+            Return the evaluation metrics as a dictionary.
+        """
         self._check_test_params()
         self._check_gpu_availability()
 
@@ -211,7 +308,18 @@ class Crested:
         anndata: AnnData | None = None,
         model_name: str | None = None,
     ) -> np.ndarray:
-        """Make predictions using the model."""
+        """
+        Make predictions using the model on the full dataset
+
+        Adds the predictions to anndata as a .layers attribute.
+
+        Parameters
+        ----------
+        anndata : AnnData
+            Anndata object containing the data.
+        model_name : str
+            Name that will be used to store the predictions in anndata.layers[model_name].
+        """
         self._check_predict_params(anndata, model_name)
         self._check_gpu_availability()
 
@@ -236,8 +344,26 @@ class Crested:
         class_indices: list | None = None,
         method: str = "integrated_grad",
         return_one_hot: bool = True,
-    ) -> tuple(np.ndarray, np.ndarray) | np.ndarray:
-        """Calculate contribution scores based on given method for a specified region."""
+    ) -> tuple[np.ndarray, np.ndarray] | np.ndarray:
+        """
+        Calculate contribution scores based on given method for a specified region.
+
+        These scores can then be plotted to visualize the importance of each base in the region
+        using :func:`~crested.pl.contribution_scores`.
+
+        Parameters
+        ----------
+        region_idx : str
+            Region for which to calculate the contribution scores in the format "chr:start-end".
+        class_indices : list
+            List of class indices to calculate the contribution scores for.
+            If None, the contribution scores for the 'combined' class will be calculated.
+        method : str
+            Method to use for calculating the contribution scores.
+            Options are: 'integrated_grad', 'smooth_grad', 'mutagenesis', 'saliency', 'expected_integrated_grad'.
+        return_one_hot : bool
+            Return the one-hot encoded sequences along with the contribution scores.
+        """
         if self.anndatamodule.predict_dataset is None:
             self.anndatamodule.setup("predict")
 

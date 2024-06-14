@@ -94,6 +94,8 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
+    "tensorflow": ("https://www.tensorflow.org/api_docs/python", None),
+    "keras": ("https://keras.io/api/", None),
 }
 
 # List of patterns, relative to source directory, that match files and

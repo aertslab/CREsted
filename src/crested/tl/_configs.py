@@ -9,6 +9,8 @@ import tensorflow as tf
 
 
 class BaseConfig(ABC):
+    """Base configuration class for tasks."""
+
     @property
     @abstractmethod
     def loss(self) -> tf.keras.losses.Loss:
@@ -26,6 +28,8 @@ class BaseConfig(ABC):
 
 
 class TopicClassificationConfig(BaseConfig):
+    """Default configuration for topic classification task."""
+
     @property
     def loss(self) -> tf.keras.losses.Loss:
         return tf.keras.losses.BinaryCrossentropy(from_logits=False)
@@ -60,7 +64,33 @@ class TopicClassificationConfig(BaseConfig):
 
 
 class TaskConfig(NamedTuple):
-    """Task configuration."""
+    """
+    Task configuration (optimizer, loss, and metrics) for use in tl.Crested.
+
+    The TaskConfig class is a simple NamedTuple that holds the optimizer, loss, and metrics
+
+    Example
+    -------
+    >>> optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+    >>> loss = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+    >>> metrics = [
+    ...     tf.keras.metrics.AUC(
+    ...         num_thresholds=200,
+    ...         curve="ROC",
+    ...     )
+    ... ]
+    >>> configs = TaskConfig(optimizer, loss, metrics)
+
+
+    Attributes
+    ----------
+    optimizer : tf.keras.optimizers.Optimizer
+        Optimizer used for training.
+    loss : tf.keras.losses.Loss
+        Loss function used for training.
+    metrics : list[tf.keras.metrics.Metric]
+        Metrics used for training.
+    """
 
     optimizer: tf.keras.optimizers.Optimizer
     loss: tf.keras.losses.Loss
@@ -69,15 +99,21 @@ class TaskConfig(NamedTuple):
 
 def default_configs(
     task: str,
-) -> tuple[
-    tf.keras.optimizers.Optimizer, tf.keras.losses.Loss, list[tf.keras.metrics.Metric]
-]:
-    """Get default loss, optimizer, and metrics for a given task.
+) -> TaskConfig:
+    """
+    Get default loss, optimizer, and metrics for an existing task.
+
+    Possible tasks are:
+    - "topic_classification"
+    - "peak_regression"
+
+    If what you want to do is not supported, you can create your own by using the TaskConfig class.
 
     Example
     -------
     >>> configs = default_configs("topic_classification")
     >>> optimizer, loss, metrics = configs.optimizer, configs.loss, configs.metrics
+    >>> trainer = Crested(data, model, config=configs, project_name="test")
 
     Parameters
     ----------

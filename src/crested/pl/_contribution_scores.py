@@ -44,7 +44,36 @@ def contribution_scores(
     ylim: tuple | None = None,
     save_path: str | None = None,
 ):
-    """Visualize interpretation scores with optional highlighted positions."""
+    """
+    Visualize interpretation scores with optional highlighted positions.
+
+    Contribution scores can be calculated using the :func:`~crested.tl.Crested.calculate_contribution_scores` method.
+
+    Parameters
+    ----------
+    scores : np.ndarray
+        Contribution scores of shape (n_seqs, n_classes, n_bases, n_features).
+    seqs_one_hot : np.ndarray
+        One-hot encoded corresponding sequences of shape (n_seqs, n_bases, n_features).
+    class_names : list
+        List of class names to use as labels.
+    zoom_n_bases : int, optional
+        Number of center bases to zoom in on. Default is None (no zooming).
+    highlight_positions : list[tuple[int, int]], optional
+        List of tuples with start and end positions to highlight. Default is None.
+    ylim : tuple, optional
+        Y-axis limits. Default is None.
+    save_path : str, optional
+        Path to save the plot. Default is None (only show the plot).
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> scores = np.random.rand(1, 1, 100, 4)
+    >>> seqs_one_hot = np.random.randint(0, 2, (1, 100, 4))
+    >>> class_names = ["class1"]
+    >>> crested.pl.contribution_scores(scores, seqs_one_hot, class_names)
+    """
     # Center and zoom
     _check_contrib_params(zoom_n_bases, scores)
 
