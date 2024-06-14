@@ -47,7 +47,7 @@ def import_topics(
     chromsizes_file: PathLike | None = None,
     topics_subset: list | None = None,
     remove_empty_regions: bool = True,
-    compress: bool = True,
+    compress: bool = False,
 ) -> AnnData:
     """
     Import topic and consensus regions BED files into AnnData format.
@@ -84,6 +84,9 @@ def import_topics(
     compress
         Compress the AnnData.X matrix. If True, the matrix will be stored as
         a sparse matrix. If False, the matrix will be stored as a dense matrix.
+
+        WARNING: Compressing the matrix currently makes training very slow and is never recommended.
+        We're still investigating a way around.
 
     Returns
     -------
