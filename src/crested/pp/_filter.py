@@ -21,7 +21,7 @@ def filter_regions_on_specificity(
 
     Example
     -------
-    >>> filtered_adata = filter_regions_on_specificity(
+    >>> filtered_adata = crested.pp.filter_regions_on_specificity(
     ...     adata,
     ...     gini_std_threshold=1.0,
     ... )

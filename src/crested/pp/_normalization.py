@@ -26,7 +26,7 @@ def normalize_peaks(
 
     Example
     -------
-    >>> normalized_adata = normalize_peaks(
+    >>> crested.pp.normalize_peaks(
     ...     adata,
     ...     peak_threshold=0,
     ...     gini_std_threshold=2.0,

@@ -1,6 +1,6 @@
 # Input/Output
 
-Importing of topics bed files (outputs from [pycistopic](https://pycistopic.readthedocs.io/en/latest/)) and consensus regions bed file into Anndata format for topic regression or classification.  
+Importing of topics bed files (outputs from [pycistopic](https://pycistopic.readthedocs.io/en/latest/)) and consensus regions bed file into Anndata format for topic regression or classification.
 Importing of bigwigs files and consensus region bed files into Anndata format for peak regression or classification.
 
 ```{eval-rst}
@@ -13,7 +13,6 @@ Importing of bigwigs files and consensus region bed files into Anndata format fo
 .. autosummary::
     :toctree: _autosummary
 
-    import_topics
+    import_bigwigs
     import_peaks
 ```
-
