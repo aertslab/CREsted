@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import os
+from concurrent.futures import ProcessPoolExecutor
 from os import PathLike
 from pathlib import Path
 
+import anndata as ad
+import numpy as np
 import pandas as pd
+import pybigtools
 from anndata import AnnData
 from loguru import logger
 from scipy.sparse import csr_matrix
@@ -39,6 +44,85 @@ def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
     )
     chromsizes_dict = chromsizes.set_index("chr")["size"].to_dict()
     return chromsizes_dict
+
+
+def _extract_values_from_bigwig(bw_file, bed_file, target, target_region_width):
+    """Extract target values from a bigWig file for regions specified in a BED file."""
+    if isinstance(bed_file, Path):
+        bed_file = str(bed_file)
+    if isinstance(bw_file, Path):
+        bw_file = str(bw_file)
+
+    if target == "mean":
+        values = list(
+            pybigtools.bigWigAverageOverBed(bw_file, bed=bed_file, names=None)
+        )
+    elif target == "max":
+        values = list(
+            pybigtools.bigWigAverageOverBed(bw_file, bed=bed_file, names=None)
+        )
+    elif target == "count":
+        values = list(
+            pybigtools.bigWigAverageOverBed(bw_file, bed=bed_file, names=None)
+        )
+    elif target == "logcount":
+        values = list(
+            pybigtools.bigWigAverageOverBed(bw_file, bed=bed_file, names=None)
+        )
+    else:
+        raise ValueError(f"Unsupported target '{target}'")
+
+    return values
+
+
+def _read_consensus_regions(
+    regions_file: PathLike, chromsizes_file: PathLike
+) -> pd.DataFrame:
+    """Read consensus regions BED file and filter out regions not within chromosomes."""
+    consensus_peaks = pd.read_csv(
+        regions_file, sep="\t", header=None, usecols=[0, 1, 2]
+    )
+    consensus_peaks["region"] = (
+        consensus_peaks[0].astype(str)
+        + ":"
+        + consensus_peaks[1].astype(str)
+        + "-"
+        + consensus_peaks[2].astype(str)
+    )
+
+    chromsizes_dict = _read_chromsizes(chromsizes_file)
+    valid_mask = consensus_peaks.apply(
+        lambda row: row[0] in chromsizes_dict
+        and row[1] >= 0
+        and row[2] <= chromsizes_dict[row[0]],
+        axis=1,
+    )
+    consensus_peaks_filtered = consensus_peaks[valid_mask]
+
+    if len(consensus_peaks) != len(consensus_peaks_filtered):
+        logger.warning(
+            f"Filtered {len(consensus_peaks) - len(consensus_peaks_filtered)} consensus regions (not within chromosomes)",
+        )
+    return consensus_peaks_filtered
+
+
+def _create_temp_bed_file(
+    consensus_peaks: pd.DataFrame, target_region_width: int
+) -> str:
+    # Adjust regions based on target_region_width
+    adjusted_peaks = consensus_peaks.copy()
+    adjusted_peaks[1] = adjusted_peaks.apply(
+        lambda row: max(0, row[1] - (target_region_width - (row[2] - row[1])) // 2),
+        axis=1,
+    )
+    adjusted_peaks[2] = adjusted_peaks[1] + target_region_width
+    adjusted_peaks[1] = adjusted_peaks[1].astype(int)
+    adjusted_peaks[2] = adjusted_peaks[2].astype(int)
+
+    # Create a temporary BED file
+    temp_bed_file = "temp_adjusted_regions.bed"
+    adjusted_peaks.to_csv(temp_bed_file, sep="\t", header=False, index=False)
+    return temp_bed_file
 
 
 def import_topics(
@@ -116,39 +200,14 @@ def import_topics(
                     f"Topic '{topic}' not found in '{topics_folder}'"
                 )
 
-    # Read consensus regions BED file
-    consensus_peaks = pd.read_csv(
-        regions_file, sep="\t", header=None, usecols=[0, 1, 2]
-    )
-    consensus_peaks["region"] = (
-        consensus_peaks[0].astype(str)
-        + ":"
-        + consensus_peaks[1].astype(str)
-        + "-"
-        + consensus_peaks[2].astype(str)
-    )
-
-    # Check if regions are within chromosomes
-    if chromsizes_file is not None:
-        chromsizes_dict = _read_chromsizes(chromsizes_file)
-        valid_mask = consensus_peaks.apply(
-            lambda row: row[0] in chromsizes_dict
-            and row[1] >= 0
-            and row[2] <= chromsizes_dict[row[0]],
-            axis=1,
-        )
-        consensus_peaks_filtered = consensus_peaks[valid_mask]
-
-        if len(consensus_peaks) != len(consensus_peaks_filtered):
-            logger.warning(
-                f"Filtered {len(consensus_peaks) - len(consensus_peaks_filtered)} consensus regions (not within chromosomes)",
-            )
-        consensus_peaks = consensus_peaks_filtered
+    # Read consensus regions BED file and filter out regions not within chromosomes
+    consensus_peaks = _read_consensus_regions(regions_file, chromsizes_file)
 
     binary_matrix = pd.DataFrame(0, index=[], columns=consensus_peaks["region"])
     topic_file_paths = []
 
     # Which topic regions are present in the consensus regions
+    logger.info(f"Reading topics from {topics_folder}...")
     for topic_file in sorted(topics_folder.glob("*.bed"), key=_sort_topic_files):
         topic_name = topic_file.stem
         if topics_subset is None or topic_name in topics_subset:
@@ -203,7 +262,7 @@ def import_topics(
     return ann_data
 
 
-def import_peaks(
+def import_bigwigs(
     bigwigs_folder: PathLike,
     regions_file: PathLike,
     chromsizes_file: PathLike,
@@ -212,14 +271,14 @@ def import_peaks(
     compress: bool = True,
 ) -> AnnData:
     """
-    NOT IMPLEMENTED YET
-
     Import bigWig files and consensus regions BED file into AnnData format.
 
     This format is required to be able to train a peak prediction model.
-    The bigWig files are the inputs to the model, and the consensus regions
-    are the targets. The result is an AnnData object with bigWigs as rows and
-    peaks as columns, with the bigWig values at each peak.
+    The bigWig files target values are calculated for each region and and imported into an AnnData object,
+    with the bigWig file names as .obs and the consensus regions as .var.
+    Optionally, the target region width can be specified to extract values from a wider/narrower region around the consensus region,
+    where the original region will still be used as the index.
+    This is often useful to extract sequence information around the actual peak region.
 
     Example
     -------
@@ -242,7 +301,7 @@ def import_peaks(
     target
         Target value to extract from bigwigs. Can be 'mean', 'max', 'count', or 'logcount'
     target_region_width
-        Width of region that the target value will be extracted from. If None, the
+        Width of region that the bigWig target value will be extracted from. If None, the
         consensus region width will be used.
     compress
         Compress the AnnData.X matrix. If True, the matrix will be stored as
@@ -254,14 +313,86 @@ def import_peaks(
     """
     bigwigs_folder = Path(bigwigs_folder)
     regions_file = Path(regions_file)
-    chromsizes_file = Path(chromsizes_file)
 
     # Input checks
     if not bigwigs_folder.is_dir():
         raise FileNotFoundError(f"Directory '{bigwigs_folder}' not found")
     if not regions_file.is_file():
         raise FileNotFoundError(f"File '{regions_file}' not found")
-    if not chromsizes_file.is_file():
-        raise FileNotFoundError(f"File '{chromsizes_file}' not found")
+    if chromsizes_file is not None:
+        chromsizes_file = Path(chromsizes_file)
+        if not chromsizes_file.is_file():
+            raise FileNotFoundError(f"File '{chromsizes_file}' not found")
+    if chromsizes_file is None:
+        logger.warning(
+            "Chromsizes file not provided. Will not check if regions are within chromosomes",
+            stacklevel=1,
+        )
 
-    raise NotImplementedError
+    # Read consensus regions BED file and filter out regions not within chromosomes
+    consensus_peaks = _read_consensus_regions(regions_file, chromsizes_file)
+
+    if target_region_width is not None:
+        bed_file = _create_temp_bed_file(consensus_peaks, target_region_width)
+    else:
+        bed_file = regions_file
+
+    bw_files = [
+        os.path.join(bigwigs_folder, file)
+        for file in os.listdir(bigwigs_folder)
+        if file.endswith(".bw")
+    ]
+    bw_files = sorted(bw_files)
+
+    # Process bigWig files in parallel and collect the results
+    logger.info(f"Extracting values from {len(bw_files)} bigWig files...")
+    all_results = []
+    with ProcessPoolExecutor() as executor:
+        futures = [
+            executor.submit(
+                _extract_values_from_bigwig,
+                bw_file,
+                bed_file,
+                target,
+                target_region_width,
+            )
+            for bw_file in bw_files
+        ]
+        for future in futures:
+            all_results.append(future.result())
+
+    if target_region_width is not None:
+        os.remove(bed_file)
+
+    data_matrix = np.array(all_results)
+
+    # Create DataFrame for AnnData
+    df = pd.DataFrame(
+        data_matrix,
+        columns=consensus_peaks["region"],
+        index=[os.path.basename(file).split(".")[0] for file in bw_files],
+    )
+
+    # Create AnnData object
+    ann_data = ad.AnnData(df)
+
+    ann_data.obs["file_path"] = bw_files
+    ann_data.var["chr"] = ann_data.var.index.str.split(":").str[0]
+    ann_data.var["start"] = (
+        ann_data.var.index.str.split(":").str[1].str.split("-").str[0]
+    ).astype(int)
+    ann_data.var["end"] = (
+        ann_data.var.index.str.split(":").str[1].str.split("-").str[1]
+    ).astype(int)
+
+    if compress:
+        ann_data.X = csr_matrix(ann_data.X)
+
+    # Output checks
+    regions_no_values = ann_data.var[ann_data.X.sum(axis=0) == 0]
+    if not regions_no_values.empty:
+        logger.warning(
+            f"{len(regions_no_values.index)} consensus regions have no values in any bigWig file",
+        )
+
+    return ann_data
