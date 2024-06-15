@@ -1,9 +1,15 @@
+"""Default loss for peak regression task."""
+
+from __future__ import annotations
+
 import tensorflow as tf
 from tensorflow.keras.losses import Loss, Reduction
 from tensorflow.python.keras import backend as K
 
 
 class CosineMSELoss(Loss):
+    """Custom loss function that combines cosine similarity and mean squared error."""
+
     def __init__(self, reduction=Reduction.SUM, name="CosineMSELoss"):
         super().__init__(reduction=reduction, name=name)
 

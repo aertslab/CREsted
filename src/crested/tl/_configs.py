@@ -7,6 +7,14 @@ from typing import NamedTuple
 
 import tensorflow as tf
 
+from crested.tl.losses import CosineMSELoss
+from crested.tl.metrics import (
+    ConcordanceCorrelationCoefficient,
+    PearsonCorrelation,
+    PearsonCorrelationLog,
+    ZeroPenaltyMetric,
+)
+
 
 class BaseConfig(ABC):
     """Base configuration class for tasks."""
@@ -60,6 +68,30 @@ class TopicClassificationConfig(BaseConfig):
                 label_weights=None,
             ),
             tf.keras.metrics.CategoricalAccuracy(),
+        ]
+
+
+class PeakRegressionConfig(BaseConfig):
+    """Default configuration for peak regression task."""
+
+    @property
+    def loss(self) -> tf.keras.losses.Loss:
+        return CosineMSELoss()
+
+    @property
+    def optimizer(self) -> tf.keras.optimizers.Optimizer:
+        return tf.keras.optimizers.Adam(learning_rate=1e-3)
+
+    @property
+    def metrics(self) -> list[tf.keras.metrics.Metric]:
+        return [
+            tf.keras.metrics.MeanAbsoluteError(),
+            tf.keras.metrics.MeanSquaredError(),
+            tf.keras.metrics.CosineSimilarity(axis=1),
+            PearsonCorrelation(),
+            ConcordanceCorrelationCoefficient(),
+            PearsonCorrelationLog(),
+            ZeroPenaltyMetric(),
         ]
 
 
@@ -127,7 +159,7 @@ def default_configs(
     """
     task_classes = {
         "topic_classification": TopicClassificationConfig,
-        # Add other tasks and their corresponding classes here
+        "peak_regression": PeakRegressionConfig,
     }
 
     if task not in task_classes:
