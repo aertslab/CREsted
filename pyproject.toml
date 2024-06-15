@@ -29,7 +29,8 @@ dependencies = [
     "scikit-learn",
     "tqdm",
     "loguru",
-    "logomaker"
+    "logomaker",
+    "pybigtools",
 ]
 
 [project.optional-dependencies]

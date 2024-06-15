@@ -1,3 +1,5 @@
+"""I/O functions for importing topics and bigWigs into AnnData objects."""
+
 from __future__ import annotations
 
 import os
@@ -76,7 +78,7 @@ def _extract_values_from_bigwig(bw_file, bed_file, target, target_region_width):
 
 
 def _read_consensus_regions(
-    regions_file: PathLike, chromsizes_file: PathLike
+    regions_file: PathLike, chromsizes_file: PathLike | None = None
 ) -> pd.DataFrame:
     """Read consensus regions BED file and filter out regions not within chromosomes."""
     consensus_peaks = pd.read_csv(
@@ -90,26 +92,29 @@ def _read_consensus_regions(
         + consensus_peaks[2].astype(str)
     )
 
-    chromsizes_dict = _read_chromsizes(chromsizes_file)
-    valid_mask = consensus_peaks.apply(
-        lambda row: row[0] in chromsizes_dict
-        and row[1] >= 0
-        and row[2] <= chromsizes_dict[row[0]],
-        axis=1,
-    )
-    consensus_peaks_filtered = consensus_peaks[valid_mask]
-
-    if len(consensus_peaks) != len(consensus_peaks_filtered):
-        logger.warning(
-            f"Filtered {len(consensus_peaks) - len(consensus_peaks_filtered)} consensus regions (not within chromosomes)",
+    if chromsizes_file:
+        chromsizes_dict = _read_chromsizes(chromsizes_file)
+        valid_mask = consensus_peaks.apply(
+            lambda row: row[0] in chromsizes_dict
+            and row[1] >= 0
+            and row[2] <= chromsizes_dict[row[0]],
+            axis=1,
         )
-    return consensus_peaks_filtered
+        consensus_peaks_filtered = consensus_peaks[valid_mask]
+
+        if len(consensus_peaks) != len(consensus_peaks_filtered):
+            logger.warning(
+                f"Filtered {len(consensus_peaks) - len(consensus_peaks_filtered)} consensus regions (not within chromosomes)",
+            )
+        return consensus_peaks_filtered
+
+    return consensus_peaks
 
 
 def _create_temp_bed_file(
     consensus_peaks: pd.DataFrame, target_region_width: int
 ) -> str:
-    # Adjust regions based on target_region_width
+    """Adjust consensus regions to a target width and create a temporary BED file."""
     adjusted_peaks = consensus_peaks.copy()
     adjusted_peaks[1] = adjusted_peaks.apply(
         lambda row: max(0, row[1] - (target_region_width - (row[2] - row[1])) // 2),
@@ -265,10 +270,10 @@ def import_topics(
 def import_bigwigs(
     bigwigs_folder: PathLike,
     regions_file: PathLike,
-    chromsizes_file: PathLike,
+    chromsizes_file: PathLike | None = None,
     target: str = "mean",
     target_region_width: int | None = None,
-    compress: bool = True,
+    compress: bool = False,
 ) -> AnnData:
     """
     Import bigWig files and consensus regions BED file into AnnData format.
