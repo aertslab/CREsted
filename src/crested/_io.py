@@ -287,7 +287,7 @@ def import_bigwigs(
 
     Example
     -------
-    >>> anndata = crested.import_peaks(
+    >>> anndata = crested.import_bigwigs(
     ...     bigwigs_folder="path/to/bigwigs",
     ...     regions_file="path/to/peaks.bed",
     ...     chromsizes_file="path/to/chrom.sizes",
