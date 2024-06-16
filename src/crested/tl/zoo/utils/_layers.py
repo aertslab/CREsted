@@ -297,7 +297,7 @@ def conv_block_bs(
         use_bias=False,
         dilation_rate=dilation_rate,
         kernel_initializer=kernel_initializer,
-        l2=tf.keras.regularizers.l2(l2_scale),
+        kernel_regularizer=tf.keras.regularizers.l2(l2_scale),
     )(current)
 
     # batch norm
