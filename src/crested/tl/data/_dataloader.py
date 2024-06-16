@@ -88,7 +88,7 @@ class AnnDataLoader:
 
     def _create_dataset(self):
         ds = tf.data.Dataset.from_generator(
-            lambda: self.dataset,
+            self.dataset,
             output_signature=(
                 tf.TensorSpec(shape=(), dtype=tf.string),
                 tf.TensorSpec(shape=(self.dataset.num_outputs,), dtype=tf.float32),

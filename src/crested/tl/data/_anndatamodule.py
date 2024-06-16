@@ -53,8 +53,6 @@ class AnnDataModule:
         If True, the data will be shuffled at the end of each epoch during training. Default is True.
     batch_size
         Number of samples per batch to load. Default is 256.
-    drop_remainder
-        If True, the last batch will be dropped if it is smaller than batch_size during training. Default is False.
     """
 
     def __init__(
@@ -68,7 +66,6 @@ class AnnDataModule:
         max_stochastic_shift: int = 0,
         shuffle: bool = True,
         batch_size: int = 256,
-        drop_remainder: bool = False,
     ):
         """Initialize the DataModule with the provided dataset and options."""
         self.adata = adata
@@ -80,7 +77,6 @@ class AnnDataModule:
         self.max_stochastic_shift = max_stochastic_shift
         self.shuffle = shuffle
         self.batch_size = batch_size
-        self.drop_remainder = drop_remainder
 
         self._validate_init_args(random_reverse_complement, always_reverse_complement)
         if (chromsizes_file is None) and (max_stochastic_shift > 0):
@@ -171,7 +167,7 @@ class AnnDataModule:
             self.train_dataset,
             batch_size=self.batch_size,
             shuffle=self.shuffle,
-            drop_remainder=self.drop_remainder,
+            drop_remainder=True,
         )
 
     @property
