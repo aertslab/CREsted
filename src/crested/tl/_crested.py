@@ -467,3 +467,6 @@ class Crested:
             raise ValueError(
                 "Both anndata and model_name must be provided if one of them is provided."
             )
+
+    def __repr__(self):
+        return f"Crested(data={self.anndatamodule is not None}, model={self.model is not None}, config={self.config is not None})"
