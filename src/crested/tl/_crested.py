@@ -282,6 +282,28 @@ class Crested:
 
         if run:
             run.config.update(self.config.to_dict())
+            run.config.update(
+                {
+                    "epochs": epochs,
+                    "n_train": len(self.anndatamodule.train_dataset),
+                    "n_val": len(self.anndatamodule.val_dataset),
+                    "batch_size": self.anndatamodule.batch_size,
+                    "n_train_steps_per_epoch": n_train_steps_per_epoch,
+                    "n_val_steps_per_epoch": n_val_steps_per_epoch,
+                    "seq_len": self.anndatamodule.train_dataset.seq_len,
+                    "in_memory": self.anndatamodule.in_memory,
+                    "random_reverse_complement": self.anndatamodule.random_reverse_complement,
+                    "max_stochastic_shift": self.anndatamodule.max_stochastic_shift,
+                    "shuffle": self.anndatamodule.shuffle,
+                    "mixed_precision": mixed_precision,
+                    "model_checkpointing": model_checkpointing,
+                    "model_checkpointing_best_only": model_checkpointing_best_only,
+                    "early_stopping": early_stopping,
+                    "early_stopping_patience": early_stopping_patience,
+                    "learning_rate_reduce": learning_rate_reduce,
+                    "learning_rate_reduce_patience": learning_rate_reduce_patience,
+                }
+            )
 
         try:
             self.model.fit(
