@@ -17,6 +17,19 @@ from crested.tl._utils import one_hot_encode_sequence
 from crested.tl.data import AnnDataModule
 
 
+class LRLogger(tf.keras.callbacks.Callback):
+    def __init__(self, optimizer):
+        super().__init__()
+
+        self.optimizer = optimizer
+
+    def on_epoch_end(self, epoch, logs):
+        import wandb
+
+        lr = float(tf.keras.backend.get_value(self.model.optimizer.learning_rate))
+        wandb.log({"lr": lr}, commit=False)
+
+
 class Crested:
     """
     Main class to handle training, testing, predicting and calculation of contribution scores.
@@ -97,7 +110,8 @@ class Crested:
         self.run_name = (
             run_name if run_name else datetime.now().strftime("%Y-%m-%d_%H:%M")
         )
-        self.logger = logger
+        self.logger_type = logger
+
         self.seed = seed
         self.save_dir = os.path.join(self.project_name, self.run_name)
 
@@ -151,7 +165,7 @@ class Crested:
             import wandb
             from wandb.integration.keras import WandbMetricsLogger
 
-            logger_type = wandb.init(
+            run = wandb.init(
                 project=project_name,
                 name=run_name,
             )
@@ -162,11 +176,11 @@ class Crested:
             log_dir = os.path.join(project_name, run_name, "logs")
             tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir)
             callbacks.append(tensorboard_callback)
-            logger_type = None
+            run = None
         else:
-            logger_type = None
+            run = None
 
-        return logger_type, callbacks
+        return run, callbacks
 
     def load_model(self, model_path: os.PathLike) -> None:
         """
@@ -229,8 +243,8 @@ class Crested:
             custom_callbacks,
         )
 
-        logger_type, logger_callbacks = self._initialize_logger(
-            self.logger, self.project_name, self.run_name
+        run, logger_callbacks = self._initialize_logger(
+            self.logger_type, self.project_name, self.run_name
         )
         if logger_callbacks:
             callbacks.extend(logger_callbacks)
@@ -243,6 +257,9 @@ class Crested:
                 "Mixed precision enabled. This can lead to faster training times but sometimes causes instable training. Disable on CPU or older GPUs."
             )
             tf.keras.mixed_precision.set_global_policy("mixed_float16")
+
+        lr_metric = LRLogger(self.config.optimizer)
+        callbacks.append(lr_metric)
 
         # with strategy.scope():
         self.model.compile(
@@ -263,17 +280,45 @@ class Crested:
         n_train_steps_per_epoch = len(train_loader)
         n_val_steps_per_epoch = len(val_loader)
 
-        self.model.fit(
-            train_loader.data,
-            validation_data=val_loader.data,
-            epochs=epochs,
-            steps_per_epoch=n_train_steps_per_epoch,
-            validation_steps=n_val_steps_per_epoch,
-            callbacks=callbacks,
-        )
+        if run:
+            run.config.update(self.config.to_dict())
+            run.config.update(
+                {
+                    "epochs": epochs,
+                    "n_train": len(self.anndatamodule.train_dataset),
+                    "n_val": len(self.anndatamodule.val_dataset),
+                    "batch_size": self.anndatamodule.batch_size,
+                    "n_train_steps_per_epoch": n_train_steps_per_epoch,
+                    "n_val_steps_per_epoch": n_val_steps_per_epoch,
+                    "seq_len": self.anndatamodule.train_dataset.seq_len,
+                    "in_memory": self.anndatamodule.in_memory,
+                    "random_reverse_complement": self.anndatamodule.random_reverse_complement,
+                    "max_stochastic_shift": self.anndatamodule.max_stochastic_shift,
+                    "shuffle": self.anndatamodule.shuffle,
+                    "mixed_precision": mixed_precision,
+                    "model_checkpointing": model_checkpointing,
+                    "model_checkpointing_best_only": model_checkpointing_best_only,
+                    "early_stopping": early_stopping,
+                    "early_stopping_patience": early_stopping_patience,
+                    "learning_rate_reduce": learning_rate_reduce,
+                    "learning_rate_reduce_patience": learning_rate_reduce_patience,
+                }
+            )
 
-        # if self.logger_type == "wandb":
-        #     self.logger.finish()
+        try:
+            self.model.fit(
+                train_loader.data,
+                validation_data=val_loader.data,
+                epochs=epochs,
+                steps_per_epoch=n_train_steps_per_epoch,
+                validation_steps=n_val_steps_per_epoch,
+                callbacks=callbacks,
+            )
+        except KeyboardInterrupt:
+            logger.warning("Training interrupted by user.")
+        finally:
+            if run:
+                run.finish()
 
     def test(self, return_metrics: bool = False) -> dict | None:
         """
@@ -337,6 +382,40 @@ class Crested:
             anndata.layers[model_name] = predictions.T
 
         return predictions
+
+    def predict_region(
+        self,
+        region_idx: list[str] | str,
+    ) -> np.ndarray:
+        """
+        Make predictions using the model on the specified region(s)
+
+        Parameters
+        ----------
+        region_idx
+            List of regions for which to make predictions in the format "chr:start-end".
+
+        Returns
+        -------
+        np.ndarray
+            Predictions for the specified region(s) of shape (N, C)
+        """
+        if self.anndatamodule.predict_dataset is None:
+            self.anndatamodule.setup("predict")
+        if isinstance(region_idx, str):
+            region_idx = [region_idx]
+
+        all_predictions = []
+
+        for region in region_idx:
+            sequence = self.anndatamodule.predict_dataset.sequence_loader.get_sequence(
+                region
+            )
+            x = one_hot_encode_sequence(sequence)
+            predictions = self.model.predict(x)
+            all_predictions.append(predictions)
+
+        return np.concatenate(all_predictions, axis=0)
 
     def calculate_contribution_scores(
         self,
@@ -467,3 +546,6 @@ class Crested:
             raise ValueError(
                 "Both anndata and model_name must be provided if one of them is provided."
             )
+
+    def __repr__(self):
+        return f"Crested(data={self.anndatamodule is not None}, model={self.model is not None}, config={self.config is not None})"

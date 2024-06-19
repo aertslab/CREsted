@@ -167,7 +167,7 @@ def import_topics(
         will be included.
         Topics should be named after the topics file name without the extension.
     chromsizes_file
-        File path of the chromsizes file.
+        File path of the chromsizes file.  Used for checking if the new regions are within the chromosome boundaries.
     remove_empty_regions
         Remove regions that are not open in any topic.
     compress
@@ -302,7 +302,7 @@ def import_bigwigs(
     regions_file
         File name of the consensus regions BED file.
     chromsizes_file
-        File name of the chromsizes file.
+        File name of the chromsizes file. Used for checking if the new regions are within the chromosome boundaries.
     target
         Target value to extract from bigwigs. Can be 'mean', 'max', 'count', or 'logcount'
     target_region_width
