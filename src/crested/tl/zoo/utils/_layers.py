@@ -11,6 +11,7 @@ __all__ = [
     "dense_block",
     "conv_block",
     "activate",
+    "get_output",
     "conv_block_bs",
     "dilated_residual",
 ]
@@ -206,6 +207,29 @@ def activate(current: tf.Tensor, activation: str, verbose: bool = False) -> tf.T
         print('Unrecognized activation "%s"' % activation)
 
     return current
+
+
+def get_output(input_layer, hidden_layers):
+    """
+    Pass input layer through hidden layers.
+
+    Parameters
+    ----------
+    input_layer
+        Input layer.
+    hidden_layers
+        Hidden layers.
+
+    Returns
+    -------
+    tf.Tensor
+        Output tensor after passing through all hidden layers.
+    """
+    output = input_layer
+    for hidden_layer in hidden_layers:
+        output = hidden_layer(output)
+
+    return output
 
 
 def conv_block_bs(
