@@ -58,6 +58,13 @@ def correlations_self(
     See Also
     --------
     crested.pl.render_plot
+
+    Examples
+    --------
+    >>> crested.pl.heatmap.correlations_self(
+    ...     adata, log_transform=True, title="Self Correlations"
+    ... )
+
     """
     x = adata.X
     classes = list(adata.obs_names)
@@ -111,6 +118,16 @@ def correlations_predictions(
     See Also
     --------
     crested.pl.render_plot
+
+    Examples
+    --------
+    >>> crested.pl.heatmap.correlations_predictions(
+    ...     adata,
+    ...     model_names=None,
+    ...     split="test",
+    ...     log_transform=True,
+    ...     title="Correlations: Predictions vs Ground Truth",
+    ... )
     """
 
     @log_and_raise(ValueError)

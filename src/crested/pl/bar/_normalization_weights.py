@@ -22,20 +22,20 @@ def normalization_weights(adata: AnnData, **kwargs):
         control the final plot output. Please see :func:`~crested.pl.render_plot`
         for details.
 
+    See Also
+    --------
+    crested.pl.render_plot
+
     Example
     -------
-    >>> normalization_weights(
+    >>> crested.pl.bar.normalization_weights(
     ...     adata,
     ...     xlabel="Cell type",
     ...     ylabel="Scaling factor",
     ...     width=20,
     ...     height=3,
-    ...     figtitle="Normalization scaling factors",
+    ...     title="Normalization scaling factors",
     ... )
-
-    See Also
-    --------
-    crested.pl.render_plot
     """
 
     @log_and_raise(ValueError)

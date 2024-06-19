@@ -41,15 +41,15 @@ def distribution(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
 
-    Examples
+    See Also
+    --------
+    crested.pl.render_plot
+
+    Example
     --------
     >>> crested.pl.hist.distribution(
     ...     adata, split="test", share_y=False, class_names=["Astro", "Vip"]
     ... )
-
-    See Also
-    --------
-    crested.pl.render_plot
     """
 
     @log_and_raise(ValueError)

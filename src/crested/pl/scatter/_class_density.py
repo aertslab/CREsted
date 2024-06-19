@@ -49,6 +49,15 @@ def class_density(
     See Also
     --------
     crested.pl.render_plot
+
+    Example
+    -------
+    >>> crested.pl.scatter.class_density(
+    ...     class_name="Astro",
+    ...     model_names=["model1", "model2"],
+    ...     split="test",
+    ...     log_transform=True,
+    ... )
     """
 
     @log_and_raise(ValueError)

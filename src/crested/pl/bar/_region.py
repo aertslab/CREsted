@@ -39,6 +39,15 @@ def region_predictions(
     See Also
     --------
     crested.pl.render_plot
+
+    Example
+    -------
+    >>> crested.pl.bar.region_predictions(
+    ...     adata,
+    ...     region="chr1:10000-10500",
+    ...     model_names=["model1", "model2"],
+    ...     share_y=False,
+    ... )
     """
 
     @log_and_raise(ValueError)
@@ -116,9 +125,13 @@ def region(adata: AnnData, region: str, target: str = "groundtruth", **kwargs) -
         control the final plot output. Please see :func:`~crested.pl.render_plot`
         for details.
 
+    See Also
+    --------
+    crested.pl.render_plot
+
     Example
     -------
-    >>> region(
+    >>> crested.pl.bar.region(
     ...     adata,
     ...     region="chr1:10000-10500",
     ...     target="groundtruth",
@@ -127,10 +140,6 @@ def region(adata: AnnData, region: str, target: str = "groundtruth", **kwargs) -
     ...     figsize=(20, 3),
     ...     figtitle="Peak Heights",
     ... )
-
-    See Also
-    --------
-    crested.pl.render_plot
     """
 
     @log_and_raise(ValueError)
