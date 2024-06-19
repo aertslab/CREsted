@@ -1,5 +1,62 @@
+"""Utility functions for plotting in CREsted."""
+
+from __future__ import annotations
+
 import logomaker
+import matplotlib.pyplot as plt
 import numpy as np
+
+
+def render_plot(
+    fig,
+    width: int = 8,
+    height: int = 8,
+    title: str | None = None,
+    xlabel: str | None = None,
+    ylabel: str | None = None,
+    save_path: str | None = None,
+) -> None:
+    """
+    Render a plot with customization options.
+
+    Note
+    ----
+    This function should never be called directly. Rather, the other plotting functions call this function.
+
+    Parameters
+    ----------
+    fig
+        The figure object to render.
+    width
+        Width of the plot (inches). Default is 8.
+    height
+        Height of the plot (inches). Default is 8.
+    title
+        Title of the plot.
+    xlabel
+        Label for the X-axis.
+    ylabel
+        Label for the Y-axis.
+    fig_path
+        Optional path to save the figure. If None, the figure is displayed but not saved.
+
+    Returns
+    -------
+    None
+    """
+    fig.set_size_inches(width, height)
+    if title:
+        fig.suptitle(title)
+    for ax in fig.axes:
+        if xlabel:
+            ax.set_xlabel(xlabel)
+        if ylabel:
+            ax.set_ylabel(ylabel)
+
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path)
+    plt.show()
 
 
 def grad_times_input_to_df(x, grad, alphabet="ACGT"):
@@ -9,7 +66,7 @@ def grad_times_input_to_df(x, grad, alphabet="ACGT"):
     L, A = grad.shape
 
     seq = ""
-    saliency = np.zeros((L))
+    saliency = np.zeros(L)
     for i in range(L):
         seq += alphabet[x_index[i]]
         saliency[i] = grad[i, x_index[i]]
