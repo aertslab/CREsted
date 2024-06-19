@@ -338,6 +338,40 @@ class Crested:
 
         return predictions
 
+    def predict_region(
+        self,
+        region_idx: list[str] | str,
+    ) -> np.ndarray:
+        """
+        Make predictions using the model on the specified region(s)
+
+        Parameters
+        ----------
+        region_idx
+            List of regions for which to make predictions in the format "chr:start-end".
+
+        Returns
+        -------
+        np.ndarray
+            Predictions for the specified region(s) of shape (N, C)
+        """
+        if self.anndatamodule.predict_dataset is None:
+            self.anndatamodule.setup("predict")
+        if isinstance(region_idx, str):
+            region_idx = [region_idx]
+
+        all_predictions = []
+
+        for region in region_idx:
+            sequence = self.anndatamodule.predict_dataset.sequence_loader.get_sequence(
+                region
+            )
+            x = one_hot_encode_sequence(sequence)
+            predictions = self.model.predict(x)
+            all_predictions.append(predictions)
+
+        return np.concatenate(all_predictions, axis=0)
+
     def calculate_contribution_scores(
         self,
         region_idx: str,
