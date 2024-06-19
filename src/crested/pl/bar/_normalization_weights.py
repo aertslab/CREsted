@@ -36,6 +36,8 @@ def normalization_weights(adata: AnnData, **kwargs):
     ...     height=3,
     ...     title="Normalization scaling factors",
     ... )
+
+    .. image:: ../../../docs/_static/img/examples/bar_normalization_weights.png
     """
 
     @log_and_raise(ValueError)

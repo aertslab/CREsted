@@ -44,10 +44,13 @@ def region_predictions(
     -------
     >>> crested.pl.bar.region_predictions(
     ...     adata,
-    ...     region="chr1:10000-10500",
-    ...     model_names=["model1", "model2"],
+    ...     region='chr1:3094805-3095305'
+    ...     model_names=["model_1", "model_2"],
     ...     share_y=False,
+    ...     title="Region chr1:3094805-3095305"
     ... )
+
+    .. image:: ../../../docs/_static/img/examples/bar_region_predictions.png
     """
 
     @log_and_raise(ValueError)
@@ -133,13 +136,15 @@ def region(adata: AnnData, region: str, target: str = "groundtruth", **kwargs) -
     -------
     >>> crested.pl.bar.region(
     ...     adata,
-    ...     region="chr1:10000-10500",
+    ...     region="chr1:3094805-3095305",
     ...     target="groundtruth",
     ...     xlabel="Cell Type",
     ...     ylabel="Peak height",
     ...     figsize=(20, 3),
-    ...     figtitle="Peak Heights",
+    ...     figtitle="chr1:3094805-3095305",
     ... )
+
+    .. image:: ../../../docs/_static/img/examples/bar_region.png
     """
 
     @log_and_raise(ValueError)
