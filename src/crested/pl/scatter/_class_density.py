@@ -1,4 +1,4 @@
-"""Heatmap plotting functions."""
+"""Scatter plotting functions."""
 
 from __future__ import annotations
 
@@ -46,13 +46,9 @@ def class_density(
         control the final plot output. Please see :func:`~crested.pl.render_plot`
         for details.
 
-    Returns
-    -------
-    None
-
     See Also
     --------
-    render_plot
+    crested.pl.render_plot
     """
 
     @log_and_raise(ValueError)

@@ -49,7 +49,7 @@ def distribution(
 
     See Also
     --------
-    render_plot
+    crested.pl.render_plot
     """
 
     @log_and_raise(ValueError)

@@ -38,7 +38,7 @@ def region_predictions(
 
     See Also
     --------
-    render_plot
+    crested.pl.render_plot
     """
 
     @log_and_raise(ValueError)
@@ -130,7 +130,7 @@ def region(adata: AnnData, region: str, target: str = "groundtruth", **kwargs) -
 
     See Also
     --------
-    render_plot
+    crested.pl.render_plot
     """
 
     @log_and_raise(ValueError)

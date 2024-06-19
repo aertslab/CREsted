@@ -36,7 +36,7 @@ def correlations_self(
     **kwargs,
 ):
     """
-    Plot self correlation heatmaps for
+    Plot self correlation heatmaps of ground truth for different cell types.
 
     Parameters
     ----------
@@ -55,13 +55,9 @@ def correlations_self(
         control the final plot output. Please see :func:`~crested.pl.render_plot`
         for details.
 
-    Returns
-    -------
-    None
-
     See Also
     --------
-    render_plot
+    crested.pl.render_plot
     """
     x = adata.X
     classes = list(adata.obs_names)
@@ -112,13 +108,9 @@ def correlations_predictions(
         control the final plot output. Please see :func:`~crested.pl.render_plot`
         for details.
 
-    Returns
-    -------
-    None
-
     See Also
     --------
-    render_plot
+    crested.pl.render_plot
     """
 
     @log_and_raise(ValueError)

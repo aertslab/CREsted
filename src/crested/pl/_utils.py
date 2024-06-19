@@ -28,9 +28,9 @@ def render_plot(
     fig
         The figure object to render.
     width
-        Width of the plot (inches). Default is 8.
+        Width of the plot (inches).
     height
-        Height of the plot (inches). Default is 8.
+        Height of the plot (inches).
     title
         Title of the plot.
     xlabel
@@ -39,10 +39,6 @@ def render_plot(
         Label for the Y-axis.
     fig_path
         Optional path to save the figure. If None, the figure is displayed but not saved.
-
-    Returns
-    -------
-    None
     """
     fig.set_size_inches(width, height)
     if title:

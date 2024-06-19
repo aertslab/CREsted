@@ -33,9 +33,9 @@ def normalization_weights(adata: AnnData, **kwargs):
     ...     figtitle="Normalization scaling factors",
     ... )
 
-    Returns
-    -------
-        None
+    See Also
+    --------
+    crested.pl.render_plot
     """
 
     @log_and_raise(ValueError)
