@@ -128,6 +128,30 @@ class TaskConfig(NamedTuple):
     loss: tf.keras.losses.Loss
     metrics: list[tf.keras.metrics.Metric]
 
+    def to_dict(self) -> dict:
+        """
+        Convert the TaskConfig to a dictionary.
+
+        Useful for logging and saving the configuration.
+
+        Returns
+        -------
+        dict
+            Dictionary representation of the TaskConfig.
+        """
+        optimizer_info = {
+            "optimizer": self.optimizer.__class__.__name__,
+            "learning_rate": self.optimizer.learning_rate.numpy(),
+        }
+        loss_info = {"loss": self.loss.__class__.__name__}
+        metrics_info = [metric.__class__.__name__ for metric in self.metrics]
+
+        return {
+            "optimizer": optimizer_info,
+            "loss": loss_info,
+            "metrics": metrics_info,
+        }
+
 
 def default_configs(
     task: str,
