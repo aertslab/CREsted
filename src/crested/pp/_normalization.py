@@ -60,8 +60,16 @@ def normalize_peaks(
     else:
         target_matrix = adata.X.T
 
+    regions_df = adata.var
+
     top_k_percent_means = []
+    all_low_gini_indices = set()
     gini_scores_all = []
+
+    overall_gini_scores = _calc_gini(target_matrix)
+    mean = np.mean(np.max(overall_gini_scores, axis=1))
+    std_dev = np.std(np.max(overall_gini_scores, axis=1))
+    gini_threshold = mean - gini_std_threshold * std_dev
 
     logger.info("Filtering on top k Gini scores...")
     for i in range(target_matrix.shape[1]):
@@ -69,17 +77,14 @@ def normalize_peaks(
         sorted_col = np.sort(filtered_col)[::-1]
         top_k_index = int(len(sorted_col) * top_k_percent)
 
-        gini_scores = _calc_gini(
-            target_matrix[np.argsort(filtered_col)[::-1][:top_k_index]]
-        )
-        mean = np.mean(np.max(gini_scores, axis=1))
-        std_dev = np.std(np.max(gini_scores, axis=1))
-        gini_threshold = mean - gini_std_threshold * std_dev
+        top_indices = np.argsort(filtered_col)[::-1][:top_k_index]
+        gini_scores = _calc_gini(target_matrix[top_indices])
         low_gini_indices = np.where(np.max(gini_scores, axis=1) < gini_threshold)[0]
 
         if len(low_gini_indices) > 0:
             top_k_mean = np.mean(sorted_col[low_gini_indices])
             gini_scores_all.append(np.max(gini_scores[low_gini_indices], axis=1))
+            all_low_gini_indices.update(top_indices[low_gini_indices])
         else:
             top_k_mean = 0
             gini_scores_all.append(0)
@@ -100,4 +105,8 @@ def normalize_peaks(
     else:
         normalized_matrix = normalized_matrix.T
 
+    filtered_regions_df = regions_df.iloc[list(all_low_gini_indices)]
+
     adata.X = normalized_matrix
+
+    return filtered_regions_df
