@@ -526,9 +526,12 @@ class Crested:
         if anndata:
             for varm_name in varm_names:
                 logger.info(f"Adding contribution scores to anndata.varm[{varm_name}].")
-                anndata.varm[varm_name] = concatenated_scores[
-                    :, class_names.index(varm_name)
-                ]
+                if varm_name == "combined":
+                    anndata.varm[varm_name] = concatenated_scores[:, 0]
+                else:
+                    anndata.varm[varm_name] = concatenated_scores[
+                        :, class_names.index(varm_name)
+                    ]
             anndata.varm["one_hot_sequences"] = np.concatenate(
                 all_one_hot_sequences, axis=0
             )
