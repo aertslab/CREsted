@@ -213,5 +213,5 @@ class AnnDataModule:
             f"always_reverse_complement={self.always_reverse_complement}, "
             f"random_reverse_complement={self.random_reverse_complement}, "
             f"max_stochastic_shift={self.max_stochastic_shift}, shuffle={self.shuffle}, "
-            f"batch_size={self.batch_size}, drop_remainder={self.drop_remainder})"
+            f"batch_size={self.batch_size}"
         )

@@ -73,6 +73,8 @@ def contribution_scores(
     >>> seqs_one_hot = np.random.randint(0, 2, (1, 100, 4))
     >>> class_names = ["class1"]
     >>> crested.pl.contribution_scores(scores, seqs_one_hot, class_names)
+
+    .. image:: ../../../docs/_static/img/examples/contribution_scores.png
     """
     # Center and zoom
     _check_contrib_params(zoom_n_bases, scores)

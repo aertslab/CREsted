@@ -162,10 +162,11 @@ class AnnDataset:
     @staticmethod
     def _split_anndata(anndata: AnnData, split: str) -> AnnData:
         """Return subset of anndata based on a given split column."""
-        if "split" not in anndata.var.columns:
-            raise KeyError(
-                "No split column found in anndata.var. Run `pp.train_val_test_split` first."
-            )
+        if split:
+            if "split" not in anndata.var.columns:
+                raise KeyError(
+                    "No split column found in anndata.var. Run `pp.train_val_test_split` first."
+                )
         subset = (
             anndata[:, anndata.var["split"] == split].copy()
             if split
