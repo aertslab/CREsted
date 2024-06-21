@@ -182,7 +182,7 @@ class Crested:
 
         return run, callbacks
 
-    def load_model(self, model_path: os.PathLike) -> None:
+    def load_model(self, model_path: os.PathLike, compile: bool = False) -> None:
         """
         Load a (pretrained) model from a file.
 
@@ -190,8 +190,10 @@ class Crested:
         ----------
         model_path : os.PathLike
             Path to the model file.
+        compile: bool
+            Compile model after loading.
         """
-        self.model = tf.keras.models.load_model(model_path, compile=True)
+        self.model = tf.keras.models.load_model(model_path, compile=compile)
 
     def fit(
         self,
