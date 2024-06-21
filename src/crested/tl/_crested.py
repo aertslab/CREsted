@@ -183,7 +183,7 @@ class Crested:
 
         return run, callbacks
 
-    def load_model(self, model_path: os.PathLike) -> None:
+    def load_model(self, model_path: os.PathLike, compile: bool = True) -> None:
         """
         Load a (pretrained) model from a file.
 
@@ -191,8 +191,12 @@ class Crested:
         ----------
         model_path : os.PathLike
             Path to the model file.
+        compile : bool
+            Compile the model after loading. Set to False if you only want to load
+            the model weights (e.g. when finetuning a model). If False, you should
+            provide a TaskConfig to the Crested object before calling fit.
         """
-        self.model = tf.keras.models.load_model(model_path, compile=True)
+        self.model = tf.keras.models.load_model(model_path, compile=compile)
 
     def fit(
         self,
@@ -588,7 +592,7 @@ class Crested:
             class_indices = [None]
 
         logger.info(
-            f"Calculating contribution scores for {n_classes} classes and {len(region_idx)}."
+            f"Calculating contribution scores for {n_classes} class(es) and {len(region_idx)} region(s)."
         )
         for region in tqdm(
             region_idx,
