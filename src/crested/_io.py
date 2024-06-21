@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from concurrent.futures import ProcessPoolExecutor
 from os import PathLike
 from pathlib import Path
@@ -37,6 +38,21 @@ def _sort_files(filename: str):
         True,
         filename.stem,
     )
+
+
+def _custom_region_sort(region: str) -> tuple(int, int, int):
+    """Custom sorting function for regions in the format chr:start-end."""
+    chrom, pos = region.split(":")
+    start, _ = map(int, pos.split("-"))
+
+    # check if the chromosome part contains digits
+    numeric_match = re.match(r"chr(\d+)|chrom(\d+)", chrom, re.IGNORECASE)
+
+    if numeric_match:
+        chrom_num = int(numeric_match.group(1) or numeric_match.group(2))
+        return (0, chrom_num, start)
+    else:
+        return (1, chrom, start)
 
 
 def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
@@ -188,7 +204,7 @@ def import_beds(
     ... )
     """
     beds_folder = Path(beds_folder)
-    regions_file = Path(regions_file)
+    regions_file = Path(regions_file) if regions_file else None
 
     # Input checks
     if not beds_folder.is_dir():
@@ -209,17 +225,70 @@ def import_beds(
             if not any(beds_folder.glob(f"{classname}.bed")):
                 raise FileNotFoundError(f"'{classname}' not found in '{beds_folder}'")
 
-    # Read consensus regions BED file and filter out regions not within chromosomes
-    consensus_peaks = _read_consensus_regions(regions_file, chromsizes_file)
+    if regions_file:
+        # Read consensus regions BED file and filter out regions not within chromosomes
+        consensus_peaks = _read_consensus_regions(regions_file, chromsizes_file)
 
-    binary_matrix = pd.DataFrame(0, index=[], columns=consensus_peaks["region"])
-    file_paths = []
+        binary_matrix = pd.DataFrame(0, index=[], columns=consensus_peaks["region"])
+        file_paths = []
 
-    # Which regions are present in the consensus regions
-    logger.info(f"Reading bed files from {beds_folder}...")
-    for file in sorted(beds_folder.glob("*.bed"), key=_sort_files):
-        class_name = file.stem
-        if classes_subset is None or class_name in classes_subset:
+        # Which regions are present in the consensus regions
+        logger.info(
+            f"Reading bed files from {beds_folder} and using {regions_file} as var_names..."
+        )
+        for file in sorted(beds_folder.glob("*.bed"), key=_sort_files):
+            class_name = file.stem
+            if classes_subset is None or class_name in classes_subset:
+                class_regions = pd.read_csv(
+                    file, sep="\t", header=None, usecols=[0, 1, 2]
+                )
+                class_regions["region"] = (
+                    class_regions[0].astype(str)
+                    + ":"
+                    + class_regions[1].astype(str)
+                    + "-"
+                    + class_regions[2].astype(str)
+                )
+
+                # Create binary row for the current topic
+                binary_row = binary_matrix.columns.isin(class_regions["region"]).astype(
+                    int
+                )
+                binary_matrix.loc[class_name] = binary_row
+                file_paths.append(str(file))
+
+    # else, get regions from the bed files
+    else:
+        file_paths = []
+        all_regions = set()
+
+        # Collect all regions from the BED files
+        logger.info(
+            f"Reading bed files from {beds_folder} without consensus regions..."
+        )
+        for file in sorted(beds_folder.glob("*.bed"), key=_sort_files):
+            class_name = file.stem
+            if classes_subset is None or class_name in classes_subset:
+                class_regions = pd.read_csv(
+                    file, sep="\t", header=None, usecols=[0, 1, 2]
+                )
+                class_regions["region"] = (
+                    class_regions[0].astype(str)
+                    + ":"
+                    + class_regions[1].astype(str)
+                    + "-"
+                    + class_regions[2].astype(str)
+                )
+                all_regions.update(class_regions["region"].tolist())
+                file_paths.append(str(file))
+
+        # Convert set to sorted list
+        all_regions = sorted(all_regions, key=_custom_region_sort)
+        binary_matrix = pd.DataFrame(0, index=[], columns=all_regions)
+
+        # Populate the binary matrix
+        for file in file_paths:
+            class_name = Path(file).stem
             class_regions = pd.read_csv(file, sep="\t", header=None, usecols=[0, 1, 2])
             class_regions["region"] = (
                 class_regions[0].astype(str)
@@ -228,11 +297,8 @@ def import_beds(
                 + "-"
                 + class_regions[2].astype(str)
             )
-
-            # Create binary row for the current topic
             binary_row = binary_matrix.columns.isin(class_regions["region"]).astype(int)
             binary_matrix.loc[class_name] = binary_row
-            file_paths.append(str(file))
 
     ann_data = AnnData(
         binary_matrix,
