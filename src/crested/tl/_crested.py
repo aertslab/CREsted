@@ -445,6 +445,8 @@ class Crested:
         return_one_hot : bool
             Return the one-hot encoded sequences along with the contribution scores.
         """
+
+        self._check_contrib_params(method)
         if self.anndatamodule.predict_dataset is None:
             self.anndatamodule.setup("predict")
 
@@ -491,6 +493,8 @@ class Crested:
                     scores[:, i, :, :] = explainer.expected_integrated_grad(
                         x, num_baseline=25
                     )
+                else:
+                    raise
 
             all_scores.append(scores)
 
@@ -507,6 +511,13 @@ class Crested:
         devices = tf.config.list_physical_devices("GPU")
         if not devices:
             logger.warning("No GPUs available.")
+
+    @log_and_raise(ValueError)
+    def _check_contrib_params(self, method):
+        if method not in ['integrated_grad', 'smooth_grad','mutagenesis', 'saliency', 'expected_integrated_grad']:
+            raise ValueError(
+                "Contribution score method not implemented. Choose out of the following options: integrated_grad, smooth_grad, mutagenesis, saliency, expected_integrated_grad."
+            )
 
     @log_and_raise(ValueError)
     def _check_fit_params(self):
