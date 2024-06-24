@@ -253,9 +253,7 @@ def train_val_test_split(
 
     Returns
     -------
-    None
-
-    Adds a new column to `adata.var`:
+    Adds a new column inplace to `adata.var`:
         'split': 'train', 'val', or 'test'
     """
     # Input checks

@@ -134,8 +134,7 @@ def conv_block(
 
     Returns
     -------
-    tf.Tensor
-        The output tensor of the convolution block.
+    The output tensor of the convolution block.
     """
     if res:
         residual = inputs
@@ -182,8 +181,7 @@ def activate(current: tf.Tensor, activation: str, verbose: bool = False) -> tf.T
 
     Returns
     -------
-    tf.Tensor
-        Output tensor after applying activation.
+    Output tensor after applying activation.
     """
     if verbose:
         print("activate:", activation)
@@ -269,8 +267,7 @@ def conv_block_bs(
 
     Returns
     -------
-    tf.Tensor
-        Output tensor after applying the convolution block.
+    Output tensor after applying the convolution block.
     """
     current = inputs
 
@@ -373,8 +370,7 @@ def dilated_residual(
 
     Returns
     -------
-    tf.Tensor
-        Output tensor after applying the dilated residual block.
+    Output tensor after applying the dilated residual block.
     """
     current = inputs
 

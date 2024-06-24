@@ -63,8 +63,7 @@ def chrombpnet(
 
     Returns
     -------
-    tf.keras.Model
-        A TensorFlow Keras model.
+    A TensorFlow Keras model.
     """
     # Model
     inputs = layers.Input(shape=(seq_len, 4), name="sequence")

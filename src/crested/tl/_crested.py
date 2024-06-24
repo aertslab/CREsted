@@ -37,22 +37,22 @@ class Crested:
 
     Parameters
     ----------
-    data : AnnDataModule
+    data
         AnndataModule object containing the data.
-    model : tf.keras.Model
+    model
         Model architecture to use for training.
-    config : TaskConfig
+    config
         Task configuration (optimizer, loss, and metrics) for use in tl.Crested.
-    project_name : str
+    project_name
         Name of the project. Used for logging and creating output directories.
         If not provided, the default project name "CREsted" will be used.
-    run_name : str
+    run_name
         Name of the run. Used for wandb logging and creating output directories.
         If not provided, the current date and time will be used.
-    logger : str
+    logger
         Logger to use for logging. Can be "wandb" or "tensorboard" (tensorboard not implemented yet)
         If not provided, no additional logging will be done.
-    seed : int
+    seed
         Seed to use for reproducibility.
 
     Examples
@@ -85,7 +85,7 @@ class Crested:
     >>> trainer.predict(anndata, model_name="predictions")
 
     >>> # Calculate contribution scores
-    >>> scores, seqs_one_hot = trainer.calculate_contribution_scores(
+    >>> scores, seqs_one_hot = trainer.calculate_contribution_scores_regions(
     ...     region_idx="chr1:1000-2000",
     ...     class_indices=[0, 1, 2],
     ...     method="integrated_grad",
@@ -189,8 +189,9 @@ class Crested:
 
         Parameters
         ----------
-        model_path : os.PathLike
-            Path to the model file.        compile : bool
+        model_path
+            Path to the model file.
+        compile
             Compile the model after loading. Set to False if you only want to load
             the model weights (e.g. when finetuning a model). If False, you should
             provide a TaskConfig to the Crested object before calling fit.
@@ -214,23 +215,23 @@ class Crested:
 
         Parameters
         ----------
-        epochs : int
+        epochs
             Number of epochs to train the model.
-        mixed_precision : bool
+        mixed_precision
             Enable mixed precision training.
-        model_checkpointing : bool
+        model_checkpointing
             Save model checkpoints.
-        model_checkpointing_best_only : bool
+        model_checkpointing_best_only
             Save only the best model checkpoint.
-        early_stopping : bool
+        early_stopping
             Enable early stopping.
-        early_stopping_patience : int
+        early_stopping_patience
             Number of epochs with no improvement after which training will be stopped.
-        learning_rate_reduce : bool
+        learning_rate_reduce
             Enable learning rate reduction.
-        learning_rate_reduce_patience : int
+        learning_rate_reduce_patience
             Number of epochs with no improvement after which learning rate will be reduced.
-        custom_callbacks : list
+        custom_callbacks
             List of custom callbacks to use during training.
         """
         self._check_fit_params()
@@ -330,8 +331,12 @@ class Crested:
 
         Parameters
         ----------
-        return_metrics : bool
+        return_metrics
             Return the evaluation metrics as a dictionary.
+
+        Returns
+        -------
+        Evaluation metrics as a dictionary or None if return_metrics is False.
         """
         self._check_test_params()
         self._check_gpu_availability()
@@ -365,15 +370,14 @@ class Crested:
 
         Parameters
         ----------
-        anndata : AnnData
+        anndata
             Anndata object containing the data.
-        model_name : str
+        model_name
             Name that will be used to store the predictions in anndata.layers[model_name].
 
         Returns
         -------
-        np.ndarray
-            Predictions of shape (N, C)
+        Predictions of shape (N, C)
         """
         self._check_predict_params(anndata, model_name)
         self._check_gpu_availability()
@@ -407,8 +411,7 @@ class Crested:
 
         Returns
         -------
-        np.ndarray
-            Predictions for the specified region(s) of shape (N, C)
+        Predictions for the specified region(s) of shape (N, C)
         """
         if self.anndatamodule.predict_dataset is None:
             self.anndatamodule.setup("predict")
@@ -438,24 +441,23 @@ class Crested:
         Calculate contribution scores based on the given method for the full dataset.
 
         These scores can then be plotted to visualize the importance of each base in the dataset
-        using :func:`~crested.pl.contribution_scores`.
+        using :func:`~crested.pl.patterns.contribution_scores`.
 
         Parameters
         ----------
-        anndata : AnnData
+        anndata
             Anndata object to store the contribution scores in as a .varm[class_name] attribute.
             If None, will only return the contribution scores without storing them.
-        class_names : list
+        class_names
             List of class names to calculate the contribution scores for (should match anndata.obs_names)
             If None, the contribution scores for the 'combined' class will be calculated.
-        method : str
+        method
             Method to use for calculating the contribution scores.
             Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
 
         Returns
         -------
-        tuple[np.ndarray, np.ndarray] or None
-            Contribution scores (N, C, L, 4) and one-hot encoded sequences (N, L, 4) or None if anndata is provided.
+        Contribution scores (N, C, L, 4) and one-hot encoded sequences (N, L, 4) or None if anndata is provided.
 
         See Also
         --------
@@ -550,29 +552,27 @@ class Crested:
         Calculate contribution scores based on given method for a specified region.
 
         These scores can then be plotted to visualize the importance of each base in the region
-        using :func:`~crested.pl.contribution_scores`.
+        using :func:`~crested.pl.patterns.contribution_scores`.
 
         Parameters
         ----------
-        region_idx : str
+        region_idx
             Region(s) for which to calculate the contribution scores in the format "chr:start-end".
-        class_names : list
+        class_names
             List of class names to calculate the contribution scores for (should match anndata.obs_names)
             If None, the contribution scores for the 'combined' class will be calculated.
-        method : str
+        method
             Method to use for calculating the contribution scores.
             Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
 
         Returns
         -------
-        tuple[np.ndarray, np.ndarray]
-            Contribution scores (N, C, L, 4) and one-hot encoded sequences (N, L, 4).
+        Contribution scores (N, C, L, 4) and one-hot encoded sequences (N, L, 4).
 
         See Also
         --------
         crested.pl.contribution_scores
         """
-
         self._check_contrib_params(method)
         if self.anndatamodule.predict_dataset is None:
             self.anndatamodule.setup("predict")
@@ -644,7 +644,13 @@ class Crested:
 
     @log_and_raise(ValueError)
     def _check_contrib_params(self, method):
-        if method not in ['integrated_grad', 'smooth_grad','mutagenesis', 'saliency', 'expected_integrated_grad']:
+        if method not in [
+            "integrated_grad",
+            "smooth_grad",
+            "mutagenesis",
+            "saliency",
+            "expected_integrated_grad",
+        ]:
             raise ValueError(
                 "Contribution score method not implemented. Choose out of the following options: integrated_grad, smooth_grad, mutagenesis, saliency, expected_integrated_grad."
             )

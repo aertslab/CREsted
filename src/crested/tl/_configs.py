@@ -101,6 +101,15 @@ class TaskConfig(NamedTuple):
 
     The TaskConfig class is a simple NamedTuple that holds the optimizer, loss, and metrics
 
+    Attributes
+    ----------
+    optimizer
+        Optimizer used for training.
+    loss
+        Loss function used for training.
+    metrics
+        Metrics used for training.
+
     Example
     -------
     >>> optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
@@ -113,15 +122,9 @@ class TaskConfig(NamedTuple):
     ... ]
     >>> configs = TaskConfig(optimizer, loss, metrics)
 
-
-    Attributes
-    ----------
-    optimizer : tf.keras.optimizers.Optimizer
-        Optimizer used for training.
-    loss : tf.keras.losses.Loss
-        Loss function used for training.
-    metrics : list[tf.keras.metrics.Metric]
-        Metrics used for training.
+    See Also
+    --------
+    crested.tl.default_configs
     """
 
     optimizer: tf.keras.optimizers.Optimizer
@@ -136,8 +139,7 @@ class TaskConfig(NamedTuple):
 
         Returns
         -------
-        dict
-            Dictionary representation of the TaskConfig.
+        Dictionary representation of the TaskConfig.
         """
         optimizer_info = {
             "optimizer": self.optimizer.__class__.__name__,
@@ -173,13 +175,16 @@ def default_configs(
 
     Parameters
     ----------
-    task : str
+    tasks
         Task for which to get default components.
 
     Returns
     -------
-    tuple
-        Optimizer, loss, and metrics for the given task.
+    Optimizer, loss, and metrics for the given task.
+
+    See Also
+    --------
+    crested.tl.TaskConfig
     """
     task_classes = {
         "topic_classification": TopicClassificationConfig,

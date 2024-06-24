@@ -78,8 +78,7 @@ def simple_convnet(
 
     Returns
     -------
-    tf.keras.Model
-        A TensorFlow Keras model.
+    A TensorFlow Keras model.
     """
     inputs = layers.Input(shape=(seq_len, 4), name="sequence")
 

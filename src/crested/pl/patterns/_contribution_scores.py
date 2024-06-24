@@ -46,17 +46,17 @@ def contribution_scores(
 
     Parameters
     ----------
-    scores : np.ndarray
+    scores
         Contribution scores of shape (n_seqs, n_classes, n_bases, n_features).
-    seqs_one_hot : np.ndarray
+    seqs_one_hot
         One-hot encoded corresponding sequences of shape (n_seqs, n_bases, n_features).
-    labels : list
+    labels
         List of labels to add to the plot. Should have the same length as the number of classes.
-    zoom_n_bases : int, optional
+    zoom_n_bases
         Number of center bases to zoom in on. Default is None (no zooming).
-    highlight_positions : list[tuple[int, int]], optional
+    highlight_positions
         List of tuples with start and end positions to highlight. Default is None.
-    ylim : tuple, optional
+    ylim
         Y-axis limits. Default is None.
 
     Examples

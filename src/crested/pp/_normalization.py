@@ -49,9 +49,7 @@ def normalize_peaks(
 
     Returns
     -------
-    anndata.AnnData
-        The AnnData object with the normalized matrix and cell
-        type weights used for normalization in the obsm attribute.
+    The AnnData object with the normalized matrix and cell type weights used for normalization in the obsm attribute.
     """
     if isinstance(adata.X, csr_matrix):
         target_matrix = (
@@ -67,7 +65,7 @@ def normalize_peaks(
     gini_scores_all = []
 
     overall_gini_scores = _calc_gini(target_matrix)
-    mean = np.mean(np.max(overall_gini_scores, axis=1)) 
+    mean = np.mean(np.max(overall_gini_scores, axis=1))
     std_dev = np.std(np.max(overall_gini_scores, axis=1))
     gini_threshold = mean - gini_std_threshold * std_dev
 
@@ -110,4 +108,3 @@ def normalize_peaks(
     adata.X = normalized_matrix
 
     return filtered_regions_df
-

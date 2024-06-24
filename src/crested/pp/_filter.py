@@ -43,8 +43,7 @@ def filter_regions_on_specificity(
 
     Returns
     -------
-    ad.AnnData
-        A new AnnData object with the filtered matrix and updated variable names.
+    A new AnnData object with the filtered matrix and updated variable names.
     """
     if model_name is None:
         if isinstance(adata.X, csr_matrix):
