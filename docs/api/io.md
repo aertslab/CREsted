@@ -14,5 +14,5 @@ Importing of bigwigs files and consensus region bed files into Anndata format fo
     :toctree: _autosummary
 
     import_bigwigs
-    import_topics
+    import_beds
 ```

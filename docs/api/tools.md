@@ -20,6 +20,7 @@ Sequence design.
 
     tl.Crested
     tl.TaskConfig
+    tl.tfmodisco
     tl.default_configs
 ```
 

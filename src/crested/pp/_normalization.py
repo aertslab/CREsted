@@ -107,7 +107,6 @@ def normalize_peaks(
 
     filtered_regions_df = regions_df.iloc[list(all_low_gini_indices)]
 
-
     adata.X = normalized_matrix
 
     return filtered_regions_df

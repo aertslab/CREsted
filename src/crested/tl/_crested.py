@@ -9,6 +9,7 @@ import numpy as np
 import tensorflow as tf
 from anndata import AnnData
 from loguru import logger
+from tqdm import tqdm
 
 from crested._logging import log_and_raise
 from crested.tl import TaskConfig
@@ -182,16 +183,17 @@ class Crested:
 
         return run, callbacks
 
-    def load_model(self, model_path: os.PathLike, compile: bool = False) -> None:
+    def load_model(self, model_path: os.PathLike, compile: bool = True) -> None:
         """
         Load a (pretrained) model from a file.
 
         Parameters
         ----------
         model_path : os.PathLike
-            Path to the model file.
-        compile: bool
-            Compile model after loading.
+            Path to the model file.        compile : bool
+            Compile the model after loading. Set to False if you only want to load
+            the model weights (e.g. when finetuning a model). If False, you should
+            provide a TaskConfig to the Crested object before calling fit.
         """
         self.model = tf.keras.models.load_model(model_path, compile=compile)
 
@@ -203,7 +205,7 @@ class Crested:
         model_checkpointing_best_only: bool = True,
         early_stopping: bool = True,
         early_stopping_patience: int = 10,
-        learning_rate_reduce: bool = False,
+        learning_rate_reduce: bool = True,
         learning_rate_reduce_patience: int = 5,
         custom_callbacks: list | None = None,
     ) -> None:
@@ -358,7 +360,8 @@ class Crested:
         """
         Make predictions using the model on the full dataset
 
-        Adds the predictions to anndata as a .layers attribute.
+        If anndata and model_name are provided, will add the predictions to anndata as a .layers[model_name] attribute.
+        Else, will return the predictions as a numpy array.
 
         Parameters
         ----------
@@ -366,6 +369,11 @@ class Crested:
             Anndata object containing the data.
         model_name : str
             Name that will be used to store the predictions in anndata.layers[model_name].
+
+        Returns
+        -------
+        np.ndarray
+            Predictions of shape (N, C)
         """
         self._check_predict_params(anndata, model_name)
         self._check_gpu_availability()
@@ -385,7 +393,7 @@ class Crested:
 
         return predictions
 
-    def predict_region(
+    def predict_regions(
         self,
         region_idx: list[str] | str,
     ) -> np.ndarray:
@@ -421,53 +429,72 @@ class Crested:
 
     def calculate_contribution_scores(
         self,
-        region_idx: str,
-        class_indices: list | None = None,
-        method: str = "integrated_grad",
-        return_one_hot: bool = True,
-    ) -> tuple[np.ndarray, np.ndarray] | np.ndarray:
+        anndata: AnnData | None = None,
+        class_names: list[str] | None = None,
+        method: str = "expected_integrated_grad",
+        store_in_varm: bool = False,
+    ) -> tuple[np.ndarray, np.ndarray] | None:
         """
-        Calculate contribution scores based on given method for a specified region.
+        Calculate contribution scores based on the given method for the full dataset.
 
-        These scores can then be plotted to visualize the importance of each base in the region
+        These scores can then be plotted to visualize the importance of each base in the dataset
         using :func:`~crested.pl.contribution_scores`.
 
         Parameters
         ----------
-        region_idx : str
-            Region for which to calculate the contribution scores in the format "chr:start-end".
-        class_indices : list
-            List of class indices to calculate the contribution scores for.
+        anndata : AnnData
+            Anndata object to store the contribution scores in as a .varm[class_name] attribute.
+            If None, will only return the contribution scores without storing them.
+        class_names : list
+            List of class names to calculate the contribution scores for (should match anndata.obs_names)
             If None, the contribution scores for the 'combined' class will be calculated.
         method : str
             Method to use for calculating the contribution scores.
-            Options are: 'integrated_grad', 'smooth_grad', 'mutagenesis', 'saliency', 'expected_integrated_grad'.
-        return_one_hot : bool
-            Return the one-hot encoded sequences along with the contribution scores.
-        """
+            Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
 
-        self._check_contrib_params(method)
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray] or None
+            Contribution scores (N, C, L, 4) and one-hot encoded sequences (N, L, 4) or None if anndata is provided.
+
+        See Also
+        --------
+        crested.pl.contribution_scores
+        """
+        self._check_contribution_scores_params(class_names)
+        self._check_gpu_availability()
+
         if self.anndatamodule.predict_dataset is None:
             self.anndatamodule.setup("predict")
-
-        if isinstance(region_idx, str):
-            region_idx = [region_idx]
+        predict_loader = self.anndatamodule.predict_dataloader
 
         all_scores = []
         all_one_hot_sequences = []
 
-        for region in region_idx:
-            sequence = self.anndatamodule.predict_dataset.sequence_loader.get_sequence(
-                region
-            )
-            x = one_hot_encode_sequence(sequence)
-            all_one_hot_sequences.append(x)
+        all_class_names = list(self.anndatamodule.adata.obs_names)
 
-            if class_indices is not None:
-                n_classes = len(class_indices)
-            else:
-                n_classes = 1  # 'combined' class
-                class_indices = [None]
+        if class_names is not None:
+            n_classes = len(class_names)
+            class_indices = [
+                all_class_names.index(class_name) for class_name in class_names
+            ]
+            varm_names = class_names
+        else:
+            n_classes = 1  # 'combined' class
+            class_indices = [None]
+            varm_names = ["combined"]
+        logger.info(
+            f"Calculating contribution scores for {n_classes} class(es) and {len(predict_loader)} batch(es) of regions."
+        )
+
+        for batch_index, (x, _) in enumerate(
+            tqdm(
+                predict_loader.data,
+                desc="Batch",
+                total=len(predict_loader),
+            ),
+        ):
+            all_one_hot_sequences.append(x)
 
             scores = np.zeros(
                 (x.shape[0], n_classes, x.shape[1], x.shape[2])
@@ -479,16 +506,122 @@ class Crested:
                     scores[:, i, :, :] = explainer.integrated_grad(
                         x, baseline_type="zeros"
                     )
-                elif method == "smooth_grad":
-                    scores[:, i, :, :] = explainer.smoothgrad(
-                        x, num_samples=50, mean=0.0, stddev=0.1
+                elif method == "mutagenesis":
+                    scores[:, i, :, :] = explainer.mutagenesis(
+                        x, class_index=class_index
+                    )
+                elif method == "expected_integrated_grad":
+                    scores[:, i, :, :] = explainer.expected_integrated_grad(
+                        x, num_baseline=25
+                    )
+            all_scores.append(scores)
+
+            # predict_loader.data is infinite, so limit the number of iterations
+            if batch_index == len(predict_loader) - 1:
+                break
+
+        concatenated_scores = np.concatenate(all_scores, axis=0)
+
+        if anndata:
+            for varm_name in varm_names:
+                logger.info(f"Adding contribution scores to anndata.varm[{varm_name}].")
+                if varm_name == "combined":
+                    anndata.varm[varm_name] = concatenated_scores[:, 0]
+                else:
+                    anndata.varm[varm_name] = concatenated_scores[
+                        :, class_names.index(varm_name)
+                    ]
+            anndata.varm["one_hot_sequences"] = np.concatenate(
+                all_one_hot_sequences, axis=0
+            )
+            logger.info(
+                "Added one-hot encoded sequences and contribution scores per class to anndata.varm."
+            )
+        else:
+            return concatenated_scores, np.concatenate(all_one_hot_sequences, axis=0)
+
+    def calculate_contribution_scores_regions(
+        self,
+        region_idx: list[str] | str,
+        class_names: list[str] | None = None,
+        method: str = "expected_integrated_grad",
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Calculate contribution scores based on given method for a specified region.
+
+        These scores can then be plotted to visualize the importance of each base in the region
+        using :func:`~crested.pl.contribution_scores`.
+
+        Parameters
+        ----------
+        region_idx : str
+            Region(s) for which to calculate the contribution scores in the format "chr:start-end".
+        class_names : list
+            List of class names to calculate the contribution scores for (should match anndata.obs_names)
+            If None, the contribution scores for the 'combined' class will be calculated.
+        method : str
+            Method to use for calculating the contribution scores.
+            Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray]
+            Contribution scores (N, C, L, 4) and one-hot encoded sequences (N, L, 4).
+
+        See Also
+        --------
+        crested.pl.contribution_scores
+        """
+
+        self._check_contrib_params(method)
+        if self.anndatamodule.predict_dataset is None:
+            self.anndatamodule.setup("predict")
+        self._check_contribution_scores_params(class_names)
+
+        if isinstance(region_idx, str):
+            region_idx = [region_idx]
+
+        all_scores = []
+        all_one_hot_sequences = []
+
+        all_class_names = list(self.anndatamodule.adata.obs_names)
+
+        if class_names is not None:
+            n_classes = len(class_names)
+            class_indices = [
+                all_class_names.index(class_name) for class_name in class_names
+            ]
+        else:
+            n_classes = 1  # 'combined' class
+            class_indices = [None]
+
+        logger.info(
+            f"Calculating contribution scores for {n_classes} class(es) and {len(region_idx)} region(s)."
+        )
+        for region in tqdm(
+            region_idx,
+            desc="Region",
+        ):
+            sequence = self.anndatamodule.predict_dataset.sequence_loader.get_sequence(
+                region
+            )
+            x = one_hot_encode_sequence(sequence)
+            all_one_hot_sequences.append(x)
+
+            scores = np.zeros(
+                (x.shape[0], n_classes, x.shape[1], x.shape[2])
+            )  # (N, C, W, 4)
+
+            for i, class_index in enumerate(class_indices):
+                explainer = Explainer(self.model, class_index=class_index)
+                if method == "integrated_grad":
+                    scores[:, i, :, :] = explainer.integrated_grad(
+                        x, baseline_type="zeros"
                     )
                 elif method == "mutagenesis":
                     scores[:, i, :, :] = explainer.mutagenesis(
                         x, class_index=class_index
                     )
-                elif method == "saliency":
-                    scores[:, i, :, :] = explainer.saliency_maps(x)
                 elif method == "expected_integrated_grad":
                     scores[:, i, :, :] = explainer.expected_integrated_grad(
                         x, num_baseline=25
@@ -498,12 +631,9 @@ class Crested:
 
             all_scores.append(scores)
 
-        if return_one_hot:
-            return np.concatenate(all_scores, axis=0), np.concatenate(
-                all_one_hot_sequences, axis=0
-            )
-        else:
-            return np.concatenate(all_scores, axis=0)
+        return np.concatenate(all_scores, axis=0), np.concatenate(
+            all_one_hot_sequences, axis=0
+        )
 
     @staticmethod
     def _check_gpu_availability():
@@ -559,6 +689,21 @@ class Crested:
             raise ValueError(
                 "Both anndata and model_name must be provided if one of them is provided."
             )
+
+    @log_and_raise(ValueError)
+    def _check_contribution_scores_params(self, class_names: list | None):
+        """Check if the necessary parameters are set for the calculate_contribution_scores method."""
+        if not self.model:
+            raise ValueError(
+                "Model not set. Please load a model from pretrained using Crested.load_model(...) before calling calculate_contribution_scores_(regions)."
+            )
+        if class_names is not None:
+            all_class_names = list(self.anndatamodule.adata.obs_names)
+            for class_name in class_names:
+                if class_name not in all_class_names:
+                    raise ValueError(
+                        f"Class name {class_name} not found in anndata.obs_names."
+                    )
 
     def __repr__(self):
         return f"Crested(data={self.anndatamodule is not None}, model={self.model is not None}, config={self.config is not None})"

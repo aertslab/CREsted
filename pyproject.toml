@@ -31,7 +31,9 @@ dependencies = [
     "loguru",
     "logomaker",
     "pybigtools",
-    "seaborn"
+    "seaborn",
+    "cmake",
+    "modisco-lite",
 ]
 
 [project.optional-dependencies]
