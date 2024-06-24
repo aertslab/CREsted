@@ -190,8 +190,7 @@ class Crested:
         Parameters
         ----------
         model_path : os.PathLike
-            Path to the model file.
-        compile : bool
+            Path to the model file.        compile : bool
             Compile the model after loading. Set to False if you only want to load
             the model weights (e.g. when finetuning a model). If False, you should
             provide a TaskConfig to the Crested object before calling fit.
@@ -573,6 +572,8 @@ class Crested:
         --------
         crested.pl.contribution_scores
         """
+
+        self._check_contrib_params(method)
         if self.anndatamodule.predict_dataset is None:
             self.anndatamodule.setup("predict")
         self._check_contribution_scores_params(class_names)
@@ -625,6 +626,8 @@ class Crested:
                     scores[:, i, :, :] = explainer.expected_integrated_grad(
                         x, num_baseline=25
                     )
+                else:
+                    raise
 
             all_scores.append(scores)
 
@@ -638,6 +641,13 @@ class Crested:
         devices = tf.config.list_physical_devices("GPU")
         if not devices:
             logger.warning("No GPUs available.")
+
+    @log_and_raise(ValueError)
+    def _check_contrib_params(self, method):
+        if method not in ['integrated_grad', 'smooth_grad','mutagenesis', 'saliency', 'expected_integrated_grad']:
+            raise ValueError(
+                "Contribution score method not implemented. Choose out of the following options: integrated_grad, smooth_grad, mutagenesis, saliency, expected_integrated_grad."
+            )
 
     @log_and_raise(ValueError)
     def _check_fit_params(self):
