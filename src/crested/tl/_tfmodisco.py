@@ -1,5 +1,7 @@
 """Code adapted from https://github.com/jmschrei/tfmodisco-lite/blob/main/modisco."""
 
+from __future__ import annotations
+
 import os
 
 import anndata
