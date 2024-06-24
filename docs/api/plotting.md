@@ -10,13 +10,14 @@ Plotting description
 .. currentmodule:: crested
 ```
 
-## Contribution scores
+## Contribution scores and modisco results
 
 ```{eval-rst}
 .. autosummary::
     :toctree: _autosummary
 
-    pl.contribution_scores
+    pl.patterns.contribution_scores
+    pl.patterns.modisco_results
 ```
 
 ## Bar plots
@@ -68,4 +69,3 @@ Correlations
 
     pl.render_plot
 ```
-
