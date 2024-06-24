@@ -23,7 +23,7 @@ def tfmodisco(
     n_leiden: int = 2,
     report: bool = False,
     meme_db: str = None,
-    verbose: bool = False,
+    verbose: bool = True,
 ):
     """
     Runs tf-modisco on one-hot encoded sequences and contribution scores stored in an AnnData object.
@@ -123,9 +123,7 @@ def tfmodisco(
                     modiscolite.report.report_motifs(
                         output_file,
                         report_dir,
-                        img_path_suffix=report_dir,
                         meme_motif_db=meme_db,
-                        is_writing_tomtom_matrix=True,
                         top_n_matches=3,
                     )
             else:
