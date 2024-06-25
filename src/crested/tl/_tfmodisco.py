@@ -6,6 +6,8 @@ import os
 
 import anndata
 import modiscolite
+import numpy as np
+import re
 from loguru import logger
 
 from crested._logging import log_and_raise
@@ -17,27 +19,25 @@ def _calculate_window_offsets(center: int, window_size: int) -> tuple:
 
 @log_and_raise(Exception)
 def tfmodisco(
-    adata: anndata.AnnData,
+    contrib_dir: os.PathLike = 'modisco_results',
     class_names: list[str] | None = None,
     output_dir: os.PathLike = "modisco_results",
     max_seqlets: int = 2000,
-    window: int = 400,
+    window: int = 500,
     n_leiden: int = 2,
     report: bool = False,
     meme_db: str = None,
     verbose: bool = True,
 ):
     """
-    Runs tf-modisco on one-hot encoded sequences and contribution scores stored in an AnnData object.
+    Runs tf-modisco on one-hot encoded sequences and contribution scores stored in .npz files.
 
     Parameters
     ----------
-    adata
-        AnnData object containing the one-hot encoded sequences and contribution scores.
-        The one-hot encoded sequences should be stored in adata.varm["one_hot_sequences"].
-        The contribution scores should be stored in adata.varm[class_name], where class_name is one of the class names.
+    contrib_dir
+        Directory containing the contribution score and one hot encoded regions npz files.
     class_names
-        List of class names to process. If None, all adata.varm keys will be processed.
+        List of class names to process. If None, all class names found in the output directory will be processed.
     output_dir
         Directory where output files will be saved.
     max_seqlets
@@ -71,31 +71,38 @@ def tfmodisco(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    # Use all class names found in the contribution directory if class_names is not provided
     if class_names is None:
-        class_names = list(adata.varm.keys())
-        if "one_hot_sequences" in class_names:
-            class_names.remove("one_hot_sequences")
+        class_names = [re.match(r'(.+?)_oh\.npz$', f).group(1) for f in os.listdir(contrib_dir) if f.endswith('_oh.npz')]
+        class_names = list(set(class_names))
 
-    one_hot_sequences = adata.varm["one_hot_sequences"]
-
-    if one_hot_sequences.shape[1] < window:
-        raise ValueError(
-            f"Window ({window}) cannot be longer than the sequences ({one_hot_sequences.shape[1]})"
-        )
+    # Iterate over each class and calculate contribution scores
     for class_name in class_names:
         try:
-            contribution_scores = adata.varm[class_name]
+            # Load the one-hot sequences and contribution scores from the .npz files
+            one_hot_path = os.path.join(contrib_dir, f"{class_name}_oh.npz")
+            contrib_path = os.path.join(contrib_dir, f"{class_name}_contrib.npz")
 
-            if one_hot_sequences.shape != contribution_scores.shape:
+            if not (os.path.exists(one_hot_path) and os.path.exists(contrib_path)):
+                raise FileNotFoundError(f"Missing .npz files for class: {class_name}")
+
+            one_hot_seqs = np.load(one_hot_path)["arr_0"]
+            contribution_scores = np.load(contrib_path)["arr_0"]
+
+            if one_hot_seqs.shape[2] < window:
+                print(one_hot_seqs.shape[2])
                 raise ValueError(
-                    f"Shape mismatch between sequences and scores for class {class_name}"
+                    f"Window ({window}) cannot be longer than the sequences ({one_hot_seqs.shape[1]})"
                 )
 
-            center = one_hot_sequences.shape[1] // 2
+            center = one_hot_seqs.shape[2] // 2
             start, end = _calculate_window_offsets(center, window)
 
-            sequences = one_hot_sequences[:, start:end, :]
-            attributions = contribution_scores[:, start:end, :]
+            sequences = one_hot_seqs[:, :, start:end]
+            attributions = contribution_scores[:, :, start:end]
+
+            sequences = sequences.transpose(0,2,1)
+            attributions = attributions.transpose(0,2,1)
 
             sequences = sequences.astype("float32")
             attributions = attributions.astype("float32")
@@ -104,7 +111,7 @@ def tfmodisco(
             output_file = os.path.join(output_dir, f"{class_name}_modisco_results.h5")
             report_dir = os.path.join(output_dir, f"{class_name}_report")
 
-            # Check if the modisco results .h5 file does not exist for the cell type
+            # Check if the modisco results .h5 file does not exist for the class
             if not os.path.exists(output_file):
                 logger.info(f"Running modisco for class: {class_name}")
                 pos_patterns, neg_patterns = modiscolite.tfmodisco.TFMoDISco(
@@ -118,7 +125,7 @@ def tfmodisco(
                     verbose=verbose,
                 )
 
-                modiscolite.io.save_hdf5(output_file, pos_patterns, neg_patterns)
+                modiscolite.io.save_hdf5(output_file, pos_patterns, neg_patterns, window_size=window)
 
                 # Generate the modisco report
                 if report:
