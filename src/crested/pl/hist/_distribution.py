@@ -51,7 +51,7 @@ def distribution(
     ...     adata, split="test", share_y=False, class_names=["Astro", "Vip"]
     ... )
 
-    .. image:: ../../../docs/_static/img/examples/hist_distribution.png
+    .. image:: ../../../../docs/_static/img/examples/hist_distribution.png
     """
 
     @log_and_raise(ValueError)

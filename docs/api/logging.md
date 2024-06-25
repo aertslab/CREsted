@@ -3,12 +3,10 @@
 Helper functions for logging during use of package.
 
 ```{eval-rst}
-.. module:: crested
+.. currentmodule:: crested
 ```
 
 ```{eval-rst}
-.. currentmodule:: crested
-
 .. autosummary::
     :toctree: _autosummary
 

@@ -1,8 +1,9 @@
 from __future__ import annotations
-import tensorflow as tf
-from tensorflow.keras.losses import Loss
 
-class CosineMSELoss(Loss):
+import tensorflow as tf
+
+
+class CosineMSELoss(tf.keras.losses.Loss):
     """Custom loss function that combines cosine similarity and mean squared error."""
 
     def __init__(self, max_weight=1.0, name="CustomMSELoss", reduction=None):
@@ -31,7 +32,7 @@ class CosineMSELoss(Loss):
         # Calculate cosine similarity loss
         cosine_loss = -tf.reduce_sum(y_true1 * y_pred1, axis=-1)
 
-        total_loss = weight * cosine_loss + mse_loss  
+        total_loss = weight * cosine_loss + mse_loss
 
         return total_loss
 

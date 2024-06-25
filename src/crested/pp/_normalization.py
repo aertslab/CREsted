@@ -24,15 +24,6 @@ def normalize_peaks(
     a defined threshold and considering the variability within those peaks.
     Only used on continuous .X data. Modifies the input AnnData.X in place.
 
-    Example
-    -------
-    >>> crested.pp.normalize_peaks(
-    ...     adata,
-    ...     peak_threshold=0,
-    ...     gini_std_threshold=2.0,
-    ...     top_k_percent=0.05,
-    ... )
-
     Parameters
     ----------
     adata
@@ -49,9 +40,16 @@ def normalize_peaks(
 
     Returns
     -------
-    anndata.AnnData
-        The AnnData object with the normalized matrix and cell
-        type weights used for normalization in the obsm attribute.
+    The AnnData object with the normalized matrix and cell type weights used for normalization in the obsm attribute.
+
+    Example
+    -------
+    >>> crested.pp.normalize_peaks(
+    ...     adata,
+    ...     peak_threshold=0,
+    ...     gini_std_threshold=2.0,
+    ...     top_k_percent=0.05,
+    ... )
     """
     if isinstance(adata.X, csr_matrix):
         target_matrix = (
@@ -67,7 +65,7 @@ def normalize_peaks(
     gini_scores_all = []
 
     overall_gini_scores = _calc_gini(target_matrix)
-    mean = np.mean(np.max(overall_gini_scores, axis=1)) 
+    mean = np.mean(np.max(overall_gini_scores, axis=1))
     std_dev = np.std(np.max(overall_gini_scores, axis=1))
     gini_threshold = mean - gini_std_threshold * std_dev
 
@@ -107,8 +105,6 @@ def normalize_peaks(
 
     filtered_regions_df = regions_df.iloc[list(all_low_gini_indices)]
 
-
     adata.X = normalized_matrix
 
     return filtered_regions_df
-

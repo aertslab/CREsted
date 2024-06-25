@@ -1,8 +1,9 @@
-"""I/O functions for importing topics and bigWigs into AnnData objects."""
+"""I/O functions for importing beds and bigWigs into AnnData objects."""
 
 from __future__ import annotations
 
 import os
+import re
 from concurrent.futures import ProcessPoolExecutor
 from os import PathLike
 from pathlib import Path
@@ -16,11 +17,11 @@ from loguru import logger
 from scipy.sparse import csr_matrix
 
 
-def _sort_topic_files(filename: str):
-    """Sorts topic files.
+def _sort_files(filename: str):
+    """Sorts files.
 
-    Prioritizes numeric extraction from filenames of the format 'Topic_X.bed' (X=int).
-    Other filenames are sorted alphabetically, with 'Topic_' files coming last if numeric extraction fails.
+    Prioritizes numeric extraction from filenames of the format 'Class_X.bed' (X=int).
+    Other filenames are sorted alphabetically, with 'Class_' files coming last if numeric extraction fails.
     """
     filename = Path(filename)
     parts = filename.stem.split("_")
@@ -32,11 +33,26 @@ def _sort_topic_files(filename: str):
             # If the numeric part is not an integer, handle gracefully
             return (True, filename.stem)
 
-    # Return True for the first element to sort non-'Topic_X' filenames alphabetically after 'Topic_X'
+    # Return True for the first element to sort non-'Class_X' filenames alphabetically after 'Class_X'
     return (
         True,
         filename.stem,
     )
+
+
+def _custom_region_sort(region: str) -> tuple(int, int, int):
+    """Custom sorting function for regions in the format chr:start-end."""
+    chrom, pos = region.split(":")
+    start, _ = map(int, pos.split("-"))
+
+    # check if the chromosome part contains digits
+    numeric_match = re.match(r"chr(\d+)|chrom(\d+)", chrom, re.IGNORECASE)
+
+    if numeric_match:
+        chrom_num = int(numeric_match.group(1) or numeric_match.group(2))
+        return (0, chrom_num, start)
+    else:
+        return (1, chrom, start)
 
 
 def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
@@ -130,46 +146,43 @@ def _create_temp_bed_file(
     return temp_bed_file
 
 
-def import_topics(
-    topics_folder: PathLike,
-    regions_file: PathLike,
+def import_beds(
+    beds_folder: PathLike,
+    regions_file: PathLike | None = None,
     chromsizes_file: PathLike | None = None,
-    topics_subset: list | None = None,
+    classes_subset: list | None = None,
     remove_empty_regions: bool = True,
     compress: bool = False,
 ) -> AnnData:
     """
-    Import topic and consensus regions BED files into AnnData format.
+    Import beds and optionally consensus regions BED files into AnnData format.
 
-    This format is required to be able to train a topic prediction model.
-    The topic and consensus regions are the outputs from running pycisTopic
+    Expects the folder with BED files where each file is named {class_name}.bed
+    The result is an AnnData object with classes as rows and the regions as columns,
+    with the .X values indicating whether a region is open in a class.
+
+    Note
+    ----
+    This is the default function to import topic BED files coming from running pycisTopic
     (https://pycistopic.readthedocs.io/en/latest/) on your data.
     The result is an AnnData object with topics as rows and consensus region as columns,
     with binary values indicating whether a region is present in a topic.
 
-    Example
-    -------
-    >>> anndata = crested.import_topics(
-    ...     topics_folder="path/to/topics",
-    ...     regions_file="path/to/regions.bed",
-    ...     chromsizes_file="path/to/chrom.sizes",
-    ...     topics_subset=["Topic_1", "Topic_2"],
-    ... )
-
     Parameters
     ----------
-    topics_folder
-        Folder path containing the topic BED files.
+    beds_folder
+        Folder path containing the BED files.
     regions_file
-        File path of the consensus regions BED file.
-    topics_subset
-        List of topics to include in the AnnData object. If None, all topics
+        File path of the consensus regions BED file to use as columns in the AnnData object.
+        If None, the regions will be extracted from the files.
+    classes_subset
+        List of classes to include in the AnnData object. If None, all files
         will be included.
-        Topics should be named after the topics file name without the extension.
+        Classes should be named after the file name without the extension.
     chromsizes_file
         File path of the chromsizes file.  Used for checking if the new regions are within the chromosome boundaries.
     remove_empty_regions
-        Remove regions that are not open in any topic.
+        Remove regions that are not open in any class (only possible if regions_file is provided)
     compress
         Compress the AnnData.X matrix. If True, the matrix will be stored as
         a sparse matrix. If False, the matrix will be stored as a dense matrix.
@@ -179,15 +192,24 @@ def import_topics(
 
     Returns
     -------
-    AnnData object with topics as rows and peaks as columns.
+    AnnData object with classes as rows and peaks as columns.
+
+    Example
+    -------
+    >>> anndata = crested.import_beds(
+    ...     beds_folder="path/to/beds/folder/",
+    ...     regions_file="path/to/regions.bed",
+    ...     chromsizes_file="path/to/chrom.sizes",
+    ...     classes_subset=["Topic_1", "Topic_2"],
+    ... )
     """
-    topics_folder = Path(topics_folder)
-    regions_file = Path(regions_file)
+    beds_folder = Path(beds_folder)
+    regions_file = Path(regions_file) if regions_file else None
 
     # Input checks
-    if not topics_folder.is_dir():
-        raise FileNotFoundError(f"Directory '{topics_folder}' not found")
-    if not regions_file.is_file():
+    if not beds_folder.is_dir():
+        raise FileNotFoundError(f"Directory '{beds_folder}' not found")
+    if (regions_file is not None) and (not regions_file.is_file()):
         raise FileNotFoundError(f"File '{regions_file}' not found")
     if chromsizes_file is not None:
         chromsizes_file = Path(chromsizes_file)
@@ -198,47 +220,93 @@ def import_topics(
             "Chromsizes file not provided. Will not check if regions are within chromosomes",
             stacklevel=1,
         )
-    if topics_subset is not None:
-        for topic in topics_subset:
-            if not any(topics_folder.glob(f"{topic}.bed")):
-                raise FileNotFoundError(
-                    f"Topic '{topic}' not found in '{topics_folder}'"
+    if classes_subset is not None:
+        for classname in classes_subset:
+            if not any(beds_folder.glob(f"{classname}.bed")):
+                raise FileNotFoundError(f"'{classname}' not found in '{beds_folder}'")
+
+    if regions_file:
+        # Read consensus regions BED file and filter out regions not within chromosomes
+        consensus_peaks = _read_consensus_regions(regions_file, chromsizes_file)
+
+        binary_matrix = pd.DataFrame(0, index=[], columns=consensus_peaks["region"])
+        file_paths = []
+
+        # Which regions are present in the consensus regions
+        logger.info(
+            f"Reading bed files from {beds_folder} and using {regions_file} as var_names..."
+        )
+        for file in sorted(beds_folder.glob("*.bed"), key=_sort_files):
+            class_name = file.stem
+            if classes_subset is None or class_name in classes_subset:
+                class_regions = pd.read_csv(
+                    file, sep="\t", header=None, usecols=[0, 1, 2]
+                )
+                class_regions["region"] = (
+                    class_regions[0].astype(str)
+                    + ":"
+                    + class_regions[1].astype(str)
+                    + "-"
+                    + class_regions[2].astype(str)
                 )
 
-    # Read consensus regions BED file and filter out regions not within chromosomes
-    consensus_peaks = _read_consensus_regions(regions_file, chromsizes_file)
+                # Create binary row for the current topic
+                binary_row = binary_matrix.columns.isin(class_regions["region"]).astype(
+                    int
+                )
+                binary_matrix.loc[class_name] = binary_row
+                file_paths.append(str(file))
 
-    binary_matrix = pd.DataFrame(0, index=[], columns=consensus_peaks["region"])
-    topic_file_paths = []
+    # else, get regions from the bed files
+    else:
+        file_paths = []
+        all_regions = set()
 
-    # Which topic regions are present in the consensus regions
-    logger.info(f"Reading topics from {topics_folder}...")
-    for topic_file in sorted(topics_folder.glob("*.bed"), key=_sort_topic_files):
-        topic_name = topic_file.stem
-        if topics_subset is None or topic_name in topics_subset:
-            topic_peaks = pd.read_csv(
-                topic_file, sep="\t", header=None, usecols=[0, 1, 2]
-            )
-            topic_peaks["region"] = (
-                topic_peaks[0].astype(str)
+        # Collect all regions from the BED files
+        logger.info(
+            f"Reading bed files from {beds_folder} without consensus regions..."
+        )
+        for file in sorted(beds_folder.glob("*.bed"), key=_sort_files):
+            class_name = file.stem
+            if classes_subset is None or class_name in classes_subset:
+                class_regions = pd.read_csv(
+                    file, sep="\t", header=None, usecols=[0, 1, 2]
+                )
+                class_regions["region"] = (
+                    class_regions[0].astype(str)
+                    + ":"
+                    + class_regions[1].astype(str)
+                    + "-"
+                    + class_regions[2].astype(str)
+                )
+                all_regions.update(class_regions["region"].tolist())
+                file_paths.append(str(file))
+
+        # Convert set to sorted list
+        all_regions = sorted(all_regions, key=_custom_region_sort)
+        binary_matrix = pd.DataFrame(0, index=[], columns=all_regions)
+
+        # Populate the binary matrix
+        for file in file_paths:
+            class_name = Path(file).stem
+            class_regions = pd.read_csv(file, sep="\t", header=None, usecols=[0, 1, 2])
+            class_regions["region"] = (
+                class_regions[0].astype(str)
                 + ":"
-                + topic_peaks[1].astype(str)
+                + class_regions[1].astype(str)
                 + "-"
-                + topic_peaks[2].astype(str)
+                + class_regions[2].astype(str)
             )
-
-            # Create binary row for the current topic
-            binary_row = binary_matrix.columns.isin(topic_peaks["region"]).astype(int)
-            binary_matrix.loc[topic_name] = binary_row
-            topic_file_paths.append(str(topic_file))
+            binary_row = binary_matrix.columns.isin(class_regions["region"]).astype(int)
+            binary_matrix.loc[class_name] = binary_row
 
     ann_data = AnnData(
         binary_matrix,
     )
 
-    ann_data.obs["file_path"] = topic_file_paths
+    ann_data.obs["file_path"] = file_paths
     ann_data.obs["n_open_regions"] = ann_data.X.sum(axis=1)
-    ann_data.var["n_topics"] = ann_data.X.sum(axis=0)
+    ann_data.var["n_classes"] = ann_data.X.sum(axis=0)
     ann_data.var["chr"] = ann_data.var.index.str.split(":").str[0]
     ann_data.var["start"] = (
         ann_data.var.index.str.split(":").str[1].str.split("-").str[0]
@@ -251,18 +319,18 @@ def import_topics(
         ann_data.X = csr_matrix(ann_data.X)
 
     # Output checks
-    topics_no_open_regions = ann_data.obs[ann_data.obs["n_open_regions"] == 0]
-    if not topics_no_open_regions.empty:
+    classes_no_open_regions = ann_data.obs[ann_data.obs["n_open_regions"] == 0]
+    if not classes_no_open_regions.empty:
         raise ValueError(
-            f"Topics {topics_no_open_regions.index} have 0 open regions in the consensus peaks"
+            f"{classes_no_open_regions.index} have 0 open regions in the consensus peaks"
         )
-    regions_no_topics = ann_data.var[ann_data.var["n_topics"] == 0]
-    if not regions_no_topics.empty:
+    regions_no_classes = ann_data.var[ann_data.var["n_classes"] == 0]
+    if not regions_no_classes.empty:
         if remove_empty_regions:
             logger.warning(
-                f"{len(regions_no_topics.index)} consensus regions are not open in any topic. Removing them from the AnnData object. Disable this behavior by setting 'remove_empty_regions=False'",
+                f"{len(regions_no_classes.index)} consensus regions are not open in any class. Removing them from the AnnData object. Disable this behavior by setting 'remove_empty_regions=False'",
             )
-            ann_data = ann_data[:, ann_data.var["n_topics"] > 0]
+            ann_data = ann_data[:, ann_data.var["n_classes"] > 0]
 
     return ann_data
 
@@ -285,16 +353,6 @@ def import_bigwigs(
     where the original region will still be used as the index.
     This is often useful to extract sequence information around the actual peak region.
 
-    Example
-    -------
-    >>> anndata = crested.import_bigwigs(
-    ...     bigwigs_folder="path/to/bigwigs",
-    ...     regions_file="path/to/peaks.bed",
-    ...     chromsizes_file="path/to/chrom.sizes",
-    ...     target="max",
-    ...     target_region_width=500,
-    ... )
-
     Parameters
     ----------
     bigwigs_folder
@@ -315,6 +373,16 @@ def import_bigwigs(
     Returns
     -------
     AnnData object with bigWigs as rows and peaks as columns.
+
+    Example
+    -------
+    >>> anndata = crested.import_bigwigs(
+    ...     bigwigs_folder="path/to/bigwigs",
+    ...     regions_file="path/to/peaks.bed",
+    ...     chromsizes_file="path/to/chrom.sizes",
+    ...     target="max",
+    ...     target_region_width=500,
+    ... )
     """
     bigwigs_folder = Path(bigwigs_folder)
     regions_file = Path(regions_file)

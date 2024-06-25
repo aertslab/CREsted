@@ -1,8 +1,6 @@
 """Chrombp net like model architecture for peak regression."""
 
 import tensorflow as tf
-import tensorflow.keras.layers as layers
-from tensorflow.keras.backend import int_shape
 
 
 def chrombpnet(
@@ -63,14 +61,13 @@ def chrombpnet(
 
     Returns
     -------
-    tf.keras.Model
-        A TensorFlow Keras model.
+    A TensorFlow Keras model.
     """
     # Model
-    inputs = layers.Input(shape=(seq_len, 4), name="sequence")
+    inputs = tf.keras.layers.Input(shape=(seq_len, 4), name="sequence")
 
     # Convolutional block without dilation
-    x = layers.Conv1D(
+    x = tf.keras.layers.Conv1D(
         filters=first_conv_filters,
         kernel_size=first_conv_filter_size,
         strides=1,
@@ -80,18 +77,20 @@ def chrombpnet(
         kernel_regularizer=tf.keras.regularizers.l2(first_conv_l2),
         use_bias=False,
     )(inputs)
-    x = layers.BatchNormalization(momentum=0.9, gamma_initializer="ones")(x)
-    x = layers.Activation(first_conv_activation)(x)
+    x = tf.keras.layers.BatchNormalization(momentum=0.9, gamma_initializer="ones")(x)
+    x = tf.keras.layers.Activation(first_conv_activation)(x)
     if first_conv_pool_size > 1:
-        x = layers.MaxPooling1D(pool_size=first_conv_pool_size, padding="same")(x)
-    x = layers.Dropout(first_conv_dropout)(x)
+        x = tf.keras.layers.MaxPooling1D(
+            pool_size=first_conv_pool_size, padding="same"
+        )(x)
+    x = tf.keras.layers.Dropout(first_conv_dropout)(x)
 
     # Dilated convolutions
     layer_names = [str(i) for i in range(1, n_dil_layers + 1)]
 
     for i in range(1, n_dil_layers + 1):
         conv_layer_name = f"bpnet_{layer_names[i - 1]}conv"
-        conv_x = layers.Conv1D(
+        conv_x = tf.keras.layers.Conv1D(
             filters=num_filters,
             kernel_size=filter_size,
             strides=1,
@@ -104,29 +103,31 @@ def chrombpnet(
             name=conv_layer_name,
         )(x)
         if batch_norm:
-            conv_x = layers.BatchNormalization(
+            conv_x = tf.keras.layers.BatchNormalization(
                 momentum=0.9,
                 gamma_initializer="ones",
                 name=f"bpnet_{layer_names[i - 1]}bn",
             )(conv_x)
         if activation != "none":
-            conv_x = layers.Activation(
+            conv_x = tf.keras.layers.Activation(
                 activation, name=f"bpnet_{layer_names[i - 1]}activation"
             )(conv_x)
 
-        x_len = int_shape(x)[1]
-        conv_x_len = int_shape(conv_x)[1]
+        x_len = tf.keras.backend.int_shape(x)[1]
+        conv_x_len = tf.keras.backend.int_shape(conv_x)[1]
         assert (x_len - conv_x_len) % 2 == 0  # for symmetric cropping
 
-        x = layers.Cropping1D(
+        x = tf.keras.layers.Cropping1D(
             (x_len - conv_x_len) // 2, name=f"bpnet_{layer_names[i - 1]}crop"
         )(x)
-        x = layers.add([conv_x, x])
+        x = tf.keras.layers.add([conv_x, x])
         if dropout > 0:
-            x = layers.Dropout(dropout, name=f"bpnet_{layer_names[i-1]}dropout")(x)
+            x = tf.keras.layers.Dropout(
+                dropout, name=f"bpnet_{layer_names[i-1]}dropout"
+            )(x)
 
-    x = layers.GlobalAveragePooling1D()(x)
-    outputs = layers.Dense(
+    x = tf.keras.layers.GlobalAveragePooling1D()(x)
+    outputs = tf.keras.layers.Dense(
         units=num_classes, activation="softplus", use_bias=dense_bias
     )(x)
 

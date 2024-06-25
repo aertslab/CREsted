@@ -45,8 +45,7 @@ def change_regions_width(
 
     Returns
     -------
-    anndata.AnnData
-        The AnnData object with the modified regions.
+    The AnnData object with the modified regions.
 
     Example
     -------

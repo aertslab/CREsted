@@ -3,10 +3,10 @@ import sys
 from importlib.metadata import version
 
 from . import pl, pp, tl
-from ._io import import_bigwigs, import_topics
+from ._io import import_beds, import_bigwigs
 from ._logging import setup_logging
 
-__all__ = ["pl", "pp", "tl", "import_topics", "import_bigwigs", "setup_logging"]
+__all__ = ["pl", "pp", "tl", "import_beds", "import_bigwigs", "setup_logging"]
 
 __version__ = version("crested")
 
