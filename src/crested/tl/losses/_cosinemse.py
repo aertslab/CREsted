@@ -5,10 +5,10 @@ from tensorflow.keras.losses import Loss
 class CosineMSELoss(Loss):
     """Custom loss function that combines cosine similarity and mean squared error."""
 
-    def __init__(self, max_weight=1.0, name="CustomMSELoss"):
+    def __init__(self, max_weight=1.0, name="CustomMSELoss", reduction=None):
         super().__init__(name=name)
         self.max_weight = max_weight
-        #self.reduction=reduction
+        self.reduction=reduction
 
     @tf.function
     def call(self, y_true, y_pred):
@@ -38,8 +38,8 @@ class CosineMSELoss(Loss):
     def get_config(self):
         config = super().get_config()
         config.update({
-            "max_weight": self.max_weight})
-           # "reduction":self.reduction})
+            "max_weight": self.max_weight,#})
+            "reduction":self.reduction})
         return config
 
     @classmethod
