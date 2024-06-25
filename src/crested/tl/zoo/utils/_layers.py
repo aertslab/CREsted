@@ -54,8 +54,7 @@ def dense_block(
 
     Returns
     -------
-    tf.Tensor
-        The output tensor of the dense block.
+    The output tensor of the dense block.
     """
     x = tf.keras.layers.Dense(
         units,
