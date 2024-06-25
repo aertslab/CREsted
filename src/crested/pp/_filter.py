@@ -23,13 +23,6 @@ def filter_regions_on_specificity(
     adata.layers[model_name] layer. Else, it will use the targets in adata.X to decide
     which regions to keep.
 
-    Example
-    -------
-    >>> filtered_adata = crested.pp.filter_regions_on_specificity(
-    ...     adata,
-    ...     gini_std_threshold=1.0,
-    ... )
-
     Parameters
     ----------
     adata
@@ -44,6 +37,14 @@ def filter_regions_on_specificity(
     Returns
     -------
     A new AnnData object with the filtered matrix and updated variable names.
+
+
+    Example
+    -------
+    >>> filtered_adata = crested.pp.filter_regions_on_specificity(
+    ...     adata,
+    ...     gini_std_threshold=1.0,
+    ... )
     """
     if model_name is None:
         if isinstance(adata.X, csr_matrix):

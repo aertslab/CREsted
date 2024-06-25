@@ -201,24 +201,6 @@ def train_val_test_split(
     ----
     Model training always requires a `split` column in the `.var` DataFrame.
 
-    Examples
-    --------
-    >>> crested.train_val_test_split(
-    ...     adata,
-    ...     strategy="region",
-    ...     val_size=0.1,
-    ...     test_size=0.1,
-    ...     shuffle=True,
-    ...     random_state=42,
-    ... )
-
-    >>> crested.train_val_test_split(
-    ...     adata,
-    ...     strategy="chr",
-    ...     val_chroms=["chr1", "chr2"],
-    ...     test_chroms=["chr3", "chr4"],
-    ... )
-
     Parameters
     ----------
     adata
@@ -255,6 +237,24 @@ def train_val_test_split(
     -------
     Adds a new column inplace to `adata.var`:
         'split': 'train', 'val', or 'test'
+
+    Examples
+    --------
+    >>> crested.train_val_test_split(
+    ...     adata,
+    ...     strategy="region",
+    ...     val_size=0.1,
+    ...     test_size=0.1,
+    ...     shuffle=True,
+    ...     random_state=42,
+    ... )
+
+    >>> crested.train_val_test_split(
+    ...     adata,
+    ...     strategy="chr",
+    ...     val_chroms=["chr1", "chr2"],
+    ...     test_chroms=["chr3", "chr4"],
+    ... )
     """
     # Input checks
     if strategy not in ["region", "chr", "chr_auto"]:

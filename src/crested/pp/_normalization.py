@@ -24,15 +24,6 @@ def normalize_peaks(
     a defined threshold and considering the variability within those peaks.
     Only used on continuous .X data. Modifies the input AnnData.X in place.
 
-    Example
-    -------
-    >>> crested.pp.normalize_peaks(
-    ...     adata,
-    ...     peak_threshold=0,
-    ...     gini_std_threshold=2.0,
-    ...     top_k_percent=0.05,
-    ... )
-
     Parameters
     ----------
     adata
@@ -50,6 +41,15 @@ def normalize_peaks(
     Returns
     -------
     The AnnData object with the normalized matrix and cell type weights used for normalization in the obsm attribute.
+
+    Example
+    -------
+    >>> crested.pp.normalize_peaks(
+    ...     adata,
+    ...     peak_threshold=0,
+    ...     gini_std_threshold=2.0,
+    ...     top_k_percent=0.05,
+    ... )
     """
     if isinstance(adata.X, csr_matrix):
         target_matrix = (
