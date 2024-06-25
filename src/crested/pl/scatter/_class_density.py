@@ -60,7 +60,7 @@ def class_density(
     ...     log_transform=True,
     ... )
 
-    .. image:: ../../../docs/_static/img/examples/scatter_class_density.png
+    .. image:: ../../../../docs/_static/img/examples/scatter_class_density.png
     """
 
     @log_and_raise(ValueError)

@@ -4,12 +4,10 @@ Importing of topics bed files (outputs from [pycistopic](https://pycistopic.read
 Importing of bigwigs files and consensus region bed files into Anndata format for peak regression or classification.
 
 ```{eval-rst}
-.. module:: crested
+.. currentmodule:: crested
 ```
 
 ```{eval-rst}
-.. currentmodule:: crested
-
 .. autosummary::
     :toctree: _autosummary
 

@@ -50,7 +50,7 @@ def region_predictions(
     ...     title="Region chr1:3094805-3095305"
     ... )
 
-    .. image:: ../../../docs/_static/img/examples/bar_region_predictions.png
+    .. image:: ../../../../docs/_static/img/examples/bar_region_predictions.png
     """
 
     @log_and_raise(ValueError)
@@ -144,7 +144,7 @@ def region(adata: AnnData, region: str, target: str = "groundtruth", **kwargs) -
     ...     figtitle="chr1:3094805-3095305",
     ... )
 
-    .. image:: ../../../docs/_static/img/examples/bar_region.png
+    .. image:: ../../../../docs/_static/img/examples/bar_region.png
     """
 
     @log_and_raise(ValueError)

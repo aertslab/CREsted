@@ -65,7 +65,7 @@ def correlations_self(
     ...     adata, log_transform=True, title="Self correlations heatmap"
     ... )
 
-    .. image:: ../../../docs/_static/img/examples/heatmap_self_correlations.png
+    .. image:: ../../../../docs/_static/img/examples/heatmap_self_correlations.png
     """
     x = adata.X
     classes = list(adata.obs_names)
@@ -132,7 +132,7 @@ def correlations_predictions(
     ...     title="Correlations: Predictions vs Ground Truth",
     ... )
 
-    .. image:: ../../../docs/_static/img/examples/heatmap_correlations_predictions.png
+    .. image:: ../../../../docs/_static/img/examples/heatmap_correlations_predictions.png
     """
 
     @log_and_raise(ValueError)

@@ -181,7 +181,7 @@ def modisco_results(
     ...     save_path="/path/to/genomic_contributions.png",
     ... )
 
-    .. image:: ../../../docs/_static/img/examples/genomic_contributions.png
+    .. image:: ../../../../docs/_static/img/examples/genomic_contributions.png
 
     See Also
     --------

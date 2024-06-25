@@ -67,7 +67,7 @@ def contribution_scores(
     >>> labels = ["class1"]
     >>> crested.pl.patterns.contribution_scores(scores, seqs_one_hot, labels)
 
-    .. image:: ../../../docs/_static/img/examples/contribution_scores.png
+    .. image:: ../../../../docs/_static/img/examples/contribution_scores.png
     """
     # Center and zoom
     _check_contrib_params(zoom_n_bases, scores, labels)
