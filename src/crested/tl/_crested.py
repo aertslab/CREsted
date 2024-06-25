@@ -461,7 +461,7 @@ class Crested:
 
         See Also
         --------
-        crested.pl.contribution_scores
+        crested.pl.patterns.contribution_scores
         """
         self._check_contribution_scores_params(class_names)
         self._check_gpu_availability()
@@ -571,7 +571,7 @@ class Crested:
 
         See Also
         --------
-        crested.pl.contribution_scores
+        crested.pl.patterns.contribution_scores
         """
         self._check_contrib_params(method)
         if self.anndatamodule.predict_dataset is None:

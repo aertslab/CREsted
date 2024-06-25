@@ -101,7 +101,7 @@ class TaskConfig(NamedTuple):
 
     The TaskConfig class is a simple NamedTuple that holds the optimizer, loss, and metrics
 
-    Attributes
+    Parameters
     ----------
     optimizer
         Optimizer used for training.

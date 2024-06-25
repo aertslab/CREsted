@@ -1,7 +1,6 @@
 """Deeptopic CNN model architecture."""
 
 import tensorflow as tf
-import tensorflow.keras.layers as layers
 
 from crested.tl.zoo.utils import conv_block, dense_block
 
@@ -61,7 +60,7 @@ def deeptopic_cnn(
     -------
     A TensorFlow Keras model.
     """
-    inputs = layers.Input(shape=(seq_len, 4), name="sequence")
+    inputs = tf.keras.layers.Input(shape=(seq_len, 4), name="sequence")
 
     x = conv_block(
         inputs,
@@ -125,8 +124,8 @@ def deeptopic_cnn(
         batchnorm_momentum=0.9,
     )
 
-    x = layers.Flatten()(x)
-    x = layers.Dropout(pre_dense_do)(x)
+    x = tf.keras.layers.Flatten()(x)
+    x = tf.keras.layers.Dropout(pre_dense_do)(x)
     x = dense_block(
         x,
         dense_out,
@@ -136,6 +135,6 @@ def deeptopic_cnn(
         name_prefix="denseblock",
         use_bias=False,
     )
-    logits = layers.Dense(num_classes, activation="linear", use_bias=True)(x)
-    outputs = layers.Activation("sigmoid")(logits)
+    logits = tf.keras.layers.Dense(num_classes, activation="linear", use_bias=True)(x)
+    outputs = tf.keras.layers.Activation("sigmoid")(logits)
     return tf.keras.Model(inputs=inputs, outputs=outputs)

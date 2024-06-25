@@ -1,7 +1,6 @@
 """Basenji model architecture."""
 
 import tensorflow as tf
-import tensorflow.keras.layers as layers
 
 from crested.tl.zoo.utils import conv_block_bs, dilated_residual
 
@@ -53,7 +52,7 @@ def basenji(
     else:
         pool_1 = 2
 
-    sequence = layers.Input(shape=(seq_len, 4), name="sequence")
+    sequence = tf.keras.layers.Input(shape=(seq_len, 4), name="sequence")
 
     current = conv_block_bs(
         sequence,
@@ -100,9 +99,9 @@ def basenji(
         bn_momentum=0.9,
     )
 
-    current = layers.GlobalAveragePooling1D()(current)
+    current = tf.keras.layers.GlobalAveragePooling1D()(current)
 
-    outputs = layers.Dense(
+    outputs = tf.keras.layers.Dense(
         units=num_classes,
         use_bias=True,
         activation=output_activation,

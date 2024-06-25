@@ -1,7 +1,6 @@
 """Simple convnet model architecture."""
 
 import tensorflow as tf
-import tensorflow.keras.layers as layers
 
 from crested.tl.zoo.utils import conv_block, dense_block
 
@@ -80,7 +79,7 @@ def simple_convnet(
     -------
     A TensorFlow Keras model.
     """
-    inputs = layers.Input(shape=(seq_len, 4), name="sequence")
+    inputs = tf.keras.layers.Input(shape=(seq_len, 4), name="sequence")
 
     x = conv_block(
         inputs,
@@ -107,9 +106,9 @@ def simple_convnet(
             )
 
     if flatten:
-        x = layers.Flatten()(x)
+        x = tf.keras.layers.Flatten()(x)
     else:
-        x = layers.GlobalAveragePooling1D()(x)
+        x = tf.keras.layers.GlobalAveragePooling1D()(x)
 
     for _ in range(1, num_dense_blocks):
         x = dense_block(
@@ -128,5 +127,5 @@ def simple_convnet(
         normalization=normalization,
     )
 
-    outputs = layers.Dense(num_classes, activation=output_activation)(x)
+    outputs = tf.keras.layers.Dense(num_classes, activation=output_activation)(x)
     return tf.keras.Model(inputs=inputs, outputs=outputs)
