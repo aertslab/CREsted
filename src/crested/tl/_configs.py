@@ -13,6 +13,7 @@ from crested.tl.metrics import (
     PearsonCorrelation,
     PearsonCorrelationLog,
     ZeroPenaltyMetric,
+    SpearmanCorrelationPerClass
 )
 
 
@@ -74,6 +75,9 @@ class TopicClassificationConfig(BaseConfig):
 class PeakRegressionConfig(BaseConfig):
     """Default configuration for peak regression task."""
 
+    def __init__(self, num_classes=None):
+        self.num_classes = num_classes
+
     @property
     def loss(self) -> tf.keras.losses.Loss:
         return CosineMSELoss()
@@ -84,15 +88,18 @@ class PeakRegressionConfig(BaseConfig):
 
     @property
     def metrics(self) -> list[tf.keras.metrics.Metric]:
-        return [
+        metrics = [
             tf.keras.metrics.MeanAbsoluteError(),
             tf.keras.metrics.MeanSquaredError(),
             tf.keras.metrics.CosineSimilarity(axis=1),
             PearsonCorrelation(),
             ConcordanceCorrelationCoefficient(),
             PearsonCorrelationLog(),
-            ZeroPenaltyMetric(),
+            ZeroPenaltyMetric()
         ]
+        #if self.num_classes is not None:
+        #    metrics.append(SpearmanCorrelationPerClass(num_classes=self.num_classes))
+        return metrics
 
 
 class TaskConfig(NamedTuple):
@@ -156,7 +163,7 @@ class TaskConfig(NamedTuple):
 
 
 def default_configs(
-    task: str,
+    task: str, num_classes: int = None
 ) -> TaskConfig:
     """
     Get default loss, optimizer, and metrics for an existing task.
@@ -177,6 +184,8 @@ def default_configs(
     ----------
     tasks
         Task for which to get default components.
+    num_classes
+        Number of output classes of model. Required for Spearman correlation metric.
 
     Returns
     -------
@@ -196,7 +205,7 @@ def default_configs(
             f"Task '{task}' not supported. Only {list(task_classes.keys())} are supported."
         )
 
-    task_class = task_classes[task]()
+    task_class = task_classes[task](num_classes=num_classes) if task =='peak_regression' else task_classes[task]()
     loss = task_class.loss
     optimizer = task_class.optimizer
     metrics = task_class.metrics

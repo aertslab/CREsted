@@ -45,7 +45,7 @@ def _trim_pattern_by_ic(
     contrib_scores = np.array(pattern["contrib_scores"])
     if not pos_pattern:
         contrib_scores = -contrib_scores
-    contrib_scores[contrib_scores < 0] = 0
+    contrib_scores[contrib_scores < 0] = 1e-9 # avoid division by zero
 
     ic = modisco.util.compute_per_position_ic(
         ppm=np.array(contrib_scores), background=background, pseudocount=pseudocount

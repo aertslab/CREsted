@@ -9,7 +9,7 @@ from loguru import logger
 from crested._logging import log_and_raise
 from crested.pl._utils import render_plot
 
-from ._utils import _plot_attribution_map, grad_times_input_to_df
+from ._utils import _plot_attribution_map, _plot_mutagenesis_map, grad_times_input_to_df, grad_times_input_to_df_mutagenesis
 
 
 @log_and_raise(ValueError)
@@ -37,6 +37,7 @@ def contribution_scores(
     zoom_n_bases: int | None = None,
     highlight_positions: list[tuple[int, int]] | None = None,
     ylim: tuple | None = None,
+    method: str | None = None,
     **kwargs,
 ):
     """
@@ -58,6 +59,8 @@ def contribution_scores(
         List of tuples with start and end positions to highlight. Default is None.
     ylim
         Y-axis limits. Default is None.
+    method
+        Method used for calculating contribution scores. If mutagenesis, specify.
 
     Examples
     --------
@@ -80,20 +83,36 @@ def contribution_scores(
     start_idx = center - int(zoom_n_bases / 2)
     scores = scores[:, :, start_idx : start_idx + zoom_n_bases, :]
 
-    global_min = scores.min()
-    global_max = scores.max()
 
     # Plot
     logger.info(f"Plotting contribution scores for {seqs_one_hot.shape[0]} sequence(s)")
     for seq in range(seqs_one_hot.shape[0]):
         fig_height_per_class = 2
         fig = plt.figure(figsize=(50, fig_height_per_class * scores.shape[1]))
+        seq_class_x = seqs_one_hot[seq, start_idx : start_idx + zoom_n_bases, :]
+
+        if method == 'mutagenesis':
+            global_max = scores[seq].max()+0.25*np.abs(scores[seq].max())
+            global_min = scores[seq].min()-0.25*np.abs(scores[seq].min())
+        else:
+            mins = []
+            maxs = []
+            for i in range(scores.shape[1]):
+                seq_class_scores = scores[seq, i, :, :]
+                mins.append(np.min(seq_class_scores*seq_class_x))
+                maxs.append(np.max(seq_class_scores*seq_class_x))
+            global_max = np.array(maxs).max()+0.25*np.abs(np.array(maxs).max())
+            global_min = np.array(mins).min()-0.25*np.abs(np.array(mins).min())
+
         for i in range(scores.shape[1]):
             seq_class_scores = scores[seq, i, :, :]
-            seq_class_x = seqs_one_hot[seq, :, :]
-            intgrad_df = grad_times_input_to_df(seq_class_x, seq_class_scores)
             ax = plt.subplot(scores.shape[1], 1, i + 1)
-            _plot_attribution_map(intgrad_df, ax=ax, return_ax=False)
+            if (method =='mutagenesis'):
+                mutagenesis_df = grad_times_input_to_df_mutagenesis(seq_class_x, seq_class_scores)
+                _plot_mutagenesis_map(mutagenesis_df, ax=ax)
+            else:
+                intgrad_df = grad_times_input_to_df(seq_class_x, seq_class_scores)
+                _plot_attribution_map(intgrad_df, ax=ax, return_ax=False)
             if labels:
                 class_name = labels[i]
             else:
@@ -102,11 +121,11 @@ def contribution_scores(
             if ylim:
                 ax.set_ylim(ylim[0], ylim[1])
                 x_pos = 5
-                y_pos = 0.75 * ylim[1]
+                y_pos = 0.5 * ylim[1]
             else:
                 ax.set_ylim([global_min, global_max])
                 x_pos = 5
-                y_pos = 0.75 * global_max
+                y_pos = 0.5 * global_max
             ax.text(x_pos, y_pos, text_to_add, fontsize=16, ha="left", va="center")
 
             # Draw rectangles to highlight positions
