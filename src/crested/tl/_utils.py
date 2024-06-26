@@ -38,9 +38,14 @@ def get_hot_encoding_table(
 HOT_ENCODING_TABLE = get_hot_encoding_table()
 
 
-def one_hot_encode_sequence(sequence: str) -> np.ndarray:
+def one_hot_encode_sequence(sequence: str, expand_dim: bool = True) -> np.ndarray:
     """One hot encode a DNA sequence."""
-    return np.expand_dims(
-        HOT_ENCODING_TABLE[np.frombuffer(sequence.encode("ascii"), dtype=np.uint8)],
-        axis=0,
-    )
+    if expand_dim:
+        return np.expand_dims(
+            HOT_ENCODING_TABLE[np.frombuffer(sequence.encode("ascii"), dtype=np.uint8)],
+            axis=0,
+        )
+    else:
+        return HOT_ENCODING_TABLE[
+            np.frombuffer(sequence.encode("ascii"), dtype=np.uint8)
+        ]

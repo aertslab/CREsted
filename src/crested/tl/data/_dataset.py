@@ -12,6 +12,8 @@ from pysam import FastaFile
 from scipy.sparse import spmatrix
 from tqdm import tqdm
 
+from crested.tl._utils import one_hot_encode_sequence
+
 
 def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
     """Read chromsizes file into a dictionary."""
@@ -207,6 +209,8 @@ class AnnDataset:
         if self.random_reverse_complement and np.random.rand() < 0.5:
             x = self.sequence_loader._reverse_complement(x)
 
+        # one hot encode sequence and convert to numpy array
+        x = one_hot_encode_sequence(x, expand_dim=False)
         y = self._get_target(original_index)
         return x, y
 
