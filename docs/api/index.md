@@ -1,7 +1,5 @@
 # API
 
-Import CREsted as:
-
 ```
 import crested
 ```
@@ -11,7 +9,7 @@ import crested
 
 io
 preprocessing
-tools
-plotting
+tools/index.md
+plotting/index.md
 logging
 ```

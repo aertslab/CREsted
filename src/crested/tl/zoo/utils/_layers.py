@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import tensorflow as tf
-import tensorflow.keras.layers as layers
-from tensorflow.keras import regularizers
 
 __all__ = [
     "dense_block",
@@ -57,10 +55,9 @@ def dense_block(
 
     Returns
     -------
-    tf.Tensor
-        The output tensor of the dense block.
+    The output tensor of the dense block.
     """
-    x = layers.Dense(
+    x = tf.keras.layers.Dense(
         units,
         activation=None,
         use_bias=use_bias,
@@ -70,22 +67,22 @@ def dense_block(
     )(inputs)
 
     if normalization == "batch":
-        x = layers.BatchNormalization(
+        x = tf.keras.layers.BatchNormalization(
             momentum=bn_momentum,
             gamma_initializer=bn_gamma,
             name=name_prefix + "_batchnorm" if name_prefix else None,
         )(x)
     elif normalization == "layer":
-        x = layers.LayerNormalization(
+        x = tf.keras.layers.LayerNormalization(
             name=name_prefix + "_layernorm" if name_prefix else None
         )(x)
 
-    x = layers.Activation(
+    x = tf.keras.layers.Activation(
         activation, name=name_prefix + "_activation" if name_prefix else None
     )(x)
-    x = layers.Dropout(dropout, name=name_prefix + "_dropout" if name_prefix else None)(
-        x
-    )
+    x = tf.keras.layers.Dropout(
+        dropout, name=name_prefix + "_dropout" if name_prefix else None
+    )(x)
     return x
 
 
@@ -135,35 +132,34 @@ def conv_block(
 
     Returns
     -------
-    tf.Tensor
-        The output tensor of the convolution block.
+    The output tensor of the convolution block.
     """
     if res:
         residual = inputs
 
-    x = layers.Convolution1D(
+    x = tf.keras.layers.Convolution1D(
         filters=filters,
         kernel_size=kernel_size,
         padding=padding,
-        kernel_regularizer=regularizers.L2(l2),
+        kernel_regularizer=tf.keras.regularizers.L2(l2),
         use_bias=conv_bias,
     )(inputs)
     if normalization == "batch":
-        x = layers.BatchNormalization(momentum=batchnorm_momentum)(x)
+        x = tf.keras.layers.BatchNormalization(momentum=batchnorm_momentum)(x)
     elif normalization == "layer":
-        x = layers.LayerNormalization()(x)
-    x = layers.Activation(activation)(x)
+        x = tf.keras.layers.LayerNormalization()(x)
+    x = tf.keras.layers.Activation(activation)(x)
     if res:
         if filters != residual.shape[2]:
-            residual = layers.Convolution1D(filters=filters, kernel_size=1, strides=1)(
-                residual
-            )
-        x = layers.Add()([x, residual])
+            residual = tf.keras.layers.Convolution1D(
+                filters=filters, kernel_size=1, strides=1
+            )(residual)
+        x = tf.keras.layers.Add()([x, residual])
 
     if pool_size > 1:
-        x = layers.MaxPooling1D(pool_size=pool_size, padding=padding)(x)
+        x = tf.keras.layers.MaxPooling1D(pool_size=pool_size, padding=padding)(x)
     if dropout > 0:
-        x = layers.Dropout(dropout)(x)
+        x = tf.keras.layers.Dropout(dropout)(x)
 
     return x
 
@@ -183,8 +179,7 @@ def activate(current: tf.Tensor, activation: str, verbose: bool = False) -> tf.T
 
     Returns
     -------
-    tf.Tensor
-        Output tensor after applying activation.
+    Output tensor after applying activation.
     """
     if verbose:
         print("activate:", activation)
@@ -293,8 +288,7 @@ def conv_block_bs(
 
     Returns
     -------
-    tf.Tensor
-        Output tensor after applying the convolution block.
+    Output tensor after applying the convolution block.
     """
     current = inputs
 
@@ -397,8 +391,7 @@ def dilated_residual(
 
     Returns
     -------
-    tf.Tensor
-        Output tensor after applying the dilated residual block.
+    Output tensor after applying the dilated residual block.
     """
     current = inputs
 

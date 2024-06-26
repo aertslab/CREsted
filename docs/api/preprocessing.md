@@ -3,16 +3,12 @@
 Preparing Anndata object for CREsted training/evaluations.
 
 ```{eval-rst}
-.. module:: crested.pp
-```
-
-```{eval-rst}
-.. currentmodule:: crested
+.. currentmodule:: crested.pp
 
 .. autosummary::
     :toctree: _autosummary
 
-    pp.train_val_test_split
-    pp.filter_regions_on_specificity
-    pp.normalize_peaks
+    train_val_test_split
+    filter_regions_on_specificity
+    normalize_peaks
 ```

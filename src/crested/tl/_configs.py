@@ -101,6 +101,15 @@ class TaskConfig(NamedTuple):
 
     The TaskConfig class is a simple NamedTuple that holds the optimizer, loss, and metrics
 
+    Parameters
+    ----------
+    optimizer
+        Optimizer used for training.
+    loss
+        Loss function used for training.
+    metrics
+        Metrics used for training.
+
     Example
     -------
     >>> optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
@@ -113,20 +122,37 @@ class TaskConfig(NamedTuple):
     ... ]
     >>> configs = TaskConfig(optimizer, loss, metrics)
 
-
-    Attributes
-    ----------
-    optimizer : tf.keras.optimizers.Optimizer
-        Optimizer used for training.
-    loss : tf.keras.losses.Loss
-        Loss function used for training.
-    metrics : list[tf.keras.metrics.Metric]
-        Metrics used for training.
+    See Also
+    --------
+    crested.tl.default_configs
     """
 
     optimizer: tf.keras.optimizers.Optimizer
     loss: tf.keras.losses.Loss
     metrics: list[tf.keras.metrics.Metric]
+
+    def to_dict(self) -> dict:
+        """
+        Convert the TaskConfig to a dictionary.
+
+        Useful for logging and saving the configuration.
+
+        Returns
+        -------
+        Dictionary representation of the TaskConfig.
+        """
+        optimizer_info = {
+            "optimizer": self.optimizer.__class__.__name__,
+            "learning_rate": self.optimizer.learning_rate.numpy(),
+        }
+        loss_info = {"loss": self.loss.__class__.__name__}
+        metrics_info = [metric.__class__.__name__ for metric in self.metrics]
+
+        return {
+            "optimizer": optimizer_info,
+            "loss": loss_info,
+            "metrics": metrics_info,
+        }
 
 
 def default_configs(
@@ -149,13 +175,16 @@ def default_configs(
 
     Parameters
     ----------
-    task : str
+    tasks
         Task for which to get default components.
 
     Returns
     -------
-    tuple
-        Optimizer, loss, and metrics for the given task.
+    Optimizer, loss, and metrics for the given task.
+
+    See Also
+    --------
+    crested.tl.TaskConfig
     """
     task_classes = {
         "topic_classification": TopicClassificationConfig,
