@@ -30,7 +30,7 @@ dependencies = [
     "tqdm",
     "loguru",
     "logomaker",
-    "pybigtools",
+    "pybigtools>=0.2.0",
     "seaborn",
     "cmake",
     "modisco-lite",

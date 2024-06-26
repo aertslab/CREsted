@@ -64,7 +64,9 @@ def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
     return chromsizes_dict
 
 
-def _extract_values_from_bigwig(bw_file, bed_file, target, target_region_width):
+def _extract_values_from_bigwig(
+    bw_file: PathLike, bed_file: PathLike, target: str
+) -> np.ndarray:
     """Extract target values from a bigWig file for regions specified in a BED file."""
     if isinstance(bed_file, Path):
         bed_file = str(bed_file)
@@ -72,21 +74,31 @@ def _extract_values_from_bigwig(bw_file, bed_file, target, target_region_width):
         bw_file = str(bw_file)
 
     if target == "mean":
-        values = list(
-            pybigtools.bigWigAverageOverBed(bw_file, bed=bed_file, names=None)
-        )
+        with pybigtools.open(bw_file, "r") as bw:
+            values = np.fromiter(
+                bw.average_over_bed(bed=bed_file, names=None, stats="mean0"),
+                dtype=np.float32,
+            )
     elif target == "max":
-        values = list(
-            pybigtools.bigWigAverageOverBed(bw_file, bed=bed_file, names=None)
-        )
+        with pybigtools.open(bw_file, "r") as bw:
+            values = np.fromiter(
+                bw.average_over_bed(bed=bed_file, names=None, stats="max"),
+                dtype=np.float32,
+            )
     elif target == "count":
-        values = list(
-            pybigtools.bigWigAverageOverBed(bw_file, bed=bed_file, names=None)
-        )
+        with pybigtools.open(bw_file, "r") as bw:
+            values = np.fromiter(
+                bw.average_over_bed(bed=bed_file, names=None, stats="sum"),
+                dtype=np.float32,
+            )
     elif target == "logcount":
-        values = list(
-            pybigtools.bigWigAverageOverBed(bw_file, bed=bed_file, names=None)
-        )
+        with pybigtools.open(bw_file, "r") as bw:
+            values = np.log1p(
+                np.fromiter(
+                    bw.average_over_bed(bed=bed_file, names=None, stats="sum"),
+                    dtype=np.float32,
+                )
+            )
     else:
         raise ValueError(f"Unsupported target '{target}'")
 
@@ -427,7 +439,6 @@ def import_bigwigs(
                 bw_file,
                 bed_file,
                 target,
-                target_region_width,
             )
             for bw_file in bw_files
         ]
@@ -437,7 +448,7 @@ def import_bigwigs(
     if target_region_width is not None:
         os.remove(bed_file)
 
-    data_matrix = np.array(all_results)
+    data_matrix = np.vstack(all_results)
 
     # Create DataFrame for AnnData
     df = pd.DataFrame(
