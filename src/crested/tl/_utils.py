@@ -44,3 +44,34 @@ def one_hot_encode_sequence(sequence: str) -> np.ndarray:
         HOT_ENCODING_TABLE[np.frombuffer(sequence.encode("ascii"), dtype=np.uint8)],
         axis=0,
     )
+
+def generate_mutagenesis(x, include_original=True):
+        _, L, A = x.shape
+        x_mut = []
+        for length in range(L):
+            for a in range(A):
+                if not include_original:
+                    if x[0, length, a] == 1:
+                        continue
+                x_new = np.copy(x)
+                x_new[0, length, :] = 0
+                x_new[0, length, a] = 1
+                x_mut.append(x_new)
+        return np.concatenate(x_mut, axis=0)
+
+def _weighted_difference(mutated_predictions, original_prediction, target, class_penalty_weights=None):
+        n_classes = original_prediction.shape[1]
+        penalty_factor = 1 / n_classes
+        
+        target_increase = mutated_predictions[:, target] - original_prediction[:, target]
+        other_increases = mutated_predictions - original_prediction
+        
+        other_increases[:, target] = 0
+        
+
+        if class_penalty_weights is None:
+            class_penalty_weights = np.ones(n_classes)
+
+        score = target_increase - penalty_factor * np.sum(other_increases*class_penalty_weights, axis=1)
+
+        return np.argmax(score)

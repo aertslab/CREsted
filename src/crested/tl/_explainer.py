@@ -7,6 +7,7 @@ Adapted from: https://github.com/p-koo/tfomics/blob/master/tfomics/
 import numpy as np
 import tensorflow as tf
 
+from crested.tl._utils import generate_mutagenesis
 
 class Explainer:
     """wrapper class for attribution maps"""
@@ -182,17 +183,6 @@ def expected_integrated_grad(
 def mutagenesis(x, model, class_index=None):
     """In silico mutagenesis analysis for a given sequence."""
 
-    def generate_mutagenesis(x):
-        _, L, A = x.shape
-        x_mut = []
-        for length in range(L):
-            for a in range(A):
-                x_new = np.copy(x)
-                x_new[0, length, :] = 0
-                x_new[0, length, a] = 1
-                x_mut.append(x_new)
-        return np.concatenate(x_mut, axis=0)
-
     def reconstruct_map(predictions):
         _, L, A = x.shape
 
@@ -219,7 +209,7 @@ def mutagenesis(x, model, class_index=None):
     wt_score = get_score(x, model, class_index)
     predictions = get_score(x_mut, model, class_index)
 
-    # reshape mutagenesis predictiosn
+    # reshape mutagenesis predictions
     mut_score = reconstruct_map(predictions)
 
     return mut_score - wt_score

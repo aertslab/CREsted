@@ -15,7 +15,11 @@ from crested._logging import log_and_raise
 from crested.tl import TaskConfig
 from crested.tl._explainer import Explainer
 from crested.tl._utils import one_hot_encode_sequence
+from crested.tl._utils import generate_mutagenesis
+from crested.tl._utils import _weighted_difference 
+from crested.tl._utils import hot_encoding_to_sequence
 from crested.tl.data import AnnDataModule
+from crested.tl.data._dataset import SequenceLoader
 
 
 class LRLogger(tf.keras.callbacks.Callback):
@@ -118,6 +122,8 @@ class Crested:
 
         if self.seed:
             tf.random.set_seed(self.seed)
+
+        self.acgt_distribution = None
 
     @staticmethod
     def _initialize_callbacks(
@@ -699,6 +705,98 @@ class Crested:
 
         print(f"Contribution scores and one-hot encoded sequences saved to {output_dir}")
 
+    def enhancer_design_motif_implementation():
+        pass
+
+    def enhancer_design_in_silico_evolution(
+        self,
+        target: int,
+        n_mutations: int,
+        n_sequences: int,
+        return_intermediate: bool = False,
+        seq_len: int = None,
+        class_penalty_weights: np.ndarray = None
+        ):
+        
+        if seq_len == None:
+            seq_len = self.anndatamodule.adata.var.iloc[0]['end'] - self.anndatamodule.adata.var.iloc[0]['start']
+
+        random_sequences = self._create_random_sequences(n_sequences, seq_len)
+
+        designed_sequences = []
+        intermediate_info_list = []
+
+        for idx, sequence in enumerate(random_sequences):
+            sequence_onehot = one_hot_encode_sequence(sequence)
+            if return_intermediate:
+                intermediate_info_list.append({'inital_sequence': sequence,
+                                            'changes': [(-1,'N')],
+                                            'predictions':[self.model.predict(sequence_onehot, verbose=False)],
+                                            'designed_sequence':''})
+            
+            for mutation_step in range(n_mutations):
+                current_prediction = self.model.predict(sequence_onehot, verbose=False)
+                mutagenesis = generate_mutagenesis(sequence_onehot, include_original=False)
+                mutagenesis_predictions = self.model.predict(mutagenesis, verbose=False)
+
+                best_mutation = _weighted_difference(mutagenesis_predictions, current_prediction, target, class_penalty_weights)
+
+                sequence_onehot = mutagenesis[best_mutation:best_mutation+1]
+
+                
+                if return_intermediate:
+                    mutation_index = best_mutation//3
+                    changed_to = sequence_onehot[0, mutation_index, :]
+                    intermediate_info_list[idx]['changes'].append((mutation_index, hot_encoding_to_sequence(changed_to))) # onehotdecode
+                    intermediate_info_list[idx]['predictions'].append(mutagenesis_predictions[best_mutation])
+
+            designed_sequence = hot_encoding_to_sequence(sequence_onehot) #onehotdecode
+            designed_sequences.append(designed_sequence)
+
+            if return_intermediate:
+                    intermediate_info_list[idx]['designed_sequence'] = designed_sequence
+
+
+        if return_intermediate:
+            return intermediate_info_list, designed_sequences
+        else:
+            return designed_sequences
+    
+
+    def _create_random_sequences(
+        self,
+        n_sequences: int,
+        seq_len: int
+        ):
+        if self.acgt_distribution is None:
+            self._calculate_location_gc_frequencies()
+
+        random_sequences = np.empty((n_sequences), dtype=object)
+
+        for idx_seq in range(n_sequences):
+            current_sequence = []
+            for idx_loc in range(seq_len):
+                current_sequence.append(np.random.choice(["A","C","G","T"],p=list(self.acgt_distribution[idx_loc])))
+            random_sequences[idx_seq] = ''.join(current_sequence)
+
+        return random_sequences
+
+    def _calculate_location_gc_frequencies(self):
+        regions = self.anndatamodule.adata.var
+        sequence_loader = SequenceLoader(genome_file = self.anndatamodule.genome_file,
+                                   chromsizes = None,
+                                   in_memory = True,
+                                   always_reverse_complement = False,
+                                   max_stochastic_shift = 0, 
+                                   regions=list(regions.index))
+        all_sequences = list(sequence_loader.sequences.values())
+        all_onehot_squeeze = np.array([one_hot_encode_sequence(seq) for seq in all_sequences]).squeeze(axis=1)
+        acgt_distribution = np.sum(all_onehot_squeeze,axis=0).astype(int)/np.reshape(np.sum(np.sum(all_onehot_squeeze,axis=0), axis=1), (2114,1)).astype(int)
+
+        self.acgt_distribution = acgt_distribution
+        return acgt_distribution
+
+    
     @staticmethod
     def _check_gpu_availability():
         """Check if GPUs are available."""
