@@ -60,8 +60,8 @@ def get_dataset(dataset: str):
     The cache location can be changed by setting environment variable $CRESTED_DATA_DIR.
     
     Provided examples:
-    - 'mouse_cortex_topics': the BICCN mouse cortex snATAC-seq dataset, processed as BED files per topic. For use in topic classification.
-    - 'mouse_cortex_tracks': the BICCN mouse cortex snATAC-seq dataset, processed as pseudobulked bigWig tracks per cell type. For use in peak regression.
+    - 'mouse_cortex_bed': the BICCN mouse cortex snATAC-seq dataset, processed as BED files per topic. For use in topic classification.
+    - 'mouse_cortex_bigwig': the BICCN mouse cortex snATAC-seq dataset, processed as pseudobulked bigWig tracks per cell type. For use in peak regression.
 
     These two paths can be passed to :func:`crested.import_bigwigs()` / :func:`crested.import_beds()`.
 
@@ -76,8 +76,8 @@ def get_dataset(dataset: str):
     """
     # Mapping: "user_facing_name": ("tarball_name_in_registry.tar.gz", "cpeaks_name_in_registry.bed")  
     dataset_mapping = {
-        "mouse_cortex_topics": ("data/mouse_biccn/beds.tar.gz", "data/mouse_biccn/consensus_peaks_biccn.bed"),
-        "mouse_cortex_tracks": ("data/mouse_biccn/bigwigs.tar.gz", "data/mouse_biccn/consensus_peaks_biccn.bed"),
+        "mouse_cortex_bed": ("data/mouse_biccn/beds.tar.gz", "data/mouse_biccn/consensus_peaks_biccn.bed"),
+        "mouse_cortex_bigwig": ("data/mouse_biccn/bigwigs.tar.gz", "data/mouse_biccn/consensus_peaks_biccn.bed"),
     }
 
     targets_url, cregions_url = dataset_mapping[dataset]
