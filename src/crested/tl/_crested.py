@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+import keras
 import numpy as np
 import tensorflow as tf
 from anndata import AnnData
@@ -18,7 +19,7 @@ from crested.tl._utils import one_hot_encode_sequence
 from crested.tl.data import AnnDataModule
 
 
-class LRLogger(tf.keras.callbacks.Callback):
+class LRLogger(keras.callbacks.Callback):
     def __init__(self, optimizer):
         super().__init__()
 
@@ -27,7 +28,7 @@ class LRLogger(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs):
         import wandb
 
-        lr = float(tf.keras.backend.get_value(self.model.optimizer.learning_rate))
+        lr = float(keras.backend.get_value(self.model.optimizer.learning_rate))
         wandb.log({"lr": lr}, commit=False)
 
 
@@ -95,7 +96,7 @@ class Crested:
     def __init__(
         self,
         data: AnnDataModule,
-        model: tf.keras.Model | None = None,
+        model: keras.Model | None = None,
         config: TaskConfig | None = None,
         project_name: str | None = None,
         run_name: str | None = None,
@@ -133,14 +134,14 @@ class Crested:
         """Initialize callbacks"""
         callbacks = []
         if early_stopping:
-            early_stopping_callback = tf.keras.callbacks.EarlyStopping(
+            early_stopping_callback = keras.callbacks.EarlyStopping(
                 patience=early_stopping_patience,
                 mode="min",
                 monitor="val_loss",
             )
             callbacks.append(early_stopping_callback)
         if model_checkpointing:
-            model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+            model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
                 filepath=os.path.join(save_dir, "checkpoints", "{epoch:02d}.keras"),
                 monitor="val_loss",
                 save_best_only=model_checkpointing_best_only,
@@ -148,7 +149,7 @@ class Crested:
             )
             callbacks.append(model_checkpoint_callback)
         if learning_rate_reduce:
-            learning_rate_reduce_callback = tf.keras.callbacks.ReduceLROnPlateau(
+            learning_rate_reduce_callback = keras.callbacks.ReduceLROnPlateau(
                 patience=learning_rate_reduce_patience,
                 monitor="val_loss",
                 factor=0.25,
@@ -175,7 +176,7 @@ class Crested:
             callbacks.extend([wandb_callback_epoch, wandb_callback_batch])
         elif logger_type == "tensorboard":
             log_dir = os.path.join(project_name, run_name, "logs")
-            tensorboard_callback = tf.keras.callbacks.TensorBoard(
+            tensorboard_callback = keras.callbacks.TensorBoard(
                 log_dir=log_dir, update_freq=10
             )
             callbacks.append(tensorboard_callback)
@@ -198,7 +199,7 @@ class Crested:
             the model weights (e.g. when finetuning a model). If False, you should
             provide a TaskConfig to the Crested object before calling fit.
         """
-        self.model = tf.keras.models.load_model(model_path, compile=compile)
+        self.model = keras.models.load_model(model_path, compile=compile)
 
     def fit(
         self,
@@ -263,10 +264,11 @@ class Crested:
             logger.warning(
                 "Mixed precision enabled. This can lead to faster training times but sometimes causes instable training. Disable on CPU or older GPUs."
             )
-            tf.keras.mixed_precision.set_global_policy("mixed_float16")
+            keras.mixed_precision.set_global_policy("mixed_float16")
 
-        lr_metric = LRLogger(self.config.optimizer)
-        callbacks.append(lr_metric)
+        if run:
+            lr_metric = LRLogger(self.config.optimizer)
+            callbacks.append(lr_metric)
 
         # with strategy.scope():
         self.model.compile(
