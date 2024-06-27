@@ -34,7 +34,8 @@ dependencies = [
     "seaborn",
     "cmake",
     "modisco-lite",
-    "vizsequence"
+    "vizsequence",
+    "html5lib"
 ]
 
 [project.optional-dependencies]
