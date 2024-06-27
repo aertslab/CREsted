@@ -175,7 +175,9 @@ class Crested:
             callbacks.extend([wandb_callback_epoch, wandb_callback_batch])
         elif logger_type == "tensorboard":
             log_dir = os.path.join(project_name, run_name, "logs")
-            tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir)
+            tensorboard_callback = tf.keras.callbacks.TensorBoard(
+                log_dir=log_dir, update_freq=10
+            )
             callbacks.append(tensorboard_callback)
             run = None
         else:

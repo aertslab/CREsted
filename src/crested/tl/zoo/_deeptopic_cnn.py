@@ -1,6 +1,6 @@
 """Deeptopic CNN model architecture."""
 
-import tensorflow as tf
+import keras
 
 from crested.tl.zoo.utils import conv_block, dense_block
 
@@ -20,7 +20,7 @@ def deeptopic_cnn(
     pre_dense_do: float = 0.5,
     first_kernel_l2: float = 1e-4,
     kernel_l2: float = 1e-5,
-) -> tf.keras.Model:
+) -> keras.Model:
     """
     Construct a DeepTopicCNN model. Usually used for topic classification.
 
@@ -60,7 +60,7 @@ def deeptopic_cnn(
     -------
     A TensorFlow Keras model.
     """
-    inputs = tf.keras.layers.Input(shape=(seq_len, 4), name="sequence")
+    inputs = keras.layers.Input(shape=(seq_len, 4), name="sequence")
 
     x = conv_block(
         inputs,
@@ -124,8 +124,8 @@ def deeptopic_cnn(
         batchnorm_momentum=0.9,
     )
 
-    x = tf.keras.layers.Flatten()(x)
-    x = tf.keras.layers.Dropout(pre_dense_do)(x)
+    x = keras.layers.Flatten()(x)
+    x = keras.layers.Dropout(pre_dense_do)(x)
     x = dense_block(
         x,
         dense_out,
@@ -135,6 +135,6 @@ def deeptopic_cnn(
         name_prefix="denseblock",
         use_bias=False,
     )
-    logits = tf.keras.layers.Dense(num_classes, activation="linear", use_bias=True)(x)
-    outputs = tf.keras.layers.Activation("sigmoid")(logits)
-    return tf.keras.Model(inputs=inputs, outputs=outputs)
+    logits = keras.layers.Dense(num_classes, activation="linear", use_bias=True)(x)
+    outputs = keras.layers.Activation("sigmoid")(logits)
+    return keras.Model(inputs=inputs, outputs=outputs)

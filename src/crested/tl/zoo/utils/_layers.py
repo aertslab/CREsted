@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import keras
 import numpy as np
-import tensorflow as tf
 
 __all__ = [
     "dense_block",
@@ -15,7 +15,7 @@ __all__ = [
 
 
 def dense_block(
-    inputs: tf.Tensor,
+    inputs: keras.KerasTensor,
     units: int,
     activation: str,
     dropout: float = 0.5,
@@ -56,37 +56,37 @@ def dense_block(
     -------
     The output tensor of the dense block.
     """
-    x = tf.keras.layers.Dense(
+    x = keras.layers.Dense(
         units,
         activation=None,
         use_bias=use_bias,
         kernel_initializer="he_normal",
-        kernel_regularizer=tf.keras.regularizers.l2(l2),
+        kernel_regularizer=keras.regularizers.l2(l2),
         name=name_prefix + "_dense" if name_prefix else None,
     )(inputs)
 
     if normalization == "batch":
-        x = tf.keras.layers.BatchNormalization(
+        x = keras.layers.BatchNormalization(
             momentum=bn_momentum,
             gamma_initializer=bn_gamma,
             name=name_prefix + "_batchnorm" if name_prefix else None,
         )(x)
     elif normalization == "layer":
-        x = tf.keras.layers.LayerNormalization(
+        x = keras.layers.LayerNormalization(
             name=name_prefix + "_layernorm" if name_prefix else None
         )(x)
 
-    x = tf.keras.layers.Activation(
+    x = keras.layers.Activation(
         activation, name=name_prefix + "_activation" if name_prefix else None
     )(x)
-    x = tf.keras.layers.Dropout(
+    x = keras.layers.Dropout(
         dropout, name=name_prefix + "_dropout" if name_prefix else None
     )(x)
     return x
 
 
 def conv_block(
-    inputs: tf.Tensor,
+    inputs: keras.KerasTensor,
     filters: int,
     kernel_size: int,
     pool_size: int,
@@ -98,7 +98,7 @@ def conv_block(
     padding: str = "valid",
     l2: float = 1e-5,
     batchnorm_momentum: float = 0.99,
-) -> tf.Tensor:
+) -> keras.KerasTensor:
     """
     Convolution building block.
 
@@ -136,34 +136,36 @@ def conv_block(
     if res:
         residual = inputs
 
-    x = tf.keras.layers.Convolution1D(
+    x = keras.layers.Convolution1D(
         filters=filters,
         kernel_size=kernel_size,
         padding=padding,
-        kernel_regularizer=tf.keras.regularizers.L2(l2),
+        kernel_regularizer=keras.regularizers.L2(l2),
         use_bias=conv_bias,
     )(inputs)
     if normalization == "batch":
-        x = tf.keras.layers.BatchNormalization(momentum=batchnorm_momentum)(x)
+        x = keras.layers.BatchNormalization(momentum=batchnorm_momentum)(x)
     elif normalization == "layer":
-        x = tf.keras.layers.LayerNormalization()(x)
-    x = tf.keras.layers.Activation(activation)(x)
+        x = keras.layers.LayerNormalization()(x)
+    x = keras.layers.Activation(activation)(x)
     if res:
         if filters != residual.shape[2]:
-            residual = tf.keras.layers.Convolution1D(
+            residual = keras.layers.Convolution1D(
                 filters=filters, kernel_size=1, strides=1
             )(residual)
-        x = tf.keras.layers.Add()([x, residual])
+        x = keras.layers.Add()([x, residual])
 
     if pool_size > 1:
-        x = tf.keras.layers.MaxPooling1D(pool_size=pool_size, padding=padding)(x)
+        x = keras.layers.MaxPooling1D(pool_size=pool_size, padding=padding)(x)
     if dropout > 0:
-        x = tf.keras.layers.Dropout(dropout)(x)
+        x = keras.layers.Dropout(dropout)(x)
 
     return x
 
 
-def activate(current: tf.Tensor, activation: str, verbose: bool = False) -> tf.Tensor:
+def activate(
+    current: keras.KerasTensor, activation: str, verbose: bool = False
+) -> keras.KerasTensor:
     """
     Apply activation function to a tensor.
 
@@ -184,27 +186,27 @@ def activate(current: tf.Tensor, activation: str, verbose: bool = False) -> tf.T
         print("activate:", activation)
 
     if activation == "relu":
-        current = tf.keras.layers.Activation("relu")(current)
+        current = keras.layers.Activation("relu")(current)
     elif activation == "swish":
-        current = tf.keras.layers.Activation("swish")(current)
+        current = keras.layers.Activation("swish")(current)
     elif activation == "gelu":
-        current = tf.keras.layers.Activation("gelu")(current)
+        current = keras.layers.Activation("gelu")(current)
     elif activation == "sigmoid":
-        current = tf.keras.layers.Activation("sigmoid")(current)
+        current = keras.layers.Activation("sigmoid")(current)
     elif activation == "tanh":
-        current = tf.keras.layers.Activation("tanh")(current)
+        current = keras.layers.Activation("tanh")(current)
     elif activation == "exponential":
-        current = tf.keras.layers.Activation("exponential")(current)
+        current = keras.layers.Activation("exponential")(current)
     elif activation == "softplus":
-        current = tf.keras.layers.Activation("softplus")(current)
+        current = keras.layers.Activation("softplus")(current)
     else:
-        print('Unrecognized activation "%s"' % activation)
+        print(f'Unrecognized activation "{activation}"')
 
     return current
 
 
 def conv_block_bs(
-    inputs: tf.Tensor,
+    inputs,
     filters: int | None = None,
     kernel_size: int = 1,
     pool_size: int = 1,
@@ -219,11 +221,11 @@ def conv_block_bs(
     conv_type: str = "standard",
     w1: bool = False,
     bn_momentum: float = 0.99,
-    bn_gamma: tf.Tensor | None = None,
+    bn_gamma: keras.KerasTensor | None = None,
     bn_type: str = "standard",
     kernel_initializer: str = "he_normal",
     padding: str = "same",
-) -> tf.Tensor:
+):
     """
     Construct a convolution block (for Basenji).
 
@@ -270,11 +272,11 @@ def conv_block_bs(
 
     # choose convolution type
     if conv_type == "separable":
-        conv_layer = tf.keras.layers.SeparableConv1D
+        conv_layer = keras.layers.SeparableConv1D
     elif w1:
-        conv_layer = tf.keras.layers.Conv2D
+        conv_layer = keras.layers.Conv2D
     else:
-        conv_layer = tf.keras.layers.Conv1D
+        conv_layer = keras.layers.Conv1D
 
     if filters is None:
         filters = inputs.shape[-1]
@@ -291,7 +293,7 @@ def conv_block_bs(
         use_bias=False,
         dilation_rate=dilation_rate,
         kernel_initializer=kernel_initializer,
-        kernel_regularizer=tf.keras.regularizers.l2(l2_scale),
+        kernel_regularizer=keras.regularizers.l2(l2_scale),
     )(current)
 
     # batch norm
@@ -299,18 +301,18 @@ def conv_block_bs(
         if bn_gamma is None:
             bn_gamma = "zeros" if residual else "ones"
         if bn_type == "sync":
-            bn_layer = tf.keras.layers.experimental.SyncBatchNormalization
+            bn_layer = keras.layers.experimental.SyncBatchNormalization
         else:
-            bn_layer = tf.keras.layers.BatchNormalization
+            bn_layer = keras.layers.BatchNormalization
         current = bn_layer(momentum=bn_momentum, gamma_initializer=bn_gamma)(current)
 
     # dropout
     if dropout > 0:
-        current = tf.keras.layers.Dropout(rate=dropout)(current)
+        current = keras.layers.Dropout(rate=dropout)(current)
 
     # residual add
     if residual:
-        current = tf.keras.layers.Add()([inputs, current])
+        current = keras.layers.Add()([inputs, current])
 
     # end activation
     if activation_end is not None:
@@ -319,11 +321,11 @@ def conv_block_bs(
     # Pool
     if pool_size > 1:
         if w1:
-            current = tf.keras.layers.MaxPool2D(pool_size=pool_size, padding=padding)(
+            current = keras.layers.MaxPool2D(pool_size=pool_size, padding=padding)(
                 current
             )
         else:
-            current = tf.keras.layers.MaxPool1D(pool_size=pool_size, padding=padding)(
+            current = keras.layers.MaxPool1D(pool_size=pool_size, padding=padding)(
                 current
             )
 
@@ -331,7 +333,7 @@ def conv_block_bs(
 
 
 def dilated_residual(
-    inputs: tf.Tensor,
+    inputs: keras.KerasTensor,
     filters: int,
     kernel_size: int = 3,
     rate_mult: int = 2,
@@ -340,7 +342,7 @@ def dilated_residual(
     repeat: int = 1,
     round: bool = False,
     **kwargs,
-) -> tf.Tensor:
+) -> keras.KerasTensor:
     """
     Construct a residual dilated convolution block.
 
@@ -398,7 +400,7 @@ def dilated_residual(
         )
 
         # residual add
-        current = tf.keras.layers.Add()([rep_input, current])
+        current = keras.layers.Add()([rep_input, current])
 
         # update dilation rate
         dilation_rate *= rate_mult
