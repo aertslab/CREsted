@@ -27,9 +27,9 @@ class SequenceLoader:
         self,
         genome_file: PathLike,
         chromsizes: dict | None,
-        in_memory: bool,
-        always_reverse_complement: bool,
-        max_stochastic_shift: int,
+        in_memory: bool = False,
+        always_reverse_complement: bool = False,
+        max_stochastic_shift: int = 0,
         regions: list[str] = None,
     ):
         self.genome = FastaFile(genome_file)
@@ -82,7 +82,6 @@ class SequenceLoader:
             sequence = self.sequences[key]
         else:
             sequence = self._get_extended_sequence(region)
-
         chrom, start_end = region.split(":")
         start, end = map(int, start_end.split("-"))
         start_idx = self.max_stochastic_shift + shift

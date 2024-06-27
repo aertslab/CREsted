@@ -436,6 +436,31 @@ class Crested:
 
         return np.concatenate(all_predictions, axis=0)
 
+    def predict_sequence(
+        self,
+        sequence: str) -> np.ndarray:
+        """
+        Make predictions using the model on the provided DNA sequence.
+
+        Parameters
+        ----------
+        model : a trained TensorFlow/Keras model
+        sequence : str
+            A string containing a DNA sequence (A, C, G, T).
+
+        Returns
+        -------
+        np.ndarray
+            Predictions for the provided sequence.
+        """
+        # One-hot encode the sequence
+        x = one_hot_encode_sequence(sequence)
+
+        # Make prediction
+        predictions = self.model.predict(x)
+
+        return predictions
+
     def calculate_contribution_scores(
         self,
         anndata: AnnData | None = None,
@@ -590,12 +615,16 @@ class Crested:
         if isinstance(region_idx, str):
             region_idx = [region_idx]
 
+        if isinstance(class_names, str):
+            class_names = [class_names]
+
         all_scores = []
         all_one_hot_sequences = []
 
         all_class_names = list(self.anndatamodule.adata.obs_names)
 
         if class_names is not None:
+            print(class_names)
             n_classes = len(class_names)
             class_indices = [
                 all_class_names.index(class_name) for class_name in class_names

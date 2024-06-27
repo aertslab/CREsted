@@ -1,2 +1,2 @@
 from ._contribution_scores import contribution_scores
-from ._modisco_results import modisco_results
+from ._modisco_results import modisco_results, create_clustermap
