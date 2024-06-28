@@ -7,16 +7,19 @@ from datetime import datetime
 
 import keras
 import numpy as np
-import tensorflow as tf
 from anndata import AnnData
 from loguru import logger
 from tqdm import tqdm
 
 from crested._logging import log_and_raise
 from crested.tl import TaskConfig
-from crested.tl._explainer import Explainer
 from crested.tl._utils import one_hot_encode_sequence
 from crested.tl.data import AnnDataModule
+
+if os.environ["KERAS_BACKEND"] == "tensorflow":
+    from crested.tl._explainer_tf import Explainer
+elif os.environ["KERAS_BACKEND"] == "torch":
+    from crested.tl._explainer_torch import Explainer
 
 
 class LRLogger(keras.callbacks.Callback):
@@ -55,6 +58,8 @@ class Crested:
         If not provided, no additional logging will be done.
     seed
         Seed to use for reproducibility.
+        WARNING: this doesn't make everything fully reproducible, especially on GPU.
+        Some (GPU) operations are non-deterministic and simply can't be controlled by the seed.
 
     Examples
     --------
@@ -118,7 +123,8 @@ class Crested:
         self.save_dir = os.path.join(self.project_name, self.run_name)
 
         if self.seed:
-            tf.random.set_seed(self.seed)
+            keras.utils.set_random_seed(self.seed)
+        self.devices = self._check_gpu_availability()
 
     @staticmethod
     def _initialize_callbacks(
@@ -164,6 +170,10 @@ class Crested:
         """Initialize logger"""
         callbacks = []
         if logger_type == "wandb":
+            if os.environ["KERAS_BACKEND"] != "tensorflow":
+                raise ValueError(
+                    "Wandb logging is only available with the tensorflow backend until wandb has finished their keras 3.0 integration."
+                )
             import wandb
             from wandb.integration.keras import WandbMetricsLogger
 
@@ -175,6 +185,8 @@ class Crested:
             wandb_callback_batch = WandbMetricsLogger(log_freq=10)
             callbacks.extend([wandb_callback_epoch, wandb_callback_batch])
         elif logger_type == "tensorboard":
+            if os.environ["KERAS_BACKEND"] != "tensorflow":
+                raise ValueError("Tensorboard requires a tensorflow installation")
             log_dir = os.path.join(project_name, run_name, "logs")
             tensorboard_callback = keras.callbacks.TensorBoard(
                 log_dir=log_dir, update_freq=10
@@ -238,7 +250,6 @@ class Crested:
             List of custom callbacks to use during training.
         """
         self._check_fit_params()
-        self._check_gpu_availability()
 
         callbacks = self._initialize_callbacks(
             self.save_dir,
@@ -257,9 +268,6 @@ class Crested:
         if logger_callbacks:
             callbacks.extend(logger_callbacks)
 
-        # Configure strategy and compile model
-        # strategy = tf.distribute.MirroredStrategy()
-
         if mixed_precision:
             logger.warning(
                 "Mixed precision enabled. This can lead to faster training times but sometimes causes instable training. Disable on CPU or older GPUs."
@@ -270,7 +278,6 @@ class Crested:
             lr_metric = LRLogger(self.config.optimizer)
             callbacks.append(lr_metric)
 
-        # with strategy.scope():
         self.model.compile(
             optimizer=self.config.optimizer,
             loss=self.config.loss,
@@ -278,8 +285,8 @@ class Crested:
         )
 
         print(self.model.summary())
-        devices = tf.config.list_physical_devices("GPU")
-        logger.info(f"Number of GPUs in use: {len(devices)}")
+        # devices = keras.distribution.list_devices("GPU")
+        # logger.info(f"Number of GPUs in use: {len(devices)}")
 
         # setup data
         self.anndatamodule.setup("fit")
@@ -315,14 +322,25 @@ class Crested:
             )
 
         try:
-            self.model.fit(
-                train_loader.data,
-                validation_data=val_loader.data,
-                epochs=epochs,
-                steps_per_epoch=n_train_steps_per_epoch,
-                validation_steps=n_val_steps_per_epoch,
-                callbacks=callbacks,
-            )
+            if os.environ["KERAS_BACKEND"] == "tensorflow":
+                self.model.fit(
+                    train_loader.data,
+                    validation_data=val_loader.data,
+                    epochs=epochs,
+                    steps_per_epoch=n_train_steps_per_epoch,
+                    validation_steps=n_val_steps_per_epoch,
+                    callbacks=callbacks,
+                    shuffle=False,
+                )
+            # torch.Dataloader throws "repeat" warnings when using steps_per_epoch
+            elif os.environ["KERAS_BACKEND"] == "torch":
+                self.model.fit(
+                    train_loader.data,
+                    validation_data=val_loader.data,
+                    epochs=epochs,
+                    callbacks=callbacks,
+                    shuffle=False,
+                )
         except KeyboardInterrupt:
             logger.warning("Training interrupted by user.")
         finally:
@@ -343,12 +361,13 @@ class Crested:
         Evaluation metrics as a dictionary or None if return_metrics is False.
         """
         self._check_test_params()
-        self._check_gpu_availability()
 
         self.anndatamodule.setup("test")
         test_loader = self.anndatamodule.test_dataloader
 
-        n_test_steps = len(test_loader)
+        n_test_steps = (
+            len(test_loader) if os.environ["KERAS_BACKEND"] == "tensorflow" else None
+        )
 
         evaluation_metrics = self.model.evaluate(
             test_loader.data, steps=n_test_steps, return_dict=True
@@ -384,13 +403,14 @@ class Crested:
         Predictions of shape (N, C)
         """
         self._check_predict_params(anndata, model_name)
-        self._check_gpu_availability()
 
         if self.anndatamodule.predict_dataset is None:
             self.anndatamodule.setup("predict")
         predict_loader = self.anndatamodule.predict_dataloader
 
-        n_predict_steps = len(predict_loader)
+        n_predict_steps = (
+            len(predict_loader) if os.environ["KERAS_BACKEND"] == "tensorflow" else None
+        )
 
         predictions = self.model.predict(predict_loader.data, steps=n_predict_steps)
 
@@ -468,7 +488,6 @@ class Crested:
         crested.pl.patterns.contribution_scores
         """
         self._check_contribution_scores_params(class_names)
-        self._check_gpu_availability()
 
         if self.anndatamodule.predict_dataset is None:
             self.anndatamodule.setup("predict")
@@ -642,9 +661,16 @@ class Crested:
     @staticmethod
     def _check_gpu_availability():
         """Check if GPUs are available."""
-        devices = tf.config.list_physical_devices("GPU")
+        if os.environ["KERAS_BACKEND"] == "torch":
+            # torch backend not yet available in keras.distribution
+            import torch
+
+            return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        devices = keras.distribution.list_devices("gpu")
         if not devices:
-            logger.warning("No GPUs available.")
+            logger.warning("No GPUs available, falling back to CPU.")
+            devices = keras.distribution.list_devices("cpu")
+        return devices
 
     @log_and_raise(ValueError)
     def _check_contrib_params(self, method):
