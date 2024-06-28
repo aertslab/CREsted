@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-import tensorflow as tf
+import os
+
+if os.environ["KERAS_BACKEND"] == "torch":
+    import torch
+    from torch.utils.data import DataLoader
+else:
+    import tensorflow as tf
 
 from ._dataset import AnnDataset
 
@@ -45,24 +51,44 @@ class AnnDataLoader:
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.drop_remainder = drop_remainder
+        if os.environ["KERAS_BACKEND"] == "torch":
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         if self.shuffle:
             self.dataset.shuffle = True
 
+    def _collate_fn(self, batch):
+        """Collate function to move tensors to the specified device if backend is torch."""
+        inputs, targets = zip(*batch)
+        inputs = torch.stack([torch.tensor(input) for input in inputs]).to(self.device)
+        targets = torch.stack([torch.tensor(target) for target in targets]).to(
+            self.device
+        )
+        return inputs, targets
+
     def _create_dataset(self):
-        ds = tf.data.Dataset.from_generator(
-            self.dataset,
-            output_signature=(
-                tf.TensorSpec(shape=(self.dataset.seq_len, 4), dtype=tf.float16),
-                tf.TensorSpec(shape=(self.dataset.num_outputs,), dtype=tf.float32),
-            ),
-        )
-        ds = (
-            ds.batch(self.batch_size, drop_remainder=self.drop_remainder)
-            .repeat()
-            .prefetch(tf.data.AUTOTUNE)
-        )
-        return ds
+        if os.environ["KERAS_BACKEND"] == "torch":
+            return DataLoader(
+                self.dataset,
+                batch_size=self.batch_size,
+                drop_last=self.drop_remainder,
+                num_workers=0,
+                collate_fn=self._collate_fn,
+            )
+        elif os.environ["KERAS_BACKEND"] == "tensorflow":
+            ds = tf.data.Dataset.from_generator(
+                self.dataset,
+                output_signature=(
+                    tf.TensorSpec(shape=(self.dataset.seq_len, 4), dtype=tf.float32),
+                    tf.TensorSpec(shape=(self.dataset.num_outputs,), dtype=tf.float32),
+                ),
+            )
+            ds = (
+                ds.batch(self.batch_size, drop_remainder=self.drop_remainder)
+                .repeat()
+                .prefetch(tf.data.AUTOTUNE)
+            )
+            return ds
 
     @property
     def data(self):

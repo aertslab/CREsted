@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from os import PathLike
 
 import numpy as np
@@ -126,7 +127,15 @@ class IndexManager:
         )
 
 
-class AnnDataset:
+if os.environ["KERAS_BACKEND"] == "pytorch":
+    import torch
+
+    BaseClass = torch.utils.data.Dataset
+else:
+    BaseClass = object
+
+
+class AnnDataset(BaseClass):
     def __init__(
         self,
         anndata: AnnData,
@@ -212,6 +221,7 @@ class AnnDataset:
         # one hot encode sequence and convert to numpy array
         x = one_hot_encode_sequence(x, expand_dim=False)
         y = self._get_target(original_index)
+
         return x, y
 
     def __call__(self):
