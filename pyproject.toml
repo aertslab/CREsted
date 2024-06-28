@@ -24,7 +24,7 @@ dependencies = [
     "tqdm",
     "wandb>=0.12.10",
     "pysam",
-    "numpy<1.25.0",
+    "numpy",
     "scikit-learn",
     "tqdm",
     "loguru",
