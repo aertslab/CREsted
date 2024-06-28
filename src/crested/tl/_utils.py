@@ -45,10 +45,13 @@ def one_hot_encode_sequence(sequence: str) -> np.ndarray:
         axis=0,
     )
 
-def generate_mutagenesis(x, include_original=True):
+def generate_mutagenesis(x, include_original=True, flanks=(0,0)):
         _, L, A = x.shape
+        start, end = 0, L
         x_mut = []
-        for length in range(L):
+        start = flanks[0]
+        end = L - flanks[1]
+        for length in range(start, end):
             for a in range(A):
                 if not include_original:
                     if x[0, length, a] == 1:
@@ -58,6 +61,27 @@ def generate_mutagenesis(x, include_original=True):
                 x_new[0, length, a] = 1
                 x_mut.append(x_new)
         return np.concatenate(x_mut, axis=0)
+
+def generate_motif_insertions(x, motif, flanks=(0,0), masked_locations=None):
+        _, L, A = x.shape
+        start, end = 0, L
+        x_mut = []
+        motif_length = motif.shape[1]
+        start = flanks[0]
+        end = L - flanks[1] - motif_length + 1
+        insertion_locations = []
+        
+        for motif_start in range(start, end):
+            motif_end = motif_start + motif_length
+            if masked_locations is not None:
+                if np.any((motif_start <= masked_locations) & (masked_locations < motif_end)):
+                    continue
+            x_new = np.copy(x)
+            x_new[0, motif_start:motif_end, :] = motif
+            x_mut.append(x_new)
+            insertion_locations.append(motif_start)
+        
+        return np.concatenate(x_mut, axis=0), insertion_locations
 
 def _weighted_difference(mutated_predictions, original_prediction, target, class_penalty_weights=None):
         n_classes = original_prediction.shape[1]

@@ -18,6 +18,7 @@ from crested.tl._utils import one_hot_encode_sequence
 from crested.tl._utils import generate_mutagenesis
 from crested.tl._utils import _weighted_difference 
 from crested.tl._utils import hot_encoding_to_sequence
+from crested.tl._utils import generate_motif_insertions
 from crested.tl.data import AnnDataModule
 from crested.tl.data._dataset import SequenceLoader
 
@@ -734,8 +735,111 @@ class Crested:
 
         print(f"Contribution scores and one-hot encoded sequences saved to {output_dir}")
 
-    def enhancer_design_motif_implementation():
-        pass
+    def enhancer_design_motif_implementation(self,
+        target,
+        n_sequences, 
+        patterns,
+        insertions_per_pattern = None,
+        return_intermediate: bool = False,
+        seq_len: int = None,
+        class_penalty_weights: np.ndarray = None,
+        no_mutation_flanks: tuple = None,
+        target_len: int = None,
+        preserve_inserted_motifs = True):
+        
+        '''
+        TODO
+        '''
+
+        if seq_len == None:
+            seq_len = self.anndatamodule.adata.var.iloc[0]['end'] - self.anndatamodule.adata.var.iloc[0]['start']
+
+        if no_mutation_flanks is not None and target_len is not None:
+            logger.warning("Both no_mutation_flanks and target_len set, using no_mutation_flanks.")
+        elif no_mutation_flanks is None and target_len is not None:
+            if (seq_len - target_len) % 2 == 0:
+                no_mutation_flanks = (int((seq_len - target_len) // 2), int((seq_len - target_len) // 2))
+            else:
+                no_mutation_flanks = (int((seq_len - target_len) // 2), int((seq_len - target_len) // 2) + 1)
+
+        elif no_mutation_flanks is None and target_len is None:
+            no_mutation_flanks = (0, 0)
+
+        if insertions_per_pattern is None:
+            insertions_per_pattern = {pattern_name: 1 for pattern_name in patterns}
+
+        if preserve_inserted_motifs:
+            inserted_motif_locations = np.array([])
+        else:
+            inserted_motif_locations = None
+
+        random_sequences = self._create_random_sequences(
+            n_sequences = n_sequences,
+            seq_len = seq_len)
+
+        designed_sequences = []
+        intermediate_info_list = []
+
+        for idx, sequence in enumerate(random_sequences):
+            sequence_onehot = one_hot_encode_sequence(sequence)
+            if return_intermediate:
+                intermediate_info_list.append({'inital_sequence': sequence,
+                                            'changes': [(-1,'N')],
+                                            'predictions':[self.model.predict(sequence_onehot, verbose=False)],
+                                            'designed_sequence':''})
+
+            for pattern_name in patterns:
+                number_of_insertions = insertions_per_pattern[pattern_name]
+                motif_onehot = one_hot_encode_sequence(patterns[pattern_name])
+                motif_length = motif_onehot.shape[1]
+                for insertion_number in range(number_of_insertions):
+                    current_prediction = self.model.predict(sequence_onehot, verbose=False)
+
+                    mutagenesis, insertion_locations = generate_motif_insertions(
+                        sequence_onehot,
+                        motif_onehot,
+                        flanks=no_mutation_flanks,
+                        masked_locations=inserted_motif_locations
+                    )
+
+                    mutagenesis_predictions = self.model.predict(mutagenesis)
+
+                    best_mutation = _weighted_difference(
+                        mutagenesis_predictions,
+                        current_prediction,
+                        target,
+                        class_penalty_weights
+                    )
+
+                    sequence_onehot = mutagenesis[best_mutation:best_mutation+1]
+
+                    if preserve_inserted_motifs:
+                        inserted_motif_locations = np.append(inserted_motif_locations,
+                         [insertion_locations[best_mutation] + i for i in range(motif_length)])
+
+                    if return_intermediate:
+                        insertion_index = insertion_locations[best_mutation]
+                        changed_to = patterns[pattern_name]
+                        intermediate_info_list[idx]['changes'].append((insertion_index, changed_to))
+                        intermediate_info_list[idx]['predictions'].append(mutagenesis_predictions[best_mutation])
+
+            designed_sequence = hot_encoding_to_sequence(sequence_onehot)
+            designed_sequences.append(designed_sequence)
+
+            if return_intermediate:
+                    intermediate_info_list[idx]['designed_sequence'] = designed_sequence
+
+        if return_intermediate:
+            return intermediate_info_list, designed_sequences
+        else:
+            return designed_sequences
+
+
+
+
+
+
+            
 
     def enhancer_design_in_silico_evolution(
         self,
@@ -744,13 +848,30 @@ class Crested:
         n_sequences: int,
         return_intermediate: bool = False,
         seq_len: int = None,
-        class_penalty_weights: np.ndarray = None
-        ):
-        
+        class_penalty_weights: np.ndarray = None,
+        no_mutation_flanks: tuple = None,
+        target_len: int = None
+        ) -> tuple[list(dict), list] | list:
+        '''
+        TODO
+        '''
         if seq_len == None:
             seq_len = self.anndatamodule.adata.var.iloc[0]['end'] - self.anndatamodule.adata.var.iloc[0]['start']
 
-        random_sequences = self._create_random_sequences(n_sequences, seq_len)
+        if no_mutation_flanks is not None and target_len is not None:
+            logger.warning("Both no_mutation_flanks and target_len set, using no_mutation_flanks.")
+        elif no_mutation_flanks is None and target_len is not None:
+            if (seq_len - target_len) % 2 == 0:
+                no_mutation_flanks = (int((seq_len - target_len) // 2), int((seq_len - target_len) // 2))
+            else:
+                no_mutation_flanks = (int((seq_len - target_len) // 2), int((seq_len - target_len) // 2) + 1)
+                
+        elif no_mutation_flanks is None and target_len is None:
+            no_mutation_flanks = (0, 0)
+
+        random_sequences = self._create_random_sequences(
+            n_sequences = n_sequences,
+            seq_len = seq_len)
 
         designed_sequences = []
         intermediate_info_list = []
@@ -765,16 +886,25 @@ class Crested:
             
             for mutation_step in range(n_mutations):
                 current_prediction = self.model.predict(sequence_onehot, verbose=False)
-                mutagenesis = generate_mutagenesis(sequence_onehot, include_original=False)
-                mutagenesis_predictions = self.model.predict(mutagenesis, verbose=False)
+                mutagenesis = generate_mutagenesis(
+                    sequence_onehot,
+                    include_original=False,
+                    flanks=no_mutation_flanks
+                )
+                mutagenesis_predictions = self.model.predict(mutagenesis)
 
-                best_mutation = _weighted_difference(mutagenesis_predictions, current_prediction, target, class_penalty_weights)
+                best_mutation = _weighted_difference(
+                    mutagenesis_predictions,
+                    current_prediction,
+                    target,
+                    class_penalty_weights
+                )
 
                 sequence_onehot = mutagenesis[best_mutation:best_mutation+1]
 
                 
                 if return_intermediate:
-                    mutation_index = best_mutation//3
+                    mutation_index = best_mutation//3 + no_mutation_flanks[0]
                     changed_to = sequence_onehot[0, mutation_index, :]
                     intermediate_info_list[idx]['changes'].append((mutation_index, hot_encoding_to_sequence(changed_to))) # onehotdecode
                     intermediate_info_list[idx]['predictions'].append(mutagenesis_predictions[best_mutation])
@@ -796,7 +926,10 @@ class Crested:
         self,
         n_sequences: int,
         seq_len: int
-        ):
+        ) -> np.ndarray:
+        '''
+        TODO
+        '''
         if self.acgt_distribution is None:
             self._calculate_location_gc_frequencies()
 
@@ -810,7 +943,10 @@ class Crested:
 
         return random_sequences
 
-    def _calculate_location_gc_frequencies(self):
+    def _calculate_location_gc_frequencies(self) -> np.ndarray:
+        '''
+        TODO
+        '''
         regions = self.anndatamodule.adata.var
         sequence_loader = SequenceLoader(genome_file = self.anndatamodule.genome_file,
                                    chromsizes = None,
