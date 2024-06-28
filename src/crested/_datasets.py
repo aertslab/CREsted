@@ -79,6 +79,7 @@ def get_dataset(dataset: str):
         "mouse_cortex_bed": ("data/mouse_biccn/beds.tar.gz", "data/mouse_biccn/consensus_peaks_biccn.bed"),
         "mouse_cortex_bigwig": ("data/mouse_biccn/bigwigs.tar.gz", "data/mouse_biccn/consensus_peaks_biccn.bed"),
     }
+    assert dataset in dataset_mapping, f"Dataset {dataset} is not recognised. Available datasets: {tuple(dataset_mapping.keys())}"
 
     targets_url, cregions_url = dataset_mapping[dataset]
     targets_paths = _get_dataset_index().fetch(targets_url, processor = pooch.Untar(), progressbar = True)
