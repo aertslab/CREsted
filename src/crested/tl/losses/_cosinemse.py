@@ -3,13 +3,13 @@ from __future__ import annotations
 import keras
 
 
+@keras.saving.register_keras_serializable(package="Losses")
 class CosineMSELoss(keras.losses.Loss):
     """Custom loss function that combines cosine similarity and mean squared error."""
 
-    def __init__(self, max_weight=1.0, name="CustomMSELoss"):
-        super().__init__(name=name)
+    def __init__(self, max_weight=1.0, reduction=None, name="CustomMSELoss"):
+        super().__init__()
         self.max_weight = max_weight
-        # self.reduction=reduction
 
     def call(self, y_true, y_pred):
         # Ensure y_true and y_pred are float32 for consistency
@@ -37,8 +37,7 @@ class CosineMSELoss(keras.losses.Loss):
 
     def get_config(self):
         config = super().get_config()
-        config.update({"max_weight": self.max_weight})
-        # "reduction":self.reduction})
+        config.update({"max_weight": self.max_weight, "reduction": self.reduction})
         return config
 
     @classmethod
