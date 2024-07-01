@@ -65,9 +65,6 @@ def deeptopic_lstm(
     """
     inputs = layers.Input(shape=(seq_len, 4), name="sequence")
 
-    reverse_lambda_ax1 = layers.Lambda(lambda x: tf.reverse(x, [1]))
-    reverse_lambda_ax2 = layers.Lambda(lambda x: tf.reverse(x, [2]))
-
     hidden_layers = [
         layers.Convolution1D(
             filters=filters,
@@ -96,9 +93,7 @@ def deeptopic_lstm(
         layers.Dense(num_classes, activation='sigmoid')
     ]
 
-    forward_output = get_output(inputs, hidden_layers)
-    reverse_output = get_output(reverse_lambda_ax2(reverse_lambda_ax1(inputs)), hidden_layers)
-    outputs = layers.average([forward_output, reverse_output])
+    outputs = get_output(inputs, hidden_layers)
 
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
 
