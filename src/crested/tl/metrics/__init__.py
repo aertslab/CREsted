@@ -2,3 +2,4 @@ from ._concordancecorr import ConcordanceCorrelationCoefficient
 from ._pearsoncorr import PearsonCorrelation
 from ._pearsoncorrlog import PearsonCorrelationLog
 from ._zeropenalty import ZeroPenaltyMetric
+from ._spearmancorr import SpearmanCorrelationPerClass

@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import modiscolite as modisco
 import numpy as np
 from loguru import logger
+import pandas as pd
+import seaborn as sns
 
 from crested._logging import log_and_raise
 from crested.pl._utils import render_plot
@@ -45,7 +47,7 @@ def _trim_pattern_by_ic(
     contrib_scores = np.array(pattern["contrib_scores"])
     if not pos_pattern:
         contrib_scores = -contrib_scores
-    contrib_scores[contrib_scores < 0] = 0
+    contrib_scores[contrib_scores < 0] = 1e-9 # avoid division by zero
 
     ic = modisco.util.compute_per_position_ic(
         ppm=np.array(contrib_scores), background=background, pseudocount=pseudocount
@@ -290,3 +292,108 @@ def modisco_results(
         kwargs["height"] = 2 * max_num_patterns
 
     render_plot(fig, **kwargs)
+
+def plot_custom_xticklabels(
+    ax: plt.Axes, 
+    sequences: List[Tuple[str, np.ndarray]], 
+    col_order: List[int], 
+    fontsize: int = 10, 
+    dy: float = 0.012
+) -> None:
+    """
+    Plot custom x-tick labels with varying letter heights.
+
+    Parameters:
+    - ax (plt.Axes): The axes object to plot on.
+    - sequences (list): List of tuples containing sequences and their corresponding heights.
+    - col_order (list): List of column indices after clustering.
+    - fontsize (int): Base font size for the letters.
+    - dy (float): Vertical adjustment factor for letter heights.
+    """
+    ax.set_xticks(np.arange(len(sequences)))
+    ax.set_xticklabels([])
+    ax.tick_params(axis='x', which='both', length=0)
+    
+    for i, original_index in enumerate(col_order):
+        sequence, heights = sequences[original_index]
+        y_position = -0.02
+        for j, (char, height) in enumerate(zip(sequence, heights)):
+            char_fontsize = height * fontsize
+            text = ax.text(i, y_position, char, ha='center', va='center', color='black', 
+                        transform=ax.get_xaxis_transform(), fontsize=char_fontsize, rotation=270)
+            renderer = ax.figure.canvas.get_renderer()
+            char_width = text.get_window_extent(renderer=renderer).width
+            y_position -= dy
+
+def create_clustermap(
+    pattern_matrix: np.ndarray, 
+    classes: List[str], 
+    figsize: Tuple[int, int] = (15, 13), 
+    grid: bool = False, 
+    color_palette: Union[str, List[str]] = "hsv", 
+    cmap: str = 'coolwarm', 
+    center: float = 0, 
+    method: str = 'average', 
+    fig_path: Optional[str] = None, 
+    pat_seqs: Optional[List[Tuple[str, np.ndarray]]] = None, 
+    dy: float = 0.012
+) -> sns.matrix.ClusterGrid:
+    """
+    Create a clustermap from the given pattern matrix and class labels with customizable options.
+
+    Parameters:
+    - pattern_matrix (np.ndarray): 2D NumPy array containing pattern data.
+    - classes (list): List of class labels.
+    - figsize (tuple): Size of the figure.
+    - grid (bool): Whether to add a grid to the heatmap.
+    - color_palette (str or list): Color palette for the row colors.
+    - cmap (str): Colormap for the clustermap.
+    - center (float): Value at which to center the colormap.
+    - method (str): Clustering method to use (e.g., 'average', 'single', 'complete').
+    - fig_path (str, optional): Path to save the figure.
+    - pat_seqs (list, optional): List of sequences to use as xticklabels.
+    - dy (float): Vertical adjustment factor for letter heights.
+
+    Returns:
+    - sns.matrix.ClusterGrid: The clustermap object.
+    """
+    data = pd.DataFrame(pattern_matrix)
+    
+    if isinstance(color_palette, str):
+        palette = sns.color_palette(color_palette, len(set(classes)))
+    else:
+        palette = color_palette
+    
+    class_lut = dict(zip(set(classes), palette))
+    row_colors = pd.Series(classes).map(class_lut)
+    
+    xtick_labels = False if pat_seqs is not None else True
+    
+    g = sns.clustermap(
+        data, 
+        cmap=cmap, 
+        figsize=figsize, 
+        row_colors=row_colors, 
+        yticklabels=classes, 
+        center=center, 
+        xticklabels=xtick_labels, 
+        method=method
+    )
+    col_order = g.dendrogram_col.reordered_ind
+
+    for label in class_lut:
+        g.ax_col_dendrogram.bar(0, 0, color=class_lut[label], label=label, linewidth=0)
+    
+    if grid:
+        ax = g.ax_heatmap
+        ax.grid(True, which='both', color='grey', linewidth=0.25)
+        g.fig.canvas.draw()
+    
+    if pat_seqs is not None:
+        plot_custom_xticklabels(g.ax_heatmap, pat_seqs, col_order, dy=dy)
+
+    if fig_path is not None:
+        plt.savefig(fig_path)
+
+    plt.show()
+    return g
