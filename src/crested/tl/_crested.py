@@ -608,13 +608,62 @@ class Crested:
         --------
         crested.pl.patterns.contribution_scores
         """
+        if isinstance(region_idx, str):
+            region_idx = [region_idx]
+
+        sequences = []
+        for region in region_idx:
+            sequences.append(
+                self.anndatamodule.predict_dataset.sequence_loader.get_sequence(region)
+            )
+        return self.calculate_contribution_scores_sequence(
+            sequences=sequences,
+            class_names=class_names,
+            method=method,
+            disable_tqdm=disable_tqdm,
+        )
+
+    def calculate_contribution_scores_sequence(
+        self,
+        sequences: list[str] | str,
+        class_names: list[str] | None = None,
+        method: str = "expected_integrated_grad",
+        disable_tqdm: bool = False,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Calculate contribution scores based on given method for a specified sequence.
+
+        These scores can then be plotted to visualize the importance of each base in the sequence
+        using :func:`~crested.pl.patterns.contribution_scores`.
+
+        Parameters
+        ----------
+        sequence
+            Sequence(s) for which to calculate the contribution scores.
+        class_names
+            List of class names to calculate the contribution scores for (should match anndata.obs_names)
+            If None, the contribution scores for the 'combined' class will be calculated.
+        method
+            Method to use for calculating the contribution scores.
+            Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
+        disable_tqdm
+            Boolean for disabling the plotting progress of calculations using tqdm.
+
+        Returns
+        -------
+        Contribution scores (N, C, L, 4) and one-hot encoded sequences (N, L, 4).
+
+        See Also
+        --------
+        crested.pl.patterns.contribution_scores
+        """
         self._check_contrib_params(method)
         if self.anndatamodule.predict_dataset is None:
             self.anndatamodule.setup("predict")
         self._check_contribution_scores_params(class_names)
 
-        if isinstance(region_idx, str):
-            region_idx = [region_idx]
+        if isinstance(sequences, str):
+            sequences = [sequences]
 
         if isinstance(class_names, str):
             class_names = [class_names]
@@ -635,12 +684,9 @@ class Crested:
             class_indices = [None]
 
         logger.info(
-            f"Calculating contribution scores for {n_classes} class(es) and {len(region_idx)} region(s)."
+            f"Calculating contribution scores for {n_classes} class(es) and {len(sequences)} region(s)."
         )
-        for region in tqdm(region_idx, desc="Region", disable=disable_tqdm):
-            sequence = self.anndatamodule.predict_dataset.sequence_loader.get_sequence(
-                region
-            )
+        for sequence in tqdm(sequences, desc="Region", disable=disable_tqdm):
             x = one_hot_encode_sequence(sequence)
             all_one_hot_sequences.append(x)
 
