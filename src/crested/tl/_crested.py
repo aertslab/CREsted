@@ -285,8 +285,6 @@ class Crested:
         )
 
         print(self.model.summary())
-        # devices = keras.distribution.list_devices("GPU")
-        # logger.info(f"Number of GPUs in use: {len(devices)}")
 
         # setup data
         self.anndatamodule.setup("fit")
@@ -665,12 +663,18 @@ class Crested:
             # torch backend not yet available in keras.distribution
             import torch
 
-            return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        devices = keras.distribution.list_devices("gpu")
-        if not devices:
-            logger.warning("No GPUs available, falling back to CPU.")
-            devices = keras.distribution.list_devices("cpu")
-        return devices
+            if torch.cuda.is_available():
+                return torch.device("cuda")
+            else:
+                logger.warning("No GPUs available, falling back to CPU.")
+                return torch.device("cpu")
+
+        elif os.environ["KERAS_BACKEND"] == "tensorflow":
+            devices = keras.distribution.list_devices("gpu")
+            if not devices:
+                logger.warning("No GPUs available, falling back to CPU.")
+                devices = keras.distribution.list_devices("cpu")
+            return devices
 
     @log_and_raise(ValueError)
     def _check_contrib_params(self, method):
