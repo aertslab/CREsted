@@ -34,7 +34,8 @@ dependencies = [
     "cmake",
     "modisco-lite",
     "vizsequence",
-    "html5lib"
+    "html5lib",
+    "pooch"
 ]
 
 [project.optional-dependencies]
