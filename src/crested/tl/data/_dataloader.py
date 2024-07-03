@@ -101,6 +101,5 @@ class AnnDataLoader:
     def __repr__(self):
         return (
             f"AnnDataLoader(dataset={self.dataset}, batch_size={self.batch_size}, "
-            f"shuffle={self.shuffle}, one_hot_encode={self.one_hot_encode}, "
-            f"drop_remainder={self.drop_remainder})"
+            f"shuffle={self.shuffle}, drop_remainder={self.drop_remainder})"
         )

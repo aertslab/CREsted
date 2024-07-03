@@ -167,7 +167,7 @@ class AnnDataModule:
             self.train_dataset,
             batch_size=self.batch_size,
             shuffle=self.shuffle,
-            drop_remainder=True,
+            drop_remainder=False,
         )
 
     @property

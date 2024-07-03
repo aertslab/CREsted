@@ -120,10 +120,10 @@ class IndexManager:
 
     def shuffle_indices(self):
         """Shuffling of indices. Managed by subclass AnnDataLoader."""
-        np.random.shuffle(self.indices)
-        self.augmented_indices, self.augmented_indices_map = self._augment_indices(
-            self.indices
-        )
+        # self.augmented_indices, self.augmented_indices_map = self._augment_indices(
+        #     self.indices
+        # )
+        np.random.shuffle(self.augmented_indices)
 
 
 if os.environ["KERAS_BACKEND"] == "pytorch":
@@ -226,11 +226,10 @@ class AnnDataset(BaseClass):
     def __call__(self):
         """Generator for the dataset."""
         for i in range(len(self)):
+            if i == 0:
+                if self.shuffle:
+                    self.index_manager.shuffle_indices()
             yield self.__getitem__(i)
-
-        if i == (len(self) - 1):
-            if self.shuffle:
-                self.index_manager.shuffle_indices()
 
     def __repr__(self) -> str:
         """Representation of the dataset."""

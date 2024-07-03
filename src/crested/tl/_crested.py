@@ -13,7 +13,6 @@ from tqdm import tqdm
 
 from crested._logging import log_and_raise
 from crested.tl import TaskConfig
-from crested.tl._explainer import Explainer
 from crested.tl._utils import (
     _weighted_difference,
     generate_motif_insertions,
