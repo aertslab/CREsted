@@ -31,14 +31,15 @@ dependencies = [
     "logomaker",
     "pybigtools",
     "seaborn",
-    "cmake",
-    "modisco-lite",
-    "vizsequence",
-    "html5lib",
     "pooch"
 ]
 
 [project.optional-dependencies]
+tfmodisco = [
+    "modisco-lite",
+    "vizsequence"
+]
+
 dev = [
     "pre-commit",
     "twine>=4.0.2",
