@@ -35,10 +35,12 @@ class LRLogger(keras.callbacks.Callback):
 
         self.optimizer = optimizer
 
-    def on_epoch_end(self, epoch, logs):
+    def on_epoch_start(self, epoch, logs):
         import wandb
 
-        lr = float(keras.backend.get_value(self.model.optimizer.learning_rate))
+        lr = round(
+            float(keras.ops.convert_to_numpy(self.model.optimizer.learning_rate)), 7
+        )
         wandb.log({"lr": lr}, commit=False)
 
 
@@ -283,9 +285,9 @@ class Crested:
             )
             keras.mixed_precision.set_global_policy("mixed_float16")
 
-        if run:
-            lr_metric = LRLogger(self.config.optimizer)
-            callbacks.append(lr_metric)
+        # if run:
+        #     lr_metric = LRLogger(self.config.optimizer)
+        #     callbacks.append(lr_metric)
 
         self.model.compile(
             optimizer=self.config.optimizer,
