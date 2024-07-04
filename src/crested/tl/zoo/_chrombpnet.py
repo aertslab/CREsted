@@ -111,8 +111,8 @@ def chrombpnet(
                 activation, name=f"bpnet_{layer_names[i - 1]}activation"
             )(conv_x)
 
-        x_len = keras.backend.int_shape(x)[1]
-        conv_x_len = keras.backend.int_shape(conv_x)[1]
+        x_len = keras.ops.shape(x)[1]
+        conv_x_len = keras.ops.shape(conv_x)[1]
         assert (x_len - conv_x_len) % 2 == 0  # for symmetric cropping
 
         x = keras.layers.Cropping1D(
