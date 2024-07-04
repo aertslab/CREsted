@@ -20,11 +20,19 @@ import sys
 from importlib.metadata import version
 
 from . import pl, pp, tl
+from ._datasets import get_dataset
 from ._io import import_beds, import_bigwigs
 from ._logging import setup_logging
-from ._datasets import get_dataset
 
-__all__ = ["pl", "pp", "tl", "import_beds", "import_bigwigs", "setup_logging", "get_dataset"]
+__all__ = [
+    "pl",
+    "pp",
+    "tl",
+    "import_beds",
+    "import_bigwigs",
+    "setup_logging",
+    "get_dataset",
+]
 
 __version__ = version("crested")
 
