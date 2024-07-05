@@ -802,7 +802,7 @@ class Crested:
                 os.path.join(output_dir, f"{class_name}_contrib.npz"), contrib_scores
             )
 
-        print(
+        logger.info(
             f"Contribution scores and one-hot encoded sequences saved to {output_dir}"
         )
 

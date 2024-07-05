@@ -61,6 +61,7 @@ class SequenceLoader:
         """Get sequence from genome file, extended for stochastic shifting."""
         chrom, start_end = region.split(":")
         start, end = map(int, start_end.split("-"))
+
         extended_start = max(0, start - self.max_stochastic_shift)
         extended_end = extended_start + (end - start) + (self.max_stochastic_shift * 2)
 
@@ -99,31 +100,60 @@ class SequenceLoader:
 
 
 class IndexManager:
-    def __init__(self, indices: list[str], always_reverse_complement: bool):
+    def __init__(
+        self,
+        indices: list[str],
+        always_reverse_complement: bool,
+        deterministic_shift: bool = False,
+    ):
         self.indices = indices
         self.always_reverse_complement = always_reverse_complement
+        self.deterministic_shift = deterministic_shift
         self.augmented_indices, self.augmented_indices_map = self._augment_indices(
             indices
         )
+
+    def shuffle_indices(self):
+        """Shuffling of indices. Managed by subclass AnnDataLoader."""
+        np.random.shuffle(self.augmented_indices)
 
     def _augment_indices(self, indices: list[str]) -> tuple[list[str], dict[str, str]]:
         """Augment indices with strand information. Necessary if always reverse complement to map sequences back to targets."""
         augmented_indices = []
         augmented_indices_map = {}
         for region in indices:
-            augmented_indices.append(f"{region}:+")
-            augmented_indices_map[f"{region}:+"] = region
-            if self.always_reverse_complement:
-                augmented_indices.append(f"{region}:-")
-                augmented_indices_map[f"{region}:-"] = region
+            if self.deterministic_shift:
+                shifted_regions = self._deterministic_shift_region(region)
+                for shifted_region in shifted_regions:
+                    augmented_indices.append(f"{shifted_region}:+")
+                    augmented_indices_map[f"{shifted_region}:+"] = region
+                    if self.always_reverse_complement:
+                        augmented_indices.append(f"{shifted_region}:-")
+                        augmented_indices_map[f"{shifted_region}:-"] = region
+            else:
+                augmented_indices.append(f"{region}:+")
+                augmented_indices_map[f"{region}:+"] = region
+                if self.always_reverse_complement:
+                    augmented_indices.append(f"{region}:-")
+                    augmented_indices_map[f"{region}:-"] = region
         return augmented_indices, augmented_indices_map
 
-    def shuffle_indices(self):
-        """Shuffling of indices. Managed by subclass AnnDataLoader."""
-        # self.augmented_indices, self.augmented_indices_map = self._augment_indices(
-        #     self.indices
-        # )
-        np.random.shuffle(self.augmented_indices)
+    def _deterministic_shift_region(
+        self, region: str, stride: int = 50, n_shifts: int = 2
+    ) -> list[str]:
+        """
+        Shift each region by a deterministic stride to each side. Will increase the number of regions by n_shifts times two.
+
+        This is a legacy function, it's recommended to use stochastic shifting instead.
+        """
+        new_regions = []
+        chrom, start_end = region.split(":")
+        start, end = map(int, start_end.split("-"))
+        for i in range(-n_shifts, n_shifts + 1):
+            new_start = start + i * stride
+            new_end = end + i * stride
+            new_regions.append(f"{chrom}:{new_start}-{new_end}")
+        return new_regions
 
 
 if os.environ["KERAS_BACKEND"] == "pytorch":
@@ -145,6 +175,7 @@ class AnnDataset(BaseClass):
         random_reverse_complement: bool = False,
         always_reverse_complement: bool = False,
         max_stochastic_shift: int = 0,
+        deterministic_shift: bool = False,
     ):
         self.anndata = self._split_anndata(anndata, split)
         self.split = split
@@ -166,7 +197,11 @@ class AnnDataset(BaseClass):
             max_stochastic_shift,
             self.indices,
         )
-        self.index_manager = IndexManager(self.indices, always_reverse_complement)
+        self.index_manager = IndexManager(
+            self.indices,
+            always_reverse_complement=always_reverse_complement,
+            deterministic_shift=deterministic_shift,
+        )
         self.seq_len = len(self.sequence_loader.get_sequence(self.indices[0]))
 
     @staticmethod
