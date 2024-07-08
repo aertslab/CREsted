@@ -73,7 +73,7 @@ class SequenceLoader:
                 )
                 extended_end = chrom_size
 
-        return self.genome.fetch(chrom, extended_start, extended_end)
+        return self.genome.fetch(chrom, extended_start, extended_end).upper()
 
     def _reverse_complement(self, sequence: str) -> str:
         """Reverse complement a sequence."""
