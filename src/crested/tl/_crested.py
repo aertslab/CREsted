@@ -29,21 +29,6 @@ elif os.environ["KERAS_BACKEND"] == "torch":
     from crested.tl._explainer_torch import Explainer
 
 
-class LRLogger(keras.callbacks.Callback):
-    def __init__(self, optimizer):
-        super().__init__()
-
-        self.optimizer = optimizer
-
-    def on_epoch_start(self, epoch, logs):
-        import wandb
-
-        lr = round(
-            float(keras.ops.convert_to_numpy(self.model.optimizer.learning_rate)), 7
-        )
-        wandb.log({"lr": lr}, commit=False)
-
-
 class Crested:
     """
     Main class to handle training, testing, predicting and calculation of contribution scores.
@@ -285,10 +270,6 @@ class Crested:
             )
             keras.mixed_precision.set_global_policy("mixed_float16")
 
-        # if run:
-        #     lr_metric = LRLogger(self.config.optimizer)
-        #     callbacks.append(lr_metric)
-
         self.model.compile(
             optimizer=self.config.optimizer,
             loss=self.config.loss,
@@ -298,7 +279,11 @@ class Crested:
         print(self.model.summary())
 
         # setup data
-        self.anndatamodule.setup("fit")
+        if (
+            self.anndatamodule.train_dataset is None
+            or self.anndatamodule.val_dataset is None
+        ):
+            self.anndatamodule.setup("fit")
         train_loader = self.anndatamodule.train_dataloader
         val_loader = self.anndatamodule.val_dataloader
 
@@ -355,6 +340,115 @@ class Crested:
         finally:
             if run:
                 run.finish()
+
+    def transferlearn(
+        self,
+        epochs_first_phase: int = 50,
+        epochs_second_phase: int = 50,
+        learning_rate_first_phase: float = 1e-4,
+        learning_rate_second_phase: float = 1e-6,
+        dense_block_name: str = "denseblock",
+        **kwargs,
+    ):
+        """
+        Perform transfer learning on the model.
+
+        The first phase freezes all layers before the DenseBlock (if it exists, else it freezes all layers), replaces the Dense layer, and trains with a low learning rate.
+        The second phase unfreezes all layers and continues training with an even lower learning rate.
+        This is especially useful in topic classification to be able to transfer learn to annotated cell type labels instead of topics.
+
+        Ensure that you load a model first using Crested.load_model() before calling this function.
+
+        Parameters
+        ----------
+        epochs_first_phase
+            Number of epochs to train in the first phase.
+        epochs_second_phase
+            Number of epochs to train in the second phase.
+        learning_rate_first_phase
+            Learning rate for the first phase.
+        learning_rate_second_phase
+            Learning rate for the second phase.
+        mixed_precision
+            Enable mixed precision training.
+        kwargs
+            Additional keyword arguments to pass to the fit method.
+
+        See Also
+        --------
+        crested.tl.Crested.fit
+        """
+        logger.info(
+            f"First phase of transfer learning. Freezing all layers before the DenseBlock (if it exists) and adding a new Dense Layer. Training with learning rate {learning_rate_first_phase}..."
+        )
+        assert (
+            self.model is not None
+        ), "Model is not loaded. Load a model first using Crested.load_model()."
+
+        # Get the current optimizer configuration
+        old_optimizer = self.model.optimizer
+        optimizer_config = old_optimizer.get_config()
+        optimizer_class = type(old_optimizer)
+
+        base_model = self.model
+
+        # Freeze all layers before the DenseBlock or dense_out
+        for layer in base_model.layers:
+            if dense_block_name in layer.name:
+                found_dense_block = True
+                break
+            layer.trainable = False  # Freeze the layer
+
+        if not found_dense_block:
+            if not any("dense_out" in layer.name for layer in base_model.layers):
+                raise ValueError(
+                    f"Neither '{dense_block_name}' nor 'dense_out' found in model layers."
+                )
+            else:
+                base_model.trainable = False
+
+        # Change the number of output units to match the new task
+        old_activation_layer = base_model.layers[-1]
+        old_activation = old_activation_layer.activation
+
+        x = base_model.layers[-3].output
+        new_output_units = self.anndatamodule.adata.X.shape[0]
+        new_output_layer = keras.layers.Dense(
+            new_output_units, name="dense_out_transfer", trainable=True
+        )(x)
+        new_activation_layer = keras.layers.Activation(
+            old_activation, name="activation_transfer"
+        )(new_output_layer)
+        new_model = keras.Model(inputs=base_model.input, outputs=new_activation_layer)
+
+        new_optimizer = optimizer_class.from_config(optimizer_config)
+        new_optimizer.learning_rate = learning_rate_first_phase
+
+        # initialize new taskconfig
+        self.config = TaskConfig(
+            optimizer=new_optimizer,
+            loss=self.config.loss,
+            metrics=self.config.metrics,
+        )
+
+        self.model = new_model
+        self.fit(epochs=epochs_first_phase, **kwargs)
+
+        logger.info(
+            f"First phase of transfer learning done. Unfreezing all layers and training further with learning rate {learning_rate_second_phase}..."
+        )
+        for layer in self.model.layers:
+            layer.trainable = True
+
+        new_optimizer = optimizer_class.from_config(optimizer_config)
+        new_optimizer.learning_rate = learning_rate_second_phase
+
+        self.config = TaskConfig(
+            optimizer=new_optimizer,
+            loss=self.config.loss,
+            metrics=self.config.metrics,
+        )
+        self.fit(epochs=epochs_second_phase, **kwargs)
 
     def test(self, return_metrics: bool = False) -> dict | None:
         """

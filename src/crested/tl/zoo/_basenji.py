@@ -107,6 +107,7 @@ def basenji(
         activation=output_activation,
         kernel_initializer="he_normal",
         kernel_regularizer=keras.regularizers.l1_l2(0, 0),
+        name="dense_out",
     )(current)
 
     model = keras.Model(inputs=sequence, outputs=outputs)
