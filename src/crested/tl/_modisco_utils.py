@@ -3,7 +3,6 @@ from __future__ import annotations
 import modiscolite as modisco
 import numpy as np
 import pandas as pd
-from vizsequence.viz_sequence import *
 
 
 def l1(X: np.ndarray) -> np.ndarray:
@@ -39,7 +38,7 @@ def get_2d_data_from_patterns(
     -------
     Forward and reverse 2D data arrays.
     """
-    func = l1 if transformer == "l1" else magnitude
+    func = l1 if transformer == "l1" else None  # magnitude not defined?
     tracks = (
         ["hypothetical_contribs", "contrib_scores"]
         if include_hypothetical
@@ -138,6 +137,3 @@ def read_html_to_dataframe(source: str):
     except ValueError as e:
         # Handle the case where no tables are found
         return f"Error: {str(e)}"
-    except Exception as e:
-        # Handle any other unexpected exceptions
-        return f"An error occurred: {str(e)}"
