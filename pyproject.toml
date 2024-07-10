@@ -19,6 +19,7 @@ urls.Documentation = "https://crested.readthedocs.io/"
 urls.Source = "https://github.com/aertslab/crested/"
 urls.Home-page = "https://github.com/aertslab/crested/"
 dependencies = [
+    "keras>=3.4.0",
     "anndata",
     "pandas",
     "tqdm",
