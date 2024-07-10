@@ -30,15 +30,15 @@ dependencies = [
     "tqdm",
     "loguru",
     "logomaker",
-    "pybigtools",
+    "pybigtools>=0.2.0",
     "seaborn",
-    "pooch"
+    "pooch",
+    "vizsequence"
 ]
 
 [project.optional-dependencies]
 tfmodisco = [
     "modisco-lite",
-    "vizsequence"
 ]
 
 dev = [
