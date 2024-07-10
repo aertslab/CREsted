@@ -9,7 +9,12 @@ from loguru import logger
 from crested._logging import log_and_raise
 from crested.pl._utils import render_plot
 
-from ._utils import _plot_attribution_map, _plot_mutagenesis_map, grad_times_input_to_df, grad_times_input_to_df_mutagenesis
+from ._utils import (
+    _plot_attribution_map,
+    _plot_mutagenesis_map,
+    grad_times_input_to_df,
+    grad_times_input_to_df_mutagenesis,
+)
 
 
 @log_and_raise(ValueError)
@@ -83,7 +88,6 @@ def contribution_scores(
     start_idx = center - int(zoom_n_bases / 2)
     scores = scores[:, :, start_idx : start_idx + zoom_n_bases, :]
 
-
     # Plot
     logger.info(f"Plotting contribution scores for {seqs_one_hot.shape[0]} sequence(s)")
     for seq in range(seqs_one_hot.shape[0]):
@@ -91,24 +95,26 @@ def contribution_scores(
         fig = plt.figure(figsize=(50, fig_height_per_class * scores.shape[1]))
         seq_class_x = seqs_one_hot[seq, start_idx : start_idx + zoom_n_bases, :]
 
-        if method == 'mutagenesis':
-            global_max = scores[seq].max()+0.25*np.abs(scores[seq].max())
-            global_min = scores[seq].min()-0.25*np.abs(scores[seq].min())
+        if method == "mutagenesis":
+            global_max = scores[seq].max() + 0.25 * np.abs(scores[seq].max())
+            global_min = scores[seq].min() - 0.25 * np.abs(scores[seq].min())
         else:
             mins = []
             maxs = []
             for i in range(scores.shape[1]):
                 seq_class_scores = scores[seq, i, :, :]
-                mins.append(np.min(seq_class_scores*seq_class_x))
-                maxs.append(np.max(seq_class_scores*seq_class_x))
-            global_max = np.array(maxs).max()+0.25*np.abs(np.array(maxs).max())
-            global_min = np.array(mins).min()-0.25*np.abs(np.array(mins).min())
+                mins.append(np.min(seq_class_scores * seq_class_x))
+                maxs.append(np.max(seq_class_scores * seq_class_x))
+            global_max = np.array(maxs).max() + 0.25 * np.abs(np.array(maxs).max())
+            global_min = np.array(mins).min() - 0.25 * np.abs(np.array(mins).min())
 
         for i in range(scores.shape[1]):
             seq_class_scores = scores[seq, i, :, :]
             ax = plt.subplot(scores.shape[1], 1, i + 1)
-            if (method =='mutagenesis'):
-                mutagenesis_df = grad_times_input_to_df_mutagenesis(seq_class_x, seq_class_scores)
+            if method == "mutagenesis":
+                mutagenesis_df = grad_times_input_to_df_mutagenesis(
+                    seq_class_x, seq_class_scores
+                )
                 _plot_mutagenesis_map(mutagenesis_df, ax=ax)
             else:
                 intgrad_df = grad_times_input_to_df(seq_class_x, seq_class_scores)
