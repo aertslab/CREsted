@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import NamedTuple
 
-import tensorflow as tf
+import keras
 
 from crested.tl.losses import CosineMSELoss
 from crested.tl.metrics import (
@@ -13,7 +13,6 @@ from crested.tl.metrics import (
     PearsonCorrelation,
     PearsonCorrelationLog,
     ZeroPenaltyMetric,
-    SpearmanCorrelationPerClass
 )
 
 
@@ -22,17 +21,17 @@ class BaseConfig(ABC):
 
     @property
     @abstractmethod
-    def loss(self) -> tf.keras.losses.Loss:
+    def loss(self) -> keras.losses.Loss:
         pass
 
     @property
     @abstractmethod
-    def optimizer(self) -> tf.keras.optimizers.Optimizer:
+    def optimizer(self) -> keras.optimizers.Optimizer:
         pass
 
     @property
     @abstractmethod
-    def metrics(self) -> list[tf.keras.metrics.Metric]:
+    def metrics(self) -> list[keras.metrics.Metric]:
         pass
 
 
@@ -40,17 +39,17 @@ class TopicClassificationConfig(BaseConfig):
     """Default configuration for topic classification task."""
 
     @property
-    def loss(self) -> tf.keras.losses.Loss:
-        return tf.keras.losses.BinaryCrossentropy(from_logits=False)
+    def loss(self) -> keras.losses.Loss:
+        return keras.losses.BinaryCrossentropy(from_logits=False)
 
     @property
-    def optimizer(self) -> tf.keras.optimizers.Optimizer:
-        return tf.keras.optimizers.Adam(learning_rate=1e-3)
+    def optimizer(self) -> keras.optimizers.Optimizer:
+        return keras.optimizers.Adam(learning_rate=1e-3)
 
     @property
-    def metrics(self) -> list[tf.keras.metrics.Metric]:
+    def metrics(self) -> list[keras.metrics.Metric]:
         return [
-            tf.keras.metrics.AUC(
+            keras.metrics.AUC(
                 num_thresholds=200,
                 curve="ROC",
                 summation_method="interpolation",
@@ -59,7 +58,7 @@ class TopicClassificationConfig(BaseConfig):
                 multi_label=True,
                 label_weights=None,
             ),
-            tf.keras.metrics.AUC(
+            keras.metrics.AUC(
                 num_thresholds=200,
                 curve="PR",
                 summation_method="interpolation",
@@ -68,7 +67,7 @@ class TopicClassificationConfig(BaseConfig):
                 multi_label=True,
                 label_weights=None,
             ),
-            tf.keras.metrics.CategoricalAccuracy(),
+            keras.metrics.CategoricalAccuracy(),
         ]
 
 
@@ -79,26 +78,24 @@ class PeakRegressionConfig(BaseConfig):
         self.num_classes = num_classes
 
     @property
-    def loss(self) -> tf.keras.losses.Loss:
+    def loss(self) -> keras.losses.Loss:
         return CosineMSELoss()
 
     @property
-    def optimizer(self) -> tf.keras.optimizers.Optimizer:
-        return tf.keras.optimizers.Adam(learning_rate=1e-3)
+    def optimizer(self) -> keras.optimizers.Optimizer:
+        return keras.optimizers.Adam(learning_rate=1e-3)
 
     @property
-    def metrics(self) -> list[tf.keras.metrics.Metric]:
+    def metrics(self) -> list[keras.metrics.Metric]:
         metrics = [
-            tf.keras.metrics.MeanAbsoluteError(),
-            tf.keras.metrics.MeanSquaredError(),
-            tf.keras.metrics.CosineSimilarity(axis=1),
+            keras.metrics.MeanAbsoluteError(),
+            keras.metrics.MeanSquaredError(),
+            keras.metrics.CosineSimilarity(axis=1),
             PearsonCorrelation(),
             ConcordanceCorrelationCoefficient(),
             PearsonCorrelationLog(),
-            ZeroPenaltyMetric()
+            ZeroPenaltyMetric(),
         ]
-        #if self.num_classes is not None:
-        #    metrics.append(SpearmanCorrelationPerClass(num_classes=self.num_classes))
         return metrics
 
 
@@ -134,9 +131,9 @@ class TaskConfig(NamedTuple):
     crested.tl.default_configs
     """
 
-    optimizer: tf.keras.optimizers.Optimizer
-    loss: tf.keras.losses.Loss
-    metrics: list[tf.keras.metrics.Metric]
+    optimizer: keras.optimizers.Optimizer
+    loss: keras.losses.Loss
+    metrics: list[keras.metrics.Metric]
 
     def to_dict(self) -> dict:
         """
@@ -162,9 +159,7 @@ class TaskConfig(NamedTuple):
         }
 
 
-def default_configs(
-    task: str, num_classes: int = None
-) -> TaskConfig:
+def default_configs(task: str, num_classes: int = None) -> TaskConfig:
     """
     Get default loss, optimizer, and metrics for an existing task.
 
@@ -205,7 +200,11 @@ def default_configs(
             f"Task '{task}' not supported. Only {list(task_classes.keys())} are supported."
         )
 
-    task_class = task_classes[task](num_classes=num_classes) if task =='peak_regression' else task_classes[task]()
+    task_class = (
+        task_classes[task](num_classes=num_classes)
+        if task == "peak_regression"
+        else task_classes[task]()
+    )
     loss = task_class.loss
     optimizer = task_class.optimizer
     metrics = task_class.metrics

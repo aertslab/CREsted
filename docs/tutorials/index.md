@@ -5,4 +5,5 @@
 
 introduction
 mouse_biccn
+multi_gpu
 ```

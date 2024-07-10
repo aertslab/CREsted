@@ -2,18 +2,15 @@
 
 from __future__ import annotations
 
-import tensorflow as tf
+import os
+
+if os.environ["KERAS_BACKEND"] == "torch":
+    import torch
+    from torch.utils.data import DataLoader
+else:
+    import tensorflow as tf
 
 from ._dataset import AnnDataset
-
-BASE_TO_INT_MAPPING = {"A": 0, "C": 1, "G": 2, "T": 3}
-STATIC_HASH_TABLE = tf.lookup.StaticHashTable(
-    initializer=tf.lookup.KeyValueTensorInitializer(
-        keys=tf.constant(list(BASE_TO_INT_MAPPING.keys())),
-        values=tf.constant(list(BASE_TO_INT_MAPPING.values()), dtype=tf.int32),
-    ),
-    default_value=-1,
-)
 
 
 class AnnDataLoader:
@@ -28,8 +25,6 @@ class AnnDataLoader:
         Number of samples per batch.
     shuffle
         Indicates whether shuffling is enabled.
-    one_hot_encode
-        Indicates whether one-hot encoding is enabled.
     drop_remainder
         Indicates whether to drop the last incomplete batch.
 
@@ -38,7 +33,7 @@ class AnnDataLoader:
     >>> dataset = AnnDataset(...)  # Your dataset instance
     >>> batch_size = 32
     >>> dataloader = AnnDataLoader(
-    ...     dataset, batch_size, shuffle=True, one_hot_encode=True, drop_remainder=True
+    ...     dataset, batch_size, shuffle=True, drop_remainder=True
     ... )
     >>> for x, y in dataloader.data:
     ...     # Your training loop here
@@ -49,62 +44,51 @@ class AnnDataLoader:
         dataset: AnnDataset,
         batch_size: int,
         shuffle: bool = False,
-        one_hot_encode: bool = True,
         drop_remainder: bool = True,
     ):
         """Initialize the DataLoader with the provided dataset and options."""
         self.dataset = dataset
         self.batch_size = batch_size
         self.shuffle = shuffle
-        self.one_hot_encode = one_hot_encode
         self.drop_remainder = drop_remainder
+        if os.environ["KERAS_BACKEND"] == "torch":
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         if self.shuffle:
             self.dataset.shuffle = True
 
-    @tf.function
-    def _map_one_hot_encode(self, sequence, target):
-        """One hot encoding as a tf mapping function during prefetching."""
-        if isinstance(sequence, str):
-            sequence = tf.constant([sequence])
-        elif isinstance(sequence, tf.Tensor) and sequence.ndim == 0:
-            sequence = tf.expand_dims(sequence, 0)
-
-        def one_hot_encode(sequence):
-            char_seq = tf.strings.unicode_split(sequence, "UTF-8")
-            integer_seq = STATIC_HASH_TABLE.lookup(char_seq)
-            x = tf.one_hot(integer_seq, depth=4)
-            return x
-
-        one_hot_sequence = tf.map_fn(
-            one_hot_encode,
-            sequence,
-            fn_output_signature=tf.TensorSpec(
-                shape=(self.dataset.seq_len, 4), dtype=tf.float32
-            ),
+    def _collate_fn(self, batch):
+        """Collate function to move tensors to the specified device if backend is torch."""
+        inputs, targets = zip(*batch)
+        inputs = torch.stack([torch.tensor(input) for input in inputs]).to(self.device)
+        targets = torch.stack([torch.tensor(target) for target in targets]).to(
+            self.device
         )
-        one_hot_sequence = tf.squeeze(one_hot_sequence, axis=0)  # remove extra map dim
-        return one_hot_sequence, target
+        return inputs, targets
 
     def _create_dataset(self):
-        ds = tf.data.Dataset.from_generator(
-            self.dataset,
-            output_signature=(
-                tf.TensorSpec(shape=(), dtype=tf.string),
-                tf.TensorSpec(shape=(self.dataset.num_outputs,), dtype=tf.float32),
-            ),
-        )
-        if self.one_hot_encode:
-            ds = ds.map(
-                lambda seq, tgt: self._map_one_hot_encode(seq, tgt),
-                num_parallel_calls=tf.data.AUTOTUNE,
+        if os.environ["KERAS_BACKEND"] == "torch":
+            return DataLoader(
+                self.dataset,
+                batch_size=self.batch_size,
+                drop_last=self.drop_remainder,
+                num_workers=0,
+                collate_fn=self._collate_fn,
             )
-        ds = (
-            ds.batch(self.batch_size, drop_remainder=self.drop_remainder)
-            .repeat()
-            .prefetch(tf.data.AUTOTUNE)
-        )
-        return ds
+        elif os.environ["KERAS_BACKEND"] == "tensorflow":
+            ds = tf.data.Dataset.from_generator(
+                self.dataset,
+                output_signature=(
+                    tf.TensorSpec(shape=(self.dataset.seq_len, 4), dtype=tf.float32),
+                    tf.TensorSpec(shape=(self.dataset.num_outputs,), dtype=tf.float32),
+                ),
+            )
+            ds = (
+                ds.batch(self.batch_size, drop_remainder=self.drop_remainder)
+                .repeat()
+                .prefetch(tf.data.AUTOTUNE)
+            )
+            return ds
 
     @property
     def data(self):
@@ -117,6 +101,5 @@ class AnnDataLoader:
     def __repr__(self):
         return (
             f"AnnDataLoader(dataset={self.dataset}, batch_size={self.batch_size}, "
-            f"shuffle={self.shuffle}, one_hot_encode={self.one_hot_encode}, "
-            f"drop_remainder={self.drop_remainder})"
+            f"shuffle={self.shuffle}, drop_remainder={self.drop_remainder})"
         )

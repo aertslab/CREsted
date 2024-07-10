@@ -9,6 +9,7 @@ import tensorflow as tf
 
 from crested.tl._utils import generate_mutagenesis
 
+
 class Explainer:
     """wrapper class for attribution maps"""
 

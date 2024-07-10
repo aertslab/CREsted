@@ -5,15 +5,14 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+import keras
 import numpy as np
-import tensorflow as tf
 from anndata import AnnData
 from loguru import logger
 from tqdm import tqdm
 
 from crested._logging import log_and_raise
 from crested.tl import TaskConfig
-from crested.tl._explainer import Explainer
 from crested.tl._utils import (
     _weighted_difference,
     generate_motif_insertions,
@@ -24,18 +23,10 @@ from crested.tl._utils import (
 from crested.tl.data import AnnDataModule
 from crested.tl.data._dataset import SequenceLoader
 
-
-class LRLogger(tf.keras.callbacks.Callback):
-    def __init__(self, optimizer):
-        super().__init__()
-
-        self.optimizer = optimizer
-
-    def on_epoch_end(self, epoch, logs):
-        import wandb
-
-        lr = float(tf.keras.backend.get_value(self.model.optimizer.learning_rate))
-        wandb.log({"lr": lr}, commit=False)
+if os.environ["KERAS_BACKEND"] == "tensorflow":
+    from crested.tl._explainer_tf import Explainer
+elif os.environ["KERAS_BACKEND"] == "torch":
+    from crested.tl._explainer_torch import Explainer
 
 
 class Crested:
@@ -61,6 +52,8 @@ class Crested:
         If not provided, no additional logging will be done.
     seed
         Seed to use for reproducibility.
+        WARNING: this doesn't make everything fully reproducible, especially on GPU.
+        Some (GPU) operations are non-deterministic and simply can't be controlled by the seed.
 
     Examples
     --------
@@ -102,7 +95,7 @@ class Crested:
     def __init__(
         self,
         data: AnnDataModule,
-        model: tf.keras.Model | None = None,
+        model: keras.Model | None = None,
         config: TaskConfig | None = None,
         project_name: str | None = None,
         run_name: str | None = None,
@@ -124,7 +117,8 @@ class Crested:
         self.save_dir = os.path.join(self.project_name, self.run_name)
 
         if self.seed:
-            tf.random.set_seed(self.seed)
+            keras.utils.set_random_seed(self.seed)
+        self.devices = self._check_gpu_availability()
 
         self.acgt_distribution = None
 
@@ -148,14 +142,14 @@ class Crested:
         """Initialize callbacks"""
         callbacks = []
         if early_stopping:
-            early_stopping_callback = tf.keras.callbacks.EarlyStopping(
+            early_stopping_callback = keras.callbacks.EarlyStopping(
                 patience=early_stopping_patience,
                 mode=early_stopping_mode,
                 monitor=early_stopping_metric,
             )
             callbacks.append(early_stopping_callback)
         if model_checkpointing:
-            model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+            model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
                 filepath=os.path.join(save_dir, "checkpoints", "{epoch:02d}.keras"),
                 monitor=model_checkpointing_metric,
                 save_best_only=model_checkpointing_best_only,
@@ -164,7 +158,7 @@ class Crested:
             )
             callbacks.append(model_checkpoint_callback)
         if learning_rate_reduce:
-            learning_rate_reduce_callback = tf.keras.callbacks.ReduceLROnPlateau(
+            learning_rate_reduce_callback = keras.callbacks.ReduceLROnPlateau(
                 patience=learning_rate_reduce_patience,
                 monitor=learning_rate_reduce_metric,
                 factor=0.25,
@@ -180,6 +174,10 @@ class Crested:
         """Initialize logger"""
         callbacks = []
         if logger_type == "wandb":
+            if os.environ["KERAS_BACKEND"] != "tensorflow":
+                raise ValueError(
+                    "Wandb logging is only available with the tensorflow backend until wandb has finished their keras 3.0 integration."
+                )
             import wandb
             from wandb.integration.keras import WandbMetricsLogger
 
@@ -191,8 +189,12 @@ class Crested:
             wandb_callback_batch = WandbMetricsLogger(log_freq=10)
             callbacks.extend([wandb_callback_epoch, wandb_callback_batch])
         elif logger_type == "tensorboard":
+            if os.environ["KERAS_BACKEND"] != "tensorflow":
+                raise ValueError("Tensorboard requires a tensorflow installation")
             log_dir = os.path.join(project_name, run_name, "logs")
-            tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir)
+            tensorboard_callback = keras.callbacks.TensorBoard(
+                log_dir=log_dir, update_freq=10
+            )
             callbacks.append(tensorboard_callback)
             run = None
         else:
@@ -213,7 +215,7 @@ class Crested:
             the model weights (e.g. when finetuning a model). If False, you should
             provide a TaskConfig to the Crested object before calling fit.
         """
-        self.model = tf.keras.models.load_model(model_path, compile=compile)
+        self.model = keras.models.load_model(model_path, compile=compile)
 
     def fit(
         self,
@@ -270,7 +272,6 @@ class Crested:
             List of custom callbacks to use during training.
         """
         self._check_fit_params()
-        self._check_gpu_availability()
 
         callbacks = self._initialize_callbacks(
             self.save_dir,
@@ -295,19 +296,12 @@ class Crested:
         if logger_callbacks:
             callbacks.extend(logger_callbacks)
 
-        # Configure strategy and compile model
-        # strategy = tf.distribute.MirroredStrategy()
-
         if mixed_precision:
             logger.warning(
                 "Mixed precision enabled. This can lead to faster training times but sometimes causes instable training. Disable on CPU or older GPUs."
             )
-            tf.keras.mixed_precision.set_global_policy("mixed_float16")
+            keras.mixed_precision.set_global_policy("mixed_float16")
 
-        lr_metric = LRLogger(self.config.optimizer)
-        callbacks.append(lr_metric)
-
-        # with strategy.scope():
         self.model.compile(
             optimizer=self.config.optimizer,
             loss=self.config.loss,
@@ -315,11 +309,13 @@ class Crested:
         )
 
         print(self.model.summary())
-        devices = tf.config.list_physical_devices("GPU")
-        logger.info(f"Number of GPUs in use: {len(devices)}")
 
         # setup data
-        self.anndatamodule.setup("fit")
+        if (
+            self.anndatamodule.train_dataset is None
+            or self.anndatamodule.val_dataset is None
+        ):
+            self.anndatamodule.setup("fit")
         train_loader = self.anndatamodule.train_dataloader
         val_loader = self.anndatamodule.val_dataloader
 
@@ -352,19 +348,139 @@ class Crested:
             )
 
         try:
-            self.model.fit(
-                train_loader.data,
-                validation_data=val_loader.data,
-                epochs=epochs,
-                steps_per_epoch=n_train_steps_per_epoch,
-                validation_steps=n_val_steps_per_epoch,
-                callbacks=callbacks,
-            )
+            if os.environ["KERAS_BACKEND"] == "tensorflow":
+                self.model.fit(
+                    train_loader.data,
+                    validation_data=val_loader.data,
+                    epochs=epochs,
+                    steps_per_epoch=n_train_steps_per_epoch,
+                    validation_steps=n_val_steps_per_epoch,
+                    callbacks=callbacks,
+                    shuffle=False,
+                )
+            # torch.Dataloader throws "repeat" warnings when using steps_per_epoch
+            elif os.environ["KERAS_BACKEND"] == "torch":
+                self.model.fit(
+                    train_loader.data,
+                    validation_data=val_loader.data,
+                    epochs=epochs,
+                    callbacks=callbacks,
+                    shuffle=False,
+                )
         except KeyboardInterrupt:
             logger.warning("Training interrupted by user.")
         finally:
             if run:
                 run.finish()
+
+    def transferlearn(
+        self,
+        epochs_first_phase: int = 50,
+        epochs_second_phase: int = 50,
+        learning_rate_first_phase: float = 1e-4,
+        learning_rate_second_phase: float = 1e-6,
+        dense_block_name: str = "denseblock",
+        **kwargs,
+    ):
+        """
+        Perform transfer learning on the model.
+
+        The first phase freezes all layers before the DenseBlock (if it exists, else it freezes all layers), replaces the Dense layer, and trains with a low learning rate.
+        The second phase unfreezes all layers and continues training with an even lower learning rate.
+        This is especially useful in topic classification to be able to transfer learn to annotated cell type labels instead of topics.
+
+        Ensure that you load a model first using Crested.load_model() before calling this function.
+
+        Parameters
+        ----------
+        epochs_first_phase
+            Number of epochs to train in the first phase.
+        epochs_second_phase
+            Number of epochs to train in the second phase.
+        learning_rate_first_phase
+            Learning rate for the first phase.
+        learning_rate_second_phase
+            Learning rate for the second phase.
+        mixed_precision
+            Enable mixed precision training.
+        kwargs
+            Additional keyword arguments to pass to the fit method.
+
+        See Also
+        --------
+        crested.tl.Crested.fit
+        """
+        logger.info(
+            f"First phase of transfer learning. Freezing all layers before the DenseBlock (if it exists) and adding a new Dense Layer. Training with learning rate {learning_rate_first_phase}..."
+        )
+        assert (
+            self.model is not None
+        ), "Model is not loaded. Load a model first using Crested.load_model()."
+
+        # Get the current optimizer configuration
+        old_optimizer = self.model.optimizer
+        optimizer_config = old_optimizer.get_config()
+        optimizer_class = type(old_optimizer)
+
+        base_model = self.model
+
+        # Freeze all layers before the DenseBlock or dense_out
+        for layer in base_model.layers:
+            if dense_block_name in layer.name:
+                found_dense_block = True
+                break
+            layer.trainable = False  # Freeze the layer
+
+        if not found_dense_block:
+            if not any("dense_out" in layer.name for layer in base_model.layers):
+                raise ValueError(
+                    f"Neither '{dense_block_name}' nor 'dense_out' found in model layers."
+                )
+            else:
+                base_model.trainable = False
+
+        # Change the number of output units to match the new task
+        old_activation_layer = base_model.layers[-1]
+        old_activation = old_activation_layer.activation
+
+        x = base_model.layers[-3].output
+        new_output_units = self.anndatamodule.adata.X.shape[0]
+        new_output_layer = keras.layers.Dense(
+            new_output_units, name="dense_out_transfer", trainable=True
+        )(x)
+        new_activation_layer = keras.layers.Activation(
+            old_activation, name="activation_transfer"
+        )(new_output_layer)
+        new_model = keras.Model(inputs=base_model.input, outputs=new_activation_layer)
+
+        new_optimizer = optimizer_class.from_config(optimizer_config)
+        new_optimizer.learning_rate = learning_rate_first_phase
+
+        # initialize new taskconfig
+        self.config = TaskConfig(
+            optimizer=new_optimizer,
+            loss=self.config.loss,
+            metrics=self.config.metrics,
+        )
+
+        self.model = new_model
+        self.fit(epochs=epochs_first_phase, **kwargs)
+
+        logger.info(
+            f"First phase of transfer learning done. Unfreezing all layers and training further with learning rate {learning_rate_second_phase}..."
+        )
+        for layer in self.model.layers:
+            layer.trainable = True
+
+        new_optimizer = optimizer_class.from_config(optimizer_config)
+        new_optimizer.learning_rate = learning_rate_second_phase
+
+        self.config = TaskConfig(
+            optimizer=new_optimizer,
+            loss=self.config.loss,
+            metrics=self.config.metrics,
+        )
+        self.fit(epochs=epochs_second_phase, **kwargs)
 
     def test(self, return_metrics: bool = False) -> dict | None:
         """
@@ -380,12 +496,13 @@ class Crested:
         Evaluation metrics as a dictionary or None if return_metrics is False.
         """
         self._check_test_params()
-        self._check_gpu_availability()
 
         self.anndatamodule.setup("test")
         test_loader = self.anndatamodule.test_dataloader
 
-        n_test_steps = len(test_loader)
+        n_test_steps = (
+            len(test_loader) if os.environ["KERAS_BACKEND"] == "tensorflow" else None
+        )
 
         evaluation_metrics = self.model.evaluate(
             test_loader.data, steps=n_test_steps, return_dict=True
@@ -421,13 +538,14 @@ class Crested:
         Predictions of shape (N, C)
         """
         self._check_predict_params(anndata, model_name)
-        self._check_gpu_availability()
 
         if self.anndatamodule.predict_dataset is None:
             self.anndatamodule.setup("predict")
         predict_loader = self.anndatamodule.predict_dataloader
 
-        n_predict_steps = len(predict_loader)
+        n_predict_steps = (
+            len(predict_loader) if os.environ["KERAS_BACKEND"] == "tensorflow" else None
+        )
 
         predictions = self.model.predict(predict_loader.data, steps=n_predict_steps)
 
@@ -528,7 +646,6 @@ class Crested:
         crested.pl.patterns.contribution_scores
         """
         self._check_contribution_scores_params(class_names)
-        self._check_gpu_availability()
 
         if self.anndatamodule.predict_dataset is None:
             self.anndatamodule.setup("predict")
@@ -777,7 +894,6 @@ class Crested:
             os.makedirs(output_dir)
 
         # Extract regions and class names from adata.var
-        regions = adata.var.index.tolist()
         all_class_names = adata.var["Class name"].unique().tolist()
 
         # If class_names is None, process all classes
@@ -814,7 +930,7 @@ class Crested:
                 os.path.join(output_dir, f"{class_name}_contrib.npz"), contrib_scores
             )
 
-        print(
+        logger.info(
             f"Contribution scores and one-hot encoded sequences saved to {output_dir}"
         )
 
@@ -931,7 +1047,7 @@ class Crested:
                 number_of_insertions = insertions_per_pattern[pattern_name]
                 motif_onehot = one_hot_encode_sequence(patterns[pattern_name])
                 motif_length = motif_onehot.shape[1]
-                for insertion_number in range(number_of_insertions):
+                for _insertion_number in range(number_of_insertions):
                     current_prediction = self.model.predict(
                         sequence_onehot, verbose=False
                     )
@@ -1084,7 +1200,7 @@ class Crested:
                 )
 
             # sequentially do mutations
-            for mutation_step in range(n_mutations):
+            for _mutation_step in range(n_mutations):
                 current_prediction = self.model.predict(sequence_onehot, verbose=False)
 
                 # do every possible mutation
@@ -1167,9 +1283,22 @@ class Crested:
     @staticmethod
     def _check_gpu_availability():
         """Check if GPUs are available."""
-        devices = tf.config.list_physical_devices("GPU")
-        if not devices:
-            logger.warning("No GPUs available.")
+        if os.environ["KERAS_BACKEND"] == "torch":
+            # torch backend not yet available in keras.distribution
+            import torch
+
+            if torch.cuda.is_available():
+                return torch.device("cuda")
+            else:
+                logger.warning("No GPUs available, falling back to CPU.")
+                return torch.device("cpu")
+
+        elif os.environ["KERAS_BACKEND"] == "tensorflow":
+            devices = keras.distribution.list_devices("gpu")
+            if not devices:
+                logger.warning("No GPUs available, falling back to CPU.")
+                devices = keras.distribution.list_devices("cpu")
+            return devices
 
     @log_and_raise(ValueError)
     def _check_contrib_params(self, method):

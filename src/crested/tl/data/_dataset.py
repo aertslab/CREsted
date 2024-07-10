@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from os import PathLike
 
 import numpy as np
@@ -11,6 +12,8 @@ from loguru import logger
 from pysam import FastaFile
 from scipy.sparse import spmatrix
 from tqdm import tqdm
+
+from crested.tl._utils import one_hot_encode_sequence
 
 
 def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
@@ -58,6 +61,7 @@ class SequenceLoader:
         """Get sequence from genome file, extended for stochastic shifting."""
         chrom, start_end = region.split(":")
         start, end = map(int, start_end.split("-"))
+
         extended_start = max(0, start - self.max_stochastic_shift)
         extended_end = extended_start + (end - start) + (self.max_stochastic_shift * 2)
 
@@ -69,7 +73,7 @@ class SequenceLoader:
                 )
                 extended_end = chrom_size
 
-        return self.genome.fetch(chrom, extended_start, extended_end)
+        return self.genome.fetch(chrom, extended_start, extended_end).upper()
 
     def _reverse_complement(self, sequence: str) -> str:
         """Reverse complement a sequence."""
@@ -96,34 +100,71 @@ class SequenceLoader:
 
 
 class IndexManager:
-    def __init__(self, indices: list[str], always_reverse_complement: bool):
+    def __init__(
+        self,
+        indices: list[str],
+        always_reverse_complement: bool,
+        deterministic_shift: bool = False,
+    ):
         self.indices = indices
         self.always_reverse_complement = always_reverse_complement
+        self.deterministic_shift = deterministic_shift
         self.augmented_indices, self.augmented_indices_map = self._augment_indices(
             indices
         )
+
+    def shuffle_indices(self):
+        """Shuffling of indices. Managed by subclass AnnDataLoader."""
+        np.random.shuffle(self.augmented_indices)
 
     def _augment_indices(self, indices: list[str]) -> tuple[list[str], dict[str, str]]:
         """Augment indices with strand information. Necessary if always reverse complement to map sequences back to targets."""
         augmented_indices = []
         augmented_indices_map = {}
         for region in indices:
-            augmented_indices.append(f"{region}:+")
-            augmented_indices_map[f"{region}:+"] = region
-            if self.always_reverse_complement:
-                augmented_indices.append(f"{region}:-")
-                augmented_indices_map[f"{region}:-"] = region
+            if self.deterministic_shift:
+                shifted_regions = self._deterministic_shift_region(region)
+                for shifted_region in shifted_regions:
+                    augmented_indices.append(f"{shifted_region}:+")
+                    augmented_indices_map[f"{shifted_region}:+"] = region
+                    if self.always_reverse_complement:
+                        augmented_indices.append(f"{shifted_region}:-")
+                        augmented_indices_map[f"{shifted_region}:-"] = region
+            else:
+                augmented_indices.append(f"{region}:+")
+                augmented_indices_map[f"{region}:+"] = region
+                if self.always_reverse_complement:
+                    augmented_indices.append(f"{region}:-")
+                    augmented_indices_map[f"{region}:-"] = region
         return augmented_indices, augmented_indices_map
 
-    def shuffle_indices(self):
-        """Shuffling of indices. Managed by subclass AnnDataLoader."""
-        np.random.shuffle(self.indices)
-        self.augmented_indices, self.augmented_indices_map = self._augment_indices(
-            self.indices
-        )
+    def _deterministic_shift_region(
+        self, region: str, stride: int = 50, n_shifts: int = 2
+    ) -> list[str]:
+        """
+        Shift each region by a deterministic stride to each side. Will increase the number of regions by n_shifts times two.
+
+        This is a legacy function, it's recommended to use stochastic shifting instead.
+        """
+        new_regions = []
+        chrom, start_end = region.split(":")
+        start, end = map(int, start_end.split("-"))
+        for i in range(-n_shifts, n_shifts + 1):
+            new_start = start + i * stride
+            new_end = end + i * stride
+            new_regions.append(f"{chrom}:{new_start}-{new_end}")
+        return new_regions
 
 
-class AnnDataset:
+if os.environ["KERAS_BACKEND"] == "pytorch":
+    import torch
+
+    BaseClass = torch.utils.data.Dataset
+else:
+    BaseClass = object
+
+
+class AnnDataset(BaseClass):
     def __init__(
         self,
         anndata: AnnData,
@@ -134,6 +175,7 @@ class AnnDataset:
         random_reverse_complement: bool = False,
         always_reverse_complement: bool = False,
         max_stochastic_shift: int = 0,
+        deterministic_shift: bool = False,
     ):
         self.anndata = self._split_anndata(anndata, split)
         self.split = split
@@ -155,7 +197,11 @@ class AnnDataset:
             max_stochastic_shift,
             self.indices,
         )
-        self.index_manager = IndexManager(self.indices, always_reverse_complement)
+        self.index_manager = IndexManager(
+            self.indices,
+            always_reverse_complement=always_reverse_complement,
+            deterministic_shift=deterministic_shift,
+        )
         self.seq_len = len(self.sequence_loader.get_sequence(self.indices[0]))
 
     @staticmethod
@@ -206,17 +252,19 @@ class AnnDataset:
         if self.random_reverse_complement and np.random.rand() < 0.5:
             x = self.sequence_loader._reverse_complement(x)
 
+        # one hot encode sequence and convert to numpy array
+        x = one_hot_encode_sequence(x, expand_dim=False)
         y = self._get_target(original_index)
+
         return x, y
 
     def __call__(self):
         """Generator for the dataset."""
         for i in range(len(self)):
+            if i == 0:
+                if self.shuffle:
+                    self.index_manager.shuffle_indices()
             yield self.__getitem__(i)
-
-        if i == (len(self) - 1):
-            if self.shuffle:
-                self.index_manager.shuffle_indices()
 
     def __repr__(self) -> str:
         """Representation of the dataset."""
