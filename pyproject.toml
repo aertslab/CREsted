@@ -64,6 +64,7 @@ test = [
     "pytest",
     "coverage",
     "anndata",
+    "tensorflow",
 ]
 
 [tool.coverage.run]
