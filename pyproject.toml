@@ -19,26 +19,27 @@ urls.Documentation = "https://crested.readthedocs.io/"
 urls.Source = "https://github.com/aertslab/crested/"
 urls.Home-page = "https://github.com/aertslab/crested/"
 dependencies = [
-    "tensorflow[and-cuda]",
+    "keras>=3.4.0",
     "anndata",
     "pandas",
     "tqdm",
     "wandb>=0.12.10",
     "pysam",
-    "numpy<1.25.0",
+    "numpy",
     "scikit-learn",
     "tqdm",
     "loguru",
     "logomaker",
-    "pybigtools",
+    "pybigtools>=0.2.0",
     "seaborn",
-    "cmake",
-    "modisco-lite",
-    "vizsequence",
-    "html5lib"
+    "pooch",
 ]
 
 [project.optional-dependencies]
+tfmodisco = [
+    "modisco-lite",
+]
+
 dev = [
     "pre-commit",
     "twine>=4.0.2",
@@ -62,6 +63,7 @@ test = [
     "pytest",
     "coverage",
     "anndata",
+    "tensorflow",
 ]
 
 [tool.coverage.run]

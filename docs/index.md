@@ -6,7 +6,8 @@
 :hidden: true
 :maxdepth: 1
 
-tutorials/index.md
+installation
+tutorials/index
 api/index
 changelog
 contributing
