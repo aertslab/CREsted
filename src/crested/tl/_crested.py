@@ -1112,21 +1112,16 @@ class Crested:
         target_len: int | None = None,
     ) -> tuple[list(dict), list] | list:
         """
-        Create synthetic enhancers for a specified class using motif implementation.
+        Create synthetic enhancers for a specified class using in silico evolution (ISE).
 
         Parameters
         ----------
         target_class
             Class name for which the enhancers will be designed for.
+        n_mutations
+            Number of mutations per sequence
         n_sequences
             Number of enhancers to design
-        n_sequences
-            Number of mutations to done
-        patterns
-            Dictionary of patterns to be implemented in the form of 'pattern_name':'pattern_sequence'
-        insertions_per_pattern
-            Dictionary of number of patterns to be implemented in the form of 'pattern_name':number_of_insertions
-            If not used one of each pattern in patterns will be implemented.
         return_intermediate
             If True, returns a dictionary with predictions and changes made in intermediate steps for selected
             sequences
