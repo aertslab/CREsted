@@ -1,8 +1,7 @@
 """Deeptopic LSTM model architecture."""
 
+import keras
 import pickle
-import tensorflow as tf
-import tensorflow.keras.layers as layers
 
 from crested.tl.zoo.utils import get_output
 
@@ -22,7 +21,7 @@ def deeptopic_lstm(
     dense_do: float = 0.4,
     pre_dense_do: float = 0.2,
     motifs_path: str = None,
-) -> tf.keras.Model:
+) -> keras.Model:
     """
     Construct a DeepTopicLSTM model. Usually used for topic classification.
 
@@ -60,42 +59,42 @@ def deeptopic_lstm(
 
     Returns
     -------
-    tf.keras.Model
-        A TensorFlow Keras model.
+    keras.Model
+        A Keras model.
     """
-    inputs = layers.Input(shape=(seq_len, 4), name="sequence")
+    inputs = keras.layers.Input(shape=(seq_len, 4), name="sequence")
 
     hidden_layers = [
-        layers.Convolution1D(
+        keras.layers.Convolution1D(
             filters=filters,
             kernel_size=first_kernel_size,
             activation=first_activation,
             padding="valid",
             kernel_initializer='random_uniform'
         ),
-        layers.MaxPooling1D(
+        keras.layers.MaxPooling1D(
             pool_size=max_pool_size,
             strides=max_pool_stride,
             padding='valid'
         ),
-        layers.Dropout(pre_dense_do),
-        layers.TimeDistributed(layers.Dense(lstm_out, activation=activation)),
-        layers.Bidirectional(layers.LSTM(
+        keras.layers.Dropout(pre_dense_do),
+        keras.layers.TimeDistributed(keras.layers.Dense(lstm_out, activation=activation)),
+        keras.layers.Bidirectional(keras.layers.LSTM(
             lstm_out,
             dropout=lstm_do,
             recurrent_dropout=lstm_do,
             return_sequences=True)
         ),
-        layers.Dropout(pre_dense_do),
-        layers.Flatten(),
-        layers.Dense(dense_out, activation=activation),
-        layers.Dropout(dense_do),
-        layers.Dense(num_classes, activation='sigmoid')
+        keras.layers.Dropout(pre_dense_do),
+        keras.layers.Flatten(),
+        keras.layers.Dense(dense_out, activation=activation),
+        keras.layers.Dropout(dense_do),
+        keras.layers.Dense(num_classes, activation='sigmoid')
     ]
 
     outputs = get_output(inputs, hidden_layers)
 
-    model = tf.keras.Model(inputs=inputs, outputs=outputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
 
     if motifs_path is not None:
         f = open(motifs_path, "rb")
