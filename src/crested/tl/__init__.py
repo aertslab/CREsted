@@ -20,6 +20,8 @@ try:
         match_h5_files_to_classes,
         process_patterns,
         tfmodisco,
+        pattern_similarity,
+        calculate_similarity_matrix
     )
 except ImportError:
     create_pattern_matrix = _optional_function_warning
@@ -27,6 +29,9 @@ except ImportError:
     match_h5_files_to_classes = _optional_function_warning
     process_patterns = _optional_function_warning
     tfmodisco = _optional_function_warning
+    pattern_similarity = _optional_function_warning
+    calculate_similarity_matrix = _optional_function_warning
+
 
 if tfmodisco is not None:
     __all__ = [
@@ -42,6 +47,8 @@ if tfmodisco is not None:
         "match_h5_files_to_classes",
         "process_patterns",
         "tfmodisco",
+        "calculate_similarity_matrix",
+        "pattern_similarity"
     ]
 else:
     __all__ = [

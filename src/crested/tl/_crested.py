@@ -162,7 +162,8 @@ class Crested:
                 patience=learning_rate_reduce_patience,
                 monitor=learning_rate_reduce_metric,
                 factor=0.25,
-                mode=learning_rate_reduce_mode
+                mode=learning_rate_reduce_mode,
+                min_lr=1e-6
             )
             callbacks.append(learning_rate_reduce_callback)
         if custom_callbacks is not None:

@@ -11,12 +11,14 @@ def _optional_function_warning(*args, **kwargs):
 
 
 try:
-    from ._modisco_results import create_clustermap, modisco_results
+    from ._modisco_results import create_clustermap, modisco_results, plot_patterns, plot_similarity_heatmap
 except ImportError:
     modisco_results = _optional_function_warning
     create_clustermap = _optional_function_warning
+    plot_patterns = _optional_function_warning
+    plot_similarity_heatmap = _optional_function_warning
 
 if modisco_results is not None:
-    __all__ = ["contribution_scores", "modisco_results", "create_clustermap"]
+    __all__ = ["contribution_scores", "modisco_results", "create_clustermap", "plot_patterns", "plot_similarity_heatmap"]
 else:
     __all__ = ["contribution_scores"]

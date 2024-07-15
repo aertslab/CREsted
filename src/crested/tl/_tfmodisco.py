@@ -10,9 +10,9 @@ import pandas as pd
 from loguru import logger
 
 from crested._logging import log_and_raise
-from crested.pl.patterns._modisco_results import _get_ic, _trim_pattern_by_ic
+from crested.pl.patterns._modisco_results import _get_ic, _trim_pattern_by_ic, plot_patterns
 
-from ._modisco_utils import match_score_patterns, plot_patterns, read_html_to_dataframe
+from ._modisco_utils import match_score_patterns, read_html_to_dataframe
 
 
 def _calculate_window_offsets(center: int, window_size: int) -> tuple:
@@ -24,7 +24,7 @@ def tfmodisco(
     contrib_dir: os.PathLike = "modisco_results",
     class_names: list[str] | None = None,
     output_dir: os.PathLike = "modisco_results",
-    max_seqlets: int = 2000,
+    max_seqlets: int = 5000,
     window: int = 500,
     n_leiden: int = 2,
     report: bool = False,
@@ -137,16 +137,20 @@ def tfmodisco(
                     output_file, pos_patterns, neg_patterns, window_size=window
                 )
 
-                # Generate the modisco report
-                if report:
-                    modisco.report.report_motifs(
-                        output_file,
-                        report_dir,
-                        meme_motif_db=meme_db,
-                        top_n_matches=3,
-                    )
             else:
                 print(f"Modisco results already exist for class: {class_name}")
+
+            # Generate the modisco report
+            if (report and not os.path.exists(report_dir)):
+                print('here')
+                modisco.report.report_motifs(
+                    output_file,
+                    report_dir,
+                    meme_motif_db=meme_db,
+                    top_n_matches=3,
+                    is_writing_tomtom_matrix=False,
+                    img_path_suffix='./'
+                )
 
         except KeyError as e:
             logger.error(f"Missing data for class: {class_name}, error: {e}")
@@ -616,6 +620,27 @@ def create_pattern_matrix(
 
     return filtered_array
 
+def calculate_similarity_matrix(all_patterns: Dict) -> np.ndarray:
+    """
+    Calculates the similarity matrix for the given patterns.
+
+    Parameters:
+    - all_patterns (dict): Dictionary containing pattern data. Each key is a pattern index,
+      and each value is a dictionary with pattern information.
+
+    Returns:
+    - similarity_matrix (np.ndarray): A 2D numpy array containing the similarity values.
+    """
+    indices = list(all_patterns.keys())
+    num_patterns = len(indices)
+
+    similarity_matrix = np.zeros((num_patterns, num_patterns))
+
+    for i, idx1 in enumerate(indices):
+        for j, idx2 in enumerate(indices):
+            similarity_matrix[i, j] = pattern_similarity(all_patterns, idx1, idx2)
+    
+    return similarity_matrix, indices
 
 def generate_nucleotide_sequences(all_patterns: dict) -> list[tuple[str, np.ndarray]]:
     """
