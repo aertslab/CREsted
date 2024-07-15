@@ -14,5 +14,6 @@ Supply these (or your own) to `tl.Crested(...)` to use them in training.
     basenji
     chrombpnet
     deeptopic_cnn
+    deeptopic_lstm
     simple_convnet
 ```
