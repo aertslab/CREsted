@@ -95,7 +95,7 @@ class Explainer:
 
 def saliency_map(X, model, class_index=None, func=torch.mean):
     """Fast function to generate saliency maps"""
-    X = torch.tensor(X, requires_grad=True)
+    X = X.clone().detach().requires_grad_(True)
 
     outputs = model(X)
     if class_index is not None:
