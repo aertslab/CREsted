@@ -64,6 +64,7 @@ test = [
     "coverage",
     "anndata",
     "tensorflow",
+    "genomepy",
 ]
 
 [tool.coverage.run]
@@ -79,7 +80,8 @@ addopts = [
     "--import-mode=importlib",  # allow using test files with same name
 ]
 filterwarnings = [
-    "ignore::UserWarning"
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning"
 ]
 
 [tool.ruff]
