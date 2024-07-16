@@ -13,21 +13,21 @@ class CosineMSELoss(keras.losses.Loss):
 
     Attributes
     ----------
-    max_weight : float
+    max_weight
         The maximum weight applied to the cosine similarity loss component.
         Lower values will emphasize the MSE component, while higher values will emphasize the cosine similarity component.
-    reduction : str or None
-        Type of reduction to apply to loss. Default value is "sum_over_batch_size".
+    reduction
+        Type of reduction applied to loss.
 
     Parameters
     ----------
-    max_weight : float, optional
+    max_weight
         The maximum weight applied to the cosine similarity loss component (default is 1.0).
         Lower values will emphasize the MSE component, while higher values will emphasize the cosine similarity component.
-    name : str, optional
-        Name of the loss function (default is "CosineMSELoss").
+    name
+        Name of the loss function.
     reduction
-        Type of reduction to apply to loss. Default value is "sum_over_batch_size".
+        Type of reduction to apply to loss.
 
     Notes
     -----
@@ -45,7 +45,7 @@ class CosineMSELoss(keras.losses.Loss):
     def __init__(
         self,
         max_weight: float = 1.0,
-        name="CosineMSELoss",
+        name: str | None = "CosineMSELoss",
         reduction: str = "sum_over_batch_size",
     ):
         super().__init__()
