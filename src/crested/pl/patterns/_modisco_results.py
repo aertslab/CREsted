@@ -410,7 +410,12 @@ def create_clustermap(
 
     if grid:
         ax = g.ax_heatmap
-        ax.grid(True, which="both", color="grey", linewidth=0.25, )
+        ax.grid(
+            True,
+            which="both",
+            color="grey",
+            linewidth=0.25,
+        )
         g.fig.canvas.draw()
 
     if pat_seqs is not None:
@@ -422,52 +427,70 @@ def create_clustermap(
     plt.show()
     return g
 
-def plot_patterns(pattern_dict: Dict, idcs: List[int]) -> None:
+
+def plot_patterns(pattern_dict: dict, idcs: list[int]) -> None:
     """
     Plots the patterns specified by the indices in `idcs` from the `pattern_dict`.
 
-    Parameters:
-    - pattern_dict (dict): A dictionary containing pattern data.
-    - idcs (list): A list of indices specifying which patterns to plot.
+    Parameters
+    ----------
+    pattern_dict
+        A dictionary containing pattern data.
+    idcs
+        A list of indices specifying which patterns to plot.
     """
     figure, axes = plt.subplots(nrows=len(idcs), ncols=1, figsize=(8, 2 * len(idcs)))
     if len(idcs) == 1:
         axes = [axes]
-    
+
     for i, idx in enumerate(idcs):
         ax = _plot_attribution_map(
-                        ax=axes[i],
-                        saliency_df=np.array(pattern_dict[str(idx)]['pattern']['contrib_scores']),
-                        return_ax=True,
-                        figsize=None,
-                    )
-        ax.set_title(pattern_dict[str(idx)]['pattern']['id'])
-    
+            ax=axes[i],
+            saliency_df=np.array(pattern_dict[str(idx)]["pattern"]["contrib_scores"]),
+            return_ax=True,
+            figsize=None,
+        )
+        ax.set_title(pattern_dict[str(idx)]["pattern"]["id"])
+
     plt.tight_layout()
     plt.show()
+
 
 def plot_similarity_heatmap(
     similarity_matrix: np.ndarray,
     indices: list,
-    fig_size: Tuple[int, int] = (30, 15),
-    fig_path: Optional[str] = None
+    fig_size: tuple[int, int] = (30, 15),
+    fig_path: str | None = None,
 ) -> None:
     """
     Plots a similarity heatmap of all pattern indices.
 
-    Parameters:
-    - similarity_matrix (np.ndarray): A 2D numpy array containing the similarity values.
-    - indices (list): List of pattern indices.
-    - fig_size (tuple): Size of the figure for the heatmap.
-    - fig_path (str, optional): Path to save the figure. If None, the figure will be shown but not saved.
+    Parameters
+    ----------
+    similarity_matrix
+        A 2D numpy array containing the similarity values.
+    indices
+        List of pattern indices.
+    fig_size
+        Size of the figure for the heatmap.
+    fig_path
+        Path to save the figure. If None, the figure will be shown but not saved.
     """
     fig, ax = plt.subplots(figsize=fig_size)
-    heatmap = sns.heatmap(similarity_matrix, ax=ax, cmap='coolwarm', annot=True, fmt=".2f",
-                          xticklabels=indices, yticklabels=indices, annot_kws={"size": 8})
+    heatmap = sns.heatmap(
+        similarity_matrix,
+        ax=ax,
+        cmap="coolwarm",
+        annot=True,
+        fmt=".2f",
+        xticklabels=indices,
+        yticklabels=indices,
+        annot_kws={"size": 8},
+    )
 
     for _, spine in heatmap.spines.items():
         spine.set_visible(True)
-        spine.set_color('grey')
+        spine.set_color("grey")
         spine.set_linewidth(0.5)
 
     plt.title("Pattern Similarity Heatmap", fontsize=20)

@@ -10,7 +10,11 @@ import pandas as pd
 from loguru import logger
 
 from crested._logging import log_and_raise
-from crested.pl.patterns._modisco_results import _get_ic, _trim_pattern_by_ic, plot_patterns
+from crested.pl.patterns._modisco_results import (
+    _get_ic,
+    _trim_pattern_by_ic,
+    plot_patterns,
+)
 
 from ._modisco_utils import match_score_patterns, read_html_to_dataframe
 
@@ -63,17 +67,27 @@ def tfmodisco(
     --------
     >>> evaluator = crested.tl.Crested(...)
     >>> evaluator.load_model(/path/to/trained/model.keras)
-    >>> evaluator.calculate_contribution_scores(
-    ...     adata, class_names=["Astro", "Vip"], method="integrated_grad"
+    >>> evaluator.tfmodisco_calculate_and_save_contribution_scores(
+    ...     adata, class_names=["Astro", "Vip"], method="expected_integrated_grad"
     ... )
     >>> crested.tl.tfmodisco(
-    ...     adata, class_names=["Astro", "Vip"], output_dir="modisco_results"
+    ...     contrib_dir="modisco_results",
+    ...     class_names=["Astro", "Vip"],
+    ...     output_dir="modisco_results",
+    ...     window=1000,
     ... )
     """
     """Code adapted from https://github.com/jmschrei/tfmodisco-lite/blob/main/modisco."""
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+
+    # Check if .npz exist in the contribution directory
+    if not os.path.exists(contrib_dir):
+        raise FileNotFoundError(f"Contribution directory not found: {contrib_dir}")
+    files = os.listdir(contrib_dir)
+    if not any(f.endswith(".npz") for f in files):
+        raise FileNotFoundError("No .npz files found in the contribution directory")
 
     # Use all class names found in the contribution directory if class_names is not provided
     if class_names is None:
@@ -83,6 +97,9 @@ def tfmodisco(
             if f.endswith("_oh.npz")
         ]
         class_names = list(set(class_names))
+        logger.info(
+            f"No class names provided, using all found in the contribution directory: {class_names}"
+        )
 
     # Iterate over each class and calculate contribution scores
     for class_name in class_names:
@@ -141,15 +158,14 @@ def tfmodisco(
                 print(f"Modisco results already exist for class: {class_name}")
 
             # Generate the modisco report
-            if (report and not os.path.exists(report_dir)):
-                print('here')
+            if report and not os.path.exists(report_dir):
                 modisco.report.report_motifs(
                     output_file,
                     report_dir,
                     meme_motif_db=meme_db,
                     top_n_matches=3,
                     is_writing_tomtom_matrix=False,
-                    img_path_suffix='./'
+                    img_path_suffix="./",
                 )
 
         except KeyError as e:
@@ -620,16 +636,19 @@ def create_pattern_matrix(
 
     return filtered_array
 
-def calculate_similarity_matrix(all_patterns: Dict) -> np.ndarray:
+
+def calculate_similarity_matrix(all_patterns: dict) -> np.ndarray:
     """
     Calculates the similarity matrix for the given patterns.
 
-    Parameters:
-    - all_patterns (dict): Dictionary containing pattern data. Each key is a pattern index,
-      and each value is a dictionary with pattern information.
+    Parameters
+    ----------
+    all_patterns
+        Dictionary containing pattern data. Each key is a pattern index, and each value is a dictionary with pattern information.
 
-    Returns:
-    - similarity_matrix (np.ndarray): A 2D numpy array containing the similarity values.
+    Returns
+    -------
+    A 2D numpy array containing the similarity values.
     """
     indices = list(all_patterns.keys())
     num_patterns = len(indices)
@@ -639,8 +658,9 @@ def calculate_similarity_matrix(all_patterns: Dict) -> np.ndarray:
     for i, idx1 in enumerate(indices):
         for j, idx2 in enumerate(indices):
             similarity_matrix[i, j] = pattern_similarity(all_patterns, idx1, idx2)
-    
+
     return similarity_matrix, indices
+
 
 def generate_nucleotide_sequences(all_patterns: dict) -> list[tuple[str, np.ndarray]]:
     """

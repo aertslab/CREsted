@@ -163,7 +163,7 @@ class Crested:
                 monitor=learning_rate_reduce_metric,
                 factor=0.25,
                 mode=learning_rate_reduce_mode,
-                min_lr=1e-6
+                min_lr=1e-6,
             )
             callbacks.append(learning_rate_reduce_callback)
         if custom_callbacks is not None:
@@ -224,16 +224,16 @@ class Crested:
         mixed_precision: bool = False,
         model_checkpointing: bool = True,
         model_checkpointing_best_only: bool = True,
-        model_checkpointing_metric: str = 'val_loss',
-        model_checkpointing_mode: str = 'min',
+        model_checkpointing_metric: str = "val_loss",
+        model_checkpointing_mode: str = "min",
         early_stopping: bool = True,
         early_stopping_patience: int = 10,
-        early_stopping_metric: str = 'val_loss',
-        early_stopping_mode: str = 'min',
+        early_stopping_metric: str = "val_loss",
+        early_stopping_mode: str = "min",
         learning_rate_reduce: bool = True,
         learning_rate_reduce_patience: int = 5,
-        learning_rate_reduce_metric: str = 'val_loss',
-        learning_rate_reduce_mode: str = 'min',
+        learning_rate_reduce_metric: str = "val_loss",
+        learning_rate_reduce_mode: str = "min",
         custom_callbacks: list | None = None,
     ) -> None:
         """
@@ -761,6 +761,9 @@ class Crested:
         if isinstance(region_idx, str):
             region_idx = [region_idx]
 
+        if self.anndatamodule.predict_dataset is None:
+            self.anndatamodule.setup("predict")
+
         sequences = []
         for region in region_idx:
             sequences.append(
@@ -807,18 +810,16 @@ class Crested:
         --------
         crested.pl.patterns.contribution_scores
         """
-
         if isinstance(sequences, str):
             sequences = [sequences]
 
         if isinstance(class_names, str):
             class_names = [class_names]
-            
+
         self._check_contrib_params(method)
         if self.anndatamodule.predict_dataset is None:
             self.anndatamodule.setup("predict")
         self._check_contribution_scores_params(class_names)
-
 
         all_scores = []
         all_one_hot_sequences = []
@@ -826,7 +827,6 @@ class Crested:
         all_class_names = list(self.anndatamodule.adata.obs_names)
 
         if class_names is not None:
-            print(class_names)
             n_classes = len(class_names)
             class_indices = [
                 all_class_names.index(class_name) for class_name in class_names
@@ -887,7 +887,7 @@ class Crested:
             Directory to save the output files.
         method : str, optional
             Method to use for calculating the contribution scores.
-            Default is 'expected_integrated_grad'.
+            Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
         class_names : list[str] | None, optional
             List of class names to process. If None, all class names in adata.var["Class name"] will be processed.
         """
@@ -980,9 +980,8 @@ class Crested:
         A list of designed sequences and if return_intermediate is True a list of dictionaries of intermediate
         mutations and predictions
         """
-
         self._check_contribution_scores_params([target_class])
-        
+
         all_class_names = list(self.anndatamodule.adata.obs_names)
 
         target = all_class_names.index(target_class)
@@ -1140,9 +1139,8 @@ class Crested:
         A list of designed sequences and if return_intermediate is True a list of dictionaries of intermediate
         mutations and predictions
         """
-        
         self._check_contribution_scores_params([target_class])
-        
+
         all_class_names = list(self.anndatamodule.adata.obs_names)
 
         target = all_class_names.index(target_class)

@@ -99,16 +99,17 @@ def filter_regions_on_specificity(
 
     return filtered_adata
 
+
 def sort_and_filter_regions_on_specificity(
     adata: AnnData,
     top_k: int,
-    class_names: list,
     model_name: str | None = None,
-    method: str = 'gini'
+    method: str = "gini",
 ) -> AnnData:
     """
-    Sort bed regions & targets/predictions based on high Gini or proportion score per column, keep the top k rows per column,
-    and combine them into a single AnnData object with extra columns indicating the original class name,
+    Sort bed regions & targets/predictions based on high Gini or proportion score per colum while keeping the top k rows per column.
+
+    Combines them into a single AnnData object with extra columns indicating the original class name,
     the rank per column, and the score.
 
     Parameters
@@ -117,8 +118,6 @@ def sort_and_filter_regions_on_specificity(
         The AnnData object containing the matrix (celltypes, regions) to be sorted.
     top_k : int
         The number of top regions to keep per column.
-    class_names : list
-        List of class names corresponding to the original column indices.
     model_name : str | None, optional
         The name of the model to look for in adata.layers[model_name] for predictions.
         If None, will use the targets in adata.X to decide which regions to sort.
@@ -137,23 +136,27 @@ def sort_and_filter_regions_on_specificity(
     >>> sorted_filtered_adata = sort_and_filter_regions_on_specificity(
     ...     adata,
     ...     top_k=500,
-    ...     class_names=["Class1", "Class2", "Class3"],
-    ...     method='proportion'
+    ...     method="proportion",
     ... )
     """
+    class_names = list(adata.obs_names)
     if model_name is None:
         if isinstance(adata.X, csr_matrix):
-            target_matrix = adata.X.toarray().T  # Convert to dense and transpose to (regions, cell types)
+            target_matrix = (
+                adata.X.toarray().T
+            )  # Convert to dense and transpose to (regions, cell types)
         else:
             target_matrix = adata.X.T
     else:
         if model_name not in adata.layers:
-            raise ValueError(f"Model name {model_name} not found in adata.layers. Please provide a valid model name.")
+            raise ValueError(
+                f"Model name {model_name} not found in adata.layers. Please provide a valid model name."
+            )
         target_matrix = adata.layers[model_name].T
 
-    if method == 'gini':
+    if method == "gini":
         scores = _calc_gini(target_matrix)
-    elif method == 'proportion':
+    elif method == "proportion":
         scores = _calc_proportion(target_matrix)
     else:
         raise ValueError("Method must be either 'gini' or 'proportion'.")
@@ -178,10 +181,11 @@ def sort_and_filter_regions_on_specificity(
 
     target_matrix_filtered = target_matrix[all_selected_indices]
     regions_filtered = adata.var_names[all_selected_indices].tolist()
-
     class_names_filtered = [class_names[idx] for idx in column_indices]
 
-    logger.info(f"After sorting and filtering, kept {target_matrix_filtered.shape[0]} regions.")
+    logger.info(
+        f"After sorting and filtering, kept {target_matrix_filtered.shape[0]} regions."
+    )
 
     # Create a new AnnData object with the filtered data
     if isinstance(adata.X, csr_matrix):

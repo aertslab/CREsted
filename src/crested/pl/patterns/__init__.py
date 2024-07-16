@@ -1,3 +1,5 @@
+from importlib.util import find_spec
+
 from loguru import logger
 
 from ._contribution_scores import contribution_scores
@@ -10,15 +12,40 @@ def _optional_function_warning(*args, **kwargs):
     )
 
 
-try:
-    from ._modisco_results import create_clustermap, modisco_results, plot_patterns, plot_similarity_heatmap
-except ImportError:
-    modisco_results = _optional_function_warning
+if find_spec("modiscolite") is not None:
+    MODISCOLITE_AVAILABLE = True
+else:
+    MODISCOLITE_AVAILABLE = False
+
+if MODISCOLITE_AVAILABLE:
+    try:
+        import modiscolite
+
+        from ._modisco_results import (
+            create_clustermap,
+            modisco_results,
+            plot_patterns,
+            plot_similarity_heatmap,
+        )
+    except ImportError as e:
+        logger.error(f"Import error: {e}")
+        raise
+else:
     create_clustermap = _optional_function_warning
+    modisco_results = _optional_function_warning
     plot_patterns = _optional_function_warning
     plot_similarity_heatmap = _optional_function_warning
 
-if modisco_results is not None:
-    __all__ = ["contribution_scores", "modisco_results", "create_clustermap", "plot_patterns", "plot_similarity_heatmap"]
-else:
-    __all__ = ["contribution_scores"]
+
+__all__ = [
+    "contribution_scores",
+]
+if MODISCOLITE_AVAILABLE:
+    __all__.extend(
+        [
+            "create_clustermap",
+            "modisco_results",
+            "plot_patterns",
+            "plot_similarity_heatmap",
+        ]
+    )
