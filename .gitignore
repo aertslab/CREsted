@@ -2,6 +2,8 @@
 .vscode
 wandb/
 *slurm*
+tests/data/genomes
+tests/data/test_pipeline
 
 # Sphinx documentation
 _build
