@@ -84,9 +84,15 @@ def test_peak_regression():
     scores, one_hot_encoded_sequences = trainer.calculate_contribution_scores_sequence(
         sequence, class_names=["cell_1", "cell_2"], method="integrated_grad"
     )
+
     assert scores.shape == (1, 2, 600, 4)
     assert one_hot_encoded_sequences.shape == (1, 600, 4)
 
+    scores, one_hot_encoded_sequences = trainer.calculate_contribution_scores_regions(
+        region_idx=["chr1:1000-1600", "chr2:2000-2600"],
+        class_names=[],
+        method="integrated_grad",
+    )
     trainer.enhancer_design_in_silico_evolution(
         target_class="cell_1", n_sequences=1, n_mutations=1
     )
