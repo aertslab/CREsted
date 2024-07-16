@@ -125,7 +125,7 @@ def simple_convnet(
         activation,
         dropout=dense_dropout,
         normalization=normalization,
-        prefix="denseblock",
+        name_prefix="denseblock",
     )
 
     outputs = keras.layers.Dense(
