@@ -1,34 +1,8 @@
-import anndata as ad
-import numpy as np
-import pandas as pd
 import pytest
-import scipy.sparse as sp
 
 import crested
 
-
-def create_anndata_with_regions(
-    regions: list[str],
-    chr_var_key: str = "chr",
-    compress: bool = False,
-    random_state: int = None,
-) -> ad.AnnData:
-    """
-    Utility function to create an AnnData object with given regions, with options for compression
-    and reproducibility.
-    """
-    if random_state is not None:
-        np.random.seed(random_state)
-    data = np.random.randn(10, len(regions))
-    var = pd.DataFrame(index=regions)
-    var[chr_var_key] = [region.split(":")[0] for region in regions]
-    var["start"] = [int(region.split(":")[1].split("-")[0]) for region in regions]
-    var["end"] = [int(region.split(":")[1].split("-")[1]) for region in regions]
-
-    if compress:
-        data = sp.csr_matrix(data)
-
-    return ad.AnnData(X=data, var=var)
+from ._utils import create_anndata_with_regions
 
 
 def test_train_val_test_split_by_region():
