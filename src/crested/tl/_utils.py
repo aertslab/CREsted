@@ -161,3 +161,39 @@ def hot_encoding_to_sequence(one_hot_encoded_sequence: np.ndarray) -> str:
     )
 
     return sequence
+
+
+def _parse_motif_file(cbfile):
+    motif_dict = {}
+    with open(cbfile) as fin:
+        for line in fin:
+            if line.startswith(">"):
+                motif_name = line.split("/")[0].strip(">").strip()
+                motif_dict[motif_name] = []
+            else:
+                nuc_counts = np.array(
+                    line.replace("\n", "").strip().split("\t"), dtype=float
+                )
+                counts_sum = np.sum(nuc_counts)
+                motif_dict[motif_name].append(nuc_counts / counts_sum)
+    for motif_name in motif_dict:
+        motif_dict[motif_name] = np.array(motif_dict[motif_name]) - 0.25
+    return motif_dict
+
+
+def _convert_cb_to_filter_weights(motif_dict, original_weights):
+    kernel_size, _, n_kernels = original_weights[0].shape
+    for i, motif_name in enumerate(motif_dict):
+        if i == n_kernels:
+            break
+
+        motif = motif_dict[motif_name]
+        motif_size = len(motif)
+
+        if kernel_size >= motif_size:
+            start = int((kernel_size - motif_size) / 2)
+            original_weights[0][start : start + motif_size, :, i] = motif
+        else:
+            start = int((motif_size - kernel_size) / 2)
+            original_weights[0][:, :, i] = motif[start : start + kernel_size, :]
+    return original_weights

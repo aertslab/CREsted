@@ -14,6 +14,8 @@ from tqdm import tqdm
 from crested._logging import log_and_raise
 from crested.tl import TaskConfig
 from crested.tl._utils import (
+    _convert_cb_to_filter_weights,
+    _parse_motif_file,
     _weighted_difference,
     generate_motif_insertions,
     generate_mutagenesis,
@@ -163,7 +165,7 @@ class Crested:
                 monitor=learning_rate_reduce_metric,
                 factor=0.25,
                 mode=learning_rate_reduce_mode,
-                min_lr=1e-6
+                min_lr=1e-6,
             )
             callbacks.append(learning_rate_reduce_callback)
         if custom_callbacks is not None:
@@ -224,16 +226,17 @@ class Crested:
         mixed_precision: bool = False,
         model_checkpointing: bool = True,
         model_checkpointing_best_only: bool = True,
-        model_checkpointing_metric: str = 'val_loss',
-        model_checkpointing_mode: str = 'min',
+        model_checkpointing_metric: str = "val_loss",
+        model_checkpointing_mode: str = "min",
         early_stopping: bool = True,
         early_stopping_patience: int = 10,
-        early_stopping_metric: str = 'val_loss',
-        early_stopping_mode: str = 'min',
+        early_stopping_metric: str = "val_loss",
+        early_stopping_mode: str = "min",
         learning_rate_reduce: bool = True,
         learning_rate_reduce_patience: int = 5,
-        learning_rate_reduce_metric: str = 'val_loss',
-        learning_rate_reduce_mode: str = 'min',
+        learning_rate_reduce_metric: str = "val_loss",
+        learning_rate_reduce_mode: str = "min",
+        motif_cb_file: str | None = None,
         custom_callbacks: list | None = None,
     ) -> None:
         """
@@ -269,6 +272,8 @@ class Crested:
             Metric to monitor for reducing the learning rate.
         learning_rate_reduce_mode
             'max' if a high metric is better, 'min' if a low metric is better
+        motif_cb_file
+            Motifs in clusterbuster format to initialize the first convolutional layer filters
         custom_callbacks
             List of custom callbacks to use during training.
         """
@@ -309,6 +314,17 @@ class Crested:
             metrics=self.config.metrics,
         )
 
+        if motif_cb_file is not None:
+            motif_dict = _parse_motif_file(motif_cb_file)
+            # get original weights of first convolutional layer
+            for layer in self.model.layers:
+                if layer.name == "conv1d":
+                    conv1d_first = layer
+                    break
+            new_weigths = _convert_cb_to_filter_weights(
+                motif_dict, conv1d_first.get_weights()
+            )
+            conv1d_first.set_weights(new_weigths)
         print(self.model.summary())
 
         # setup data
@@ -807,18 +823,16 @@ class Crested:
         --------
         crested.pl.patterns.contribution_scores
         """
-
         if isinstance(sequences, str):
             sequences = [sequences]
 
         if isinstance(class_names, str):
             class_names = [class_names]
-            
+
         self._check_contrib_params(method)
         if self.anndatamodule.predict_dataset is None:
             self.anndatamodule.setup("predict")
         self._check_contribution_scores_params(class_names)
-
 
         all_scores = []
         all_one_hot_sequences = []
@@ -980,9 +994,8 @@ class Crested:
         A list of designed sequences and if return_intermediate is True a list of dictionaries of intermediate
         mutations and predictions
         """
-
         self._check_contribution_scores_params([target_class])
-        
+
         all_class_names = list(self.anndatamodule.adata.obs_names)
 
         target = all_class_names.index(target_class)
@@ -1140,9 +1153,8 @@ class Crested:
         A list of designed sequences and if return_intermediate is True a list of dictionaries of intermediate
         mutations and predictions
         """
-        
         self._check_contribution_scores_params([target_class])
-        
+
         all_class_names = list(self.anndatamodule.adata.obs_names)
 
         target = all_class_names.index(target_class)
@@ -1275,6 +1287,9 @@ class Crested:
 
         self.acgt_distribution = acgt_distribution
         return acgt_distribution
+
+    def _initialize_with_motifs():
+        pass
 
     @staticmethod
     def _check_gpu_availability():
