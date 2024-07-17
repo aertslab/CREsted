@@ -163,7 +163,7 @@ class Crested:
                 monitor=learning_rate_reduce_metric,
                 factor=0.25,
                 mode=learning_rate_reduce_mode,
-                min_lr=1e-6
+                min_lr=1e-6,
             )
             callbacks.append(learning_rate_reduce_callback)
         if custom_callbacks is not None:
@@ -224,16 +224,16 @@ class Crested:
         mixed_precision: bool = False,
         model_checkpointing: bool = True,
         model_checkpointing_best_only: bool = True,
-        model_checkpointing_metric: str = 'val_loss',
-        model_checkpointing_mode: str = 'min',
+        model_checkpointing_metric: str = "val_loss",
+        model_checkpointing_mode: str = "min",
         early_stopping: bool = True,
         early_stopping_patience: int = 10,
-        early_stopping_metric: str = 'val_loss',
-        early_stopping_mode: str = 'min',
+        early_stopping_metric: str = "val_loss",
+        early_stopping_mode: str = "min",
         learning_rate_reduce: bool = True,
         learning_rate_reduce_patience: int = 5,
-        learning_rate_reduce_metric: str = 'val_loss',
-        learning_rate_reduce_mode: str = 'min',
+        learning_rate_reduce_metric: str = "val_loss",
+        learning_rate_reduce_mode: str = "min",
         custom_callbacks: list | None = None,
     ) -> None:
         """
@@ -766,14 +766,14 @@ class Crested:
             sequences.append(
                 self.anndatamodule.predict_dataset.sequence_loader.get_sequence(region)
             )
-        return self.calculate_contribution_scores_sequence(
+        return self.calculate_contribution_scores_sequences(
             sequences=sequences,
             class_names=class_names,
             method=method,
             disable_tqdm=disable_tqdm,
         )
 
-    def calculate_contribution_scores_sequence(
+    def calculate_contribution_scores_sequences(
         self,
         sequences: list[str] | str,
         class_names: list[str] | None = None,
@@ -807,18 +807,16 @@ class Crested:
         --------
         crested.pl.patterns.contribution_scores
         """
-
         if isinstance(sequences, str):
             sequences = [sequences]
 
         if isinstance(class_names, str):
             class_names = [class_names]
-            
+
         self._check_contrib_params(method)
         if self.anndatamodule.predict_dataset is None:
             self.anndatamodule.setup("predict")
         self._check_contribution_scores_params(class_names)
-
 
         all_scores = []
         all_one_hot_sequences = []
@@ -868,6 +866,35 @@ class Crested:
         return np.concatenate(all_scores, axis=0), np.concatenate(
             all_one_hot_sequences, axis=0
         )
+
+    def calculate_contribution_scores_enhancer_design(
+        self,
+        enhancer_design_intermediate: list[dict],
+        class_names: list[str] | None = None,
+        method: str = "expected_integrated_grad",
+        disable_tqdm: bool = False,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        # TODO ADD DOCUMENTATION
+        all_designed_list = self._derive_intermediate_sequences(
+            enhancer_design_intermediate
+        )
+
+        scores_list = []
+        onehot_list = []
+        for designed_list in all_designed_list:
+            scores, onehot = self.calculate_contribution_scores_sequences(
+                sequences=designed_list,
+                class_names=class_names,
+                method=method,
+                disable_tqdm=disable_tqdm,
+            )
+            scores_list.append(scores)
+            onehot_list.append(onehot)
+
+        if len(all_designed_list) == 1:
+            return scores, onehot
+        else:
+            return scores_list, onehot_list
 
     def tfmodisco_calculate_and_save_contribution_scores(
         self,
@@ -980,9 +1007,8 @@ class Crested:
         A list of designed sequences and if return_intermediate is True a list of dictionaries of intermediate
         mutations and predictions
         """
-
         self._check_contribution_scores_params([target_class])
-        
+
         all_class_names = list(self.anndatamodule.adata.obs_names)
 
         target = all_class_names.index(target_class)
@@ -1140,9 +1166,8 @@ class Crested:
         A list of designed sequences and if return_intermediate is True a list of dictionaries of intermediate
         mutations and predictions
         """
-        
         self._check_contribution_scores_params([target_class])
-        
+
         all_class_names = list(self.anndatamodule.adata.obs_names)
 
         target = all_class_names.index(target_class)
@@ -1275,6 +1300,24 @@ class Crested:
 
         self.acgt_distribution = acgt_distribution
         return acgt_distribution
+
+    def _derive_intermediate_sequences(self, enhancer_design_intermediate):
+        all_designed_list = []
+        for intermediate_dict in enhancer_design_intermediate:
+            current_sequence = intermediate_dict["inital_sequence"]
+            sequence_list = [current_sequence]
+            for loc, change in intermediate_dict["changes"]:
+                if loc == -1:
+                    continue
+                else:
+                    current_sequence = (
+                        current_sequence[:loc]
+                        + change
+                        + current_sequence[loc + len(change) :]
+                    )
+                    sequence_list.append(current_sequence)
+            all_designed_list.append(sequence_list)
+        return all_designed_list
 
     @staticmethod
     def _check_gpu_availability():
