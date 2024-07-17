@@ -14,6 +14,9 @@ def render_plot(
     title: str | None = None,
     xlabel: str | None = None,
     ylabel: str | None = None,
+    supxlabel: str | None = None,
+    supylabel: str | None = None,
+    tight_rect: tuple | None = None,
     save_path: str | None = None,
 ) -> None:
     """
@@ -37,19 +40,31 @@ def render_plot(
         Label for the X-axis.
     ylabel
         Label for the Y-axis.
+    supxlabel
+        Suplabel for the X-axis.
+    supylabel
+        Suplabel for the Y-axis.
+    tight_rect
+        Normalized coordinates in which subplots will fit.
     fig_path
         Optional path to save the figure. If None, the figure is displayed but not saved.
     """
     fig.set_size_inches(width, height)
     if title:
         fig.suptitle(title)
+    if supxlabel:
+        fig.supxlabel(supxlabel)
+    if supylabel:
+        fig.supylabel(supylabel)
     for ax in fig.axes:
         if xlabel:
             ax.set_xlabel(xlabel)
         if ylabel:
             ax.set_ylabel(ylabel)
-
-    plt.tight_layout()
+    if tight_rect:
+        plt.tight_layout(rect=tight_rect)
+    else:
+        plt.tight_layout()
     if save_path:
         if not os.path.exists(os.path.dirname(save_path)):
             os.makedirs(os.path.dirname(save_path))
