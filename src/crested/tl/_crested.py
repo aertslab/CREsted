@@ -873,8 +873,30 @@ class Crested:
         class_names: list[str] | None = None,
         method: str = "expected_integrated_grad",
         disable_tqdm: bool = False,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        # TODO ADD DOCUMENTATION
+    ) -> tuple[np.ndarray, np.ndarray] | list(tuple[np.ndarray, np.ndarray]):
+        """
+        Calculate contribution scores of enhancer design.
+
+        These scores can then be plotted to visualize the importance of each base in the region
+        using :func:`~crested.pl.patterns.enhancer_design_steps_contribution_scores`.
+
+        Parameters
+        ----------
+        enhancer_design_intermediate
+            Intermediate output from enhancer design when return_intermediate is True
+        class_names
+            List of class names to calculate the contribution scores for (should match anndata.obs_names)
+            If None, the contribution scores for the 'combined' class will be calculated.
+        method
+            Method to use for calculating the contribution scores.
+            Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
+        disable_tqdm
+            Boolean for disabling the plotting progress of calculations using tqdm.
+
+        Returns
+        -------
+        A tuple of arrays or a list of tuple of arrays of contribution scores (N, C, L, 4) and one-hot encoded sequences (N, L, 4).
+        """
         all_designed_list = self._derive_intermediate_sequences(
             enhancer_design_intermediate
         )
