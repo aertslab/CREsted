@@ -1085,7 +1085,7 @@ class Crested:
                         "inital_sequence": sequence,
                         "changes": [(-1, "N")],
                         "predictions": [
-                            self.model.predict(sequence_onehot, verbose=False)
+                            self.model.predict(sequence_onehot, verbose=False)[0]
                         ],
                         "designed_sequence": "",
                     }
@@ -1236,7 +1236,7 @@ class Crested:
                         "inital_sequence": sequence,
                         "changes": [(-1, "N")],
                         "predictions": [
-                            self.model.predict(sequence_onehot, verbose=False)
+                            self.model.predict(sequence_onehot, verbose=False)[0]
                         ],
                         "designed_sequence": "",
                     }

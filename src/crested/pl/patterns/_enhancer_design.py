@@ -25,6 +25,15 @@ def _check_ylim_params(global_ylim: int | None, ylim: np.ndarray):
         logger.warning("Both ylim and global_ylim is set. Ignoring ylim.")
 
 
+@log_and_raise(ValueError)
+def _check_figure_grid_params(n_rows: int, n_cols: int, n_of_plots: int):
+    """Check figure grid parameters."""
+    if n_rows * n_cols < n_of_plots:
+        raise ValueError(
+            f"can't fit {n_of_plots} plots into {n_rows} rows and {n_cols} columns."
+        )
+
+
 def _determine_min_max(
     scores_all,
     seqs_one_hot_all,
@@ -267,6 +276,137 @@ def enhancer_design_steps_contribution_scores(
             render_plot(fig, **kwargs)
 
 
-def enhancer_design_steps_predictions():
-    # TODO implement
-    pass
+def enhancer_design_steps_predictions(
+    intermediate: list[dict],
+    target_classes: list[str],
+    seperate: bool = False,
+    global_ylim: str = "minmax",
+    n_rows: int | None = None,
+    n_cols: int | None = None,
+    alpha_seperate: float = 1.0,
+    legend_seperate: bool = False,
+    plot_color: str | tuple = (0.3, 0.5, 0.6),
+    show_fliers: bool = False,
+    fig_rescale: float = 1.0,
+    **kwargs,
+):
+    """
+    Visualize enhancer design prediction score progression.
+
+    Parameters
+    ----------
+    intermediate
+        Intermediate output from enhancer design when return_intermediate is True
+    target_classes
+        An array of a list of arrays of contribution scores of shape (n_seqs, n_classes, n_bases, n_features).
+    seperate
+        Whether to plot each design enhancer seperately, or all together as a boxplot. Default is False.
+    global_ylim
+        Used to set global y-axis limits across plots. Can be one of 'classification', 'minmax' or None. Default is 'minmax'
+        'classification' makes the y-axis limits (0, 1).
+        'minmax' makes the y-axis limit minimum and maximum prediction across all the target classes of all designed enhancers
+        If None, each plot has its y-axis limits seperately selected.
+    n_rows
+        Number of rows to use when more than one target class is selected.
+    n_cols
+        Number of columns to use when more than one target class is selected.
+    alpha_seperate
+        Line alpha for lines when seperate is True. Default is 1.0.
+    legend_seperate
+        Whether to plot a legend when seperate is True. Default is False.
+    plot_color
+        Boxplot color when seperate is False. Default is (0.3, 0.5, 0.6).
+    show_fliers
+        Whether to show fliers when seperate is False. Default is False.
+    fig_rescale
+        A scalar to scale the figure size up or down. Default is 1.0.
+    """
+    # TODO Convert target names to target indexes
+
+    n_of_plots = len(target_classes)
+    if n_rows is not None and n_cols is not None:
+        _check_figure_grid_params(n_rows, n_cols, n_of_plots)
+    elif n_rows is not None and n_cols is None:
+        n_cols = n_of_plots // n_rows + (n_of_plots % n_rows > 0)
+    elif n_rows is None and n_cols is not None:
+        n_rows = n_of_plots // n_cols + (n_of_plots % n_cols > 0)
+    elif n_rows is None and n_cols is None:
+        if n_of_plots == 1:
+            n_rows, n_cols = 1, 1
+        elif n_of_plots == 2:
+            n_rows, n_cols = 1, 2
+        elif n_of_plots == 4:
+            n_rows, n_cols = 2, 2
+        else:
+            n_cols = 3
+            n_rows = n_of_plots // n_cols + (n_of_plots % n_cols > 0)
+
+    max_prediction, min_prediction = 0, np.inf
+    target_indexes = target_classes
+    predictions_per_class = {}
+    all_predictions = []
+    for intermediate_dict in intermediate:
+        design_predictions = np.zeros(
+            (len(intermediate_dict["predictions"]), len(target_indexes))
+        )
+        for i, prediction in enumerate(intermediate_dict["predictions"]):
+            design_predictions[i, :] = prediction[target_indexes]
+        all_predictions.append(design_predictions)
+        if np.max(design_predictions) > max_prediction:
+            max_prediction = np.max(design_predictions)
+        if np.min(design_predictions) < min_prediction:
+            min_prediction = np.min(design_predictions)
+
+    for idx in range(len(target_indexes)):
+        predictions_per_class[target_classes[idx]] = np.column_stack(
+            [pred_mat[:, idx] for pred_mat in all_predictions]
+        )
+
+    fig, ax = plt.subplots(n_rows, n_cols)
+    for idx in range(n_rows * n_cols):
+        if n_rows == 1 or n_cols == 1:
+            curr_ax = ax[idx]
+        else:
+            i, j = idx // n_cols, idx % n_cols
+            curr_ax = ax[i, j]
+
+        if idx >= len(target_classes):
+            ax[i, j].set_axis_off()
+            continue
+        else:
+            target = target_classes[idx]
+
+        if seperate:
+            curr_ax.plot(
+                predictions_per_class[target],
+                marker="o",
+                markersize=7,
+                alpha=alpha_seperate,
+                linewidth=0.5,
+            )
+            if legend_seperate:
+                curr_ax.legend(range(len(intermediate)))
+        else:
+            curr_ax.boxplot(
+                predictions_per_class[target].T,
+                showfliers=show_fliers,
+                capprops={"color": plot_color},
+                boxprops={"color": plot_color},
+                whiskerprops={"color": plot_color},
+                flierprops={"markeredgecolor": plot_color},
+                medianprops={"color": plot_color},
+                meanprops={"color": plot_color},
+            )
+        if global_ylim == "classification":
+            curr_ax.set_ylim(0, 1)
+        elif global_ylim:
+            curr_ax.set_ylim(0, max_prediction)
+        curr_ax.set_title(f"Class {target}")
+        curr_ax.set_xlabel("Steps")
+        curr_ax.set_ylabel("Prediction Score")
+
+    if "width" not in kwargs:
+        kwargs["width"] = fig_rescale * 10 * n_cols
+    if "height" not in kwargs:
+        kwargs["height"] = fig_rescale * 10 * n_rows
+    render_plot(fig, **kwargs)
