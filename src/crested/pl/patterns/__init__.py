@@ -1,7 +1,10 @@
 from loguru import logger
 
 from ._contribution_scores import contribution_scores
-from ._enhancer_design import enhancer_design_steps_contribution_scores
+from ._enhancer_design import (
+    enhancer_design_steps_contribution_scores,
+    enhancer_design_steps_predictions,
+)
 
 
 def _optional_function_warning(*args, **kwargs):

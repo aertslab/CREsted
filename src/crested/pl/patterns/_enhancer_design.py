@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from loguru import logger
 
 from crested._logging import log_and_raise
@@ -32,6 +33,16 @@ def _check_figure_grid_params(n_rows: int, n_cols: int, n_of_plots: int):
         raise ValueError(
             f"can't fit {n_of_plots} plots into {n_rows} rows and {n_cols} columns."
         )
+
+
+@log_and_raise(ValueError)
+def _check_target_classes(target_classes: list[str], obs_names: pd.Index | list[str]):
+    """Check target classes."""
+    for target in target_classes:
+        if target not in obs_names:
+            raise ValueError(
+                f"target class {target} not in obs_names. All targets must be in obs_names."
+            )
 
 
 def _determine_min_max(
@@ -278,7 +289,8 @@ def enhancer_design_steps_contribution_scores(
 
 def enhancer_design_steps_predictions(
     intermediate: list[dict],
-    target_classes: list[str],
+    target_classes: str | list[str],
+    obs_names: pd.Index | list[str],
     seperate: bool = False,
     global_ylim: str = "minmax",
     n_rows: int | None = None,
@@ -298,7 +310,9 @@ def enhancer_design_steps_predictions(
     intermediate
         Intermediate output from enhancer design when return_intermediate is True
     target_classes
-        An array of a list of arrays of contribution scores of shape (n_seqs, n_classes, n_bases, n_features).
+        Target classes that the predictions will be plotted for. All target classes must be in obs_names.
+    obs_names
+        All class names either in the form of AnnData.obs_names or as a list.
     seperate
         Whether to plot each design enhancer seperately, or all together as a boxplot. Default is False.
     global_ylim
@@ -321,8 +335,14 @@ def enhancer_design_steps_predictions(
     fig_rescale
         A scalar to scale the figure size up or down. Default is 1.0.
     """
-    # TODO Convert target names to target indexes
+    if not isinstance(obs_names, list):
+        obs_names = list(obs_names)
 
+    if isinstance(target_classes, str):
+        target_classes = [target_classes]
+
+    _check_target_classes(target_classes, obs_names)
+    target_indexes = [obs_names.index(target_class) for target_class in target_classes]
     n_of_plots = len(target_classes)
     if n_rows is not None and n_cols is not None:
         _check_figure_grid_params(n_rows, n_cols, n_of_plots)
@@ -342,7 +362,6 @@ def enhancer_design_steps_predictions(
             n_rows = n_of_plots // n_cols + (n_of_plots % n_cols > 0)
 
     max_prediction, min_prediction = 0, np.inf
-    target_indexes = target_classes
     predictions_per_class = {}
     all_predictions = []
     for intermediate_dict in intermediate:
@@ -364,13 +383,15 @@ def enhancer_design_steps_predictions(
 
     fig, ax = plt.subplots(n_rows, n_cols)
     for idx in range(n_rows * n_cols):
-        if n_rows == 1 or n_cols == 1:
+        if n_rows == 1 and n_cols == 1:
+            curr_ax = ax
+        elif n_rows == 1 or n_cols == 1:
             curr_ax = ax[idx]
         else:
             i, j = idx // n_cols, idx % n_cols
             curr_ax = ax[i, j]
 
-        if idx >= len(target_classes):
+        if idx >= len(target_indexes):
             ax[i, j].set_axis_off()
             continue
         else:
