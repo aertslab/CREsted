@@ -158,6 +158,18 @@ def _create_temp_bed_file(
     return temp_bed_file
 
 
+def _check_bed_file_format(bed_file: PathLike) -> None:
+    """Check if the BED file is in the correct format."""
+    with open(bed_file) as f:
+        first_line = f.readline().strip()
+    # check if at least three columns are found
+    if len(first_line.split("\t")) < 3:
+        raise ValueError(
+            f"BED file '{bed_file}' is not in the correct format. "
+            "Expected at least three tab-seperated columns."
+        )
+
+
 def import_beds(
     beds_folder: PathLike,
     regions_file: PathLike | None = None,
@@ -239,6 +251,7 @@ def import_beds(
 
     if regions_file:
         # Read consensus regions BED file and filter out regions not within chromosomes
+        _check_bed_file_format(regions_file)
         consensus_peaks = _read_consensus_regions(regions_file, chromsizes_file)
 
         binary_matrix = pd.DataFrame(0, index=[], columns=consensus_peaks["region"])
@@ -281,6 +294,7 @@ def import_beds(
         for file in sorted(beds_folder.glob("*.bed"), key=_sort_files):
             class_name = file.stem
             if classes_subset is None or class_name in classes_subset:
+                _check_bed_file_format(file)
                 class_regions = pd.read_csv(
                     file, sep="\t", header=None, usecols=[0, 1, 2]
                 )
@@ -415,6 +429,7 @@ def import_bigwigs(
         )
 
     # Read consensus regions BED file and filter out regions not within chromosomes
+    _check_bed_file_format(regions_file)
     consensus_peaks = _read_consensus_regions(regions_file, chromsizes_file)
 
     if target_region_width is not None:
