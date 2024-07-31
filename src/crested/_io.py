@@ -168,6 +168,12 @@ def _check_bed_file_format(bed_file: PathLike) -> None:
             f"BED file '{bed_file}' is not in the correct format. "
             "Expected at least three tab-seperated columns."
         )
+    pattern = r".*\t\d+\t\d+.*"
+    if not re.match(pattern, first_line):
+        raise ValueError(
+            f"BED file '{bed_file}' is not in the correct format. "
+            "Expected columns 2 and 3 to contain integers."
+        )
 
 
 def import_beds(
