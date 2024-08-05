@@ -14,8 +14,10 @@ def render_plot(
     title: str | None = None,
     xlabel: str | None = None,
     ylabel: str | None = None,
+    x_label_rotation: int = 0,
+    show: bool = False,
     save_path: str | None = None,
-) -> None:
+) -> plt.Figure:
     """
     Render a plot with customization options.
 
@@ -37,7 +39,11 @@ def render_plot(
         Label for the X-axis.
     ylabel
         Label for the Y-axis.
-    fig_path
+    x_label_rotation
+        Rotation of the X-axis labels in degrees.
+    show
+        Whether to display the plot.
+    save_path
         Optional path to save the figure. If None, the figure is displayed but not saved.
     """
     fig.set_size_inches(width, height)
@@ -48,11 +54,17 @@ def render_plot(
             ax.set_xlabel(xlabel)
         if ylabel:
             ax.set_ylabel(ylabel)
+        for label in ax.get_xticklabels():
+            label.set_rotation(x_label_rotation)
 
     plt.tight_layout()
     if save_path:
         if not os.path.exists(os.path.dirname(save_path)):
             os.makedirs(os.path.dirname(save_path))
         plt.savefig(save_path)
-    plt.show()
-    plt.close()
+
+    if show:
+        plt.show()
+    plt.close(fig)
+
+    return fig

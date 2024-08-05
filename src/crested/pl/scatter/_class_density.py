@@ -21,7 +21,7 @@ def class_density(
     exclude_zeros: bool = True,
     density_indication: bool = False,
     **kwargs,
-):
+) -> plt.Figure:
     """
     Plot a density scatter plot of predictions vs ground truth for specified models and class.
 
@@ -166,4 +166,4 @@ def class_density(
     if "title" not in kwargs:
         kwargs["title"] = f"{class_name}"
 
-    render_plot(fig, **kwargs)
+    return render_plot(fig, **kwargs)

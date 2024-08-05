@@ -9,7 +9,7 @@ from crested._logging import log_and_raise
 from crested.pl._utils import render_plot
 
 
-def normalization_weights(adata: AnnData, **kwargs):
+def normalization_weights(adata: AnnData, **kwargs) -> plt.Figure:
     """
     Plot the distribution of normalization scaling factors per cell type.
 
@@ -62,4 +62,4 @@ def normalization_weights(adata: AnnData, **kwargs):
     if "height" not in kwargs:
         kwargs["height"] = default_height
 
-    render_plot(fig, **kwargs)
+    return render_plot(fig, **kwargs)

@@ -17,7 +17,7 @@ def region_predictions(
     model_names: list[str] | None = None,
     share_y: bool = True,
     **kwargs,
-) -> None:
+) -> plt.Figure:
     """
     Barplots of all predictions in .layers vs the groundtruth for a specific region across comparing classes.
 
@@ -108,10 +108,12 @@ def region_predictions(
     if "height" not in kwargs:
         kwargs["height"] = default_height
 
-    render_plot(fig, **kwargs)
+    return render_plot(fig, **kwargs)
 
 
-def region(adata: AnnData, region: str, target: str = "groundtruth", **kwargs) -> None:
+def region(
+    adata: AnnData, region: str, target: str = "groundtruth", **kwargs
+) -> plt.Figure:
     """
     Barplot of groundtruths or predictions for a specific region comparing classes.
 
@@ -175,4 +177,4 @@ def region(adata: AnnData, region: str, target: str = "groundtruth", **kwargs) -
     if "height" not in kwargs:
         kwargs["height"] = default_height
 
-    render_plot(fig, **kwargs)
+    return render_plot(fig, **kwargs)
