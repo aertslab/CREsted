@@ -96,6 +96,10 @@ class SequenceLoader:
         if (strand == "-") and (not self.in_memory):
             sub_sequence = self._reverse_complement(sub_sequence)
 
+        # pad with Ns if sequence is shorter than expected
+        if len(sub_sequence) < (end - start):
+            sub_sequence = sub_sequence.ljust(end - start, "N")
+
         return sub_sequence
 
 
