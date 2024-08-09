@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
 import matplotlib.pyplot as plt
 
 
@@ -21,9 +19,9 @@ def render_plot(
     y_tick_fontsize: int = 12,
     x_label_rotation: int = 0,
     y_label_rotation: int = 0,
-    show: bool = False,
+    show: bool = True,
     save_path: str | None = None,
-) -> plt.Figure:
+) -> None | plt.Figure:
     """
     Render a plot with customization options.
 
@@ -60,7 +58,7 @@ def render_plot(
     y_label_rotation
         Rotation of the Y-axis labels in degrees.
     show
-        Whether to display the plot.
+        Whether to display the plot. Set this to False if you want to return the figure object to customize it further.
     save_path
         Optional path to save the figure. If None, the figure is displayed but not saved.
     """
@@ -81,12 +79,12 @@ def render_plot(
 
     plt.tight_layout()
     if save_path:
-        if not os.path.exists(os.path.dirname(save_path)):
-            os.makedirs(os.path.dirname(save_path))
         plt.savefig(save_path)
 
     if show:
         plt.show()
-    plt.close(fig)
+    else:
+        plt.close(fig)
 
-    return fig
+    if not show and not save_path:
+        return fig
