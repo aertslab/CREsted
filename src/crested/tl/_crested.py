@@ -87,7 +87,7 @@ class Crested:
     >>> # Calculate contribution scores
     >>> scores, seqs_one_hot = trainer.calculate_contribution_scores_regions(
     ...     region_idx="chr1:1000-2000",
-    ...     class_indices=[0, 1, 2],
+    ...     class_names=["class1", "class2"],
     ...     method="integrated_grad",
     ... )
     """
@@ -900,27 +900,49 @@ class Crested:
             Method to use for calculating the contribution scores.
             Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
         class_names : list[str] | None, optional
-            List of class names to process. If None, all class names in adata.var["Class name"] will be processed.
+            List of class names to process. If None, all class names in adata.obs_names will be processed.
         """
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
         # Extract regions and class names from adata.var
-        all_class_names = adata.var["Class name"].unique().tolist()
+        all_class_names = list(adata.obs_names)
 
         # If class_names is None, process all classes
         if class_names is None:
             class_names = all_class_names
         else:
             # Ensure that class_names contains valid classes
-            class_names = [cls for cls in class_names if cls in all_class_names]
+            valid_class_names = [
+                class_name
+                for class_name in class_names
+                if class_name in all_class_names
+            ]
+            if len(valid_class_names) != len(class_names):
+                raise ValueError(
+                    f"Invalid class names provided. Valid class names are: {all_class_names}"
+                )
+            class_names = valid_class_names
 
-        # Iterate over each class and calculate contribution scores
+        # If regions specificity filtering performed, then only use specific regions
+        # else, use all regions in anndata.var
+        if "Class name" in adata.var.columns:
+            logger.info(
+                "Found 'Class name' column in adata.var. Using specific regions per class to calculate contribution scores."
+            )
+        else:
+            logger.info(
+                "No 'Class name' column found in adata.var. Using all regions per class to calculate contribution scores."
+            )
+
         for class_name in class_names:
             # Filter regions for the current class
-            class_regions = adata.var[
-                adata.var["Class name"] == class_name
-            ].index.tolist()
+            if "Class name" in adata.var.columns:
+                class_regions = adata.var[
+                    adata.var["Class name"] == class_name
+                ].index.tolist()
+            else:
+                class_regions = adata.var.index.tolist()
 
             # Calculate contribution scores for the regions of the current class
             contrib_scores, one_hot_seqs = self.calculate_contribution_scores_regions(
