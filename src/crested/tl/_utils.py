@@ -15,8 +15,8 @@ def get_hot_encoding_table(
         """Convert string to byte representation."""
         return np.frombuffer(string.encode("ascii"), dtype=np.uint8)
 
-    # 255 x 4
-    hot_encoding_table = np.zeros((np.iinfo(np.uint8).max, len(alphabet)), dtype=dtype)
+    # 256 x 4
+    hot_encoding_table = np.zeros((np.iinfo(np.uint8).max + 1, len(alphabet)), dtype=dtype)
 
     # For each ASCII value of the nucleotides used in the alphabet
     # (upper and lower case), set 1 in the correct column.
@@ -116,7 +116,7 @@ def _weighted_difference(
 
 def build_one_hot_decoding_table() -> np.ndarray:
     """Get hot decoding table to decode a one hot encoded sequence to a DNA sequence string."""
-    one_hot_decoding_table = np.full(np.iinfo(np.uint8).max, ord("N"), dtype=np.uint8)
+    one_hot_decoding_table = np.full(np.iinfo(np.uint8).max + 1, ord("N"), dtype=np.uint8)
     one_hot_decoding_table[1] = ord("A")
     one_hot_decoding_table[2] = ord("C")
     one_hot_decoding_table[4] = ord("G")
