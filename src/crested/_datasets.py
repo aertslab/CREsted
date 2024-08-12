@@ -89,6 +89,10 @@ def get_dataset(dataset: str):
             "data/mouse_biccn/bigwigs.tar.gz",
             "data/mouse_biccn/consensus_peaks_biccn.bed",
         ),
+        "motif_db": (
+            "motif_db/motif_db.meme",
+            "motif_db/motif_tf_collection.tsv"
+        )
     }
     assert (
         dataset in dataset_mapping
