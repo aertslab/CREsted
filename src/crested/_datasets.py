@@ -88,7 +88,7 @@ def get_dataset(dataset: str):
         "mouse_cortex_bigwig": (
             "data/mouse_biccn/bigwigs.tar.gz",
             "data/mouse_biccn/consensus_peaks_biccn.bed",
-        )
+        ),
     }
     assert (
         dataset in dataset_mapping
@@ -102,10 +102,11 @@ def get_dataset(dataset: str):
     targets_dir = os.path.dirname(targets_paths[0])
     return targets_dir, cregions_path
 
+
 def get_motif_db():
     """
     Fetch the motif database. This function retrieves the Aerts lab motif database for use in motif analysis, downloading if not already cached, and returns the paths to the dataset.
-    
+
     These two paths can be passed to :func:`crested.import_bigwigs()` / :func:`crested.import_beds()`.
 
     Note
@@ -120,7 +121,10 @@ def get_motif_db():
     -------
     >>> motif_db_path, motif_tf_collection_path = crested.get_motif_db()
     """
-    motif_db_path = _get_dataset_index().fetch("motif_db/motif_db.meme", progressbar=True)
-    motif_collection_path = _get_dataset_index().fetch( "motif_db/motif_tf_collection.tsv", progressbar=True)
+    motif_db_path = _get_dataset_index().fetch(
+        "motif_db/motif_db.meme", progressbar=True
+    )
+    motif_collection_path = _get_dataset_index().fetch(
+        "motif_db/motif_tf_collection.tsv", progressbar=True
+    )
     return motif_db_path, motif_collection_path
-     

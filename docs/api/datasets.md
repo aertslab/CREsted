@@ -11,4 +11,5 @@ Downloading of use case datasets which ar explored in the example analyses.
     :toctree: _autosummary
 
     get_dataset
+    get_motif_db
 ```
