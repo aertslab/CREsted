@@ -132,3 +132,6 @@ nitpick_ignore = [
     # you can add an exception to this list.
     #     ("py:class", "igraph.Graph"),
 ]
+suppress_warnings = [
+    "autosummary.import_cycle",
+]
