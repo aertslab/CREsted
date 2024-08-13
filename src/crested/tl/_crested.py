@@ -520,7 +520,7 @@ class Crested:
         self,
         anndata: AnnData | None = None,
         model_name: str | None = None,
-    ) -> np.ndarray:
+    ) -> None | np.ndarray:
         """
         Make predictions using the model on the full dataset
 
@@ -536,7 +536,7 @@ class Crested:
 
         Returns
         -------
-        Predictions of shape (N, C)
+        None or Predictions of shape (N, C)
         """
         self._check_predict_params(anndata, model_name)
 
@@ -554,8 +554,8 @@ class Crested:
         if anndata is not None and model_name is not None:
             logger.info(f"Adding predictions to anndata.layers[{model_name}].")
             anndata.layers[model_name] = predictions.T
-
-        return predictions
+        else:
+            return predictions
 
     def predict_regions(
         self,
