@@ -90,14 +90,14 @@ def sort_and_filter_regions_on_specificity(
 
     Parameters
     ----------
-    adata : AnnData
+    adata
         The AnnData object containing the matrix (celltypes, regions) to be sorted.
-    top_k : int
+    top_k
         The number of top regions to keep per column.
-    model_name : str | None, optional
+    model_name
         The name of the model to look for in adata.layers[model_name] for predictions.
         If None, will use the targets in adata.X to decide which regions to sort.
-    method : str, optional
+    method
         The method to use for calculating scores, either 'gini' or 'proportion'.
         Default is 'gini'.
 
