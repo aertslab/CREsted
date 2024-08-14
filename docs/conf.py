@@ -12,7 +12,6 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "extensions"))
-import crested  # noqa
 
 
 # -- Project information -----------------------------------------------------
