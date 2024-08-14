@@ -596,14 +596,14 @@ class Crested:
 
         Parameters
         ----------
-        model : a trained TensorFlow/Keras model
-        sequence : str
+        model
+            A trained Keras model
+        sequence
             A string containing a DNA sequence (A, C, G, T).
 
         Returns
         -------
-        np.ndarray
-            Predictions for the provided sequence.
+        Predictions for the provided sequence.
         """
         # One-hot encode the sequence
         x = one_hot_encode_sequence(sequence)
@@ -892,14 +892,14 @@ class Crested:
 
         Parameters
         ----------
-        adata : AnnData
+        adata
             The AnnData object containing regions and class information, obtained from crested.pp.sort_and_filter_regions_on_specificity.
-        output_dir : str
+        output_dir
             Directory to save the output files.
-        method : str, optional
+        method
             Method to use for calculating the contribution scores.
             Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
-        class_names : list[str] | None, optional
+        class_names
             List of class names to process. If None, all class names in adata.obs_names will be processed.
         """
         if not os.path.exists(output_dir):

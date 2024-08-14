@@ -95,6 +95,7 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
 }
 
 # List of patterns, relative to source directory, that match files and
@@ -128,6 +129,14 @@ nitpick_ignore = [
     # If building the documentation fails because of a missing link that is outside your control,
     # you can add an exception to this list.
     #     ("py:class", "igraph.Graph"),
+    ("py:class", "keras.Model"),
+    ("py:class", "keras.src.models.model.Model"),
+    ("py:class", "keras.src.optimizers.optimizer.Optimizer"),
+    ("py:class", "keras.optimizers.Optimizer"),
+    ("py:class", "keras.losses.Loss"),
+    ("py:class", "keras.metrics.Metric"),
+    ("py:class", "keras.src.losses.loss.Loss"),
+    ("py:class", "keras.src.metrics.metric.Metric"),
 ]
 suppress_warnings = [
     "autosummary.import_cycle",
