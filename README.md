@@ -27,7 +27,7 @@ Please refer to the [documentation][link-docs]. In particular, the
 
 You need to have Python 3.9 or newer installed on your system and a deep learning backend to be able to use CREsted.
 
-CREsted is build on top of keras 3.0 and can therefore be used with your deep learning backend of choice (Tensorflow or Pytorch).
+CREsted is build on top of keras 3 and can therefore be used with your deep learning backend of choice (Tensorflow or Pytorch).
 
 1. Install either [Tensorflow](https://www.tensorflow.org/install) or [Pytorch](https://pytorch.org/get-started/locally/) for GPU.
    Refer to the installation instructions on those pages to ensure you have the correct version of CUDA and cuDNN installed.
