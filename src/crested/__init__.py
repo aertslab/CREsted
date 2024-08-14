@@ -12,10 +12,10 @@ except ImportError:
         import torch
 
         os.environ["KERAS_BACKEND"] = "torch"
-    except ImportError:
-        warnings.warn(  # noqa: B028
-            "No backend found. Please install either tensorflow or pytorch. CREsted will not work without a backend."
-        )
+    except ImportError as e:
+        raise ImportError(
+            "No backend found. Please install either tensorflow or pytorch."
+        ) from e
 
 import sys
 from importlib.metadata import version
