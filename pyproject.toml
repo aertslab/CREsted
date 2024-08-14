@@ -58,6 +58,7 @@ doc = [
     "ipython",
     "sphinx-copybutton",
     "pandas",
+    "tensorflow",
 ]
 test = [
     "pytest",
