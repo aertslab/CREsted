@@ -10,7 +10,7 @@
 
 [badge-tests]: https://img.shields.io/github/actions/workflow/status/aertslab/CREsted/test.yaml?branch=main
 [link-tests]: https://github.com/aertslab/CREsted/actions/workflows/test.yaml
-[badge-docs]: https://img.shields.io/readthedocs/CREsted
+[badge-docs]: https://img.shields.io/readthedocs/crested
 
 ## Introduction
 
@@ -79,7 +79,7 @@ CREsted is build on top of keras 3.0 and can therefore be used with your deep le
 3. Current Keras 3.0 is still in active development and some features (mainly multi GPU training and weights and biases logging) are currently only supported with the Tensorflow backend. If you plan on using these features, you should choose Tensorflow. We will implement these features in a backend agnostic way as soon as Keras 3.0 has done so (it is on their roadmap).
 
 [issue-tracker]: https://github.com/aertslab/CREsted/issues
-[changelog]: https://CREsted.readthedocs.io/latest/changelog.html
-[link-docs]: https://CREsted.readthedocs.io
-[link-tutorials]: https://CREsted.readthedocs.io/latest/tutorials/index.html
-[link-api]: https://CREsted.readthedocs.io/latest/api.html
+[changelog]: https://crested.readthedocs.io/latest/changelog.html
+[link-docs]: https://crested.readthedocs.io
+[link-tutorials]: https://crested.readthedocs.io/en/latest/tutorials/index.html
+[link-api]: https://crested.readthedocs.io/en/latest/api/index.html
