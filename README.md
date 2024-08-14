@@ -5,7 +5,6 @@
 
 # CREsted: Cis Regulatory Element Sequence Training, Explanation, and Design
 
-![PyPI - Downloads](https://img.shields.io/pypi/dm/crested)
 [![Tests][badge-tests]][link-tests]
 [![Documentation][badge-docs]][link-docs]
 
