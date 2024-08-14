@@ -24,7 +24,7 @@ author = info["Author"]
 copyright = f"{datetime.now():%Y}, {author}."
 version = info["Version"]
 urls = dict(pu.split(", ") for pu in info.get_all("Project-URL"))
-repository_url = urls["Source"]
+repository_url = "https://github.com/aertslab/CREsted/"
 
 # The full version, including alpha/beta/rc tags
 release = info["Version"]
@@ -37,7 +37,7 @@ needs_sphinx = "4.0"
 html_context = {
     "display_github": True,  # Integrate GitHub
     "github_user": "aertslab",  # Username
-    "github_repo": project_name,  # Repo name
+    "github_repo": "CREsted",  # Repo name
     "github_version": "main",  # Version
     "conf_py_path": "/docs/",  # Path in the checkout to the docs root
 }
@@ -94,10 +94,6 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
-    "tensorflow": (
-        "https://www.tensorflow.org/api_docs/python",
-        "https://github.com/GPflow/tensorflow-intersphinx/raw/master/tf2_py_objects.inv",
-    ),
 }
 
 # List of patterns, relative to source directory, that match files and
