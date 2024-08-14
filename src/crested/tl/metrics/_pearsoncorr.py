@@ -7,6 +7,8 @@ import keras
 
 @keras.utils.register_keras_serializable(package="Metrics")
 class PearsonCorrelation(keras.metrics.Metric):
+    """Pearson correlation metric."""
+
     def __init__(self, name: str = "pearson_correlation", **kwargs):
         super().__init__(name=name, **kwargs)
         self.y_true_sum = self.add_weight(name="y_true_sum", initializer="zeros")

@@ -7,6 +7,8 @@ import keras
 
 @keras.utils.register_keras_serializable(package="Metrics")
 class SpearmanCorrelationPerClass(keras.metrics.Metric):
+    """Spearman correlation metric per class."""
+
     def __init__(self, num_classes, name="spearman_correlation_per_class", **kwargs):
         super().__init__(name=name, **kwargs)
         self.num_classes = num_classes

@@ -7,6 +7,8 @@ import keras
 
 @keras.utils.register_keras_serializable(package="Metrics")
 class ZeroPenaltyMetric(keras.metrics.Metric):
+    """Zero penalty metric."""
+
     def __init__(self, name="zero_penalty_metric", **kwargs):
         super().__init__(name=name, **kwargs)
         self.zero_penalty = self.add_weight(name="zero_penalty", initializer="zeros")
