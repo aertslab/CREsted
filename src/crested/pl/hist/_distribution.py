@@ -20,7 +20,7 @@ def distribution(
     log_transform: bool = True,
     share_y: bool = False,
     **kwargs,
-) -> None:
+) -> plt.Figure:
     """
     Histogram of region distribution for specified classes.
 
@@ -123,4 +123,4 @@ def distribution(
     if "height" not in kwargs:
         kwargs["height"] = default_height
 
-    render_plot(fig, **kwargs)
+    return render_plot(fig, **kwargs)

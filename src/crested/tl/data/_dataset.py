@@ -96,6 +96,10 @@ class SequenceLoader:
         if (strand == "-") and (not self.in_memory):
             sub_sequence = self._reverse_complement(sub_sequence)
 
+        # pad with Ns if sequence is shorter than expected
+        if len(sub_sequence) < (end - start):
+            sub_sequence = sub_sequence.ljust(end - start, "N")
+
         return sub_sequence
 
 
@@ -165,6 +169,34 @@ else:
 
 
 class AnnDataset(BaseClass):
+    """
+    Dataset class for combining genome files and AnnData objects.
+
+    Called by the by the AnnDataModule class.
+
+    Parameters
+    ----------
+    anndata
+        AnnData object containing the data.
+    genome_file
+        Path to the genome file.
+    split
+        'train', 'val', or 'test' split column in anndata.var.
+    chromsizes_file
+        Path to the chromsizes file. Advised if max_stochastic_shift > 0.
+    in_memory
+        If True, the train and val sequences will be loaded into memory.
+    random_reverse_complement
+        If True, the sequences will be randomly reverse complemented during training.
+    always_reverse_complement
+        If True, all sequences will be augmented with their reverse complement during training.
+    max_stochastic_shift
+        Maximum stochastic shift (n base pairs) to apply randomly to each sequence during training.
+    deterministic_shift
+        If true, each region will be shifted twice with stride 50bp to each side.
+        This is our legacy shifting, we recommend using max_stochastic_shift instead.
+    """
+
     def __init__(
         self,
         anndata: AnnData,

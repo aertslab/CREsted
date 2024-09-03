@@ -175,7 +175,7 @@ def expected_integrated_grad(
                 baseline,
                 num_steps=num_steps,
                 class_index=class_index,
-                func=tf.math.reduce_mean,
+                func=func,
             )
         )
     return np.mean(np.array(grads), axis=0)

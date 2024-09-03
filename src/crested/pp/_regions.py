@@ -83,6 +83,7 @@ def change_regions_width(
 
     # Check if regions are within the chromosome boundaries
     if chromsizes_file is not None:
+        regions_to_keep = list(adata.var_names.copy())
         for idx, row in adata.var.iterrows():
             chr_name = row["chr"]
             start, end = row["start"], row["end"]
@@ -90,6 +91,9 @@ def change_regions_width(
                 logger.warning(
                     f"Region {idx} with coordinates {chr_name}:{start}-{end} is out of bounds for chromosome {chr_name}. Removing region."
                 )
-                adata.var.drop(idx, inplace=True)
+                regions_to_keep.remove(idx)
+        if len(regions_to_keep) < len(adata.var_names):
+            adata._inplace_subset_var(regions_to_keep)
+
 
     adata.var_names.name = "region"

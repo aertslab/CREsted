@@ -12,6 +12,7 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "extensions"))
+import crested  # noqa
 
 
 # -- Project information -----------------------------------------------------
@@ -24,7 +25,7 @@ author = info["Author"]
 copyright = f"{datetime.now():%Y}, {author}."
 version = info["Version"]
 urls = dict(pu.split(", ") for pu in info.get_all("Project-URL"))
-repository_url = urls["Source"]
+repository_url = "https://github.com/aertslab/CREsted/"
 
 # The full version, including alpha/beta/rc tags
 release = info["Version"]
@@ -37,7 +38,7 @@ needs_sphinx = "4.0"
 html_context = {
     "display_github": True,  # Integrate GitHub
     "github_user": "aertslab",  # Username
-    "github_repo": project_name,  # Repo name
+    "github_repo": "CREsted",  # Repo name
     "github_version": "main",  # Version
     "conf_py_path": "/docs/",  # Path in the checkout to the docs root
 }
@@ -94,10 +95,7 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
-    "tensorflow": (
-        "https://www.tensorflow.org/api_docs/python",
-        "https://github.com/GPflow/tensorflow-intersphinx/raw/master/tf2_py_objects.inv",
-    ),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
 }
 
 # List of patterns, relative to source directory, that match files and
@@ -131,4 +129,15 @@ nitpick_ignore = [
     # If building the documentation fails because of a missing link that is outside your control,
     # you can add an exception to this list.
     #     ("py:class", "igraph.Graph"),
+    ("py:class", "keras.Model"),
+    ("py:class", "keras.src.models.model.Model"),
+    ("py:class", "keras.src.optimizers.optimizer.Optimizer"),
+    ("py:class", "keras.optimizers.Optimizer"),
+    ("py:class", "keras.losses.Loss"),
+    ("py:class", "keras.metrics.Metric"),
+    ("py:class", "keras.src.losses.loss.Loss"),
+    ("py:class", "keras.src.metrics.metric.Metric"),
+]
+suppress_warnings = [
+    "autosummary.import_cycle",
 ]

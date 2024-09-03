@@ -60,8 +60,7 @@ def deeptopic_lstm(
 
     Returns
     -------
-    keras.Model
-        A Keras model.
+    A Keras model.
     """
     inputs = keras.layers.Input(shape=(seq_len, 4), name="sequence")
 

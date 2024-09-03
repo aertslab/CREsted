@@ -7,6 +7,8 @@ import keras
 
 @keras.utils.register_keras_serializable(package="Metrics")
 class ConcordanceCorrelationCoefficient(keras.metrics.Metric):
+    """Concordance correlation coefficient metric."""
+
     def __init__(self, name="concordance_correlation_coefficient", **kwargs):
         super().__init__(name=name, **kwargs)
         self.y_true_sum = self.add_weight(name="y_true_sum", initializer="zeros")

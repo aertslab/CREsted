@@ -4,6 +4,6 @@
 :maxdepth: 1
 
 introduction
-mouse_biccn
+topic_classification
 multi_gpu
 ```

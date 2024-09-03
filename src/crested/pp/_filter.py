@@ -12,7 +12,7 @@ def filter_regions_on_specificity(
     adata: AnnData,
     gini_std_threshold: float = 1.0,
     model_name: str | None = None,
-) -> AnnData:
+) -> None:
     """
     Filter bed regions & targets/predictions based on high Gini score.
 
@@ -36,12 +36,11 @@ def filter_regions_on_specificity(
 
     Returns
     -------
-    A new AnnData object with the filtered matrix and updated variable names.
-
+    The AnnData object is filtered inplace with the filtered matrix and updated variable names.
 
     Example
     -------
-    >>> filtered_adata = crested.pp.filter_regions_on_specificity(
+    >>> crested.pp.filter_regions_on_specificity(
     ...     adata,
     ...     gini_std_threshold=1.0,
     ... )
@@ -67,37 +66,14 @@ def filter_regions_on_specificity(
     selected_indices = np.argwhere(np.max(gini_scores, axis=1) > gini_threshold)[:, 0]
 
     target_matrix_filt = target_matrix[selected_indices]
-    regions_filt = adata.var_names[selected_indices].tolist()
+    regions_filt = adata.var_names[selected_indices]
 
     logger.info(
         f"After specificity filtering, kept {len(target_matrix_filt)} out of {target_matrix.shape[0]} regions."
     )
 
-    # Create a new AnnData object with the filtered data
-    if model_name is None:
-        if isinstance(adata.X, csr_matrix):
-            new_X = csr_matrix(target_matrix_filt.T)
-        else:
-            new_X = target_matrix_filt.T
-    else:
-        if isinstance(adata.X, csr_matrix):
-            new_X = csr_matrix(adata.X[:, selected_indices])
-        else:
-            new_X = adata.X[:, selected_indices]
-        new_pred_matrix = target_matrix_filt.T
-
-    filtered_adata = AnnData(new_X)
-    filtered_adata.obs = adata.obs.copy()
-    filtered_adata.var = adata.var.iloc[selected_indices].copy()
-    filtered_adata.var_names = regions_filt
-
-    # Copy over any other attributes or layers if needed
-    filtered_adata.obsm = adata.obsm.copy()
-
-    if model_name is not None:
-        filtered_adata.layers[model_name] = new_pred_matrix
-
-    return filtered_adata
+    # Filter the adata object inplace
+    adata._inplace_subset_var(regions_filt)
 
 
 def sort_and_filter_regions_on_specificity(
@@ -105,7 +81,7 @@ def sort_and_filter_regions_on_specificity(
     top_k: int,
     model_name: str | None = None,
     method: str = "gini",
-) -> AnnData:
+) -> None:
     """
     Sort bed regions & targets/predictions based on high Gini or proportion score per colum while keeping the top k rows per column.
 
@@ -114,29 +90,28 @@ def sort_and_filter_regions_on_specificity(
 
     Parameters
     ----------
-    adata : AnnData
+    adata
         The AnnData object containing the matrix (celltypes, regions) to be sorted.
-    top_k : int
+    top_k
         The number of top regions to keep per column.
-    model_name : str | None, optional
+    model_name
         The name of the model to look for in adata.layers[model_name] for predictions.
         If None, will use the targets in adata.X to decide which regions to sort.
-    method : str, optional
+    method
         The method to use for calculating scores, either 'gini' or 'proportion'.
         Default is 'gini'.
 
     Returns
     -------
-    AnnData
-        A new AnnData object with the sorted and filtered matrix, and extra columns indicating the original class name,
-        the rank per column, and the score.
+    The AnnData object is modified inplace with the sorted and filtered matrix, and extra columns indicating the original class name,
+    the rank per column, and the score.
 
     Example
     -------
-    >>> sorted_filtered_adata = sort_and_filter_regions_on_specificity(
+    >>> crested.pp.sort_and_filter_regions_on_specificity(
     ...     adata,
     ...     top_k=500,
-    ...     method="proportion",
+    ...     method="gini",
     ... )
     """
     class_names = list(adata.obs_names)
@@ -180,31 +155,15 @@ def sort_and_filter_regions_on_specificity(
     all_scores = np.array(all_scores)
 
     target_matrix_filtered = target_matrix[all_selected_indices]
-    regions_filtered = adata.var_names[all_selected_indices].tolist()
+    regions_filtered = adata.var_names[all_selected_indices]
     class_names_filtered = [class_names[idx] for idx in column_indices]
 
     logger.info(
         f"After sorting and filtering, kept {target_matrix_filtered.shape[0]} regions."
     )
 
-    # Create a new AnnData object with the filtered data
-    if isinstance(adata.X, csr_matrix):
-        new_X = csr_matrix(target_matrix_filtered.T)
-    else:
-        new_X = target_matrix_filtered.T
-
-    filtered_adata = AnnData(new_X)
-    filtered_adata.obs = adata.obs.copy()
-    filtered_adata.var = adata.var.iloc[all_selected_indices].copy()
-    filtered_adata.var_names = regions_filtered
-    filtered_adata.var["Class name"] = class_names_filtered
-    filtered_adata.var["rank"] = ranks
-    filtered_adata.var[f"{method}_score"] = all_scores
-
-    # Copy over any other attributes or layers if needed
-    filtered_adata.obsm = adata.obsm.copy()
-
-    if model_name is not None:
-        filtered_adata.layers[model_name] = new_X
-
-    return filtered_adata
+    # filter the adata object inplace
+    adata._inplace_subset_var(regions_filtered)
+    adata.var["Class name"] = class_names_filtered
+    adata.var["rank"] = ranks
+    adata.var[f"{method}_score"] = all_scores

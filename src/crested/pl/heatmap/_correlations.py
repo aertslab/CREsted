@@ -82,7 +82,7 @@ def correlations_self(
 
     fig = _generate_heatmap(correlation_matrix, classes, vmin, vmax)
 
-    render_plot(fig, **kwargs)
+    return render_plot(fig, **kwargs)
 
 
 def correlations_predictions(
@@ -93,7 +93,7 @@ def correlations_predictions(
     vmin: float | None = None,
     vmax: float | None = None,
     **kwargs,
-):
+) -> plt.Figure:
     """
     Plot correlation heatmaps of predictions vs ground truth or target values for different cell types.
 
@@ -211,4 +211,4 @@ def correlations_predictions(
     if "height" not in kwargs:
         kwargs["height"] = default_height
 
-    render_plot(fig, **kwargs)
+    return render_plot(fig, **kwargs)
