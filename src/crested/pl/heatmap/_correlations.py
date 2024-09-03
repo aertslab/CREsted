@@ -73,12 +73,7 @@ def correlations_self(
     if log_transform:
         x = np.log1p(x)
 
-    n_features = x.shape[0]
-
-    correlation_matrix = np.zeros((n_features, n_features))
-    for i in range(n_features):
-        for j in range(n_features):
-            correlation_matrix[i, j] = np.corrcoef(x[i, :], x[j, :])[0, 1]
+    correlation_matrix = np.corrcoef(x)
 
     fig = _generate_heatmap(correlation_matrix, classes, vmin, vmax)
 
