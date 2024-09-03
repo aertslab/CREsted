@@ -182,10 +182,14 @@ def correlations_predictions(
         axes = [axes]
 
     for ax, (model_name, y) in zip(axes, predicted_values.items()):
-        correlation_matrix = np.zeros((n_features, n_features))
-        for i in range(n_features):
-            for j in range(n_features):
-                correlation_matrix[i, j] = np.corrcoef(x[i, :], y[j, :])[0, 1]
+        # this is the same as
+        # c = np.corrcoef(np.vstack([x, y]))
+        # so c[0, 0] in the old funciton would correspond to
+        # c[0, x.shape[0]] in this new function
+        correlation_matrix = np.corrcoef(x, y)
+        # reformat the array to only get correlations between x and y
+        # and no self correlations
+        correlation_matrix = np.hsplit(np.vsplit(correlation_matrix, 2)[1], 2)[0].T
 
         sns.heatmap(
             correlation_matrix,
