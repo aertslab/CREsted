@@ -175,7 +175,6 @@ def correlations_predictions(
             predicted_values[key] = np.log1p(predicted_values[key])
 
     n_models = len(predicted_values)
-    n_features = x.shape[0]
 
     fig, axes = plt.subplots(1, n_models, sharey=False)
     if n_models == 1:
