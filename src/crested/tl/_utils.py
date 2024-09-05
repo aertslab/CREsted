@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Any, Callable
-
 import numpy as np
 
 
@@ -94,32 +92,9 @@ def generate_motif_insertions(x, motif, flanks=(0, 0), masked_locations=None):
 
     return np.concatenate(x_mut, axis=0), insertion_locations
 
-class EnhancerOptimizer:
-    def __init__(
-            self,
-            optimize_func: Callable[..., np.intp]
-            ) -> None:
-        self.optimize_func = optimize_func
-
-    def get_best(
-        self,
-        mutated_predictions: np.ndarray,
-        original_prediction: np.ndarray,
-        target: int | list[int],
-        **kwargs: dict[str, Any]
-    ) -> np.intp:
-        return self.optimize_func(
-            mutated_predictions,
-            original_prediction,
-            target,
-            **kwargs
-        )
 
 def _weighted_difference(
-    mutated_predictions: np.ndarray,
-    original_prediction: np.ndarray,
-    target: int,
-    class_penalty_weights: np.ndarray | None = None
+    mutated_predictions, original_prediction, target, class_penalty_weights=None
 ):
     n_classes = original_prediction.shape[1]
     penalty_factor = 1 / n_classes
