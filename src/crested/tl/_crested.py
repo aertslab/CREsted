@@ -1143,7 +1143,7 @@ class Crested:
         class_penalty_weights: np.ndarray | None = None,
         no_mutation_flanks: tuple | None = None,
         target_len: int | None = None,
-    ) -> tuple[list(dict), list] | list:
+    ) -> tuple[list[dict], list] | list:
         """
         Create synthetic enhancers for a specified class using in silico evolution (ISE).
 
