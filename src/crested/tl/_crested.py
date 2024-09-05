@@ -972,27 +972,33 @@ class Crested:
 
     def enhancer_design_motif_implementation(
         self,
-        target_class: str,
         n_sequences: int,
         patterns: dict,
+        target_class: str | None = None,
+        target: int | np.ndarray | None = None,
         insertions_per_pattern: dict | None = None,
         return_intermediate: bool = False,
         class_penalty_weights: np.ndarray | None = None,
         no_mutation_flanks: tuple | None = None,
         target_len: int | None = None,
         preserve_inserted_motifs: bool = True,
-    ) -> tuple[list(dict), list] | list:
+        enhancer_optimizer: EnhancerOptimizer | None = None,
+        **kwargs: dict[str, Any]
+    ) -> tuple[list[dict], list] | list:
         """
         Create synthetic enhancers for a specified class using motif implementation.
 
         Parameters
         ----------
-        target_class
-            Class name for which the enhancers will be designed for.
         n_sequences
             Number of enhancers to design.
         patterns
             Dictionary of patterns to be implemented in the form of 'pattern_name':'pattern_sequence'
+        target_class
+            Class name for which the enhancers will be designed for. If this value is set to None
+            target needs to be specified.
+        target
+            target index, needs to be specified when target_class is None
         insertions_per_pattern
             Dictionary of number of patterns to be implemented in the form of 'pattern_name':number_of_insertions
             If not used one of each pattern in patterns will be implemented.
@@ -1009,17 +1015,33 @@ class Crested:
             is supplied.
         preserve_inserted_motifs
             If True, sequentially inserted motifs can't be inserted on previous motifs.
+        enhancer_optimizer
+            An instance of EnhancerOptimizer, defining how sequences should be optimized.
+            If None, a default EnhancerOptimizer will be initialized using `_weighted_difference`
+            as optimization function.
+        kwargs
+            Keyword arguments that will be passed to the `get_best` function of the EnhancerOptimizer
 
         Returns
         -------
         A list of designed sequences and if return_intermediate is True a list of dictionaries of intermediate
         mutations and predictions
         """
-        self._check_contribution_scores_params([target_class])
+        if target_class is not None:
+            self._check_contribution_scores_params([target_class])
 
-        all_class_names = list(self.anndatamodule.adata.obs_names)
+            all_class_names = list(self.anndatamodule.adata.obs_names)
 
-        target = all_class_names.index(target_class)
+            target = all_class_names.index(target_class)
+
+        elif target is None:
+            raise ValueError("`target` need to be specified when `target_class` is None")
+
+
+        if enhancer_optimizer is None:
+            enhancer_optimizer = EnhancerOptimizer(
+                optimize_func = _weighted_difference
+            )
 
         # get input sequence length of the model
         seq_len = (
@@ -1097,11 +1119,11 @@ class Crested:
                     mutagenesis_predictions = self.model.predict(mutagenesis)
 
                     # determine the best insertion site
-                    best_mutation = _weighted_difference(
-                        mutagenesis_predictions,
-                        current_prediction,
-                        target,
-                        class_penalty_weights,
+                    best_mutation = enhancer_optimizer.get_best(
+                        mutated_predictions = mutagenesis_predictions,
+                        original_prediction = current_prediction,
+                        target = target,
+                        **kwargs
                     )
 
                     sequence_onehot = mutagenesis[best_mutation : best_mutation + 1]
