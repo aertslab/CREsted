@@ -105,7 +105,7 @@ class EnhancerOptimizer:
         self,
         mutated_predictions: np.ndarray,
         original_prediction: np.ndarray,
-        target: int | list[int],
+        target: int | np.ndarray,
         **kwargs: dict[str, Any]
     ) -> np.intp:
         return self.optimize_func(
