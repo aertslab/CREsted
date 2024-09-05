@@ -1141,6 +1141,7 @@ class Crested:
         n_mutations: int,
         n_sequences: int,
         target_class: str | None = None,
+        target: int | np.ndarray | None = None,
         return_intermediate: bool = False,
         no_mutation_flanks: tuple | None = None,
         target_len: int | None = None,
@@ -1157,8 +1158,10 @@ class Crested:
         n_sequences
             Number of enhancers to design
         target_class
-            Class name for which the enhancers will be designed for. If this value is set to None a custom target can be
-            defined using kwargs.
+            Class name for which the enhancers will be designed for. If this value is set to None
+            target needs to be specified.
+        target
+            target index, needs to be specified when target_class is None
         return_intermediate
             If True, returns a dictionary with predictions and changes made in intermediate steps for selected
             sequences
@@ -1185,6 +1188,9 @@ class Crested:
             all_class_names = list(self.anndatamodule.adata.obs_names)
 
             target = all_class_names.index(target_class)
+        
+        elif target is None:
+            raise ValueError("`target` need to be specified when `target_class` is None")
 
         if enhancer_optimizer is None:
             enhancer_optimizer = EnhancerOptimizer(
