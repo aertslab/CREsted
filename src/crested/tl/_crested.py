@@ -1160,7 +1160,7 @@ class Crested:
 
     def enhancer_design_in_silico_evolution(
         self,
-        n_iter: int,
+        n_mutations: int,
         n_sequences: int,
         target_class: str | None = None,
         target: int | np.ndarray | None = None,
@@ -1175,7 +1175,7 @@ class Crested:
 
         Parameters
         ----------
-        n_iter
+        n_mutations
             Number of iterations
         n_sequences
             Number of enhancers to design
@@ -1276,7 +1276,7 @@ class Crested:
         for i, sequence in enumerate(random_sequences):
             sequence_onehot_prev_iter[i] = one_hot_encode_sequence(sequence)
 
-        for _ in tqdm(range(n_iter)):
+        for _ in tqdm(range(n_mutations)):
             baseline_prediction = self.model.predict(
                 sequence_onehot_prev_iter,
                 verbose = False
