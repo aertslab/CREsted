@@ -1160,7 +1160,7 @@ class Crested:
 
     def enhancer_design_in_silico_evolution(
         self,
-        n_mutations: int,
+        n_iter: int,
         n_sequences: int,
         target_class: str | None = None,
         target: int | np.ndarray | None = None,
@@ -1175,8 +1175,8 @@ class Crested:
 
         Parameters
         ----------
-        n_mutations
-            Number of mutations per sequence
+        n_iter
+            Number of iterations
         n_sequences
             Number of enhancers to design
         target_class
@@ -1204,13 +1204,16 @@ class Crested:
         A list of designed sequences and if return_intermediate is True a list of dictionaries of intermediate
         mutations and predictions
         """
+        if self.model is None:
+            raise ValueError("Model should be loaded first!")
+
         if target_class is not None:
             self._check_contribution_scores_params([target_class])
 
             all_class_names = list(self.anndatamodule.adata.obs_names)
 
             target = all_class_names.index(target_class)
-        
+
         elif target is None:
             raise ValueError("`target` need to be specified when `target_class` is None")
 
@@ -1250,59 +1253,84 @@ class Crested:
             n_sequences=n_sequences, seq_len=seq_len
         )
 
-        designed_sequences = []
-        intermediate_info_list = []
+        # initialize
+        designed_sequences: list[str] = []
+        intermediate_info_list: list[dict] = []
 
-        for idx, sequence in enumerate(random_sequences):
-            sequence_onehot = one_hot_encode_sequence(sequence)
-            if return_intermediate:
-                intermediate_info_list.append(
-                    {
-                        "inital_sequence": sequence,
-                        "changes": [(-1, "N")],
-                        "predictions": [
-                            self.model.predict(sequence_onehot, verbose=False)
-                        ],
-                        "designed_sequence": "",
-                    }
+        sequence_onehot_prev_iter = np.zeros(
+            (n_sequences, seq_len, 4),
+            dtype=np.uint8
+        )
+
+        # calculate total number of mutations per sequence
+        _, L, A = sequence_onehot_prev_iter.shape
+        start, end = 0, L
+        start = no_mutation_flanks[0]
+        end = L - no_mutation_flanks[1]
+        TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ = (end - start) * (A - 1)
+
+        mutagenesis = np.zeros(
+            (n_sequences, TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ, seq_len, 4)
+        )
+
+        for i, sequence in enumerate(random_sequences):
+            sequence_onehot_prev_iter[i] = one_hot_encode_sequence(sequence)
+
+        for _ in range(n_iter):
+            baseline_prediction = self.model.predict(
+                sequence_onehot_prev_iter,
+                verbose = False
+            )
+            # do all possible mutations
+            for i in range(n_sequences):
+                mutagenesis[i] = generate_mutagenesis(
+                    sequence_onehot_prev_iter[i],
+                    include_original=False, flanks=no_mutation_flanks
                 )
 
-            # sequentially do mutations
-            for _mutation_step in range(n_mutations):
-                current_prediction = self.model.predict(sequence_onehot, verbose=False)
-
-                # do every possible mutation
-                mutagenesis = generate_mutagenesis(
-                    sequence_onehot, include_original=False, flanks=no_mutation_flanks
+            mutagenesis_predictions = self.model.predict(
+                mutagenesis.reshape(
+                    (n_sequences * TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ, seq_len, 4)
                 )
-                mutagenesis_predictions = self.model.predict(mutagenesis)
+            ).reshape(
+                (
+                    n_sequences,
+                    TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ,
+                    mutagenesis_predictions.shape[1]
+                )
+            )
 
-                # determine the best mutation
-
+            for i in range(n_sequences):
                 best_mutation = enhancer_optimizer.get_best(
-                    mutated_predictions = mutagenesis_predictions,
-                    original_prediction = current_prediction,
+                    mutated_predictions = mutagenesis_predictions[i],
+                    original_prediction = baseline_prediction[i],
                     target = target,
                     **kwargs
                 )
+                sequence_onehot_prev_iter[i] = mutagenesis[
+                    i,
+                    best_mutation : best_mutation + 1,
+                    :
+                ]
 
-                sequence_onehot = mutagenesis[best_mutation : best_mutation + 1]
-
-                if return_intermediate:
-                    mutation_index = best_mutation // 3 + no_mutation_flanks[0]
-                    changed_to = sequence_onehot[0, mutation_index, :]
-                    intermediate_info_list[idx]["changes"].append(
-                        (mutation_index, hot_encoding_to_sequence(changed_to))
-                    )
-                    intermediate_info_list[idx]["predictions"].append(
-                        mutagenesis_predictions[best_mutation]
-                    )
-
-            designed_sequence = hot_encoding_to_sequence(sequence_onehot)
-            designed_sequences.append(designed_sequence)
-
-            if return_intermediate:
-                intermediate_info_list[idx]["designed_sequence"] = designed_sequence
+        # get final sequence
+        designed_sequences: list[str] = []
+        for i in range(n_sequences):
+            best_mutation = enhancer_optimizer.get_best(
+                mutated_predictions = mutagenesis_predictions[i],
+                original_prediction = baseline_prediction[i],
+                target = target,
+                **kwargs
+            )
+            designed_sequences.append(
+                hot_encoding_to_sequence(
+                    mutagenesis[
+                        i,
+                        best_mutation : best_mutation + 1,
+                        :
+                    ]
+                )
+            )
 
         if return_intermediate:
             return intermediate_info_list, designed_sequences
