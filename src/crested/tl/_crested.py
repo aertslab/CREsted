@@ -1292,7 +1292,9 @@ class Crested:
                 mutagenesis.reshape(
                     (n_sequences * TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ, seq_len, 4)
                 )
-            ).reshape(
+            )
+
+            mutagenesis_predictions = mutagenesis_predictions.reshape(
                 (
                     n_sequences,
                     TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ,

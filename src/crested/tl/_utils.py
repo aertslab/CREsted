@@ -121,6 +121,8 @@ def _weighted_difference(
     target: int,
     class_penalty_weights: np.ndarray | None = None
 ):
+    if len(original_prediction.shape) == 1:
+        original_prediction = original_prediction[None]
     n_classes = original_prediction.shape[1]
     penalty_factor = 1 / n_classes
 
