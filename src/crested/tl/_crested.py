@@ -1276,7 +1276,7 @@ class Crested:
         for i, sequence in enumerate(random_sequences):
             sequence_onehot_prev_iter[i] = one_hot_encode_sequence(sequence)
 
-        for _ in range(n_iter):
+        for _ in tqdm(range(n_iter)):
             baseline_prediction = self.model.predict(
                 sequence_onehot_prev_iter,
                 verbose = False
@@ -1314,7 +1314,6 @@ class Crested:
                 ]
 
         # get final sequence
-        designed_sequences: list[str] = []
         for i in range(n_sequences):
             best_mutation = enhancer_optimizer.get_best(
                 mutated_predictions = mutagenesis_predictions[i],
