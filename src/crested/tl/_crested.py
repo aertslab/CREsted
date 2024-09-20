@@ -1284,7 +1284,7 @@ class Crested:
             # do all possible mutations
             for i in range(n_sequences):
                 mutagenesis[i] = generate_mutagenesis(
-                    sequence_onehot_prev_iter[i],
+                    sequence_onehot_prev_iter[i: i+1],
                     include_original=False, flanks=no_mutation_flanks
                 )
 
