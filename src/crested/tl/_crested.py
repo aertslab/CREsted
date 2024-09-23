@@ -447,7 +447,7 @@ class Crested:
         old_activation_layer = base_model.layers[-1]
         if set_output_activation is None:
             old_activation = old_activation_layer.activation
-        else set_output_activation:
+        elif set_output_activation:
             old_activation = keras.activations.get(set_output_activation)
 
         x = base_model.layers[-3].output
