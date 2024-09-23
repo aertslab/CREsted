@@ -1276,11 +1276,28 @@ class Crested:
         for i, sequence in enumerate(random_sequences):
             sequence_onehot_prev_iter[i] = one_hot_encode_sequence(sequence)
 
-        for _ in tqdm(range(n_mutations)):
+        for _iter in tqdm(range(n_mutations)):
             baseline_prediction = self.model.predict(
                 sequence_onehot_prev_iter,
                 verbose = False
             )
+        
+            if _iter == 0 :
+                for i in range(n_sequences):
+                    # initialize info
+                    intermediate_info_list.append(
+                        {
+                            "inital_sequence": hot_encoding_to_sequence(
+                                sequence_onehot_prev_iter[i]
+                            ),
+                            "changes": [(-1, "N")],
+                            "predictions": [
+                                baseline_prediction[i]
+                            ],
+                            "designed_sequence": "",
+                        }
+                    )
+
             # do all possible mutations
             for i in range(n_sequences):
                 mutagenesis[i] = generate_mutagenesis(
@@ -1314,6 +1331,17 @@ class Crested:
                     best_mutation : best_mutation + 1,
                     :
                 ]
+                if return_intermediate:
+                    mutation_index = best_mutation // 3 + no_mutation_flanks[0]
+                    changed_to = hot_encoding_to_sequence(
+                        sequence_onehot_prev_iter[i, mutation_index, :]
+                    )
+                    intermediate_info_list[i]["changes"].append(
+                        (mutation_index, changed_to)
+                    )
+                    intermediate_info_list[i]["predictions"].append(
+                        mutagenesis_predictions[i][best_mutation]
+                    )
 
         # get final sequence
         for i in range(n_sequences):
@@ -1323,15 +1351,21 @@ class Crested:
                 target = target,
                 **kwargs
             )
-            designed_sequences.append(
-                hot_encoding_to_sequence(
+
+            designed_sequence = hot_encoding_to_sequence(
                     mutagenesis[
                         i,
                         best_mutation : best_mutation + 1,
                         :
                     ]
                 )
+
+            designed_sequences.append(
+                designed_sequence
             )
+
+            if return_intermediate:
+                intermediate_info_list[i]["designed_sequence"] = designed_sequence
 
         if return_intermediate:
             return intermediate_info_list, designed_sequences
