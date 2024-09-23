@@ -381,6 +381,7 @@ class Crested:
         learning_rate_first_phase: float = 1e-4,
         learning_rate_second_phase: float = 1e-6,
         dense_block_name: str = "denseblock",
+        set_output_activation: str | None = None,
         **kwargs,
     ):
         """
@@ -404,6 +405,8 @@ class Crested:
             Learning rate for the second phase.
         mixed_precision
             Enable mixed precision training.
+        set_output_activation
+            Set outpu activation if different from the previous model.
         kwargs
             Additional keyword arguments to pass to the fit method.
 
@@ -442,7 +445,10 @@ class Crested:
 
         # Change the number of output units to match the new task
         old_activation_layer = base_model.layers[-1]
-        old_activation = old_activation_layer.activation
+        if set_output_activation is None:
+            old_activation = old_activation_layer.activation
+        else set_output_activation:
+            old_activation = keras.activations.get(set_output_activation)
 
         x = base_model.layers[-3].output
         new_output_units = self.anndatamodule.adata.X.shape[0]
