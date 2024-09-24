@@ -37,7 +37,7 @@ dependencies = [
 
 [project.optional-dependencies]
 tfmodisco = [
-    "modisco-lite",
+    "modisco-lite>=2.2.1",
 ]
 
 dev = [
