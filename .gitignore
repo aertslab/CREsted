@@ -12,3 +12,4 @@ node_modules
 .DS_Store
 ._.DS_Store
 docs/tutorials/mouse_biccn.ipynb
+docs/tutorials/.ipynb_checkpoints

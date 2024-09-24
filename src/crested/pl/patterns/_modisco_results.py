@@ -293,7 +293,7 @@ def modisco_results(
     if "height" not in kwargs:
         kwargs["height"] = 2 * max_num_patterns
 
-    render_plot(fig, **kwargs)
+    return render_plot(fig, **kwargs)
 
 
 def plot_custom_xticklabels(
