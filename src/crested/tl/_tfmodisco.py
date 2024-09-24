@@ -8,6 +8,7 @@ import modiscolite as modisco
 import numpy as np
 import pandas as pd
 from loguru import logger
+import scanpy as sc
 
 from crested._logging import log_and_raise
 from crested.pl.patterns._modisco_results import (
@@ -307,12 +308,22 @@ def post_hoc_merging(
     """
     pattern_list = list(all_patterns.items())
 
+    def should_merge(p1, p2):
+        """ Helper to check if two patterns should merge based on the similarity threshold. """
+        sim = max(
+            match_score_patterns(p1["pattern"], p2["pattern"]),
+            match_score_patterns(p2["pattern"], p1["pattern"])
+        )
+        return sim > sim_threshold, sim
+    
+    iterations = 0  # Track number of iterations for debugging
     while True:
         merged_patterns = {}
         new_index = 0
         merged_indices = set()
         any_merged = False
 
+        # Keep track of which pairs have been compared and the result
         for i, (idx1, pattern1) in enumerate(pattern_list):
             if idx1 in merged_indices:
                 continue
@@ -323,25 +334,32 @@ def post_hoc_merging(
                 if i >= j or idx2 in merged_indices:
                     continue
 
-                sim = match_score_patterns(pattern1["pattern"], pattern2["pattern"])
-                if sim > sim_threshold:
+                should_merge_result, similarity = should_merge(pattern1, pattern2)
+
+                if should_merge_result:
                     merged_indices.add(idx2)
                     merged_pattern = merge_patterns(merged_pattern, pattern2)
                     any_merged = True
                     if verbose:
                         print(
-                            f'Merging patterns: {pattern1["pattern"]["id"]} and {pattern2["pattern"]["id"]} with similarity {sim}'
+                            f'Merged patterns {pattern1["pattern"]["id"]} and {pattern2["pattern"]["id"]} with similarity {similarity}'
                         )
-
+            # Add the merged pattern to the new set of patterns
             merged_patterns[str(new_index)] = merged_pattern
             new_index += 1
 
+        # If nothing merged in this pass, break out
         if not any_merged:
             break
 
+        iterations += 1  # Increment number of iterations
+        if verbose:
+            print(f"Iteration {iterations}: Merging complete, checking again")
+
+        # Rebuild pattern list from merged patterns for the next iteration
         pattern_list = list(merged_patterns.items())
 
-    # Final filtering based on IC discard threshold and class count
+    # Final filtering based on IC discard threshold
     filtered_patterns = {}
     discarded_ids = []
 
@@ -362,6 +380,20 @@ def post_hoc_merging(
     final_patterns = {
         str(new_idx): v for new_idx, (k, v) in enumerate(filtered_patterns.items())
     }
+
+    if verbose:
+        print(f"Total iterations: {iterations}")
+
+    # Debugging step to check for any remaining patterns exceeding the similarity threshold
+    for i, (idx1, pattern1) in enumerate(final_patterns.items()):
+        for j, (idx2, pattern2) in enumerate(final_patterns.items()):
+            if i >= j:
+                continue
+
+            sim = pattern_similarity(final_patterns, idx1, idx2)
+
+            if sim > sim_threshold:
+                print(f"Warning: Patterns {idx1} and {idx2} exceed similarity threshold with similarity {sim}")
 
     return final_patterns
 
@@ -925,6 +957,7 @@ def create_tf_ct_matrix(
     classes: list[str],
     log_transform: bool = True,
     normalize: bool = True,
+    min_tf_gex: float = 0
 ) -> tuple[np.ndarray, list[str]]:
     """
     Creates a tensor (matrix) of transcription factor (TF) expression and cell type contributions.
@@ -943,13 +976,15 @@ def create_tf_ct_matrix(
         Whether to apply log transformation to the gene expression values. Default is True.
     normalize
         Whether to normalize the contribution scores across the cell types. Default is True.
+    min_tf_gex
+        The minimal GEX value to select potential TF candidates. Default 0.
 
     Returns
     -------
     A tuple containing the TF-cell type matrix and the list of TF pattern annotations.
     """
     total_tf_patterns = sum(len(pattern_tf_dict[p]["tfs"]) for p in pattern_tf_dict)
-    tf_ct_matrix = np.zeros((len(classes), total_tf_patterns, 2))
+    tf_ct_matrix = np.zeros((len(classes), total_tf_patterns,2))
     tf_pattern_annots = []
 
     counter = 0
@@ -957,9 +992,10 @@ def create_tf_ct_matrix(
         ct_contribs = np.zeros(len(classes))
         for ct in all_patterns[p_idx]["classes"]:
             idx = np.argwhere(np.array(classes) == ct)[0][0]
-            ct_contribs[idx] = np.mean(
+            contribs = np.mean(
                 all_patterns[p_idx]["classes"][ct]["contrib_scores"]
             )
+            ct_contribs[idx] = contribs
 
         for tf in pattern_tf_dict[p_idx]["tfs"]:
             if tf in df.columns:
@@ -969,6 +1005,7 @@ def create_tf_ct_matrix(
 
                 tf_ct_matrix[:, counter, 0] = tf_gex
                 tf_ct_matrix[:, counter, 1] = ct_contribs
+
                 counter += 1
                 tf_pattern_annot = tf + "_pattern_" + str(p_idx)
                 tf_pattern_annots.append(tf_pattern_annot)
@@ -977,4 +1014,68 @@ def create_tf_ct_matrix(
     if normalize:
         tf_ct_matrix[:, :, 1] = normalize_rows(tf_ct_matrix[:, :, 1])
 
+    # Logic to remove columns where tf_gex is zero for all non-zero ct_contribs
+    initial_columns = tf_ct_matrix.shape[1]
+    columns_to_keep = []
+    
+    for col in range(initial_columns):
+        tf_gex_col = tf_ct_matrix[:, col, 0]
+        ct_contribs_col = tf_ct_matrix[:, col, 1]
+        
+        # Identify non-zero ct_contribs
+        non_zero_contribs = ct_contribs_col != 0
+        
+        # Check if all non-zero ct_contribs have zero tf_gex values
+        if np.any(non_zero_contribs) and np.any(tf_gex_col[non_zero_contribs] > min_tf_gex):
+            columns_to_keep.append(col)
+
+    # Convert columns_to_keep to a boolean mask
+    columns_to_keep = np.array(columns_to_keep)
+    
+    # Filter the matrix and annotations based on the columns_to_keep
+    final_columns = len(columns_to_keep)
+    removed_columns = initial_columns - final_columns
+
+    tf_ct_matrix = tf_ct_matrix[:, columns_to_keep, :]
+    tf_pattern_annots = [annot for i, annot in enumerate(tf_pattern_annots) if i in columns_to_keep]
+
+    # Print stats about the number of columns removed
+    print(f"Total columns before filtering: {initial_columns}")
+    print(f"Total columns after filtering: {final_columns}")
+    print(f"Total columns removed: {removed_columns}")
+
     return tf_ct_matrix, tf_pattern_annots
+
+def calculate_mean_expression_per_cell_type(
+    file_path: str,
+    cell_type_column: str
+    ) -> pd.DataFrame:
+    """
+    Reads an AnnData object from an H5AD file and calculates the mean gene expression 
+    per cell type subclass.
+
+    Parameters:
+    - file_path (str): The path to the H5AD file containing the single-cell RNA-seq data.
+    - cell_type_column (str): The column name in the cell metadata that defines the cell type subclass.
+
+    Returns:
+    - pd.DataFrame: A DataFrame containing the mean gene expression per cell type subclass.
+    """
+    # Read the AnnData object from the specified H5AD file
+    adata: sc.AnnData = sc.read_h5ad(file_path)
+
+    # Convert the AnnData object to a DataFrame containing the gene expression matrix
+    gene_expression_df: pd.DataFrame = adata.to_df()
+
+    # Retrieve the cell metadata from the AnnData object
+    cell_metadata: pd.DataFrame = adata.obs
+
+    # Check if the specified cell type column exists in the cell metadata
+    if cell_type_column not in cell_metadata.columns:
+        raise ValueError(f"Column '{cell_type_column}' not found in cell metadata")
+
+    # Calculate the mean gene expression per cell type subclass
+    mean_expression_per_cell_type: pd.DataFrame = gene_expression_df.groupby(cell_metadata[cell_type_column]).mean()
+
+    return mean_expression_per_cell_type
+

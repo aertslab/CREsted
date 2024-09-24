@@ -161,3 +161,33 @@ def hot_encoding_to_sequence(one_hot_encoded_sequence: np.ndarray) -> str:
     )
 
     return sequence
+    
+def get_value_from_dataframe(df: pd.DataFrame, row_name: str, column_name: str):
+    """
+    Retrieves a single value from a DataFrame based on the given row index and column name.
+    
+    Parameters:
+    - df: pd.DataFrame - The DataFrame to retrieve the value from.
+    - row_name: str - The name of the row.
+    - column_name: str - The name of the column.
+    
+    Returns:
+    - The value at the specified row index and column name, or an error message if the column is not found.
+    """
+    try:
+        # Check if the column exists in the DataFrame
+        if column_name not in df.columns:
+            raise KeyError(f"Column '{column_name}' not found in DataFrame.")
+        
+        # Retrieve the value
+        value = df.loc[row_name, column_name]
+        return value
+    except KeyError as e:
+        # Handle the case where the column is not found
+        return str(e)
+    except IndexError:
+        # Handle the case where the row index is out of bounds
+        return f"Row index '{row_index}' is out of bounds for DataFrame with {len(df)} rows."
+    except Exception as e:
+        # Handle any other unexpected exceptions
+        return f"An error occurred: {str(e)}"

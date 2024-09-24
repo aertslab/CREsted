@@ -30,7 +30,13 @@ if MODISCOLITE_AVAILABLE:
             match_h5_files_to_classes,
             pattern_similarity,
             process_patterns,
+            generate_html_paths,
+            calculate_mean_expression_per_cell_type,
+            read_motif_to_tf_file,
             tfmodisco,
+            find_pattern_matches,
+            create_pattern_tf_dict,
+            create_tf_ct_matrix
         )
     except ImportError as e:
         logger.error(f"Import error: {e}")
@@ -43,6 +49,12 @@ else:
     tfmodisco = _optional_function_warning
     calculate_similarity_matrix = _optional_function_warning
     pattern_similarity = _optional_function_warning
+    calculate_mean_expression_per_cell_type = _optional_function_warning
+    generate_html_paths = _optional_function_warning
+    find_pattern_matches = _optional_function_warning
+    read_motif_to_tf_file = _optional_function_warning
+    create_pattern_tf_dict = _optional_function_warning
+    create_tf_ct_matrix = _optional_function_warning
 
 
 __all__ = [
@@ -65,5 +77,11 @@ if MODISCOLITE_AVAILABLE:
             "pattern_similarity",
             "process_patterns",
             "tfmodisco",
+            "calculate_mean_expression_per_cell_type",
+            "generate_html_paths",
+            "find_pattern_matches",
+            "read_motif_to_tf_file",
+            "create_pattern_tf_dict",
+            "create_tf_ct_matrix"
         ]
     )

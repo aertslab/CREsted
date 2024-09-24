@@ -79,7 +79,7 @@ class PeakRegressionConfig(BaseConfig):
 
     @property
     def loss(self) -> keras.losses.Loss:
-        return CosineMSELoss()
+        return CosineMSELogLoss()
 
     @property
     def optimizer(self) -> keras.optimizers.Optimizer:
