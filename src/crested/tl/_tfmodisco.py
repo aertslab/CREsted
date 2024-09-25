@@ -11,13 +11,7 @@ from loguru import logger
 import scanpy as sc
 
 from crested._logging import log_and_raise
-from crested.pl.patterns._modisco_results import (
-    _get_ic,
-    _trim_pattern_by_ic,
-    plot_patterns,
-)
-
-from ._modisco_utils import match_score_patterns, read_html_to_dataframe
+from ._modisco_utils import match_score_patterns, read_html_to_dataframe, _get_ic, _trim_pattern_by_ic, _pattern_to_ppm, compute_ic
 
 
 def _calculate_window_offsets(center: int, window_size: int) -> tuple:
@@ -200,9 +194,17 @@ def add_pattern_to_dict(
     -------
     Updated dictionary with the new pattern.
     """
+
+    ppm = _pattern_to_ppm(p)
+    ic, ic_pos, ic_mat = compute_ic(ppm)
+
+    p['ppm']=ppm
     all_patterns[str(idx)] = {}
     all_patterns[str(idx)]["pattern"] = p
-    all_patterns[str(idx)]["ic"] = np.mean(_get_ic(p["contrib_scores"], pos_pattern))
+    all_patterns[str(idx)]["pos_pattern"] = pos_pattern
+    
+    all_patterns[str(idx)]['ppm']=ppm
+    all_patterns[str(idx)]["ic"] = np.mean(ic_pos)#np.mean(_get_ic(p["contrib_scores"], pos_pattern))
     all_patterns[str(idx)]["classes"] = {}
     all_patterns[str(idx)]["classes"][cell_type] = p
     return all_patterns
@@ -248,12 +250,17 @@ def match_to_patterns(
     Updated dictionary with matched patterns.
     """
     p["id"] = pattern_id
+    p["pos_pattern"] = pos_pattern
     if not all_patterns:
         return add_pattern_to_dict(p, 0, cell_type, pos_pattern, all_patterns)
 
     match = False
     match_idx = None
     max_sim = 0
+
+    ppm = _pattern_to_ppm(p)
+    ic, ic_pos, ic_mat = compute_ic(ppm)
+    p['ppm'] = ppm
 
     for pat_idx, pattern in enumerate(all_patterns.keys()):
         sim = match_score_patterns(p, all_patterns[pattern]["pattern"])
@@ -272,10 +279,11 @@ def match_to_patterns(
             f'Match between {pattern_id} and {all_patterns[str(match_idx)]["pattern"]["id"]}'
         )
     all_patterns[str(match_idx)]["classes"][cell_type] = p
-    p_ic = np.mean(_get_ic(p["contrib_scores"], pos_pattern))
+    p_ic = np.mean(ic_pos)#np.mean(_get_ic(p["contrib_scores"], pos_pattern))
     if p_ic > all_patterns[str(match_idx)]["ic"]:
         all_patterns[str(match_idx)]["ic"] = p_ic
         all_patterns[str(match_idx)]["pattern"] = p
+        all_patterns[str(match_idx)]["ppm"] = ppm
 
     return all_patterns
 
@@ -430,7 +438,7 @@ def merge_patterns(pattern1: dict, pattern2: dict) -> dict:
 
 
 def pattern_similarity(
-    all_patterns: dict, idx1: int, idx2: int, plot: bool = False
+    all_patterns: dict, idx1: int, idx2: int
 ) -> float:
     """
     Computes the similarity between two patterns.
@@ -443,8 +451,6 @@ def pattern_similarity(
         Index of the first pattern.
     idx2
         Index of the second pattern.
-    plot
-        Whether to plot the patterns.
 
     Returns
     -------
@@ -458,9 +464,7 @@ def pattern_similarity(
             all_patterns[str(idx2)]["pattern"], all_patterns[str(idx1)]["pattern"]
         ),
     )
-    if plot:
-        plot_patterns(all_patterns, [idx1, idx2])
-    return sim
+    return sim[0]
 
 
 def normalize_rows(arr: np.ndarray) -> np.ndarray:

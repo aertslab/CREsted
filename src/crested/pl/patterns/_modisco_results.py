@@ -12,121 +12,9 @@ from loguru import logger
 
 from crested._logging import log_and_raise
 from crested.pl._utils import render_plot
+from crested.tl._modisco_utils import _trim_pattern_by_ic, _get_ic, _trim, _pattern_to_ppm, compute_ic
 
 from ._utils import _plot_attribution_map
-
-
-@log_and_raise(ValueError)
-def _trim_pattern_by_ic(
-    pattern: dict,
-    pos_pattern: bool,
-    min_v: float,
-    background: list[float] = None,
-    pseudocount: float = 1e-6,
-) -> dict:
-    """
-    Trims the pattern based on information content (IC).
-
-    Parameters
-    ----------
-    pattern
-        Dictionary containing the pattern data.
-    pos_pattern
-        Indicates if the pattern is a positive pattern.
-    min_v
-        Minimum value for trimming.
-    background
-        Background probabilities for each nucleotide.
-    pseudocount
-        Pseudocount for IC calculation.
-
-    Returns
-    -------
-        Trimmed pattern.
-    """
-    if background is None:
-        background = [0.27, 0.23, 0.23, 0.27]
-    contrib_scores = np.array(pattern["contrib_scores"])
-    if not pos_pattern:
-        contrib_scores = -contrib_scores
-    contrib_scores[contrib_scores < 0] = 1e-9  # avoid division by zero
-
-    ic = modisco.util.compute_per_position_ic(
-        ppm=np.array(contrib_scores), background=background, pseudocount=pseudocount
-    )
-    np.nan_to_num(ic, copy=False, nan=0.0)
-    v = (abs(np.array(contrib_scores)) * ic[:, None]).max(1)
-    v = (v - v.min()) / (v.max() - v.min() + 1e-9)
-
-    try:
-        start_idx = min(np.where(np.diff((v > min_v) * 1))[0])
-        end_idx = max(np.where(np.diff((v > min_v) * 1))[0]) + 1
-    except ValueError:
-        logger.error("No valid pattern found. Aborting...")
-
-    return _trim(pattern, start_idx, end_idx)
-
-
-def _trim(pattern: dict, start_idx: int, end_idx: int) -> dict:
-    """
-    Trims the pattern to the specified start and end indices.
-
-    Parameters
-    ----------
-    pattern
-        Dictionary containing the pattern data.
-    start_idx
-        Start index for trimming.
-    end_idx (int)
-        End index for trimming.
-
-    Returns
-    -------
-        Trimmed pattern.
-    """
-    return {
-        "sequence": np.array(pattern["sequence"])[start_idx:end_idx],
-        "contrib_scores": np.array(pattern["contrib_scores"])[start_idx:end_idx],
-        "hypothetical_contribs": np.array(pattern["hypothetical_contribs"])[
-            start_idx:end_idx
-        ],
-    }
-
-
-def _get_ic(
-    contrib_scores: np.ndarray,
-    pos_pattern: bool,
-    background: list[float] = None,
-) -> np.ndarray:
-    """
-    Computes the information content (IC) for the given contribution scores.
-
-    Parameters
-    ----------
-    contrib_scores
-        Array of contribution scores.
-    pos_pattern
-        Indicates if the pattern is a positive pattern.
-    background
-        background probabilities for each nucleotide.
-
-    Returns
-    -------
-        Information content for the contribution scores.
-    """
-    if background is None:
-        background = [0.27, 0.23, 0.23, 0.27]
-    background = np.array(background)
-    if not pos_pattern:
-        contrib_scores = -contrib_scores
-    contrib_scores[contrib_scores < 0] = 1e-9
-    ppm = contrib_scores / np.sum(contrib_scores, axis=1)[:, None]
-
-    ic = (np.log((ppm + 0.001) / (1.004)) / np.log(2)) * ppm - (
-        np.log(background) * background / np.log(2)
-    )
-    return ppm * (np.sum(ic, axis=1)[:, None])
-
 
 def modisco_results(
     classes: list[str],
@@ -273,12 +161,16 @@ def modisco_results(
                         f"{cell_type}: {np.around(num_seqlets / num_seq * 100, 2)}% seqlet frequency"
                     )
                 elif viz == "pwm":
-                    pwm = _get_ic(np.array(pattern_trimmed["contrib_scores"]), pos_pat)
+                    pattern = _trim_pattern_by_ic(pattern, pos_pat, 0.1)
+                    ppm = _pattern_to_ppm(pattern)
+                    ic, ic_pos, ic_mat = compute_ic(ppm)
+                    pwm = np.array(ic_mat)
+                    rounded_mean = np.around(np.mean(pwm), 2)
                     ax = _plot_attribution_map(
                         ax=ax, saliency_df=pwm, return_ax=True, figsize=None
                     )
                     ax.set_title(
-                        f"{cell_type}: {np.around(num_seqlets / num_seq * 100, 2)}% seqlet frequency - Average IC: {np.around(np.mean(pwm), 2)}"
+                        f"{cell_type}: {np.around(num_seqlets / num_seq * 100, 2)}% seqlet frequency - Average IC: {rounded_mean:.2f}"
                     )
                     ax.set_ylim([0, 2])
                 else:
@@ -399,7 +291,7 @@ def create_clustermap(
         data,
         cmap=cmap,
         figsize=figsize,
-        row_colors=row_colors,
+        row_colors=None,
         yticklabels=classes,
         center=center,
         xticklabels=xtick_labels,
@@ -407,8 +299,8 @@ def create_clustermap(
     )
     col_order = g.dendrogram_col.reordered_ind
 
-    for label in class_lut:
-        g.ax_col_dendrogram.bar(0, 0, color=class_lut[label], label=label, linewidth=0)
+    #for label in class_lut:
+    #    g.ax_col_dendrogram.bar(0, 0, color=class_lut[label], label=label, linewidth=0)
 
     if grid:
         ax = g.ax_heatmap

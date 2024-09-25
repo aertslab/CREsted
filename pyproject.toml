@@ -39,6 +39,7 @@ dependencies = [
 [project.optional-dependencies]
 tfmodisco = [
     "modisco-lite",
+    "tangermeme"
 ]
 
 dev = [
