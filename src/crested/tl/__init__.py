@@ -5,6 +5,7 @@ from loguru import logger
 from . import data, losses, metrics, zoo
 from ._configs import TaskConfig, default_configs
 from ._crested import Crested
+from ._utils import extract_bigwig_values_per_bp
 
 
 def _optional_function_warning(*args, **kwargs):
@@ -65,6 +66,7 @@ __all__ = [
     "TaskConfig",
     "default_configs",
     "Crested",
+    "extract_bigwig_values_per_bp",
 ]
 
 if MODISCOLITE_AVAILABLE:
