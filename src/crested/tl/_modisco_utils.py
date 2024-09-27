@@ -380,7 +380,7 @@ def match_score_patterns(a: dict, b: dict) -> float:
     #vizsequence.plot_weights(ic_b)
     score = tangermeme_tomtom.tomtom(Qs = [ic_a.T], Ts = [ic_b.T])
 
-    log_score = -np.log10(score[0,0])
+    log_score = -np.log10(max(score[0,0], 0))
 
     return log_score
 
