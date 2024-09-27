@@ -965,26 +965,26 @@ class Crested:
                 )
             class_names = valid_class_names
 
-            for class_name in class_names:
-                # Calculate contribitopn scores
-                contrib_scores, one_hot_seqs = self.calculate_contribution_scores_sequence(
-                    sequences=sequences,
-                    class_names=[class_name],
-                    method=method,
-                    disable_tqdm=True
-                )
+        for class_name in class_names:
+            # Calculate contribitopn scores
+            contrib_scores, one_hot_seqs = self.calculate_contribution_scores_sequence(
+                sequences=sequences,
+                class_names=[class_name],
+                method=method,
+                disable_tqdm=True
+            )
 
-                # Transform the contrib scores and one hot numpy arrays to (#regions, 4, seq_len), the expected format of modisco-lite.
-                contrib_scores = contrib_scores.squeeze(axis=1).transpose(0, 2, 1)
-                one_hot_seqs = one_hot_seqs.transpose(0, 2, 1)
+            # Transform the contrib scores and one hot numpy arrays to (#regions, 4, seq_len), the expected format of modisco-lite.
+            contrib_scores = contrib_scores.squeeze(axis=1).transpose(0, 2, 1)
+            one_hot_seqs = one_hot_seqs.transpose(0, 2, 1)
 
-                # Save the results to the output directory
-                np.savez_compressed(
-                    os.path.join(output_dir, f"{class_name}_oh.npz"), one_hot_seqs
-                )
-                np.savez_compressed(
-                    os.path.join(output_dir, f"{class_name}_contrib.npz"), contrib_scores
-                )
+            # Save the results to the output directory
+            np.savez_compressed(
+                os.path.join(output_dir, f"{class_name}_oh.npz"), one_hot_seqs
+            )
+            np.savez_compressed(
+                os.path.join(output_dir, f"{class_name}_contrib.npz"), contrib_scores
+            )
 
         logger.info(
             f"Contribution scores and one-hot encoded sequences saved to {output_dir}"
