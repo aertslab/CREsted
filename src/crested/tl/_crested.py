@@ -966,7 +966,7 @@ class Crested:
             class_names = valid_class_names
 
         for class_name in class_names:
-            # Calculate contribitopn scores
+            # Calculate contribution scores
             contrib_scores, one_hot_seqs = self.calculate_contribution_scores_sequence(
                 sequences=sequences,
                 class_names=[class_name],
