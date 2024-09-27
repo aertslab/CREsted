@@ -33,7 +33,6 @@ dependencies = [
     "pybigtools>=0.2.0",
     "seaborn",
     "pooch",
-    "scanpy",
     "pybigwig"
 ]
 
