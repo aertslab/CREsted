@@ -45,7 +45,7 @@ def _calc_gini(targets: np.ndarray) -> np.ndarray:
 
     return gini_scores
 
-def _calc_proportion(arr: np.ndarray, scale=True):
+def _calc_proportion(arr: np.ndarray, scale=False):
     """
     Compute relative specificity scores for a given 1D or 2D array.
 

@@ -110,7 +110,7 @@ def _read_consensus_regions(
 ) -> pd.DataFrame:
     """Read consensus regions BED file and filter out regions not within chromosomes."""
     consensus_peaks = pd.read_csv(
-        regions_file, sep="\t", header=None, usecols=[0, 1, 2]
+        regions_file, sep="\t", header=None, usecols=[0, 1, 2], dtype={0: str, 1: 'Int32', 2: 'Int32'}
     )
     consensus_peaks["region"] = (
         consensus_peaks[0].astype(str)

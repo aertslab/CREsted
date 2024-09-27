@@ -11,6 +11,8 @@ from anndata import AnnData
 from loguru import logger
 from tqdm import tqdm
 from typing import Callable, Any
+from pysam import FastaFile
+
 
 from crested._logging import log_and_raise
 from crested.tl import TaskConfig
@@ -383,6 +385,7 @@ class Crested:
         learning_rate_first_phase: float = 1e-4,
         learning_rate_second_phase: float = 1e-6,
         dense_block_name: str = "denseblock",
+        set_output_activation: str | None = None,
         **kwargs,
     ):
         """
@@ -406,6 +409,8 @@ class Crested:
             Learning rate for the second phase.
         mixed_precision
             Enable mixed precision training.
+        set_output_activation
+            Set outpu activation if different from the previous model.
         kwargs
             Additional keyword arguments to pass to the fit method.
 
@@ -444,7 +449,10 @@ class Crested:
 
         # Change the number of output units to match the new task
         old_activation_layer = base_model.layers[-1]
-        old_activation = old_activation_layer.activation
+        if set_output_activation is None:
+            old_activation = old_activation_layer.activation
+        elif set_output_activation:
+            old_activation = keras.activations.get(set_output_activation)
 
         x = base_model.layers[-3].output
         new_output_units = self.anndatamodule.adata.X.shape[0]
@@ -517,6 +525,44 @@ class Crested:
 
         if return_metrics:
             return evaluation_metrics
+
+    def get_embeddings(
+        self,
+        layer_name: str = "global_average_pooling1d",
+        anndata: AnnData | None = None,
+    ) -> np.ndarray:
+        """
+        Extract embeddings from a specified layer in the model for all regions in the dataset.
+
+        If anndata is provided, it will add the embeddings to anndata.obsm[layer_name].
+
+        Parameters
+        ----------
+        anndata
+            Anndata object containing the data.
+        layer_name
+            The name of the layer from which to extract the embeddings.
+
+        Returns
+        -------
+        Embeddings of shape (N, D), where D is the size of the embedding layer.
+        """
+        if layer_name not in [layer.name for layer in self.model.layers]:
+            raise ValueError(f"Layer '{layer_name}' not found in model.")
+        embedding_model = keras.models.Model(
+            inputs=self.model.input, outputs=self.model.get_layer(layer_name).output
+        )
+        if self.anndatamodule.predict_dataset is None:
+            self.anndatamodule.setup("predict")
+        predict_loader = self.anndatamodule.predict_dataloader
+        n_predict_steps = (
+            len(predict_loader) if os.environ["KERAS_BACKEND"] == "tensorflow" else None
+        )
+        embeddings = embedding_model.predict(predict_loader.data, steps=n_predict_steps)
+
+        if anndata is not None:
+            anndata.obsm[layer_name] = embeddings
+        return embeddings
 
     def predict(
         self,
@@ -614,6 +660,130 @@ class Crested:
         predictions = self.model.predict(x)
 
         return predictions
+
+    def score_gene_locus(
+        self,
+        chr_name: str,
+        gene_start: int,
+        gene_end: int,
+        class_name: str,
+        strand: str = '+',
+        upstream: int = 50000,
+        downstream: int = 10000,
+        window_size: int = 2114,
+        central_size: int = 1000,
+        step_size: int = 50,
+    ):
+        """
+        Score regions upstream and downstream of a gene locus using the model's prediction.
+        The model predicts a value for the central 1000bp of each window.
+
+        Parameters:
+        ----------
+        chr_name : str
+            The chromosome name (e.g., 'chr12').
+        gene_start : int
+            The start position of the gene locus (TSS for + strand).
+        gene_end : int
+            The end position of the gene locus (TSS for - strand).
+        class_name : str
+            Output class name for prediction.
+        strand : str
+            '+' for positive strand, '-' for negative strand. Default '+'.
+        upstream : int
+            Distance upstream of the gene to score. Default 50 000.
+        downstream : int
+            Distance downstream of the gene to score. Default 10 000.
+        window_size : int
+            Size of the window to use for scoring. Default 2114.
+        central_size : int
+            Size of the central region that the model predicts for. Default 1000.
+        step_size : int
+            Distance between consecutive windows. Default 50.
+
+        Returns:
+        --------
+        scores : np.array
+            An array of prediction scores across the entire genomic range.
+        coordinates : np.array
+            An array of tuples, each containing the chromosome name and the start and end positions of the sequence for each window.
+        min_loc : int
+            Start position of the entire scored region.
+        max_loc : int
+            End position of the entire scored region.
+        tss_position : int
+            The transcription start site (TSS) position.
+        """
+        # Adjust upstream and downstream based on the strand
+        if strand == '+':
+            start_position = gene_start - upstream
+            end_position = gene_end + downstream
+            tss_position = gene_start  # TSS is at the gene_start for positive strand
+        elif strand == '-':
+            end_position = gene_end + upstream
+            start_position = gene_start - downstream
+            tss_position = gene_end  # TSS is at the gene_end for negative strand
+        else:
+            raise ValueError("Strand must be '+' or '-'.")
+
+        total_length = abs(end_position - start_position)
+
+        # Ratio to normalize the score contributions
+        ratio = central_size / step_size
+
+        # Initialize an array to store the scores, filled with zeros
+        scores = np.zeros(total_length)
+
+        # List to store coordinates of each window
+        coordinates = []
+
+        # Get class index 
+        all_class_names = list(self.anndatamodule.adata.obs_names)
+        idx = all_class_names.index(class_name)
+
+        genome = FastaFile(self.anndatamodule.genome_file)
+
+        # Generate all windows and one-hot encode the sequences in parallel
+        all_sequences = []
+        all_coordinates = []
+
+        for pos in range(start_position, end_position, step_size):
+            window_start = pos
+            window_end = pos + window_size
+
+            # Ensure the window stays within the bounds of the region
+            if window_end > end_position:
+                break
+
+            # Fetch the sequence
+            seq = genome.fetch(chr_name, window_start, window_end).upper()
+
+            # One-hot encode the sequence (you would need to ensure this function is available)
+            seq_onehot = one_hot_encode_sequence(seq)
+
+            all_sequences.append(seq_onehot)
+            all_coordinates.append((chr_name, int(window_start), int(window_end)))
+
+        # Stack sequences for batch processing
+        all_sequences = np.squeeze(np.stack(all_sequences),axis=1)
+
+        # Perform batched predictions
+        predictions = self.model.predict(all_sequences, verbose=0)
+
+        # Map predictions to the score array
+        for i, (pos, prediction) in enumerate(zip(range(start_position, end_position, step_size), predictions)):
+            window_start = pos
+            central_start = pos + (window_size - central_size) // 2
+            central_end = central_start + central_size
+
+            scores[central_start - start_position:central_end - start_position] += prediction[idx]
+            #if strand == '+':
+            #    scores[central_start - start_position:central_end - start_position] += prediction[idx]
+            #else:
+            #    scores[total_length - (central_end - start_position):total_length - (central_start - start_position)] += prediction[idx]
+
+        # Normalize the scores based on the number of times each position is included in the central window
+        return scores / ratio, np.array(all_coordinates), start_position, end_position, tss_position
 
     def calculate_contribution_scores(
         self,

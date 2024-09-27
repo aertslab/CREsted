@@ -7,7 +7,7 @@ from typing import NamedTuple
 
 import keras
 
-from crested.tl.losses import CosineMSELoss
+from crested.tl.losses import CosineMSELoss, CosineMSELogLoss
 from crested.tl.metrics import (
     ConcordanceCorrelationCoefficient,
     PearsonCorrelation,
@@ -79,7 +79,7 @@ class PeakRegressionConfig(BaseConfig):
 
     @property
     def loss(self) -> keras.losses.Loss:
-        return CosineMSELoss()
+        return CosineMSELogLoss()
 
     @property
     def optimizer(self) -> keras.optimizers.Optimizer:
