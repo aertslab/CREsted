@@ -187,55 +187,6 @@ def modisco_results(
 
     return render_plot(fig, **kwargs)
 
-
-def plot_custom_xticklabels(
-    ax: plt.Axes,
-    sequences: list[tuple[str, np.ndarray]],
-    col_order: list[int],
-    fontsize: int = 10,
-    dy: float = 0.012,
-) -> None:
-    """
-    Plot custom x-tick labels with varying letter heights.
-
-    Parameters
-    ----------
-    ax
-        The axes object to plot on.
-    sequences
-        List of tuples containing sequences and their corresponding heights.
-    col_order
-        List of column indices after clustering.
-    fontsize
-        Base font size for the letters.
-    dy
-        Vertical adjustment factor for letter heights.
-    """
-    ax.set_xticks(np.arange(len(sequences)))
-    ax.set_xticklabels([])
-    ax.tick_params(axis="x", which="both", length=0)
-
-    for i, original_index in enumerate(col_order):
-        sequence, heights = sequences[original_index]
-        y_position = -0.02
-        for _, (char, height) in enumerate(zip(sequence, heights)):
-            char_fontsize = height * fontsize
-            text = ax.text(
-                i,
-                y_position,
-                char,
-                ha="center",
-                va="center",
-                color="black",
-                transform=ax.get_xaxis_transform(),
-                fontsize=char_fontsize,
-                rotation=270,
-            )
-            renderer = ax.figure.canvas.get_renderer()
-            _ = text.get_window_extent(renderer=renderer).width
-            y_position -= dy
-
-
 def create_clustermap(
     pattern_matrix: np.ndarray,
     classes: list[str],
@@ -246,8 +197,7 @@ def create_clustermap(
     center: float = 0,
     method: str = "average",
     fig_path: str | None = None,
-    pat_seqs: list[tuple[str, np.ndarray]] | None = None,
-    dy: float = 0.012,
+    pat_seqs: list[tuple[str, np.ndarray]] | None = None
 ) -> sns.matrix.ClusterGrid:
     """
     Create a clustermap from the given pattern matrix and class labels with customizable options.
@@ -269,7 +219,6 @@ def create_clustermap(
     - method (str): Clustering method to use (e.g., 'average', 'single', 'complete').
     - fig_path (str, optional): Path to save the figure.
     - pat_seqs (list, optional): List of sequences to use as xticklabels.
-    - dy (float): Vertical adjustment factor for letter heights.
 
     Returns
     -------
@@ -285,7 +234,20 @@ def create_clustermap(
     class_lut = dict(zip(set(classes), palette))
     row_colors = pd.Series(classes).map(class_lut)
 
-    xtick_labels = False if pat_seqs is not None else True
+    if pat_seqs is not None:
+        plt.rc("text", usetex = True)
+        scaling_factor = 10
+        xtick_labels = [
+            r"".join(
+                [
+                    r"{\fontsize{" + f"{s * scaling_factor}" + r"pt}{3em}\selectfont " + l + r"}"
+                    for l, s in zip(letters, scores)
+                ]
+            )
+            for letters, scores in pat_seqs
+        ]
+    else:
+        xtick_labels = True
 
     g = sns.clustermap(
         data,
@@ -311,9 +273,6 @@ def create_clustermap(
             linewidth=0.25,
         )
         g.fig.canvas.draw()
-
-    if pat_seqs is not None:
-        plot_custom_xticklabels(g.ax_heatmap, pat_seqs, col_order, dy=dy)
 
     if fig_path is not None:
         plt.savefig(fig_path)

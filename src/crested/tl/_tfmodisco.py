@@ -584,6 +584,7 @@ def process_patterns(
         trimmed_patterns = []
         pattern_ids = []
         is_pattern_pos = []
+        pattern_idx = 0
 
         if matched_files[cell_type] is None:
             continue
@@ -600,7 +601,7 @@ def process_patterns(
                     for metacluster_name in list(hdf5_results.keys()):
                         for p in hdf5_results[metacluster_name]:
                             pattern_ids.append(
-                                f"{cell_type.replace(' ', '_')}_{metacluster_name}_{p}"
+                                f"{cell_type.replace(' ', '_')}_{metacluster_name}_{pattern_idx}"
                             )
                             is_pos = metacluster_name == "pos_patterns"
                             trimmed_patterns.append(
@@ -611,6 +612,7 @@ def process_patterns(
                                 )
                             )
                             is_pattern_pos.append(is_pos)
+                            pattern_idx = pattern_idx + 1
 
             except OSError:
                 print(f"File error at {h5_file}")
