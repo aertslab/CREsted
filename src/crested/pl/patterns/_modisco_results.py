@@ -238,10 +238,10 @@ def create_clustermap(
         plt.rc("text", usetex = True)
         scaling_factor = 10
         xtick_labels = [
-            r"".join(
+            letters[0:2] + " " + r"".join(
                 [
                     r"{\fontsize{" + f"{s * scaling_factor}" + r"pt}{3em}\selectfont " + l + r"}"
-                    for l, s in zip(letters, scores)
+                    for l, s in zip(letters[2:], scores[2:])
                 ]
             )
             for letters, scores in pat_seqs
