@@ -8,7 +8,7 @@ import modiscolite as modisco
 import numpy as np
 import pandas as pd
 from loguru import logger
-import scanpy as sc
+import anndata
 
 from crested._logging import log_and_raise
 from ._modisco_utils import match_score_patterns, read_html_to_dataframe, _get_ic, _trim_pattern_by_ic, _pattern_to_ppm, compute_ic
@@ -1066,7 +1066,7 @@ def calculate_mean_expression_per_cell_type(
     - pd.DataFrame: A DataFrame containing the mean gene expression per cell type subclass.
     """
     # Read the AnnData object from the specified H5AD file
-    adata: sc.AnnData = sc.read_h5ad(file_path)
+    adata: anndata.AnnData = anndata.read_h5ad(file_path)
 
     # Convert the AnnData object to a DataFrame containing the gene expression matrix
     gene_expression_df: pd.DataFrame = adata.to_df()
