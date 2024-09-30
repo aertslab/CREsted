@@ -130,7 +130,8 @@ def modisco_results(
         for metacluster_name in [f"{contribution[:3]}_patterns"]:
             all_pattern_names = list(hdf5_results[metacluster_name])
 
-            for _pattern_idx, pattern_name in enumerate(all_pattern_names):
+            for i in range(len(all_pattern_names)):
+                pattern_name = 'pattern_'+str(i)
                 if len(classes) > 1:
                     ax = axes[motif_counter - 1, idx]
                 elif max_num_patterns > 1:
@@ -308,7 +309,7 @@ def plot_patterns(pattern_dict: dict, idcs: list[int]) -> None:
     plt.tight_layout()
     plt.show()
 
-def plot_pattern_instances(pattern_dict: dict, idx: int) -> None:
+def plot_pattern_instances(pattern_dict: dict, idx: int, class_representative: bool = False) -> None:
     """
     Plots all the pattern instances clustered together in the pattern dictionary for a given pattern index.
 
@@ -318,22 +319,28 @@ def plot_pattern_instances(pattern_dict: dict, idx: int) -> None:
         A dictionary containing pattern data.
     idcs
         Index specifying from which pattern the instances to plot.
+    class_representative
+        Boolean to plot the best pattern per class, or all instances of a pattern in the same class if there would be multiple instances in one class. Default False.
     """
-    n_instances = len(pattern_dict[str(idx)]['classes'])
+    if class_representative:
+        key = 'classes'
+    else:
+        key='instances'
+    n_instances = len(pattern_dict[str(idx)][key])
     figure, axes = plt.subplots(nrows=n_instances, ncols=1, figsize=(8, 2 * n_instances))
     if n_instances == 1:
         axes = [axes]
 
-    instance_classes = list(pattern_dict[str(idx)]['classes'].keys())
+    instance_classes = list(pattern_dict[str(idx)][key].keys())
 
     for i, cl in enumerate(instance_classes):
         ax = _plot_attribution_map(
             ax=axes[i],
-            saliency_df=np.array(pattern_dict[str(idx)]["classes"][cl]["contrib_scores"]),
+            saliency_df=np.array(pattern_dict[str(idx)][key][cl]["contrib_scores"]),
             return_ax=True,
             figsize=None,
         )
-        ax.set_title(pattern_dict[str(idx)]['classes'][cl]["id"])
+        ax.set_title(pattern_dict[str(idx)][key][cl]["id"])
 
     plt.tight_layout()
     plt.show()

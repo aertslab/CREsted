@@ -205,6 +205,8 @@ def add_pattern_to_dict(
     
     all_patterns[str(idx)]['ppm']=ppm
     all_patterns[str(idx)]["ic"] = np.mean(ic_pos)#np.mean(_get_ic(p["contrib_scores"], pos_pattern))
+    all_patterns[str(idx)]["instances"] = {}
+    all_patterns[str(idx)]["instances"][p['id']] = p
     all_patterns[str(idx)]["classes"] = {}
     all_patterns[str(idx)]["classes"][cell_type] = p
     return all_patterns
@@ -260,7 +262,11 @@ def match_to_patterns(
 
     ppm = _pattern_to_ppm(p)
     ic, ic_pos, ic_mat = compute_ic(ppm)
+    p_ic = np.mean(ic_pos)
+    p['ic'] = p_ic
     p['ppm'] = ppm
+
+    p['class']=cell_type
 
     for pat_idx, pattern in enumerate(all_patterns.keys()):
         sim = match_score_patterns(p, all_patterns[pattern]["pattern"])
@@ -276,10 +282,18 @@ def match_to_patterns(
 
     if verbose:
         print(
-            f'Match between {pattern_id} and {all_patterns[str(match_idx)]["pattern"]["id"]}'
+            f'Match between {pattern_id} and {all_patterns[str(match_idx)]["pattern"]["id"]} with similarity score {str(max_sim)}'
         )
-    all_patterns[str(match_idx)]["classes"][cell_type] = p
-    p_ic = np.mean(ic_pos)#np.mean(_get_ic(p["contrib_scores"], pos_pattern))
+
+    all_patterns[str(match_idx)]["instances"][pattern_id] = p
+
+    if(cell_type in all_patterns[str(match_idx)]["classes"].keys()):
+        ic_class_representative = all_patterns[str(match_idx)]["classes"][cell_type]['ic']
+        if p_ic > ic_class_representative:
+            all_patterns[str(match_idx)]["classes"][cell_type] = p
+    else:
+        all_patterns[str(match_idx)]["classes"][cell_type] = p
+
     if p_ic > all_patterns[str(match_idx)]["ic"]:
         all_patterns[str(match_idx)]["ic"] = p_ic
         all_patterns[str(match_idx)]["pattern"] = p
@@ -421,7 +435,22 @@ def merge_patterns(pattern1: dict, pattern2: dict) -> dict:
     -------
     Merged pattern with updated metadata.
     """
+    merged_classes = {}
+    for cell_type in pattern1["classes"].keys():
+        if cell_type in pattern2["classes"].keys():
+            ic_a = pattern1["classes"][cell_type]['ic']
+            ic_b = pattern2["classes"][cell_type]['ic']
+            merged_classes[cell_type] = pattern1["classes"][cell_type] if ic_a > ic_b else pattern2["classes"][cell_type]
+        else:
+            merged_classes[cell_type] =  pattern1["classes"][cell_type]
+
+    for cell_type in pattern2["classes"].keys():
+        if cell_type not in merged_classes.keys():
+            merged_classes[cell_type] =  pattern2["classes"][cell_type]
+
     merged_classes = {**pattern1["classes"], **pattern2["classes"]}
+    merged_instances = {**pattern1["instances"], **pattern2["instances"]}
+
 
     if pattern2["ic"] > pattern1["ic"]:
         representative_pattern = pattern2["pattern"]
@@ -434,6 +463,7 @@ def merge_patterns(pattern1: dict, pattern2: dict) -> dict:
         "pattern": representative_pattern,
         "ic": highest_ic,
         "classes": merged_classes,
+        "instances": merged_instances
     }
 
 
@@ -464,7 +494,7 @@ def pattern_similarity(
             all_patterns[str(idx2)]["pattern"], all_patterns[str(idx1)]["pattern"]
         ),
     )
-    return sim[0]
+    return sim
 
 
 def normalize_rows(arr: np.ndarray) -> np.ndarray:
@@ -553,9 +583,9 @@ def match_h5_files_to_classes(
 
 def process_patterns(
     matched_files: dict[str, str | list[str] | None],
-    sim_threshold: float = 0.5,
+    sim_threshold: float = 3,
     trim_ic_threshold: float = 0.1,
-    discard_ic_threshold: float = 0.15,
+    discard_ic_threshold: float = 0.1,
     verbose: bool = False,
 ) -> dict[str, dict[str, str | list[float]]]:
     """
@@ -566,7 +596,7 @@ def process_patterns(
     matched_files
         dictionary with class names as keys and paths to HDF5 files as values.
     sim_threshold
-        Similarity threshold for matching patterns.
+        Similarity threshold for matching patterns (-log10(pval), pval obtained through TOMTOM matching from tangermeme)
     trim_ic_threshold
         Information content threshold for trimming patterns.
     discard_ic_threshold
@@ -584,7 +614,6 @@ def process_patterns(
         trimmed_patterns = []
         pattern_ids = []
         is_pattern_pos = []
-        pattern_idx = 0
 
         if matched_files[cell_type] is None:
             continue
@@ -599,7 +628,9 @@ def process_patterns(
             try:
                 with h5py.File(h5_file) as hdf5_results:
                     for metacluster_name in list(hdf5_results.keys()):
-                        for p in hdf5_results[metacluster_name]:
+                        pattern_idx = 0
+                        for i in range(len(list(hdf5_results[metacluster_name]))):
+                            p = 'pattern_'+str(i)
                             pattern_ids.append(
                                 f"{cell_type.replace(' ', '_')}_{metacluster_name}_{pattern_idx}"
                             )
@@ -806,7 +837,7 @@ def generate_html_paths(
 
     for i, _ in enumerate(all_patterns):
         pattern_id = all_patterns[str(i)]["pattern"]["id"]
-        pattern_class_parts = pattern_id.split("_")[:-4]
+        pattern_class_parts = pattern_id.split("_")[:-3]
         pattern_class = (
             "_".join(pattern_class_parts)
             if len(pattern_class_parts) > 1
@@ -845,11 +876,11 @@ def find_pattern_matches(
         pattern_id = all_patterns[p_idx]["pattern"]["id"]
         pattern_id_parts = pattern_id.split("_")
         pattern_id = (
-            pattern_id_parts[-4]
+            pattern_id_parts[-3]
             + "_"
-            + pattern_id_parts[-3]
-            + "."
             + pattern_id_parts[-2]
+            + "."
+            + 'pattern'
             + "_"
             + pattern_id_parts[-1]
         )
