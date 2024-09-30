@@ -1052,6 +1052,79 @@ class Crested:
             all_one_hot_sequences, axis=0
         )
 
+    def tfmodisco_calculate_and_save_contribution_scores_sequences(
+        self,
+        adata: AnnData,
+        sequences: list[str],
+        output_dir: os.PathLike = "modisco_results",
+        method: str = "expected_integrated_grad",
+        class_names: list[str] | None = None,
+    ):
+        """
+        Calculate and save contribution scores for seqeunce
+
+        Parameters
+        ----------
+        adata
+            The AnnData object containing class information.
+        sequences:
+            List of sequences (string encoded) to calculate contribution on.
+        output_dir
+            Directory to save the output files.
+        method
+            Method to use for calculating the contribution scores.
+            Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
+        class_names
+            List of class names to process. If None, all class names in adata.obs_names will be processed.
+        """
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        # Extract regions and class names from adata.var
+        all_class_names = list(adata.obs_names)
+
+        # If class_names is None, process all classes
+        if class_names is None:
+            class_names = all_class_names
+        else:
+            # Ensure that class_names contains valid classes
+            valid_class_names = [
+                class_name
+                for class_name in class_names
+                if class_name in all_class_names
+            ]
+            if len(valid_class_names) != len(class_names):
+                raise ValueError(
+                    f"Invalid class names provided. Valid class names are: {all_class_names}"
+                )
+            class_names = valid_class_names
+
+        for class_name in class_names:
+            # Calculate contribution scores
+            contrib_scores, one_hot_seqs = self.calculate_contribution_scores_sequence(
+                sequences=sequences,
+                class_names=[class_name],
+                method=method,
+                disable_tqdm=True
+            )
+
+            # Transform the contrib scores and one hot numpy arrays to (#regions, 4, seq_len), the expected format of modisco-lite.
+            contrib_scores = contrib_scores.squeeze(axis=1).transpose(0, 2, 1)
+            one_hot_seqs = one_hot_seqs.transpose(0, 2, 1)
+
+            # Save the results to the output directory
+            np.savez_compressed(
+                os.path.join(output_dir, f"{class_name}_oh.npz"), one_hot_seqs
+            )
+            np.savez_compressed(
+                os.path.join(output_dir, f"{class_name}_contrib.npz"), contrib_scores
+            )
+
+        logger.info(
+            f"Contribution scores and one-hot encoded sequences saved to {output_dir}"
+        )
+
+
     def tfmodisco_calculate_and_save_contribution_scores(
         self,
         adata: AnnData,
