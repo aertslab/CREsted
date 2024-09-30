@@ -552,7 +552,7 @@ def match_h5_files_to_classes(
 
 
 def process_patterns(
-    matched_files: dict[str, str | None],
+    matched_files: dict[str, str | list[str] | None],
     sim_threshold: float = 0.5,
     trim_ic_threshold: float = 0.1,
     discard_ic_threshold: float = 0.15,
@@ -580,35 +580,43 @@ def process_patterns(
     """
     all_patterns = {}
 
-    for _, cell_type in enumerate(matched_files.keys()):
-        if verbose:
-            print(f"Reading file {matched_files[cell_type]}...")
+    for cell_type in matched_files:
+        trimmed_patterns = []
+        pattern_ids = []
+        is_pattern_pos = []
+        pattern_idx = 0
+
         if matched_files[cell_type] is None:
             continue
-        try:
-            hdf5_results = h5py.File(matched_files[cell_type], "r")
-        except OSError:
-            print(f"File error at {matched_files[cell_type]}")
-            continue
 
-        metacluster_names = list(hdf5_results.keys())
-        patterns = []
-        pattern_ids = []
-        pos_patterns = []
+        # read all patterns of cell type
+        if isinstance(matched_files[cell_type], str):
+            matched_files[cell_type] = [matched_files[cell_type]]
 
-        for metacluster_name in metacluster_names:
-            for p in hdf5_results[metacluster_name]:
-                pattern_ids.append(
-                    f"{cell_type.replace(' ', '_')}_{metacluster_name}_{p}"
-                )
-                patterns.append(hdf5_results[metacluster_name][p])
-                pos_pat = metacluster_name == "pos_patterns"
-                pos_patterns.append(pos_pat)
+        for h5_file in matched_files[cell_type]:
+            if verbose:
+                print(f"Reading file {h5_file}")
+            try:
+                with h5py.File(h5_file) as hdf5_results:
+                    for metacluster_name in list(hdf5_results.keys()):
+                        for p in hdf5_results[metacluster_name]:
+                            pattern_ids.append(
+                                f"{cell_type.replace(' ', '_')}_{metacluster_name}_{pattern_idx}"
+                            )
+                            is_pos = metacluster_name == "pos_patterns"
+                            trimmed_patterns.append(
+                                _trim_pattern_by_ic(
+                                    hdf5_results[metacluster_name][p],
+                                    is_pos,
+                                    trim_ic_threshold
+                                )
+                            )
+                            is_pattern_pos.append(is_pos)
+                            pattern_idx = pattern_idx + 1
 
-        trimmed_patterns = [
-            _trim_pattern_by_ic(pattern, pos_pattern, trim_ic_threshold)
-            for pattern, pos_pattern in zip(patterns, pos_patterns)
-        ]
+            except OSError:
+                print(f"File error at {h5_file}")
+                continue
 
         for idx, p in enumerate(trimmed_patterns):
             all_patterns = match_to_patterns(
@@ -616,7 +624,7 @@ def process_patterns(
                 idx,
                 cell_type,
                 pattern_ids[idx],
-                pos_patterns[idx],
+                is_pattern_pos[idx],
                 all_patterns,
                 sim_threshold,
                 discard_ic_threshold,

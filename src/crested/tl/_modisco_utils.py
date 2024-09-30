@@ -3,9 +3,8 @@ from __future__ import annotations
 import modiscolite as modisco
 import numpy as np
 import pandas as pd
-from tangermeme.tools import tomtom as tangermeme_tomtom 
+from tangermeme.tools import tomtom as tangermeme_tomtom
 import torch
-import vizsequence
 
 def _trim_pattern_by_ic_old(
     pattern: dict,
@@ -120,7 +119,7 @@ def _trim(pattern: dict, start_idx: int, end_idx: int) -> dict:
     """
 
     seqlets_sequences = pattern['seqlets']['sequence']
-    trimmed_sequences = [seq[start_idx:end_idx] for seq in seqlets_sequences]    
+    trimmed_sequences = [seq[start_idx:end_idx] for seq in seqlets_sequences]
     seqlet_dict = {}
     seqlet_dict['sequence'] = trimmed_sequences
     return {
@@ -170,53 +169,53 @@ def _get_ic(
 def _one_hot_to_count_matrix(sequences):
     """
     Convert a set of one-hot encoded sequences to a count matrix.
-    
+
     Args:
-        sequences (numpy.ndarray): A numpy array of shape (n_sequences, sequence_length, 4), 
+        sequences (numpy.ndarray): A numpy array of shape (n_sequences, sequence_length, 4),
                                    representing the one-hot encoded sequences.
-                                   
+
     Returns:
-        count_matrix (numpy.ndarray): A count matrix of shape (sequence_length, 4) 
-                                      where each entry represents the count of 
+        count_matrix (numpy.ndarray): A count matrix of shape (sequence_length, 4)
+                                      where each entry represents the count of
                                       A, C, G, or T at each position.
     """
     # Sum the one-hot encoded sequences along the first axis (the sequence axis)
     count_matrix = np.sum(sequences, axis=0)
-    
+
     return count_matrix
 
 def _count_matrix_to_ppm(count_matrix, pseudocount=1.0):
     """
     Convert a count matrix to a position weight matrix (PWM) by adding pseudocounts
     and normalizing by the total counts per position.
-    
+
     Args:
         count_matrix (numpy.ndarray): A count matrix of shape (sequence_length, 4).
         pseudocount (float): A pseudocount added to each nucleotide count to avoid zeros.
-        
+
     Returns:
         pwm (numpy.ndarray): The position weight matrix of shape (sequence_length, 4).
     """
     # Add pseudocount to avoid zero probabilities
     count_matrix += pseudocount
-    
+
     # Calculate the total count at each position (sum across nucleotide axis)
     total_counts = np.sum(count_matrix, axis=1, keepdims=True)
-    
+
     # Normalize to get PWM (divide each count by the total counts at that position)
     ppm = count_matrix / total_counts
-    
+
     return ppm
 
 def _ppm_to_pwm(ppm, background_frequencies=None):
     """
     Convert a Position Probability Matrix (PPM) to a Position Weight Matrix (PWM) using log-odds.
-    
+
     Args:
         ppm (numpy.ndarray): A PPM of shape (sequence_length, 4) where each value is a probability.
-        background_frequencies (list or numpy.ndarray): Background frequencies for A, C, G, T. 
+        background_frequencies (list or numpy.ndarray): Background frequencies for A, C, G, T.
                                                         Default is [0.27, 0.23, 0.23, 0.27].
-    
+
     Returns:
         pwm (numpy.ndarray): The Position Weight Matrix of shape (sequence_length, 4).
     """
@@ -225,13 +224,13 @@ def _ppm_to_pwm(ppm, background_frequencies=None):
         background_frequencies = np.array([0.28, 0.22, 0.22, 0.28])
     else:
         background_frequencies = np.array(background_frequencies)
-    
+
     # Ensure no division by zero or log(0) by replacing 0s in the PPM with a small value
     ppm = np.clip(ppm, 1e-3, None)
-    
+
     # Apply log-odds transformation to convert PPM to PWM
     pwm = np.log2(ppm / background_frequencies)
-    
+
     return pwm
 
 def _pattern_to_ppm(pattern):
@@ -244,12 +243,12 @@ def _pattern_to_ppm(pattern):
 def compute_ic(ppm, background_freqs=[0.28,0.22,0.22,0.28]):
     """
     Compute the information content (IC) of a Position Probability Matrix (PPM).
-    
+
     Args:
-    ppm: 2D numpy array where rows correspond to positions in the motif, and 
+    ppm: 2D numpy array where rows correspond to positions in the motif, and
          columns correspond to symbols (A, T, C, G for example).
     background_freqs: 1D numpy array with the background frequencies of each symbol.
-    
+
     Returns:
     total_ic: Total information content of the PPM.
     ic_per_position: Information content per position in the motif.
@@ -258,22 +257,22 @@ def compute_ic(ppm, background_freqs=[0.28,0.22,0.22,0.28]):
     # Ensure ppm is a numpy array
     ppm = np.array(ppm)
     background_freqs = np.array(background_freqs)
-    
+
     # Initialize the IC array for each element
     ic_per_element = np.zeros_like(ppm)
-    
+
     # Calculate the IC per element using the formula -p_ij * log2(p_ij / p_j)
     for i in range(ppm.shape[0]):  # for each position in the motif
         for j in range(ppm.shape[1]):  # for each symbol (A, T, C, G)
             if ppm[i, j] > 0:  # Avoid log(0)
                 ic_per_element[i, j] = ppm[i, j] * np.log2(ppm[i, j] / background_freqs[j])
-    
+
     # IC per position is the sum of IC values across symbols at each position
     ic_per_position = np.sum(ic_per_element, axis=1)
-    
+
     # Total IC is the sum of IC values across all positions
     total_ic = np.sum(ic_per_element)
-    
+
     return total_ic, ic_per_position, ic_per_element
 
 def l1(X: np.ndarray) -> np.ndarray:
@@ -381,9 +380,9 @@ def match_score_patterns(a: dict, b: dict) -> float:
     #vizsequence.plot_weights(ic_b)
     score = tangermeme_tomtom.tomtom(Qs = [ic_a.T], Ts = [ic_b.T])
 
-    log_score = -np.log10(score[0,0])
+    log_score = -np.log10(max(score[0,0], 0))
 
-    return log_score  
+    return log_score
 
 def _match_score_patterns_old(a: dict, b: dict) -> float:
     """
