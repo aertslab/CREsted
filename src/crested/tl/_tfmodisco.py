@@ -636,12 +636,16 @@ def process_patterns(
                                 f"{cell_type.replace(' ', '_')}_{metacluster_name}_{pattern_idx}"
                             )
                             is_pos = metacluster_name == "pos_patterns"
-                            trimmed_patterns.append(
-                                _trim_pattern_by_ic(
+                            pattern = _trim_pattern_by_ic(
                                     hdf5_results[metacluster_name][p],
                                     is_pos,
                                     trim_ic_threshold
                                 )
+                            # store file path so it is possible to track back
+                            # where the pattern comes from.
+                            pattern["file_path"] = h5_file
+                            trimmed_patterns.append(
+                                pattern
                             )
                             is_pattern_pos.append(is_pos)
                             pattern_idx = pattern_idx + 1
