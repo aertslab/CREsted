@@ -121,7 +121,7 @@ def _trim(pattern: dict, start_idx: int, end_idx: int) -> dict:
     seqlet_dict = {}
     # read seqlet information
     for k in pattern["seqlets"].keys():
-      seqlet_dict[k] = pattern["seqlets"][k][:]
+        seqlet_dict[k] = pattern["seqlets"][k][:]
     # do actual trimming
     seqlets_sequences = pattern['seqlets']['sequence']
     trimmed_sequences = [seq[start_idx:end_idx] for seq in seqlets_sequences]
