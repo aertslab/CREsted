@@ -199,6 +199,7 @@ def add_pattern_to_dict(
     ic, ic_pos, ic_mat = compute_ic(ppm)
 
     p['ppm']=ppm
+    p["ic"] = np.mean(ic_pos)
     all_patterns[str(idx)] = {}
     all_patterns[str(idx)]["pattern"] = p
     all_patterns[str(idx)]["pos_pattern"] = pos_pattern
