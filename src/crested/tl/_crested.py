@@ -1359,7 +1359,7 @@ class Crested:
                         masked_locations=inserted_motif_locations,
                     )
 
-                    mutagenesis_predictions = self.model.predict(mutagenesis)
+                    mutagenesis_predictions = self.model.predict(mutagenesis, verbose=False)
 
                     # determine the best insertion site
                     best_mutation = enhancer_optimizer.get_best(
@@ -1551,7 +1551,8 @@ class Crested:
             mutagenesis_predictions = self.model.predict(
                 mutagenesis.reshape(
                     (n_sequences * TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ, seq_len, 4)
-                )
+                ),
+                verbose=False
             )
 
             mutagenesis_predictions = mutagenesis_predictions.reshape(
