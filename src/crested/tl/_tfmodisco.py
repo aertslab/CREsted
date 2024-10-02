@@ -283,7 +283,7 @@ def match_to_patterns(
 
     if verbose:
         print(
-            f'Match between {pattern_id} and {all_patterns[str(match_idx)]["pattern"]["id"]} with similarity score {str(max_sim)}'
+            f'Match between {pattern_id} and {all_patterns[str(match_idx)]["pattern"]["id"]} with similarity score {max_sim:.2f}'
         )
 
     all_patterns[str(match_idx)]["instances"][pattern_id] = p

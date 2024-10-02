@@ -368,19 +368,17 @@ def match_score_patterns(a: dict, b: dict) -> float:
     -------
     Match score between the patterns.
     """
-    #a_pos = a['pos_pattern']
-    #b_pos = b['pos_pattern']
 
-    #score = tangermeme_tomtom.tomtom(Qs = [_get_ic(a["contrib_scores"], a_pos).T], Ts = [_get_ic(b["contrib_scores"], b_pos).T])
     _,_,ic_a = compute_ic(a['ppm'])
     _,_,ic_b = compute_ic(b['ppm'])
-    #print(a['id'])
-    #vizsequence.plot_weights(ic_a)
-    #print(b['id'])
-    #vizsequence.plot_weights(ic_b)
-    score = tangermeme_tomtom.tomtom(Qs = [ic_a.T], Ts = [ic_b.T])
+    try:
+        score = tangermeme_tomtom.tomtom(Qs = [ic_a.T], Ts = [ic_b.T])[0,0][0]
+    except Exception as e:
+        print(f"Warning: TOMTOM error while comparing patterns {a['id']} and {b['id']}. Returning no match.")
+        print(f"Error details: {e}")
+        score = 1
 
-    log_score = -np.log10(max(score[0,0][0], 1e-12))
+    log_score = -np.log10(max(score, 1e-12))
 
     return log_score
 
