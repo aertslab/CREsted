@@ -33,11 +33,13 @@ dependencies = [
     "pybigtools>=0.2.0",
     "seaborn",
     "pooch",
+    "pybigwig"
 ]
 
 [project.optional-dependencies]
 tfmodisco = [
     "modisco-lite>=2.2.1",
+    "tangermeme"
 ]
 
 dev = [

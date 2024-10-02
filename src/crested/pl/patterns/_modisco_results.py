@@ -2,129 +2,19 @@ from __future__ import annotations
 
 import h5py
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import modiscolite as modisco
 import numpy as np
 import pandas as pd
+from scipy.cluster.hierarchy import linkage, leaves_list
 import seaborn as sns
 from loguru import logger
 
 from crested._logging import log_and_raise
 from crested.pl._utils import render_plot
+from crested.tl._modisco_utils import _trim_pattern_by_ic, _get_ic, _trim, _pattern_to_ppm, compute_ic
 
 from ._utils import _plot_attribution_map
-
-
-@log_and_raise(ValueError)
-def _trim_pattern_by_ic(
-    pattern: dict,
-    pos_pattern: bool,
-    min_v: float,
-    background: list[float] = None,
-    pseudocount: float = 1e-6,
-) -> dict:
-    """
-    Trims the pattern based on information content (IC).
-
-    Parameters
-    ----------
-    pattern
-        Dictionary containing the pattern data.
-    pos_pattern
-        Indicates if the pattern is a positive pattern.
-    min_v
-        Minimum value for trimming.
-    background
-        Background probabilities for each nucleotide.
-    pseudocount
-        Pseudocount for IC calculation.
-
-    Returns
-    -------
-        Trimmed pattern.
-    """
-    if background is None:
-        background = [0.27, 0.23, 0.23, 0.27]
-    contrib_scores = np.array(pattern["contrib_scores"])
-    if not pos_pattern:
-        contrib_scores = -contrib_scores
-    contrib_scores[contrib_scores < 0] = 1e-9  # avoid division by zero
-
-    ic = modisco.util.compute_per_position_ic(
-        ppm=np.array(contrib_scores), background=background, pseudocount=pseudocount
-    )
-    np.nan_to_num(ic, copy=False, nan=0.0)
-    v = (abs(np.array(contrib_scores)) * ic[:, None]).max(1)
-    v = (v - v.min()) / (v.max() - v.min() + 1e-9)
-
-    try:
-        start_idx = min(np.where(np.diff((v > min_v) * 1))[0])
-        end_idx = max(np.where(np.diff((v > min_v) * 1))[0]) + 1
-    except ValueError:
-        logger.error("No valid pattern found. Aborting...")
-
-    return _trim(pattern, start_idx, end_idx)
-
-
-def _trim(pattern: dict, start_idx: int, end_idx: int) -> dict:
-    """
-    Trims the pattern to the specified start and end indices.
-
-    Parameters
-    ----------
-    pattern
-        Dictionary containing the pattern data.
-    start_idx
-        Start index for trimming.
-    end_idx (int)
-        End index for trimming.
-
-    Returns
-    -------
-        Trimmed pattern.
-    """
-    return {
-        "sequence": np.array(pattern["sequence"])[start_idx:end_idx],
-        "contrib_scores": np.array(pattern["contrib_scores"])[start_idx:end_idx],
-        "hypothetical_contribs": np.array(pattern["hypothetical_contribs"])[
-            start_idx:end_idx
-        ],
-    }
-
-
-def _get_ic(
-    contrib_scores: np.ndarray,
-    pos_pattern: bool,
-    background: list[float] = None,
-) -> np.ndarray:
-    """
-    Computes the information content (IC) for the given contribution scores.
-
-    Parameters
-    ----------
-    contrib_scores
-        Array of contribution scores.
-    pos_pattern
-        Indicates if the pattern is a positive pattern.
-    background
-        background probabilities for each nucleotide.
-
-    Returns
-    -------
-        Information content for the contribution scores.
-    """
-    if background is None:
-        background = [0.27, 0.23, 0.23, 0.27]
-    background = np.array(background)
-    if not pos_pattern:
-        contrib_scores = -contrib_scores
-    contrib_scores[contrib_scores < 0] = 1e-9
-    ppm = contrib_scores / np.sum(contrib_scores, axis=1)[:, None]
-
-    ic = (np.log((ppm + 0.001) / (1.004)) / np.log(2)) * ppm - (
-        np.log(background) * background / np.log(2)
-    )
-    return ppm * (np.sum(ic, axis=1)[:, None])
-
 
 def modisco_results(
     classes: list[str],
@@ -240,7 +130,8 @@ def modisco_results(
         for metacluster_name in [f"{contribution[:3]}_patterns"]:
             all_pattern_names = list(hdf5_results[metacluster_name])
 
-            for _pattern_idx, pattern_name in enumerate(all_pattern_names):
+            for i in range(len(all_pattern_names)):
+                pattern_name = 'pattern_'+str(i)
                 if len(classes) > 1:
                     ax = axes[motif_counter - 1, idx]
                 elif max_num_patterns > 1:
@@ -271,12 +162,16 @@ def modisco_results(
                         f"{cell_type}: {np.around(num_seqlets / num_seq * 100, 2)}% seqlet frequency"
                     )
                 elif viz == "pwm":
-                    pwm = _get_ic(np.array(pattern_trimmed["contrib_scores"]), pos_pat)
+                    pattern = _trim_pattern_by_ic(pattern, pos_pat, 0.1)
+                    ppm = _pattern_to_ppm(pattern)
+                    ic, ic_pos, ic_mat = compute_ic(ppm)
+                    pwm = np.array(ic_mat)
+                    rounded_mean = np.around(np.mean(pwm), 2)
                     ax = _plot_attribution_map(
                         ax=ax, saliency_df=pwm, return_ax=True, figsize=None
                     )
                     ax.set_title(
-                        f"{cell_type}: {np.around(num_seqlets / num_seq * 100, 2)}% seqlet frequency - Average IC: {np.around(np.mean(pwm), 2)}"
+                        f"{cell_type}: {np.around(num_seqlets / num_seq * 100, 2)}% seqlet frequency - Average IC: {rounded_mean:.2f}"
                     )
                     ax.set_ylim([0, 2])
                 else:
@@ -293,94 +188,64 @@ def modisco_results(
 
     return render_plot(fig, **kwargs)
 
-
-def plot_custom_xticklabels(
-    ax: plt.Axes,
-    sequences: list[tuple[str, np.ndarray]],
-    col_order: list[int],
-    fontsize: int = 10,
-    dy: float = 0.012,
-) -> None:
-    """
-    Plot custom x-tick labels with varying letter heights.
-
-    Parameters
-    ----------
-    ax
-        The axes object to plot on.
-    sequences
-        List of tuples containing sequences and their corresponding heights.
-    col_order
-        List of column indices after clustering.
-    fontsize
-        Base font size for the letters.
-    dy
-        Vertical adjustment factor for letter heights.
-    """
-    ax.set_xticks(np.arange(len(sequences)))
-    ax.set_xticklabels([])
-    ax.tick_params(axis="x", which="both", length=0)
-
-    for i, original_index in enumerate(col_order):
-        sequence, heights = sequences[original_index]
-        y_position = -0.02
-        for _, (char, height) in enumerate(zip(sequence, heights)):
-            char_fontsize = height * fontsize
-            text = ax.text(
-                i,
-                y_position,
-                char,
-                ha="center",
-                va="center",
-                color="black",
-                transform=ax.get_xaxis_transform(),
-                fontsize=char_fontsize,
-                rotation=270,
-            )
-            renderer = ax.figure.canvas.get_renderer()
-            _ = text.get_window_extent(renderer=renderer).width
-            y_position -= dy
-
-
 def create_clustermap(
     pattern_matrix: np.ndarray,
     classes: list[str],
-    figsize: tuple[int, int] = (15, 13),
+    subset: list[str] | None = None,  # Subset option
+    figsize: tuple[int, int] = (25,8),
     grid: bool = False,
     color_palette: str | list[str] = "hsv",
     cmap: str = "coolwarm",
     center: float = 0,
     method: str = "average",
+    dy: float = 0.002,
     fig_path: str | None = None,
-    pat_seqs: list[tuple[str, np.ndarray]] | None = None,
-    dy: float = 0.012,
+    pat_seqs: list[tuple[str, np.ndarray]] | None = None
 ) -> sns.matrix.ClusterGrid:
     """
     Create a clustermap from the given pattern matrix and class labels with customizable options.
 
     Parameters
     ----------
-    pattern_matrix
+    pattern_matrix : np.ndarray
         2D NumPy array containing pattern data.
-    classes
-        List of class labels.
-    figsize
+    classes : list[str]
+        List of class labels, matching the rows of the pattern matrix.
+    subset : list[str], optional
+        List of class labels to subset the matrix.
+    figsize : tuple[int, int], optional
         Size of the figure.
-    grid
+    grid : bool, optional
         Whether to add a grid to the heatmap.
-    color_palette
+    color_palette : str or list[str], optional
         Color palette for the row colors.
-    - cmap (str): Colormap for the clustermap.
-    - center (float): Value at which to center the colormap.
-    - method (str): Clustering method to use (e.g., 'average', 'single', 'complete').
-    - fig_path (str, optional): Path to save the figure.
-    - pat_seqs (list, optional): List of sequences to use as xticklabels.
-    - dy (float): Vertical adjustment factor for letter heights.
-
-    Returns
-    -------
-    The clustermap object.
+    cmap : str, optional
+        Colormap for the clustermap.
+    center : float, optional
+        Value at which to center the colormap.
+    method : str, optional
+        Clustering method to use.
+    dy: float, optional
+        Scaling parameter for vertical distance between nucleotides (if pat_seqs is not None) in xticklabels. 
+    fig_path : str, optional
+        Path to save the figure.
+    pat_seqs : list[tuple[str, np.ndarray]], optional
+        List of sequences to use as xticklabels.
     """
+    # Subset the pattern_matrix and classes if subset is provided
+    if subset is not None:
+        subset_indices = [i for i, class_label in enumerate(classes) if class_label in subset]
+        pattern_matrix = pattern_matrix[subset_indices, :]
+        classes = [classes[i] for i in subset_indices]
+    
+    # Remove columns that contain only zero values
+    non_zero_columns = np.any(pattern_matrix != 0, axis=0)
+    pattern_matrix = pattern_matrix[:, non_zero_columns]
+
+    # Reindex columns based on the original positions of non-zero columns
+    column_indices = np.where(non_zero_columns)[0]
+    data = pd.DataFrame(pattern_matrix, columns=column_indices)
+
     data = pd.DataFrame(pattern_matrix)
 
     if isinstance(color_palette, str):
@@ -391,41 +256,85 @@ def create_clustermap(
     class_lut = dict(zip(set(classes), palette))
     row_colors = pd.Series(classes).map(class_lut)
 
-    xtick_labels = False if pat_seqs is not None else True
+    if pat_seqs is not None:
+        plt.rc("text", usetex=False)  # Turn off LaTeX to speed up rendering
+        scaling_factor = 10
+
+        # Plot the scaled x-tick labels based on the importance scores
+        xtick_labels = [
+            (letters, scores) for letters, scores in pat_seqs
+        ]
+
+    else:
+        xtick_labels = True
 
     g = sns.clustermap(
         data,
         cmap=cmap,
         figsize=figsize,
-        row_colors=row_colors,
+        row_colors=None,
         yticklabels=classes,
         center=center,
-        xticklabels=xtick_labels,
+        xticklabels=True if pat_seqs is None else False,  # Disable default xticklabels if pat_seqs provided.  #xticklabels=xtick_labels,
         method=method,
+        dendrogram_ratio=(0.1, 0.1),
+        cbar_pos=(1.05, 0.4, 0.01, 0.3)
     )
     col_order = g.dendrogram_col.reordered_ind
+    cbar = g.ax_heatmap.collections[0].colorbar
+    cbar.set_label('Motif importance', rotation=270, labelpad=20)  # Rotate label and add padding
+    g.ax_heatmap.set_yticklabels(g.ax_heatmap.get_yticklabels(), rotation=0)
 
-    for label in class_lut:
-        g.ax_col_dendrogram.bar(0, 0, color=class_lut[label], label=label, linewidth=0)
+    # Get the reordered column indices from the clustermap
+    col_order = g.dendrogram_col.reordered_ind
+
+    # Reorder the pat_seqs to follow the column order
+    if pat_seqs is not None:
+        reordered_pat_seqs = [pat_seqs[column_indices[i]] for i in col_order]
+        ax = g.ax_heatmap
+        x_positions = np.arange(len(reordered_pat_seqs)) + 0.5  # Shift labels by half a tick to the right
+
+        constant = (1/figsize[1])*64 
+        for i, (letters, scores) in enumerate(reordered_pat_seqs):
+            previous_spacing = 0
+            for j, (letter, score) in enumerate(zip(reversed(letters), reversed(scores))):
+                fontsize = score*10 
+                vertical_spacing = max((constant * score *  dy), constant * 0.1 * dy)  # Spacing proportional to figsize[1]
+
+                ax.text(
+                    x_positions[i], -(constant*0.002) - previous_spacing,  # Adjust y-position based on spacing
+                    letter, 
+                    fontsize=fontsize,  # Constant font size
+                    ha='center',              # Horizontal alignment
+                    va='top',                 # Vertical alignment
+                    rotation=90,              # Rotate the labels vertically
+                    transform=ax.get_xaxis_transform()  # Ensure the text is placed relative to x-axis
+                )
+                previous_spacing += vertical_spacing
+
+        # Ensure x-ticks are visible
+        ax.set_xticks(x_positions)
 
     if grid:
         ax = g.ax_heatmap
-        ax.grid(
-            True,
-            which="both",
-            color="grey",
-            linewidth=0.25,
-        )
-        g.fig.canvas.draw()
+        # Define the grid positions (between cells, hence the +0.5 offset)
+        x_positions = np.arange(pattern_matrix.shape[1] + 1) 
+        y_positions = np.arange(len(pattern_matrix) + 1)
 
-    if pat_seqs is not None:
-        plot_custom_xticklabels(g.ax_heatmap, pat_seqs, col_order, dy=dy)
+        # Add horizontal grid lines
+        for y in y_positions:
+            ax.hlines(y, *ax.get_xlim(), color="grey", linewidth=0.25)
+
+        # Add vertical grid lines
+        for x in x_positions:
+            ax.vlines(x, *ax.get_ylim(), color="grey", linewidth=0.25)
+
+        g.fig.canvas.draw()
 
     if fig_path is not None:
         plt.savefig(fig_path)
 
     plt.show()
-    return g
 
 
 def plot_patterns(pattern_dict: dict, idcs: list[int]) -> None:
@@ -455,6 +364,41 @@ def plot_patterns(pattern_dict: dict, idcs: list[int]) -> None:
     plt.tight_layout()
     plt.show()
 
+def plot_pattern_instances(pattern_dict: dict, idx: int, class_representative: bool = False) -> None:
+    """
+    Plots all the pattern instances clustered together in the pattern dictionary for a given pattern index.
+
+    Parameters
+    ----------
+    pattern_dict
+        A dictionary containing pattern data.
+    idcs
+        Index specifying from which pattern the instances to plot.
+    class_representative
+        Boolean to plot the best pattern per class, or all instances of a pattern in the same class if there would be multiple instances in one class. Default False.
+    """
+    if class_representative:
+        key = 'classes'
+    else:
+        key='instances'
+    n_instances = len(pattern_dict[str(idx)][key])
+    figure, axes = plt.subplots(nrows=n_instances, ncols=1, figsize=(8, 2 * n_instances))
+    if n_instances == 1:
+        axes = [axes]
+
+    instance_classes = list(pattern_dict[str(idx)][key].keys())
+
+    for i, cl in enumerate(instance_classes):
+        ax = _plot_attribution_map(
+            ax=axes[i],
+            saliency_df=np.array(pattern_dict[str(idx)][key][cl]["contrib_scores"]),
+            return_ax=True,
+            figsize=None,
+        )
+        ax.set_title(pattern_dict[str(idx)][key][cl]["id"])
+
+    plt.tight_layout()
+    plt.show()
 
 def plot_similarity_heatmap(
     similarity_matrix: np.ndarray,
@@ -499,4 +443,149 @@ def plot_similarity_heatmap(
 
     if fig_path is not None:
         plt.savefig(fig_path)
+    plt.show()
+
+def plot_tf_expression_per_cell_type(df: pd.DataFrame, tf_list: list, log_transform: bool = False, title: str = "TF Expression per Cell Type") -> None:
+    """
+    Plots the expression levels of specified transcription factors (TFs) per cell type.
+
+    Parameters:
+    - df (pd.DataFrame): The DataFrame containing mean gene expression data per cell type.
+    - tf_list (list): A list of transcription factors (TFs) to plot.
+    - log_transform (bool): Whether to log-transform the TF expression values.
+    - title (str): The title of the plot.
+
+    Returns:
+    - None
+    """
+    # Check if all specified TFs are in the DataFrame
+    missing_tfs = [tf for tf in tf_list if tf not in df.columns]
+    if missing_tfs:
+        raise ValueError(f"The following TFs are not found in the DataFrame: {missing_tfs}")
+
+    # Subset the DataFrame to include only the specified TFs
+    tf_expression_df = df[tf_list]
+
+    # Apply log transformation if specified
+    if log_transform:
+        tf_expression_df = np.log(tf_expression_df+1)
+
+    # Plot the TF expression per cell type
+    ax = tf_expression_df.plot(kind='bar', figsize=(12, 5), width=0.8)
+    ax.set_title(title)
+    ax.set_xlabel("Cell Type")
+    ax.set_ylabel("Log Mean TF Expression" if log_transform else "Mean TF Expression")
+    ax.legend(title="Transcription Factors")
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.show()
+
+def plot_clustermap_tf_motif(
+    data: np.ndarray, 
+    cluster_on_dim: str = 'gex', 
+    class_labels: Optional[List[str]] = None, 
+    pattern_labels: Optional[List[str]] = None, 
+    color_idx: str = 'gex', 
+    size_idx: str = 'contrib', 
+    grid: bool = True,
+    log_transform: bool = False, 
+    normalize: bool = False
+) -> None:
+    """
+    Plot a clustermap from a 3D matrix where one third dimension is indicated by dot size
+    and the other by color.
+
+    Parameters:
+    - data: 3D numpy array with shape (len(classes), #patterns, 2)
+    - cluster_on_dim: str, either 'gex' or 'contrib', indicating which third dimension to cluster on
+    - class_labels: list of strings, labels for the classes
+    - pattern_labels: list of strings, labels for the patterns
+    - color_idx: str, either 'gex' or 'contrib', indicating the dimension to use for color
+    - size_idx: str, either 'gex' or 'contrib', indicating the dimension to use for size
+    - grid: bool, whether to add a grid to the figure
+    - log_transform: bool, whether to apply log transformation to the data
+    - normalize: bool, whether to normalize the data
+    """
+    # Ensure data is a numpy array
+    data = np.array(data)
+    assert data.shape[2] == 2, "The third dimension of the data should be 2."
+
+    # Some additional data prep for more logical plotting
+    if color_idx=='gex':
+        for col_idx in range(data.shape[1]):
+            for ct_idx in range(data.shape[0]):
+                if data[ct_idx, col_idx,1]<0:
+                    data[ct_idx, col_idx,0] = -data[ct_idx, col_idx,0]
+                    data[ct_idx, col_idx,1] = np.abs(data[ct_idx, col_idx,1])
+
+    # Default labels if none provided
+    if class_labels is None:
+        class_labels = [f'Class {i}' for i in range(data.shape[0])]
+    if pattern_labels is None:
+        pattern_labels = [f'Pattern {i}' for i in range(data.shape[1])]
+
+    # Mapping from string to index
+    dim_mapping = {'gex': 0, 'contrib': 1}
+
+    # Choose the dimension to cluster on
+    clustering_data = data[:, :, dim_mapping[cluster_on_dim]]
+    
+    if log_transform:
+        clustering_data = np.log(clustering_data)
+    
+    if normalize:
+        clustering_data = clustering_data / np.linalg.norm(clustering_data, axis=1, keepdims=True)
+
+    # Perform hierarchical clustering
+    linkage_matrix = linkage(clustering_data, method='ward')
+    cluster_order = leaves_list(linkage_matrix)
+
+    # Reorder data according to clustering
+    data_ordered = data[cluster_order, :, :]
+
+    # Extract the two dimensions
+    size_data = data_ordered[:, :, dim_mapping[size_idx]]
+    max_size = np.max(size_data)
+    size_data = size_data / max_size
+    color_data = data_ordered[:, :, dim_mapping[color_idx]]
+
+    # Adjust figure size dynamically
+    fig, ax = plt.subplots(figsize=(max(20, data.shape[1] // 4), 10))
+
+    # Determine color scale limits to center on zero
+    max_val = np.max(color_data)
+    min_val = np.min(color_data)
+    
+    # Define the normalization to center at zero
+    norm = mcolors.TwoSlopeNorm(vmin=min_val, vcenter=0, vmax=max_val)
+
+    # Use the norm parameter in scatter
+    sc = ax.scatter(
+        np.tile(np.arange(data_ordered.shape[1]), data_ordered.shape[0]), 
+        np.repeat(np.arange(data_ordered.shape[0]), data_ordered.shape[1]), 
+        s=size_data.flatten() * 500, 
+        c=color_data.flatten(), 
+        cmap='coolwarm', 
+        alpha=0.6,
+        norm=norm  # Apply the centered colormap
+)
+
+    # Add color bar
+    cbar = plt.colorbar(sc, ax=ax)
+    label = 'Average pattern contribution score' if dim_mapping[color_idx] == 1 else 'Average TF expression, signed by activation/repression'
+    cbar.set_label(label)
+
+    # Set labels
+    ax.set_xticks(np.arange(data_ordered.shape[1]))
+    ax.set_yticks(np.arange(data_ordered.shape[0]))
+
+    # Reduce the number of x-axis labels displayed
+    ax.set_xticklabels([pattern_labels[i] for i in range(data_ordered.shape[1])], rotation=90)
+    ax.set_yticklabels([class_labels[i] for i in cluster_order])
+    ax.set_xlim([-0.5, len(pattern_labels) + 0.5])
+
+    plt.xlabel('Patterns')
+    plt.ylabel('Classes')
+    plt.grid(grid)
+    plt.tight_layout()
     plt.show()

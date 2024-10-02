@@ -10,11 +10,15 @@ import numpy as np
 from anndata import AnnData
 from loguru import logger
 from tqdm import tqdm
+from typing import Callable, Any
+from pysam import FastaFile
+
 
 from crested._logging import log_and_raise
 from crested.tl import TaskConfig
 from crested.tl._utils import (
     _weighted_difference,
+    EnhancerOptimizer,
     generate_motif_insertions,
     generate_mutagenesis,
     hot_encoding_to_sequence,
@@ -657,6 +661,130 @@ class Crested:
 
         return predictions
 
+    def score_gene_locus(
+        self,
+        chr_name: str,
+        gene_start: int,
+        gene_end: int,
+        class_name: str,
+        strand: str = '+',
+        upstream: int = 50000,
+        downstream: int = 10000,
+        window_size: int = 2114,
+        central_size: int = 1000,
+        step_size: int = 50,
+    ):
+        """
+        Score regions upstream and downstream of a gene locus using the model's prediction.
+        The model predicts a value for the central 1000bp of each window.
+
+        Parameters:
+        ----------
+        chr_name : str
+            The chromosome name (e.g., 'chr12').
+        gene_start : int
+            The start position of the gene locus (TSS for + strand).
+        gene_end : int
+            The end position of the gene locus (TSS for - strand).
+        class_name : str
+            Output class name for prediction.
+        strand : str
+            '+' for positive strand, '-' for negative strand. Default '+'.
+        upstream : int
+            Distance upstream of the gene to score. Default 50 000.
+        downstream : int
+            Distance downstream of the gene to score. Default 10 000.
+        window_size : int
+            Size of the window to use for scoring. Default 2114.
+        central_size : int
+            Size of the central region that the model predicts for. Default 1000.
+        step_size : int
+            Distance between consecutive windows. Default 50.
+
+        Returns:
+        --------
+        scores : np.array
+            An array of prediction scores across the entire genomic range.
+        coordinates : np.array
+            An array of tuples, each containing the chromosome name and the start and end positions of the sequence for each window.
+        min_loc : int
+            Start position of the entire scored region.
+        max_loc : int
+            End position of the entire scored region.
+        tss_position : int
+            The transcription start site (TSS) position.
+        """
+        # Adjust upstream and downstream based on the strand
+        if strand == '+':
+            start_position = gene_start - upstream
+            end_position = gene_end + downstream
+            tss_position = gene_start  # TSS is at the gene_start for positive strand
+        elif strand == '-':
+            end_position = gene_end + upstream
+            start_position = gene_start - downstream
+            tss_position = gene_end  # TSS is at the gene_end for negative strand
+        else:
+            raise ValueError("Strand must be '+' or '-'.")
+
+        total_length = abs(end_position - start_position)
+
+        # Ratio to normalize the score contributions
+        ratio = central_size / step_size
+
+        # Initialize an array to store the scores, filled with zeros
+        scores = np.zeros(total_length)
+
+        # List to store coordinates of each window
+        coordinates = []
+
+        # Get class index 
+        all_class_names = list(self.anndatamodule.adata.obs_names)
+        idx = all_class_names.index(class_name)
+
+        genome = FastaFile(self.anndatamodule.genome_file)
+
+        # Generate all windows and one-hot encode the sequences in parallel
+        all_sequences = []
+        all_coordinates = []
+
+        for pos in range(start_position, end_position, step_size):
+            window_start = pos
+            window_end = pos + window_size
+
+            # Ensure the window stays within the bounds of the region
+            if window_end > end_position:
+                break
+
+            # Fetch the sequence
+            seq = genome.fetch(chr_name, window_start, window_end).upper()
+
+            # One-hot encode the sequence (you would need to ensure this function is available)
+            seq_onehot = one_hot_encode_sequence(seq)
+
+            all_sequences.append(seq_onehot)
+            all_coordinates.append((chr_name, int(window_start), int(window_end)))
+
+        # Stack sequences for batch processing
+        all_sequences = np.squeeze(np.stack(all_sequences),axis=1)
+
+        # Perform batched predictions
+        predictions = self.model.predict(all_sequences, verbose=0)
+
+        # Map predictions to the score array
+        for i, (pos, prediction) in enumerate(zip(range(start_position, end_position, step_size), predictions)):
+            window_start = pos
+            central_start = pos + (window_size - central_size) // 2
+            central_end = central_start + central_size
+
+            scores[central_start - start_position:central_end - start_position] += prediction[idx]
+            #if strand == '+':
+            #    scores[central_start - start_position:central_end - start_position] += prediction[idx]
+            #else:
+            #    scores[total_length - (central_end - start_position):total_length - (central_start - start_position)] += prediction[idx]
+
+        # Normalize the scores based on the number of times each position is included in the central window
+        return scores / ratio, np.array(all_coordinates), start_position, end_position, tss_position
+
     def calculate_contribution_scores(
         self,
         class_names: list[str],
@@ -924,6 +1052,79 @@ class Crested:
             all_one_hot_sequences, axis=0
         )
 
+    def tfmodisco_calculate_and_save_contribution_scores_sequences(
+        self,
+        adata: AnnData,
+        sequences: list[str],
+        output_dir: os.PathLike = "modisco_results",
+        method: str = "expected_integrated_grad",
+        class_names: list[str] | None = None,
+    ):
+        """
+        Calculate and save contribution scores for seqeunce
+
+        Parameters
+        ----------
+        adata
+            The AnnData object containing class information.
+        sequences:
+            List of sequences (string encoded) to calculate contribution on.
+        output_dir
+            Directory to save the output files.
+        method
+            Method to use for calculating the contribution scores.
+            Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
+        class_names
+            List of class names to process. If None, all class names in adata.obs_names will be processed.
+        """
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        # Extract regions and class names from adata.var
+        all_class_names = list(adata.obs_names)
+
+        # If class_names is None, process all classes
+        if class_names is None:
+            class_names = all_class_names
+        else:
+            # Ensure that class_names contains valid classes
+            valid_class_names = [
+                class_name
+                for class_name in class_names
+                if class_name in all_class_names
+            ]
+            if len(valid_class_names) != len(class_names):
+                raise ValueError(
+                    f"Invalid class names provided. Valid class names are: {all_class_names}"
+                )
+            class_names = valid_class_names
+
+        for class_name in class_names:
+            # Calculate contribution scores
+            contrib_scores, one_hot_seqs = self.calculate_contribution_scores_sequence(
+                sequences=sequences,
+                class_names=[class_name],
+                method=method,
+                disable_tqdm=True
+            )
+
+            # Transform the contrib scores and one hot numpy arrays to (#regions, 4, seq_len), the expected format of modisco-lite.
+            contrib_scores = contrib_scores.squeeze(axis=1).transpose(0, 2, 1)
+            one_hot_seqs = one_hot_seqs.transpose(0, 2, 1)
+
+            # Save the results to the output directory
+            np.savez_compressed(
+                os.path.join(output_dir, f"{class_name}_oh.npz"), one_hot_seqs
+            )
+            np.savez_compressed(
+                os.path.join(output_dir, f"{class_name}_contrib.npz"), contrib_scores
+            )
+
+        logger.info(
+            f"Contribution scores and one-hot encoded sequences saved to {output_dir}"
+        )
+
+
     def tfmodisco_calculate_and_save_contribution_scores(
         self,
         adata: AnnData,
@@ -1014,27 +1215,33 @@ class Crested:
 
     def enhancer_design_motif_implementation(
         self,
-        target_class: str,
         n_sequences: int,
         patterns: dict,
+        target_class: str | None = None,
+        target: int | np.ndarray | None = None,
         insertions_per_pattern: dict | None = None,
         return_intermediate: bool = False,
         class_penalty_weights: np.ndarray | None = None,
         no_mutation_flanks: tuple | None = None,
         target_len: int | None = None,
         preserve_inserted_motifs: bool = True,
-    ) -> tuple[list(dict), list] | list:
+        enhancer_optimizer: EnhancerOptimizer | None = None,
+        **kwargs: dict[str, Any]
+    ) -> tuple[list[dict], list] | list:
         """
         Create synthetic enhancers for a specified class using motif implementation.
 
         Parameters
         ----------
-        target_class
-            Class name for which the enhancers will be designed for.
         n_sequences
             Number of enhancers to design.
         patterns
             Dictionary of patterns to be implemented in the form of 'pattern_name':'pattern_sequence'
+        target_class
+            Class name for which the enhancers will be designed for. If this value is set to None
+            target needs to be specified.
+        target
+            target index, needs to be specified when target_class is None
         insertions_per_pattern
             Dictionary of number of patterns to be implemented in the form of 'pattern_name':number_of_insertions
             If not used one of each pattern in patterns will be implemented.
@@ -1051,17 +1258,33 @@ class Crested:
             is supplied.
         preserve_inserted_motifs
             If True, sequentially inserted motifs can't be inserted on previous motifs.
+        enhancer_optimizer
+            An instance of EnhancerOptimizer, defining how sequences should be optimized.
+            If None, a default EnhancerOptimizer will be initialized using `_weighted_difference`
+            as optimization function.
+        kwargs
+            Keyword arguments that will be passed to the `get_best` function of the EnhancerOptimizer
 
         Returns
         -------
         A list of designed sequences and if return_intermediate is True a list of dictionaries of intermediate
         mutations and predictions
         """
-        self._check_contribution_scores_params([target_class])
+        if target_class is not None:
+            self._check_contribution_scores_params([target_class])
 
-        all_class_names = list(self.anndatamodule.adata.obs_names)
+            all_class_names = list(self.anndatamodule.adata.obs_names)
 
-        target = all_class_names.index(target_class)
+            target = all_class_names.index(target_class)
+
+        elif target is None:
+            raise ValueError("`target` need to be specified when `target_class` is None")
+
+
+        if enhancer_optimizer is None:
+            enhancer_optimizer = EnhancerOptimizer(
+                optimize_func = _weighted_difference
+            )
 
         # get input sequence length of the model
         seq_len = (
@@ -1136,14 +1359,14 @@ class Crested:
                         masked_locations=inserted_motif_locations,
                     )
 
-                    mutagenesis_predictions = self.model.predict(mutagenesis)
+                    mutagenesis_predictions = self.model.predict(mutagenesis, verbose=False)
 
                     # determine the best insertion site
-                    best_mutation = _weighted_difference(
-                        mutagenesis_predictions,
-                        current_prediction,
-                        target,
-                        class_penalty_weights,
+                    best_mutation = enhancer_optimizer.get_best(
+                        mutated_predictions = mutagenesis_predictions,
+                        original_prediction = current_prediction,
+                        target = target,
+                        **kwargs
                     )
 
                     sequence_onehot = mutagenesis[best_mutation : best_mutation + 1]
@@ -1180,47 +1403,67 @@ class Crested:
 
     def enhancer_design_in_silico_evolution(
         self,
-        target_class: str,
         n_mutations: int,
         n_sequences: int,
+        target_class: str | None = None,
+        target: int | np.ndarray | None = None,
         return_intermediate: bool = False,
-        class_penalty_weights: np.ndarray | None = None,
         no_mutation_flanks: tuple | None = None,
         target_len: int | None = None,
-    ) -> tuple[list(dict), list] | list:
+        enhancer_optimizer: EnhancerOptimizer | None = None,
+        **kwargs: dict[str, Any]
+    ) -> tuple[list[dict], list] | list:
         """
         Create synthetic enhancers for a specified class using in silico evolution (ISE).
 
         Parameters
         ----------
-        target_class
-            Class name for which the enhancers will be designed for.
         n_mutations
-            Number of mutations per sequence
+            Number of iterations
         n_sequences
             Number of enhancers to design
+        target_class
+            Class name for which the enhancers will be designed for. If this value is set to None
+            target needs to be specified.
+        target
+            target index, needs to be specified when target_class is None
         return_intermediate
             If True, returns a dictionary with predictions and changes made in intermediate steps for selected
             sequences
-        class_penalty_weights
-            Array with a value per class, determining the penalty weight for that class to be used in scoring
-            function for sequence selection.
         no_mutation_flanks
             A tuple of integers which determine the regions in each flank to not do implementations.
         target_len
             Length of the area in the center of the sequence to make implementations, ignored if no_mutation_flanks
             is supplied.
+        enhancer_optimizer
+            An instance of EnhancerOptimizer, defining how sequences should be optimized.
+            If None, a default EnhancerOptimizer will be initialized using `_weighted_difference`
+            as optimization function.
+        kwargs
+            Keyword arguments that will be passed to the `get_best` function of the EnhancerOptimizer
 
         Returns
         -------
         A list of designed sequences and if return_intermediate is True a list of dictionaries of intermediate
         mutations and predictions
         """
-        self._check_contribution_scores_params([target_class])
+        if self.model is None:
+            raise ValueError("Model should be loaded first!")
 
-        all_class_names = list(self.anndatamodule.adata.obs_names)
+        if target_class is not None:
+            self._check_contribution_scores_params([target_class])
 
-        target = all_class_names.index(target_class)
+            all_class_names = list(self.anndatamodule.adata.obs_names)
+
+            target = all_class_names.index(target_class)
+
+        elif target is None:
+            raise ValueError("`target` need to be specified when `target_class` is None")
+
+        if enhancer_optimizer is None:
+            enhancer_optimizer = EnhancerOptimizer(
+                optimize_func = _weighted_difference
+            )
 
         # get input sequence length of the model
         seq_len = (
@@ -1253,58 +1496,120 @@ class Crested:
             n_sequences=n_sequences, seq_len=seq_len
         )
 
-        designed_sequences = []
-        intermediate_info_list = []
+        # initialize
+        designed_sequences: list[str] = []
+        intermediate_info_list: list[dict] = []
 
-        for idx, sequence in enumerate(random_sequences):
-            sequence_onehot = one_hot_encode_sequence(sequence)
-            if return_intermediate:
-                intermediate_info_list.append(
-                    {
-                        "inital_sequence": sequence,
-                        "changes": [(-1, "N")],
-                        "predictions": [
-                            self.model.predict(sequence_onehot, verbose=False)
-                        ],
-                        "designed_sequence": "",
-                    }
+        sequence_onehot_prev_iter = np.zeros(
+            (n_sequences, seq_len, 4),
+            dtype=np.uint8
+        )
+
+        # calculate total number of mutations per sequence
+        _, L, A = sequence_onehot_prev_iter.shape
+        start, end = 0, L
+        start = no_mutation_flanks[0]
+        end = L - no_mutation_flanks[1]
+        TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ = (end - start) * (A - 1)
+
+        mutagenesis = np.zeros(
+            (n_sequences, TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ, seq_len, 4)
+        )
+
+        for i, sequence in enumerate(random_sequences):
+            sequence_onehot_prev_iter[i] = one_hot_encode_sequence(sequence)
+
+        for _iter in tqdm(range(n_mutations)):
+            baseline_prediction = self.model.predict(
+                sequence_onehot_prev_iter,
+                verbose = False
+            )
+        
+            if _iter == 0 :
+                for i in range(n_sequences):
+                    # initialize info
+                    intermediate_info_list.append(
+                        {
+                            "inital_sequence": hot_encoding_to_sequence(
+                                sequence_onehot_prev_iter[i]
+                            ),
+                            "changes": [(-1, "N")],
+                            "predictions": [
+                                baseline_prediction[i]
+                            ],
+                            "designed_sequence": "",
+                        }
+                    )
+
+            # do all possible mutations
+            for i in range(n_sequences):
+                mutagenesis[i] = generate_mutagenesis(
+                    sequence_onehot_prev_iter[i: i+1],
+                    include_original=False, flanks=no_mutation_flanks
                 )
 
-            # sequentially do mutations
-            for _mutation_step in range(n_mutations):
-                current_prediction = self.model.predict(sequence_onehot, verbose=False)
+            mutagenesis_predictions = self.model.predict(
+                mutagenesis.reshape(
+                    (n_sequences * TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ, seq_len, 4)
+                ),
+                verbose=False
+            )
 
-                # do every possible mutation
-                mutagenesis = generate_mutagenesis(
-                    sequence_onehot, include_original=False, flanks=no_mutation_flanks
+            mutagenesis_predictions = mutagenesis_predictions.reshape(
+                (
+                    n_sequences,
+                    TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ,
+                    mutagenesis_predictions.shape[1]
                 )
-                mutagenesis_predictions = self.model.predict(mutagenesis)
+            )
 
-                # determine the best mutation
-                best_mutation = _weighted_difference(
-                    mutagenesis_predictions,
-                    current_prediction,
-                    target,
-                    class_penalty_weights,
+            for i in range(n_sequences):
+                best_mutation = enhancer_optimizer.get_best(
+                    mutated_predictions = mutagenesis_predictions[i],
+                    original_prediction = baseline_prediction[i],
+                    target = target,
+                    **kwargs
                 )
-
-                sequence_onehot = mutagenesis[best_mutation : best_mutation + 1]
-
+                sequence_onehot_prev_iter[i] = mutagenesis[
+                    i,
+                    best_mutation : best_mutation + 1,
+                    :
+                ]
                 if return_intermediate:
                     mutation_index = best_mutation // 3 + no_mutation_flanks[0]
-                    changed_to = sequence_onehot[0, mutation_index, :]
-                    intermediate_info_list[idx]["changes"].append(
-                        (mutation_index, hot_encoding_to_sequence(changed_to))
+                    changed_to = hot_encoding_to_sequence(
+                        sequence_onehot_prev_iter[i, mutation_index, :]
                     )
-                    intermediate_info_list[idx]["predictions"].append(
-                        mutagenesis_predictions[best_mutation]
+                    intermediate_info_list[i]["changes"].append(
+                        (mutation_index, changed_to)
+                    )
+                    intermediate_info_list[i]["predictions"].append(
+                        mutagenesis_predictions[i][best_mutation]
                     )
 
-            designed_sequence = hot_encoding_to_sequence(sequence_onehot)
-            designed_sequences.append(designed_sequence)
+        # get final sequence
+        for i in range(n_sequences):
+            best_mutation = enhancer_optimizer.get_best(
+                mutated_predictions = mutagenesis_predictions[i],
+                original_prediction = baseline_prediction[i],
+                target = target,
+                **kwargs
+            )
+
+            designed_sequence = hot_encoding_to_sequence(
+                    mutagenesis[
+                        i,
+                        best_mutation : best_mutation + 1,
+                        :
+                    ]
+                )
+
+            designed_sequences.append(
+                designed_sequence
+            )
 
             if return_intermediate:
-                intermediate_info_list[idx]["designed_sequence"] = designed_sequence
+                intermediate_info_list[i]["designed_sequence"] = designed_sequence
 
         if return_intermediate:
             return intermediate_info_list, designed_sequences

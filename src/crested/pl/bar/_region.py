@@ -178,3 +178,59 @@ def region(
         kwargs["height"] = default_height
 
     return render_plot(fig, **kwargs)
+
+def prediction_bar(prediction: np.array, classes: list, ylabel='Prediction', xlabel='Cell types', title='Prediction plot', **kwargs) -> plt.Figure:
+    """
+    Bar plot for predictions comparing different classes or cell types.
+
+    Parameters
+    ----------
+    prediction : np.array
+        An array containing the prediction values for each class or cell type. It is reshaped if necessary.
+    classes : list
+        A list of class or cell type labels corresponding to the predictions.
+    ylabel : str, optional
+        Label for the y-axis. Default is 'prediction'.
+    xlabel : str, optional
+        Label for the x-axis. Default is 'cell types'.
+    title : str, optional
+        Title of the plot. Default is 'Prediction plot'.
+    kwargs : dict, optional
+        Additional keyword arguments to pass to `render_plot`.
+
+    Returns
+    -------
+    plt.Figure
+        The generated bar plot figure.
+    """
+    # Ensure the prediction array is 1-dimensional
+    if prediction.ndim > 1 and prediction.shape[0] == 1:
+        prediction = prediction.flatten()
+
+    if len(prediction) != len(classes):
+        raise ValueError("The length of prediction array must match the number of classes.")
+
+    # Create the bar plot
+    fig, ax = plt.subplots()
+    ax.bar(classes, prediction, alpha=0.8)
+
+    # Set plot labels and title
+    ax.set_ylabel(ylabel)
+    ax.set_xlabel(xlabel)
+    ax.set_title(title)
+    ax.grid(True)
+
+    # Set the x-ticks to match the number of classes
+    ax.set_xticks(range(len(classes)))
+    ax.set_xticklabels(classes, rotation=45, ha="center")
+
+    # Default figure size, can be overridden by kwargs
+    default_height = 3
+    default_width = 18
+    if "width" not in kwargs:
+        kwargs["width"] = default_width
+    if "height" not in kwargs:
+        kwargs["height"] = default_height
+
+    # Use render_plot to finalize and return the figure
+    return render_plot(fig, **kwargs)
