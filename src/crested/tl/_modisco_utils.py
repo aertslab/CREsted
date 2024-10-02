@@ -99,7 +99,6 @@ def _trim_pattern_by_ic(
 
     return _trim(pattern, start_idx, end_idx)
 
-
 def _trim(pattern: dict, start_idx: int, end_idx: int) -> dict:
     """
     Trims the pattern to the specified start and end indices.
@@ -117,10 +116,15 @@ def _trim(pattern: dict, start_idx: int, end_idx: int) -> dict:
     -------
         Trimmed pattern.
     """
+    # TODO: Reading the pattern from disk should really be done in a seperate function!
 
+    seqlet_dict = {}
+    # read seqlet information
+    for k in pattern["seqlets"].keys():
+        seqlet_dict[k] = pattern["seqlets"][k][:]
+    # do actual trimming
     seqlets_sequences = pattern['seqlets']['sequence']
     trimmed_sequences = [seq[start_idx:end_idx] for seq in seqlets_sequences]
-    seqlet_dict = {}
     seqlet_dict['sequence'] = trimmed_sequences
     return {
         "sequence": np.array(pattern["sequence"])[start_idx:end_idx],
