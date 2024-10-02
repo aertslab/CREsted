@@ -4,21 +4,20 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from typing import Any
 
 import keras
 import numpy as np
 from anndata import AnnData
 from loguru import logger
-from tqdm import tqdm
-from typing import Callable, Any
 from pysam import FastaFile
-
+from tqdm import tqdm
 
 from crested._logging import log_and_raise
 from crested.tl import TaskConfig
 from crested.tl._utils import (
-    _weighted_difference,
     EnhancerOptimizer,
+    _weighted_difference,
     generate_motif_insertions,
     generate_mutagenesis,
     hot_encoding_to_sequence,
@@ -667,59 +666,60 @@ class Crested:
         gene_start: int,
         gene_end: int,
         class_name: str,
-        strand: str = '+',
+        strand: str = "+",
         upstream: int = 50000,
         downstream: int = 10000,
         window_size: int = 2114,
         central_size: int = 1000,
         step_size: int = 50,
-    ):
+    ) -> tuple[np.ndarray, np.ndarray, int, int, int]:
         """
         Score regions upstream and downstream of a gene locus using the model's prediction.
+
         The model predicts a value for the central 1000bp of each window.
 
-        Parameters:
+        Parameters
         ----------
-        chr_name : str
+        chr_name
             The chromosome name (e.g., 'chr12').
-        gene_start : int
+        gene_start
             The start position of the gene locus (TSS for + strand).
-        gene_end : int
+        gene_end
             The end position of the gene locus (TSS for - strand).
-        class_name : str
+        class_name
             Output class name for prediction.
-        strand : str
+        strand
             '+' for positive strand, '-' for negative strand. Default '+'.
-        upstream : int
+        upstream
             Distance upstream of the gene to score. Default 50 000.
-        downstream : int
+        downstream
             Distance downstream of the gene to score. Default 10 000.
-        window_size : int
+        window_size
             Size of the window to use for scoring. Default 2114.
-        central_size : int
+        central_size
             Size of the central region that the model predicts for. Default 1000.
-        step_size : int
+        step_size
             Distance between consecutive windows. Default 50.
 
-        Returns:
-        --------
-        scores : np.array
+        Returns
+        -------
+        scores
             An array of prediction scores across the entire genomic range.
-        coordinates : np.array
+        coordinates
             An array of tuples, each containing the chromosome name and the start and end positions of the sequence for each window.
-        min_loc : int
+        min_loc
             Start position of the entire scored region.
-        max_loc : int
+        max_loc
             End position of the entire scored region.
-        tss_position : int
+        tss_position
             The transcription start site (TSS) position.
         """
         # Adjust upstream and downstream based on the strand
-        if strand == '+':
+        if strand == "+":
             start_position = gene_start - upstream
             end_position = gene_end + downstream
             tss_position = gene_start  # TSS is at the gene_start for positive strand
-        elif strand == '-':
+        elif strand == "-":
             end_position = gene_end + upstream
             start_position = gene_start - downstream
             tss_position = gene_end  # TSS is at the gene_end for negative strand
@@ -734,10 +734,7 @@ class Crested:
         # Initialize an array to store the scores, filled with zeros
         scores = np.zeros(total_length)
 
-        # List to store coordinates of each window
-        coordinates = []
-
-        # Get class index 
+        # Get class index
         all_class_names = list(self.anndatamodule.adata.obs_names)
         idx = all_class_names.index(class_name)
 
@@ -765,25 +762,35 @@ class Crested:
             all_coordinates.append((chr_name, int(window_start), int(window_end)))
 
         # Stack sequences for batch processing
-        all_sequences = np.squeeze(np.stack(all_sequences),axis=1)
+        all_sequences = np.squeeze(np.stack(all_sequences), axis=1)
 
         # Perform batched predictions
         predictions = self.model.predict(all_sequences, verbose=0)
 
         # Map predictions to the score array
-        for i, (pos, prediction) in enumerate(zip(range(start_position, end_position, step_size), predictions)):
+        for _, (pos, prediction) in enumerate(
+            zip(range(start_position, end_position, step_size), predictions)
+        ):
             window_start = pos
             central_start = pos + (window_size - central_size) // 2
             central_end = central_start + central_size
 
-            scores[central_start - start_position:central_end - start_position] += prediction[idx]
-            #if strand == '+':
+            scores[
+                central_start - start_position : central_end - start_position
+            ] += prediction[idx]
+            # if strand == '+':
             #    scores[central_start - start_position:central_end - start_position] += prediction[idx]
-            #else:
+            # else:
             #    scores[total_length - (central_end - start_position):total_length - (central_start - start_position)] += prediction[idx]
 
         # Normalize the scores based on the number of times each position is included in the central window
-        return scores / ratio, np.array(all_coordinates), start_position, end_position, tss_position
+        return (
+            scores / ratio,
+            np.array(all_coordinates),
+            start_position,
+            end_position,
+            tss_position,
+        )
 
     def calculate_contribution_scores(
         self,
@@ -1105,7 +1112,7 @@ class Crested:
                 sequences=sequences,
                 class_names=[class_name],
                 method=method,
-                disable_tqdm=True
+                disable_tqdm=True,
             )
 
             # Transform the contrib scores and one hot numpy arrays to (#regions, 4, seq_len), the expected format of modisco-lite.
@@ -1123,7 +1130,6 @@ class Crested:
         logger.info(
             f"Contribution scores and one-hot encoded sequences saved to {output_dir}"
         )
-
 
     def tfmodisco_calculate_and_save_contribution_scores(
         self,
@@ -1226,7 +1232,7 @@ class Crested:
         target_len: int | None = None,
         preserve_inserted_motifs: bool = True,
         enhancer_optimizer: EnhancerOptimizer | None = None,
-        **kwargs: dict[str, Any]
+        **kwargs: dict[str, Any],
     ) -> tuple[list[dict], list] | list:
         """
         Create synthetic enhancers for a specified class using motif implementation.
@@ -1278,13 +1284,12 @@ class Crested:
             target = all_class_names.index(target_class)
 
         elif target is None:
-            raise ValueError("`target` need to be specified when `target_class` is None")
-
+            raise ValueError(
+                "`target` need to be specified when `target_class` is None"
+            )
 
         if enhancer_optimizer is None:
-            enhancer_optimizer = EnhancerOptimizer(
-                optimize_func = _weighted_difference
-            )
+            enhancer_optimizer = EnhancerOptimizer(optimize_func=_weighted_difference)
 
         # get input sequence length of the model
         seq_len = (
@@ -1359,14 +1364,16 @@ class Crested:
                         masked_locations=inserted_motif_locations,
                     )
 
-                    mutagenesis_predictions = self.model.predict(mutagenesis, verbose=False)
+                    mutagenesis_predictions = self.model.predict(
+                        mutagenesis, verbose=False
+                    )
 
                     # determine the best insertion site
                     best_mutation = enhancer_optimizer.get_best(
-                        mutated_predictions = mutagenesis_predictions,
-                        original_prediction = current_prediction,
-                        target = target,
-                        **kwargs
+                        mutated_predictions=mutagenesis_predictions,
+                        original_prediction=current_prediction,
+                        target=target,
+                        **kwargs,
                     )
 
                     sequence_onehot = mutagenesis[best_mutation : best_mutation + 1]
@@ -1411,7 +1418,7 @@ class Crested:
         no_mutation_flanks: tuple | None = None,
         target_len: int | None = None,
         enhancer_optimizer: EnhancerOptimizer | None = None,
-        **kwargs: dict[str, Any]
+        **kwargs: dict[str, Any],
     ) -> tuple[list[dict], list] | list:
         """
         Create synthetic enhancers for a specified class using in silico evolution (ISE).
@@ -1458,12 +1465,12 @@ class Crested:
             target = all_class_names.index(target_class)
 
         elif target is None:
-            raise ValueError("`target` need to be specified when `target_class` is None")
+            raise ValueError(
+                "`target` need to be specified when `target_class` is None"
+            )
 
         if enhancer_optimizer is None:
-            enhancer_optimizer = EnhancerOptimizer(
-                optimize_func = _weighted_difference
-            )
+            enhancer_optimizer = EnhancerOptimizer(optimize_func=_weighted_difference)
 
         # get input sequence length of the model
         seq_len = (
@@ -1500,10 +1507,7 @@ class Crested:
         designed_sequences: list[str] = []
         intermediate_info_list: list[dict] = []
 
-        sequence_onehot_prev_iter = np.zeros(
-            (n_sequences, seq_len, 4),
-            dtype=np.uint8
-        )
+        sequence_onehot_prev_iter = np.zeros((n_sequences, seq_len, 4), dtype=np.uint8)
 
         # calculate total number of mutations per sequence
         _, L, A = sequence_onehot_prev_iter.shape
@@ -1521,11 +1525,10 @@ class Crested:
 
         for _iter in tqdm(range(n_mutations)):
             baseline_prediction = self.model.predict(
-                sequence_onehot_prev_iter,
-                verbose = False
+                sequence_onehot_prev_iter, verbose=False
             )
-        
-            if _iter == 0 :
+
+            if _iter == 0:
                 for i in range(n_sequences):
                     # initialize info
                     intermediate_info_list.append(
@@ -1534,9 +1537,7 @@ class Crested:
                                 sequence_onehot_prev_iter[i]
                             ),
                             "changes": [(-1, "N")],
-                            "predictions": [
-                                baseline_prediction[i]
-                            ],
+                            "predictions": [baseline_prediction[i]],
                             "designed_sequence": "",
                         }
                     )
@@ -1544,36 +1545,35 @@ class Crested:
             # do all possible mutations
             for i in range(n_sequences):
                 mutagenesis[i] = generate_mutagenesis(
-                    sequence_onehot_prev_iter[i: i+1],
-                    include_original=False, flanks=no_mutation_flanks
+                    sequence_onehot_prev_iter[i : i + 1],
+                    include_original=False,
+                    flanks=no_mutation_flanks,
                 )
 
             mutagenesis_predictions = self.model.predict(
                 mutagenesis.reshape(
                     (n_sequences * TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ, seq_len, 4)
                 ),
-                verbose=False
+                verbose=False,
             )
 
             mutagenesis_predictions = mutagenesis_predictions.reshape(
                 (
                     n_sequences,
                     TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ,
-                    mutagenesis_predictions.shape[1]
+                    mutagenesis_predictions.shape[1],
                 )
             )
 
             for i in range(n_sequences):
                 best_mutation = enhancer_optimizer.get_best(
-                    mutated_predictions = mutagenesis_predictions[i],
-                    original_prediction = baseline_prediction[i],
-                    target = target,
-                    **kwargs
+                    mutated_predictions=mutagenesis_predictions[i],
+                    original_prediction=baseline_prediction[i],
+                    target=target,
+                    **kwargs,
                 )
                 sequence_onehot_prev_iter[i] = mutagenesis[
-                    i,
-                    best_mutation : best_mutation + 1,
-                    :
+                    i, best_mutation : best_mutation + 1, :
                 ]
                 if return_intermediate:
                     mutation_index = best_mutation // 3 + no_mutation_flanks[0]
@@ -1590,23 +1590,17 @@ class Crested:
         # get final sequence
         for i in range(n_sequences):
             best_mutation = enhancer_optimizer.get_best(
-                mutated_predictions = mutagenesis_predictions[i],
-                original_prediction = baseline_prediction[i],
-                target = target,
-                **kwargs
+                mutated_predictions=mutagenesis_predictions[i],
+                original_prediction=baseline_prediction[i],
+                target=target,
+                **kwargs,
             )
 
             designed_sequence = hot_encoding_to_sequence(
-                    mutagenesis[
-                        i,
-                        best_mutation : best_mutation + 1,
-                        :
-                    ]
-                )
-
-            designed_sequences.append(
-                designed_sequence
+                mutagenesis[i, best_mutation : best_mutation + 1, :]
             )
+
+            designed_sequences.append(designed_sequence)
 
             if return_intermediate:
                 intermediate_info_list[i]["designed_sequence"] = designed_sequence
