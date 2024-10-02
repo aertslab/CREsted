@@ -179,23 +179,31 @@ def region(
 
     return render_plot(fig, **kwargs)
 
-def prediction_bar(prediction: np.array, classes: list, ylabel='Prediction', xlabel='Cell types', title='Prediction plot', **kwargs) -> plt.Figure:
+
+def prediction(
+    prediction: np.array,
+    classes: list,
+    ylabel="Prediction",
+    xlabel="Cell types",
+    title="Prediction plot",
+    **kwargs,
+) -> plt.Figure:
     """
     Bar plot for predictions comparing different classes or cell types.
 
     Parameters
     ----------
-    prediction : np.array
+    prediction
         An array containing the prediction values for each class or cell type. It is reshaped if necessary.
-    classes : list
+    classes
         A list of class or cell type labels corresponding to the predictions.
-    ylabel : str, optional
+    ylabel
         Label for the y-axis. Default is 'prediction'.
-    xlabel : str, optional
+    xlabel
         Label for the x-axis. Default is 'cell types'.
-    title : str, optional
+    title
         Title of the plot. Default is 'Prediction plot'.
-    kwargs : dict, optional
+    kwargs
         Additional keyword arguments to pass to `render_plot`.
 
     Returns
@@ -208,7 +216,9 @@ def prediction_bar(prediction: np.array, classes: list, ylabel='Prediction', xla
         prediction = prediction.flatten()
 
     if len(prediction) != len(classes):
-        raise ValueError("The length of prediction array must match the number of classes.")
+        raise ValueError(
+            "The length of prediction array must match the number of classes."
+        )
 
     # Create the bar plot
     fig, ax = plt.subplots()
