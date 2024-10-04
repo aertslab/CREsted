@@ -14,9 +14,8 @@ from pysam import FastaFile
 from tqdm import tqdm
 
 from crested._logging import log_and_raise
-from crested.tl import TaskConfig
+from crested.tl import EnhancerOptimizer, TaskConfig
 from crested.tl._utils import (
-    EnhancerOptimizer,
     _weighted_difference,
     generate_motif_insertions,
     generate_mutagenesis,

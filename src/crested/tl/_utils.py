@@ -100,6 +100,21 @@ def generate_motif_insertions(x, motif, flanks=(0, 0), masked_locations=None):
 
 
 class EnhancerOptimizer:
+    """
+    Class to optimize the mutated sequence based on the original prediction.
+
+    Can be passed as the 'enhancer_optimizer' argument to crested.tl.Crested.enhancer_design_in_silico_evolution
+
+    Parameters
+    ----------
+    optimize_func
+        Function to optimize the mutated sequence based on the original prediction.
+
+    See Also
+    --------
+    crested.tl.Crested.enhancer_design_in_silico_evolution
+    """
+
     def __init__(self, optimize_func: Callable[..., np.intp]) -> None:
         self.optimize_func = optimize_func
 
@@ -110,6 +125,7 @@ class EnhancerOptimizer:
         target: int | np.ndarray,
         **kwargs: dict[str, Any],
     ) -> np.intp:
+        """Get the index of the best mutated sequence based on the original prediction."""
         return self.optimize_func(
             mutated_predictions, original_prediction, target, **kwargs
         )

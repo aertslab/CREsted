@@ -24,6 +24,7 @@ from . import pl, pp, tl
 from ._datasets import get_dataset, get_motif_db
 from ._io import import_beds, import_bigwigs
 from ._logging import setup_logging
+from ._utils import EnhancerOptimizer
 
 __all__ = [
     "pl",
