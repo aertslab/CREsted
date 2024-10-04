@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        shell: bash -e {0}
+        shell: bash -e {0};
 
     steps:
       - uses: actions/checkout@v3
@@ -45,7 +45,7 @@ jobs:
           if grep -q "Exception occurred:" sphinx-output.log; then
             echo "Sphinx build failed!"
             exit 1
-          fi
+          fi;
       - name: Upload Documentation Artifacts
         if: failure()
         uses: actions/upload-artifact@v3

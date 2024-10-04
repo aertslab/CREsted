@@ -137,8 +137,8 @@ nitpick_ignore = [
     ("py:class", "keras.metrics.Metric"),
     ("py:class", "keras.src.losses.loss.Loss"),
     ("py:class", "keras.src.metrics.metric.Metric"),
-    ("py:class", "anndata.AnnData"),
 ]
+
 suppress_warnings = [
     "autosummary.import_cycle",
 ]
