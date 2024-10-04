@@ -475,7 +475,7 @@ def import_bigwigs(
     df = pd.DataFrame(
         data_matrix,
         columns=consensus_peaks["region"],
-        index=[os.path.basename(file).split(".")[0] for file in bw_files],
+        index=[os.path.basename(file).rpartition('.')[0].replace('.', '_') for file in bw_files],
     )
 
     # Create AnnData object

@@ -248,13 +248,13 @@ def create_clustermap(
 
     data = pd.DataFrame(pattern_matrix)
 
-    if isinstance(color_palette, str):
-        palette = sns.color_palette(color_palette, len(set(classes)))
-    else:
-        palette = color_palette
+    #if isinstance(color_palette, str):
+    #    palette = sns.color_palette(color_palette, len(set(classes)))
+    #else:
+    #    palette = color_palette
 
-    class_lut = dict(zip(set(classes), palette))
-    row_colors = pd.Series(classes).map(class_lut)
+    #class_lut = dict(zip(set(classes), palette))
+    #row_colors = pd.Series(classes).map(class_lut)
 
     if pat_seqs is not None:
         plt.rc("text", usetex=False)  # Turn off LaTeX to speed up rendering
