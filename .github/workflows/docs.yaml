@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        shell: bash -e {0}
+        shell: bash -eo pipefail {0} # Fail on error and enable pipefail
 
     steps:
       - uses: actions/checkout@v3
@@ -20,7 +20,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: 3.9
           cache: "pip"
           cache-dependency-path: "**/pyproject.toml"
 
@@ -29,24 +29,21 @@ jobs:
           python -m pip install --upgrade pip wheel
           pip install ".[doc]"
 
-      - name: Build Documentation and Check for Warnings
+      - name: Build Documentation and Check for Issues
         working-directory: docs
         run: |
           make clean
+          # Build the docs and capture output, treat warnings as errors (-W)
           sphinx-build -b html -W . _build/html 2>&1 | tee sphinx-output.log
-          if grep -q "WARNING:" sphinx-output.log; then
-            echo "Sphinx build generated warnings!"
-            exit 1
-          fi
-          if grep -q "ERROR:" sphinx-output.log; then
-            echo "Sphinx build generated errors!"
-            exit 1
-          fi
-          if grep -q "Exception occurred:" sphinx-output.log; then
-            echo "Sphinx build failed!"
-            exit 1
-          fi
-      - name: Upload Documentation Artifacts
+
+      - name: Upload Documentation Artifacts (HTML Pages)
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: sphinx-docs
+          path: docs/_build/html
+
+      - name: Upload Log if Build Failed
         if: failure()
         uses: actions/upload-artifact@v3
         with:
