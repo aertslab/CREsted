@@ -25,19 +25,19 @@ if MODISCOLITE_AVAILABLE:
         import modiscolite
 
         from crested.tl._tfmodisco import (
+            calculate_mean_expression_per_cell_type,
             calculate_similarity_matrix,
             create_pattern_matrix,
+            create_pattern_tf_dict,
+            create_tf_ct_matrix,
+            find_pattern_matches,
+            generate_html_paths,
             generate_nucleotide_sequences,
             match_h5_files_to_classes,
             pattern_similarity,
             process_patterns,
-            generate_html_paths,
-            calculate_mean_expression_per_cell_type,
             read_motif_to_tf_file,
             tfmodisco,
-            find_pattern_matches,
-            create_pattern_tf_dict,
-            create_tf_ct_matrix
         )
     except ImportError as e:
         logger.error(f"Import error: {e}")
@@ -84,6 +84,6 @@ if MODISCOLITE_AVAILABLE:
             "find_pattern_matches",
             "read_motif_to_tf_file",
             "create_pattern_tf_dict",
-            "create_tf_ct_matrix"
+            "create_tf_ct_matrix",
         ]
     )

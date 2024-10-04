@@ -7,7 +7,7 @@ from typing import NamedTuple
 
 import keras
 
-from crested.tl.losses import CosineMSELoss, CosineMSELogLoss
+from crested.tl.losses import CosineMSELogLoss
 from crested.tl.metrics import (
     ConcordanceCorrelationCoefficient,
     PearsonCorrelation,
