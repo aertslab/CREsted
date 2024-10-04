@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        shell: bash -e {0} # Fail on error
+        shell: bash -e {0}
 
     steps:
       - uses: actions/checkout@v3
