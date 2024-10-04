@@ -33,19 +33,19 @@ jobs:
         working-directory: docs
         run: |
           make clean
-          # Build the docs and capture warnings
           make html | tee sphinx-output.log
-          # Check if there are any warnings in the log
           if grep -q "WARNING:" sphinx-output.log; then
             echo "Sphinx build generated warnings!"
             exit 1
+          fi
           if grep -q "ERROR:" sphinx-output.log; then
             echo "Sphinx build generated errors!"
             exit 1
+          fi
           if grep -q "Exception occurred:" sphinx-output.log; then
             echo "Sphinx build failed!"
             exit 1
-          fi;
+          fi
       - name: Upload Documentation Artifacts
         if: failure()
         uses: actions/upload-artifact@v3
