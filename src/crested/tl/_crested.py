@@ -643,8 +643,6 @@ class Crested:
 
         Parameters
         ----------
-        model
-            A trained Keras model
         sequence
             A string containing a DNA sequence (A, C, G, T).
 
