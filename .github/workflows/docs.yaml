@@ -33,7 +33,7 @@ jobs:
         working-directory: docs
         run: |
           make clean
-          make html | tee sphinx-output.log
+          sphinx-build -b html -W . _build/html 2>&1 | tee sphinx-output.log
           if grep -q "WARNING:" sphinx-output.log; then
             echo "Sphinx build generated warnings!"
             exit 1
