@@ -12,5 +12,6 @@ io
 preprocessing
 tools/index.md
 plotting/index.md
+utils
 logging
 ```

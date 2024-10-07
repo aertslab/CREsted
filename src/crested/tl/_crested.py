@@ -14,16 +14,19 @@ from pysam import FastaFile
 from tqdm import tqdm
 
 from crested._logging import log_and_raise
-from crested.tl import EnhancerOptimizer, TaskConfig
-from crested.tl._utils import (
-    _weighted_difference,
-    generate_motif_insertions,
-    generate_mutagenesis,
+from crested.tl import TaskConfig
+from crested.tl.data import AnnDataModule
+from crested.tl.data._dataset import SequenceLoader
+from crested.utils import (
+    EnhancerOptimizer,
     hot_encoding_to_sequence,
     one_hot_encode_sequence,
 )
-from crested.tl.data import AnnDataModule
-from crested.tl.data._dataset import SequenceLoader
+from crested.utils._utils import (
+    _weighted_difference,
+    generate_motif_insertions,
+    generate_mutagenesis,
+)
 
 if os.environ["KERAS_BACKEND"] == "tensorflow":
     from crested.tl._explainer_tf import Explainer

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any, Callable
 
 import numpy as np
@@ -45,7 +46,23 @@ HOT_ENCODING_TABLE = get_hot_encoding_table()
 
 
 def one_hot_encode_sequence(sequence: str, expand_dim: bool = True) -> np.ndarray:
-    """One hot encode a DNA sequence."""
+    """
+    One hot encode a DNA sequence.
+
+    Will return a numpy array with shape (len(sequence), 4) if expand_dim is True, otherwise (4,).
+    Alphabet is ACGT.
+
+    Parameters
+    ----------
+    sequence
+        The DNA sequence to one hot encode.
+    expand_dim
+        Whether to expand the dimensions of the output array.
+
+    Returns
+    -------
+    The one hot encoded DNA sequence.
+    """
     if expand_dim:
         return np.expand_dims(
             HOT_ENCODING_TABLE[np.frombuffer(sequence.encode("ascii"), dtype=np.uint8)],
@@ -103,7 +120,7 @@ class EnhancerOptimizer:
     """
     Class to optimize the mutated sequence based on the original prediction.
 
-    Can be passed as the 'enhancer_optimizer' argument to crested.tl.Crested.enhancer_design_in_silico_evolution
+    Can be passed as the 'enhancer_optimizer' argument to :func:`crested.tl.Crested.enhancer_design_in_silico_evolution`
 
     Parameters
     ----------
@@ -115,7 +132,7 @@ class EnhancerOptimizer:
     crested.tl.Crested.enhancer_design_in_silico_evolution
     """
 
-    def __init__(self, optimize_func: Callable[..., np.intp]) -> None:
+    def __init__(self, optimize_func: Callable[..., int]) -> None:
         self.optimize_func = optimize_func
 
     def get_best(
@@ -124,7 +141,7 @@ class EnhancerOptimizer:
         original_prediction: np.ndarray,
         target: int | np.ndarray,
         **kwargs: dict[str, Any],
-    ) -> np.intp:
+    ) -> int:
         """Get the index of the best mutated sequence based on the original prediction."""
         return self.optimize_func(
             mutated_predictions, original_prediction, target, **kwargs
@@ -174,7 +191,18 @@ HOT_DECODING_TABLE = build_one_hot_decoding_table()
 
 
 def hot_encoding_to_sequence(one_hot_encoded_sequence: np.ndarray) -> str:
-    """Decode a one hot encoded sequence to a DNA sequence string."""
+    """
+    Decode a one hot encoded sequence to a DNA sequence string.
+
+    Parameters
+    ----------
+    one_hot_encoded_sequence
+        A numpy array with shape (x, 4) with dtype=np.float32.
+
+    Returns
+    -------
+    The DNA sequence string of length x.
+    """
     # Convert hot encoded seqeuence from:
     #   (x, 4) with dtype=np.float32
     # to:
@@ -241,7 +269,9 @@ def get_value_from_dataframe(df: pd.DataFrame, row_name: str, column_name: str):
         return f"Row index is out of bounds for DataFrame with {len(df)} rows."
 
 
-def extract_bigwig_values_per_bp(bigwig_file, coordinates):
+def extract_bigwig_values_per_bp(
+    bigwig_file: os.PathLike, coordinates: list[tuple[str, int, int]]
+) -> tuple[np.ndarray, list[int]]:
     """
     Extract per-base pair values from a bigWig file for the given genomic coordinates.
 

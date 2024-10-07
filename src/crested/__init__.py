@@ -20,16 +20,16 @@ except ImportError:
 import sys
 from importlib.metadata import version
 
-from . import pl, pp, tl
+from . import pl, pp, tl, utils
 from ._datasets import get_dataset, get_motif_db
 from ._io import import_beds, import_bigwigs
 from ._logging import setup_logging
-from ._utils import EnhancerOptimizer
 
 __all__ = [
     "pl",
     "pp",
     "tl",
+    "utils",
     "import_beds",
     "import_bigwigs",
     "setup_logging",
