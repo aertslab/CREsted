@@ -7,8 +7,8 @@ import numpy as np
 from anndata import AnnData
 from loguru import logger
 
-from crested._logging import log_and_raise
 from crested.pl._utils import render_plot
+from crested.utils._logging import log_and_raise
 
 
 def region_predictions(

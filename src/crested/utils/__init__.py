@@ -1,3 +1,4 @@
+from ._logging import setup_logging
 from ._utils import (
     EnhancerOptimizer,
     extract_bigwig_values_per_bp,

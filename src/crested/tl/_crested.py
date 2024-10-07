@@ -13,7 +13,6 @@ from loguru import logger
 from pysam import FastaFile
 from tqdm import tqdm
 
-from crested._logging import log_and_raise
 from crested.tl import TaskConfig
 from crested.tl.data import AnnDataModule
 from crested.tl.data._dataset import SequenceLoader
@@ -22,6 +21,7 @@ from crested.utils import (
     hot_encoding_to_sequence,
     one_hot_encode_sequence,
 )
+from crested.utils._logging import log_and_raise
 from crested.utils._utils import (
     _weighted_difference,
     generate_motif_insertions,

@@ -13,5 +13,4 @@ preprocessing
 tools/index.md
 plotting/index.md
 utils
-logging
 ```
