@@ -10,7 +10,7 @@ from loguru import logger
 from scipy.cluster.hierarchy import leaves_list, linkage
 
 from crested.pl._utils import render_plot
-from crested.tl._modisco_utils import (
+from crested.tl.modisco._modisco_utils import (
     _pattern_to_ppm,
     _trim_pattern_by_ic,
     compute_ic,

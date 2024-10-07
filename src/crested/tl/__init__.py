@@ -6,14 +6,6 @@ from . import data, losses, metrics, zoo
 from ._configs import TaskConfig, default_configs
 from ._crested import Crested
 
-
-def _optional_function_warning(*args, **kwargs):
-    logger.error(
-        "The requested functionality requires the 'tfmodisco' package, which is not installed. "
-        "Please install it with `pip install crested[tfmodisco]`.",
-    )
-
-
 if find_spec("modiscolite") is not None:
     MODISCOLITE_AVAILABLE = True
 else:
@@ -23,38 +15,14 @@ if MODISCOLITE_AVAILABLE:
     try:
         import modiscolite
 
-        from crested.tl._tfmodisco import (
-            calculate_mean_expression_per_cell_type,
-            calculate_similarity_matrix,
-            create_pattern_matrix,
-            create_pattern_tf_dict,
-            create_tf_ct_matrix,
-            find_pattern_matches,
-            generate_html_paths,
-            generate_nucleotide_sequences,
-            match_h5_files_to_classes,
-            pattern_similarity,
-            process_patterns,
-            read_motif_to_tf_file,
-            tfmodisco,
-        )
+        from . import modisco
     except ImportError as e:
         logger.error(f"Import error: {e}")
         raise
 else:
-    create_pattern_matrix = _optional_function_warning
-    generate_nucleotide_sequences = _optional_function_warning
-    match_h5_files_to_classes = _optional_function_warning
-    process_patterns = _optional_function_warning
-    tfmodisco = _optional_function_warning
-    calculate_similarity_matrix = _optional_function_warning
-    pattern_similarity = _optional_function_warning
-    calculate_mean_expression_per_cell_type = _optional_function_warning
-    generate_html_paths = _optional_function_warning
-    find_pattern_matches = _optional_function_warning
-    read_motif_to_tf_file = _optional_function_warning
-    create_pattern_tf_dict = _optional_function_warning
-    create_tf_ct_matrix = _optional_function_warning
+    logger.warning(
+        "modiscolite is not installed, 'crested.tl.modisco' module will not be available."
+    )
 
 
 __all__ = [
@@ -68,20 +36,4 @@ __all__ = [
 ]
 
 if MODISCOLITE_AVAILABLE:
-    __all__.extend(
-        [
-            "calculate_similarity_matrix",
-            "create_pattern_matrix",
-            "generate_nucleotide_sequences",
-            "match_h5_files_to_classes",
-            "pattern_similarity",
-            "process_patterns",
-            "tfmodisco",
-            "calculate_mean_expression_per_cell_type",
-            "generate_html_paths",
-            "find_pattern_matches",
-            "read_motif_to_tf_file",
-            "create_pattern_tf_dict",
-            "create_tf_ct_matrix",
-        ]
-    )
+    __all__.extend("modisco")
