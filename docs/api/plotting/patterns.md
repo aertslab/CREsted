@@ -12,4 +12,9 @@ Plot contribution scores and analyze them using tfmodisco.
 
     contribution_scores
     modisco_results
+    selected_instances
+    class_instances
+    clustermap
+    clustermap_tf_motif
+    tf_expression_per_cell_type
 ```

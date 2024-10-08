@@ -23,23 +23,25 @@ if MODISCOLITE_AVAILABLE:
 
         # Import all necessary functions from _modisco_results
         from ._modisco_results import (
-            create_clustermap,
+            class_instances,
+            clustermap,
+            clustermap_tf_motif,
             modisco_results,
-            plot_clustermap_tf_motif,
-            plot_pattern_instances,
-            plot_patterns,
-            plot_similarity_heatmap,
+            selected_instances,
+            similarity_heatmap,
+            tf_expression_per_cell_type,
         )
     except ImportError as e:
         logger.error(f"Import error: {e}")
         raise
 else:
-    create_clustermap = _optional_function_warning
+    clustermap = _optional_function_warning
     modisco_results = _optional_function_warning
-    plot_patterns = _optional_function_warning
-    plot_similarity_heatmap = _optional_function_warning
-    plot_pattern_instances = _optional_function_warning
-    plot_clustermap_tf_motif = _optional_function_warning
+    selected_instances = _optional_function_warning
+    similarity_heatmap = _optional_function_warning
+    class_instances = _optional_function_warning
+    clustermap_tf_motif = _optional_function_warning
+    tf_expression_per_cell_type = _optional_function_warning
 
 # Export these functions for public use
 __all__ = [
@@ -49,11 +51,12 @@ __all__ = [
 if MODISCOLITE_AVAILABLE:
     __all__.extend(
         [
-            "create_clustermap",
+            "clustermap",
             "modisco_results",
-            "plot_patterns",
-            "plot_similarity_heatmap",
-            "plot_pattern_instances",
-            "plot_clustermap_tf_motif",
+            "class_instances",
+            "similarity_heatmap",
+            "selected_instances",
+            "clustermap_tf_motif",
+            "tf_expression_per_cell_type",
         ]
     )

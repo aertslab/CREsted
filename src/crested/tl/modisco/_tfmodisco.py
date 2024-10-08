@@ -578,6 +578,10 @@ def match_h5_files_to_classes(
     classes
         list of class names to match against file names.
 
+    See Also
+    --------
+    crested.tl.modisco.tfmodisco
+
     Returns
     -------
     A dictionary where keys are class names and values are paths to the corresponding .h5 files if matched, None otherwise.
@@ -597,7 +601,7 @@ def match_h5_files_to_classes(
 
 def process_patterns(
     matched_files: dict[str, str | list[str] | None],
-    sim_threshold: float = 3,
+    sim_threshold: float = 3.0,
     trim_ic_threshold: float = 0.1,
     discard_ic_threshold: float = 0.1,
     verbose: bool = False,
@@ -617,6 +621,10 @@ def process_patterns(
         Information content threshold for discarding patterns.
     verbose
         Flag to enable verbose output.
+
+    See Also
+    --------
+    crested.tl.modisco.match_h5_files_to_classes
 
     Returns
     -------
@@ -705,6 +713,11 @@ def create_pattern_matrix(
     normalize
         Flag to indicate whether to normalize the rows of the matrix.
 
+    See Also
+    --------
+    crested.tl.modisco.process_patterns
+    crested.pl.patterns.clustermap
+
     Returns
     -------
     The resulting pattern matrix, optionally normalized.
@@ -761,6 +774,10 @@ def generate_nucleotide_sequences(all_patterns: dict) -> list[tuple[str, np.ndar
     ----------
     all_patterns
         dictionary containing pattern data.
+
+    See Also
+    --------
+    crested.tl.modisco.process_patterns
 
     Returns
     -------

@@ -192,13 +192,12 @@ def modisco_results(
     return render_plot(fig, **kwargs)
 
 
-def create_clustermap(
+def clustermap(
     pattern_matrix: np.ndarray,
     classes: list[str],
     subset: list[str] | None = None,  # Subset option
     figsize: tuple[int, int] = (25, 8),
     grid: bool = False,
-    color_palette: str | list[str] = "hsv",
     cmap: str = "coolwarm",
     center: float = 0,
     method: str = "average",
@@ -221,8 +220,6 @@ def create_clustermap(
         Size of the figure.
     grid : bool, optional
         Whether to add a grid to the heatmap.
-    color_palette : str or list[str], optional
-        Color palette for the row colors.
     cmap : str, optional
         Colormap for the clustermap.
     center : float, optional
@@ -235,6 +232,10 @@ def create_clustermap(
         Path to save the figure.
     pat_seqs : list[tuple[str, np.ndarray]], optional
         List of sequences to use as xticklabels.
+
+    See Also
+    --------
+    crested.tl.modisco.create_pattern_matrix
     """
     # Subset the pattern_matrix and classes if subset is provided
     if subset is not None:
@@ -338,16 +339,21 @@ def create_clustermap(
     plt.show()
 
 
-def plot_patterns(pattern_dict: dict, idcs: list[int]) -> None:
+def selected_instances(pattern_dict: dict, idcs: list[int]) -> None:
     """
     Plots the patterns specified by the indices in `idcs` from the `pattern_dict`.
 
     Parameters
     ----------
     pattern_dict
-        A dictionary containing pattern data.
+        A dictionary containing pattern data. Each key corresponds to a pattern ID, and the value is a nested structure containing
+        contribution scores and metadata for the pattern.
     idcs
-        A list of indices specifying which patterns to plot.
+        A list of indices specifying which patterns to plot. The indices correspond to keys in the `pattern_dict`.
+
+    See Also
+    --------
+    crested.tl.modisco.process_patterns
     """
     figure, axes = plt.subplots(nrows=len(idcs), ncols=1, figsize=(8, 2 * len(idcs)))
     if len(idcs) == 1:
@@ -366,20 +372,27 @@ def plot_patterns(pattern_dict: dict, idcs: list[int]) -> None:
     plt.show()
 
 
-def plot_pattern_instances(
+def class_instances(
     pattern_dict: dict, idx: int, class_representative: bool = False
 ) -> None:
     """
-    Plots all the pattern instances clustered together in the pattern dictionary for a given pattern index.
+    Plots instances of a specific pattern, either the representative pattern per class or all instances for a given pattern index.
 
     Parameters
     ----------
-    pattern_dict
-        A dictionary containing pattern data.
-    idcs
-        Index specifying from which pattern the instances to plot.
-    class_representative
-        Boolean to plot the best pattern per class, or all instances of a pattern in the same class if there would be multiple instances in one class. Default False.
+    pattern_dict : dict
+        A dictionary containing pattern data. Each key corresponds to a pattern ID, and each value contains instances of the pattern
+        across different classes, along with their contribution scores.
+    idx : int
+        The index specifying which pattern's instances to plot. This corresponds to a key in the `pattern_dict`.
+    class_representative : bool, optional
+        If True, only the best representative instance of each class is plotted. If False (default), all instances of the pattern
+        within each class are plotted.
+
+    Notes
+    -----
+    - This function generates a plot for either the best pattern per class or all instances of a pattern.
+    - The contribution scores for each instance are visualized as attribution maps.
     """
     if class_representative:
         key = "classes"
@@ -407,7 +420,7 @@ def plot_pattern_instances(
     plt.show()
 
 
-def plot_similarity_heatmap(
+def similarity_heatmap(
     similarity_matrix: np.ndarray,
     indices: list,
     fig_size: tuple[int, int] = (30, 15),
@@ -453,7 +466,7 @@ def plot_similarity_heatmap(
     plt.show()
 
 
-def plot_tf_expression_per_cell_type(
+def tf_expression_per_cell_type(
     df: pd.DataFrame,
     tf_list: list,
     log_transform: bool = False,
@@ -498,7 +511,7 @@ def plot_tf_expression_per_cell_type(
     plt.show()
 
 
-def plot_clustermap_tf_motif(
+def clustermap_tf_motif(
     data: np.ndarray,
     cluster_on_dim: str = "gex",
     class_labels: None | list[str] = None,
