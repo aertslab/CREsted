@@ -10,7 +10,6 @@
 
     Crested
     TaskConfig
-    tfmodisco
     default_configs
 ```
 
