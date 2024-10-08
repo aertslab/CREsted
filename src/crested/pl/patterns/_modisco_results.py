@@ -80,7 +80,7 @@ def modisco_results(
 
     See Also
     --------
-    crested.tl.tfmodisco
+    crested.tl.modisco.tfmodisco
     crested.pl.render_plot
     """
     if background is None:
