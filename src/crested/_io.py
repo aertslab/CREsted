@@ -17,7 +17,7 @@ from loguru import logger
 from scipy.sparse import csr_matrix
 
 
-def _sort_files(filename: str):
+def _sort_files(filename: PathLike):
     """Sorts files.
 
     Prioritizes numeric extraction from filenames of the format 'Class_X.bed' (X=int).
@@ -110,7 +110,11 @@ def _read_consensus_regions(
 ) -> pd.DataFrame:
     """Read consensus regions BED file and filter out regions not within chromosomes."""
     consensus_peaks = pd.read_csv(
-        regions_file, sep="\t", header=None, usecols=[0, 1, 2], dtype={0: str, 1: 'Int32', 2: 'Int32'}
+        regions_file,
+        sep="\t",
+        header=None,
+        usecols=[0, 1, 2],
+        dtype={0: str, 1: "Int32", 2: "Int32"},
     )
     consensus_peaks["region"] = (
         consensus_peaks[0].astype(str)
@@ -475,7 +479,10 @@ def import_bigwigs(
     df = pd.DataFrame(
         data_matrix,
         columns=consensus_peaks["region"],
-        index=[os.path.basename(file).rpartition('.')[0].replace('.', '_') for file in bw_files],
+        index=[
+            os.path.basename(file).rpartition(".")[0].replace(".", "_")
+            for file in bw_files
+        ],
     )
 
     # Create AnnData object

@@ -10,7 +10,7 @@ def _trim_pattern_by_ic_old(
     pattern: dict,
     pos_pattern: bool,
     min_v: float,
-    background: list[float] = None,
+    background: list[float] | None = None,
     pseudocount: float = 1e-6,
 ) -> dict:
     """
@@ -141,7 +141,7 @@ def _trim(pattern: dict, start_idx: int, end_idx: int) -> dict:
 def _get_ic(
     contrib_scores: np.ndarray,
     pos_pattern: bool,
-    background: list[float] = None,
+    background: list[float] | None = None,
 ) -> np.ndarray:
     """
     Computes the information content (IC) for the given contribution scores.

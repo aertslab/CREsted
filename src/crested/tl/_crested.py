@@ -523,7 +523,7 @@ class Crested:
         # Log the evaluation results
         for metric_name, metric_value in evaluation_metrics.items():
             logger.info(f"Test {metric_name}: {metric_value:.4f}")
-
+            return None
         if return_metrics:
             return evaluation_metrics
 
@@ -603,6 +603,7 @@ class Crested:
         if anndata is not None and model_name is not None:
             logger.info(f"Adding predictions to anndata.layers[{model_name}].")
             anndata.layers[model_name] = predictions.T
+            return None
         else:
             return predictions
 

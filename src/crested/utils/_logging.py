@@ -32,7 +32,7 @@ def setup_logging(log_level: str = "INFO", log_file: str | None = None):
         )
 
 
-def log_and_raise(exception_class: Exception):
+def log_and_raise(exception_class: type[Exception]):
     """Decorator to both log and raise exceptions."""
 
     def decorator(func):
