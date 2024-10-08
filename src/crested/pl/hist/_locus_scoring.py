@@ -7,15 +7,14 @@ import numpy as np
 
 
 def locus_scoring(
-    scores,
-    coordinates,
-    range,
-    gene_start=None,
-    gene_end=None,
-    title="Predictions across Genomic Regions",
-    bigwig_values=None,
-    bigwig_midpoints=None,
-    filename=None,
+    scores: np.ndarray,
+    range: tuple[int, int],
+    gene_start: int | None = None,
+    gene_end: int | None = None,
+    title: str = "Predictions across Genomic Regions",
+    bigwig_values: np.ndarray | None = None,
+    bigwig_midpoints: list[int] | None = None,
+    filename: str | None = None,
 ):
     """
     Plot the predictions as a line chart over the entire genomic input and optionally indicate the gene locus.
@@ -26,8 +25,8 @@ def locus_scoring(
     ----------
     scores
         An array of prediction scores for each window.
-    coordinates
-        An array of tuples, each containing the chromosome name and the start and end positions of the sequence for each window.
+    range
+        The genomic range of the input.
     model_class
         The class index to plot from the prediction scores.
     gene_start
@@ -40,6 +39,27 @@ def locus_scoring(
         A numpy array of values extracted from a bigWig file for the same coordinates.
     bigwig_midpoints
         A list of base pair positions corresponding to the bigwig_values.
+    filename
+        The filename to save the plot to.
+
+    See Also
+    --------
+    crested.tl.Crested.score_gene_locus
+    crested.utils.extract_bigwig_values_per_bp
+
+    Example
+    --------
+    >>> crested.pl.hist.locus_scoring(
+    ...     scores,
+    ...     range=(0, 1000),
+    ...     gene_start=100,
+    ...     gene_end=200,
+    ...     title="Predictions across Genomic Regions",
+    ...     bigwig_values=bigwig_values,
+    ...     bigwig_midpoints=bigwig_midpoints,
+    ... )
+
+    .. image:: ../../../../docs/_static/img/examples/hist_locus_scoring.png
     """
     # Plotting predictions
     plt.figure(figsize=(30, 10))
