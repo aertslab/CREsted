@@ -62,6 +62,7 @@ doc = [
     "pandas",
     "tensorflow",
     "ruff",
+    "modisco-lite",
 ]
 test = [
     "pytest",
