@@ -210,27 +210,27 @@ def clustermap(
 
     Parameters
     ----------
-    pattern_matrix : np.ndarray
+    pattern_matrix
         2D NumPy array containing pattern data.
-    classes : list[str]
+    classes
         List of class labels, matching the rows of the pattern matrix.
-    subset : list[str], optional
+    subset
         List of class labels to subset the matrix.
-    figsize : tuple[int, int], optional
+    figsize
         Size of the figure.
-    grid : bool, optional
+    grid
         Whether to add a grid to the heatmap.
-    cmap : str, optional
+    cmap
         Colormap for the clustermap.
-    center : float, optional
+    center
         Value at which to center the colormap.
-    method : str, optional
+    method
         Clustering method to use.
-    dy: float, optional
+    dy
         Scaling parameter for vertical distance between nucleotides (if pat_seqs is not None) in xticklabels.
-    fig_path : str, optional
+    fig_path
         Path to save the figure.
-    pat_seqs : list[tuple[str, np.ndarray]], optional
+    pat_seqs
         List of sequences to use as xticklabels.
 
     See Also
@@ -380,19 +380,14 @@ def class_instances(
 
     Parameters
     ----------
-    pattern_dict : dict
+    pattern_dict
         A dictionary containing pattern data. Each key corresponds to a pattern ID, and each value contains instances of the pattern
         across different classes, along with their contribution scores.
-    idx : int
+    idx
         The index specifying which pattern's instances to plot. This corresponds to a key in the `pattern_dict`.
-    class_representative : bool, optional
+    class_representative
         If True, only the best representative instance of each class is plotted. If False (default), all instances of the pattern
         within each class are plotted.
-
-    Notes
-    -----
-    - This function generates a plot for either the best pattern per class or all instances of a pattern.
-    - The contribution scores for each instance are visualized as attribution maps.
     """
     if class_representative:
         key = "classes"
