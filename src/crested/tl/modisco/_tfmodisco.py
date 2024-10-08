@@ -541,13 +541,13 @@ def normalize_rows(arr: np.ndarray) -> np.ndarray:
     return normalized_array
 
 
-def find_pattern(id_: str, pattern_dict: dict) -> int | None:
+def find_pattern(pattern_id: str, pattern_dict: dict) -> int | None:
     """
     Finds the index of a pattern by its ID.
 
     Parameters
     ----------
-    id_
+    pattern_id
         The ID of the pattern to find.
     pattern_dict
         A dictionary containing pattern data.
@@ -557,10 +557,10 @@ def find_pattern(id_: str, pattern_dict: dict) -> int | None:
     The index of the pattern if found, otherwise None.
     """
     for idx, p in enumerate(pattern_dict):
-        if id_ == pattern_dict[p]["pattern"]["id"]:
+        if pattern_id == pattern_dict[p]["pattern"]["id"]:
             return idx
         for c in pattern_dict[p]["classes"]:
-            if id_ == pattern_dict[p]["classes"][c]["id"]:
+            if pattern_id == pattern_dict[p]["classes"][c]["id"]:
                 return idx
     return None
 
