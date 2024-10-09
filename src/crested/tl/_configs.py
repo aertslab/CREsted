@@ -7,7 +7,7 @@ from typing import NamedTuple
 
 import keras
 
-from crested.tl.losses import CosineMSELoss, CosineMSELogLoss
+from crested.tl.losses import CosineMSELogLoss
 from crested.tl.metrics import (
     ConcordanceCorrelationCoefficient,
     PearsonCorrelation,
@@ -159,7 +159,7 @@ class TaskConfig(NamedTuple):
         }
 
 
-def default_configs(task: str, num_classes: int = None) -> TaskConfig:
+def default_configs(task: str, num_classes: int | None = None) -> TaskConfig:
     """
     Get default loss, optimizer, and metrics for an existing task.
 

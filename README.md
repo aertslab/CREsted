@@ -46,7 +46,7 @@ pip install torch
 pip install crested
 ```
 
-3. If you plan on doing motif analysis using the tf-modisco (lite) and tangermeme functionality inside CREsted, you will need to run the following additional install:
+3. If you plan on doing motif analysis using the tf-modisco (lite) and tangermeme's tomtom functionality inside CREsted, you will need to run the following additional install:
 
 ```bash
 pip install crested[tfmodisco]

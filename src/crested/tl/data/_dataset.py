@@ -13,7 +13,7 @@ from pysam import FastaFile
 from scipy.sparse import spmatrix
 from tqdm import tqdm
 
-from crested.tl._utils import one_hot_encode_sequence
+from crested.utils import one_hot_encode_sequence
 
 
 def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:

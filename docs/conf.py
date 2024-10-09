@@ -96,6 +96,8 @@ intersphinx_mapping = {
     "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
+    "pandas": ("http://pandas.pydata.org/pandas-docs/stable/", None),
+    "seaborn": ("https://seaborn.pydata.org/", None),
 }
 
 # List of patterns, relative to source directory, that match files and
@@ -137,7 +139,9 @@ nitpick_ignore = [
     ("py:class", "keras.metrics.Metric"),
     ("py:class", "keras.src.losses.loss.Loss"),
     ("py:class", "keras.src.metrics.metric.Metric"),
+    ("py:class", "seaborn.matrix.ClusterGrid"),
 ]
+
 suppress_warnings = [
     "autosummary.import_cycle",
 ]

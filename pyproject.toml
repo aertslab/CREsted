@@ -61,6 +61,8 @@ doc = [
     "sphinx-copybutton",
     "pandas",
     "tensorflow",
+    "ruff",
+    "modisco-lite",
 ]
 test = [
     "pytest",

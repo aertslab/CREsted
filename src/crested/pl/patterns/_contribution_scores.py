@@ -5,8 +5,8 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 
-from crested._logging import log_and_raise
 from crested.pl._utils import render_plot
+from crested.utils._logging import log_and_raise
 
 from ._utils import (
     _plot_attribution_map,

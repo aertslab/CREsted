@@ -8,8 +8,8 @@ from anndata import AnnData
 from loguru import logger
 from scipy.stats import gaussian_kde, pearsonr, spearmanr
 
-from crested._logging import log_and_raise
 from crested.pl._utils import render_plot
+from crested.utils._logging import log_and_raise
 
 
 def class_density(
