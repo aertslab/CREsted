@@ -65,6 +65,11 @@ def modisco_results(
     kwargs
         Additional keyword arguments for the plot.
 
+    See Also
+    --------
+    crested.tl.modisco.tfmodisco
+    crested.pl.render_plot
+
     Examples
     --------
     >>> crested.pl.patterns.modisco_results(
@@ -77,11 +82,6 @@ def modisco_results(
     ... )
 
     .. image:: ../../../../docs/_static/img/examples/genomic_contributions.png
-
-    See Also
-    --------
-    crested.tl.modisco.tfmodisco
-    crested.pl.render_plot
     """
     if background is None:
         background = [0.27, 0.23, 0.23, 0.27]
@@ -236,6 +236,20 @@ def clustermap(
     See Also
     --------
     crested.tl.modisco.create_pattern_matrix
+    crested.tl.modisco.generate_nucleotide_sequences
+
+    Examples
+    --------
+    >>> pat_seqs = crested.tl.modisco.generate_nucleotide_sequences(all_patterns)
+    >>> crested.pl.patterns.clustermap(
+    ...     pattern_matrix,
+    ...     classes=list(adata.obs_names)
+    ...     subset=["Lamp5", "Pvalb", "Sst", "Sst-Chodl", "Vip"],
+    ...     figsize=(25, 8),
+    ...     grid=True,
+    ... )
+
+    .. image:: ../../../../docs/_static/img/examples/pattern_clustermap.png
     """
     # Subset the pattern_matrix and classes if subset is provided
     if subset is not None:
@@ -347,13 +361,20 @@ def selected_instances(pattern_dict: dict, idcs: list[int]) -> None:
     ----------
     pattern_dict
         A dictionary containing pattern data. Each key corresponds to a pattern ID, and the value is a nested structure containing
-        contribution scores and metadata for the pattern.
+        contribution scores and metadata for the pattern. Refer to the output of `crested.tl.modisco.process_patterns`.
     idcs
         A list of indices specifying which patterns to plot. The indices correspond to keys in the `pattern_dict`.
 
     See Also
     --------
     crested.tl.modisco.process_patterns
+
+    Examples
+    --------
+    >>> pattern_indices = [0, 1, 2]
+    >>> crested.pl.patterns.selected_instances(pattern_dict, pattern_indices)
+
+    .. image:: ../../../../docs/_static/img/examples/pattern_selected_instances.png
     """
     figure, axes = plt.subplots(nrows=len(idcs), ncols=1, figsize=(8, 2 * len(idcs)))
     if len(idcs) == 1:
@@ -382,12 +403,22 @@ def class_instances(
     ----------
     pattern_dict
         A dictionary containing pattern data. Each key corresponds to a pattern ID, and each value contains instances of the pattern
-        across different classes, along with their contribution scores.
+        across different classes, along with their contribution scores. Refer to the output of `crested.tl.modisco.process_patterns`.
     idx
         The index specifying which pattern's instances to plot. This corresponds to a key in the `pattern_dict`.
     class_representative
         If True, only the best representative instance of each class is plotted. If False (default), all instances of the pattern
         within each class are plotted.
+
+    See Also
+    --------
+    crested.tl.modisco.process_patterns
+
+    Examples
+    --------
+    >>> crested.pl.patterns.class_instances(pattern_dict, 0, class_representative=False)
+
+    .. image:: ../../../../docs/_static/img/examples/pattern_class_instances.png
     """
     if class_representative:
         key = "classes"
@@ -434,6 +465,19 @@ def similarity_heatmap(
         Size of the figure for the heatmap.
     fig_path
         Path to save the figure. If None, the figure will be shown but not saved.
+
+    See Also
+    --------
+    crested.tl.modisco.calculate_similarity_matrix
+
+    Examples
+    --------
+    >>> sim_matrix, indices = crested.tl.modisco.calculate_similarity_matrix(
+    ...     all_patterns
+    ... )
+    >>> crested.pl.patterns.similarity_heatmap(sim_matrix, indices, fig_size=(42, 17))
+
+    .. image:: ../../../../docs/_static/img/examples/pattern_similarity_heatmap.png
     """
     fig, ax = plt.subplots(figsize=fig_size)
     heatmap = sns.heatmap(
@@ -540,6 +584,23 @@ def clustermap_tf_motif(
         whether to apply log transformation to the data
     normalize
          whether to normalize the data
+
+    See Also
+    --------
+    crested.tl.modisco.create_tf_ct_matrix
+
+    Examples
+    --------
+    >>> crested.pl.patterns.clustermap_tf_motif(
+    ...     tf_ct_matrix,
+    ...     cluster_on_dim="gex",
+    ...     class_labels=classes,
+    ...     pattern_labels=tf_pattern_annots,
+    ...     color_idx="gex",
+    ...     size_idx="contrib",
+    ... )
+
+    .. image:: ../../../../docs/_static/img/examples/pattern_tf_motif_clustermap.png
     """
     # Ensure data is a numpy array
     data = np.array(data)

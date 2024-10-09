@@ -753,6 +753,10 @@ def calculate_similarity_matrix(all_patterns: dict) -> np.ndarray:
     Returns
     -------
     A 2D numpy array containing the similarity values.
+
+    See Also
+    --------
+    crested.pl.patterns.similarity_heatmap
     """
     indices = list(all_patterns.keys())
     num_patterns = len(indices)
@@ -1041,11 +1045,11 @@ def create_tf_ct_matrix(
     Parameters
     ----------
     pattern_tf_dict
-        A dictionary with pattern indices and their TFs.
+        A dictionary with pattern indices and their TFs. See `crested.tl.modisco.create_pattern_tf_dict`.
     all_patterns
-        A list of patterns with metadata.
+        A list of patterns with metadata. See `crested.tl.modisco.process_patterns`.
     df
-        A DataFrame containing gene expression data.
+        A DataFrame containing gene expression data. See `crested.tl.modisco.calculate_mean_expression_per_cell_type`
     classes
         A list of cell type classes.
     log_transform
@@ -1054,6 +1058,10 @@ def create_tf_ct_matrix(
         Whether to normalize the contribution scores across the cell types. Default is True.
     min_tf_gex
         The minimal GEX value to select potential TF candidates. Default 0.
+
+    See Also
+    --------
+    crested.tl.modisco.create_pattern_tf_dict, crested.tl.modisco.process_patterns, crested.tl.modisco.calculate_mean_expression_per_cell_type
 
     Returns
     -------
