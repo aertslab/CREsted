@@ -1,3 +1,5 @@
+"""Init file for the pp module."""
+
 from ._filter import (
     filter_regions_on_specificity,
     sort_and_filter_regions_on_specificity,

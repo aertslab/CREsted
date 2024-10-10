@@ -13,10 +13,7 @@ def create_anndata_with_regions(
     compress: bool = False,
     random_state: int = None,
 ) -> ad.AnnData:
-    """
-    Utility function to create an AnnData object with given regions, with options for compression
-    and reproducibility.
-    """
+    """Create an AnnData object with given regions."""
     if random_state is not None:
         np.random.seed(random_state)
     data = np.abs(np.random.randn(n_classes, len(regions)))

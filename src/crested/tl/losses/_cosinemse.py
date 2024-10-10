@@ -1,3 +1,5 @@
+"""CosineMSELoss class definition."""
+
 from __future__ import annotations
 
 import keras
@@ -48,11 +50,13 @@ class CosineMSELoss(keras.losses.Loss):
         name: str | None = "CosineMSELoss",
         reduction: str = "sum_over_batch_size",
     ):
+        """Initialize the loss function."""
         super().__init__()
         self.max_weight = max_weight
         self.reduction = reduction
 
     def call(self, y_true, y_pred):
+        """Compute the loss value."""
         # Ensure y_true and y_pred are float32 for consistency
         y_true = keras.ops.cast(y_true, dtype="float32")
         y_pred = keras.ops.cast(y_pred, dtype="float32")
@@ -77,10 +81,12 @@ class CosineMSELoss(keras.losses.Loss):
         return total_loss
 
     def get_config(self):
+        """Return the configuration of the loss function."""
         config = super().get_config()
         config.update({"max_weight": self.max_weight, "reduction": self.reduction})
         return config
 
     @classmethod
     def from_config(cls, config):
+        """Create a loss function from the configuration."""
         return cls(**config)

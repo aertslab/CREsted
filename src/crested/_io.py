@@ -41,7 +41,7 @@ def _sort_files(filename: PathLike):
 
 
 def _custom_region_sort(region: str) -> tuple[int, int, int]:
-    """Custom sorting function for regions in the format chr:start-end."""
+    """Sort regions in the format chr:start-end."""
     chrom, pos = region.split(":")
     start, _ = map(int, pos.split("-"))
 

@@ -1,3 +1,5 @@
+"""Import all models from the zoo."""
+
 from ._basenji import basenji
 from ._chrombpnet import chrombpnet
 from ._deeptopic_cnn import deeptopic_cnn

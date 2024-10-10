@@ -6,7 +6,8 @@ _datasets = None
 
 
 def _get_dataset_index():
-    """Function that sets up the pooch dataset registry.
+    """
+    Set up the pooch dataset registry.
 
     To add a self-hosted dataset:
     - Upload a tarball of topics/bigwigs (and a consensus peak file if not yet there)

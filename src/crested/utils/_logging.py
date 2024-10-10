@@ -10,7 +10,7 @@ from loguru import logger
 
 def setup_logging(log_level: str = "INFO", log_file: str | None = None):
     """
-    Setup loguru logging for the package.
+    Set up loguru logging for the package.
 
     Default is set to log_level="INFO" and log_file=None each time the package is imported.
 
@@ -33,7 +33,7 @@ def setup_logging(log_level: str = "INFO", log_file: str | None = None):
 
 
 def log_and_raise(exception_class: type[Exception]):
-    """Decorator to both log and raise exceptions."""
+    """Log and raise exceptions."""
 
     def decorator(func):
         @wraps(func)

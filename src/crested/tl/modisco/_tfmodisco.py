@@ -38,7 +38,7 @@ def tfmodisco(
     verbose: bool = True,
 ):
     """
-    Runs tf-modisco on one-hot encoded sequences and contribution scores stored in .npz files.
+    Run tf-modisco on one-hot encoded sequences and contribution scores stored in .npz files.
 
     Parameters
     ----------
@@ -182,7 +182,7 @@ def add_pattern_to_dict(
     all_patterns: dict,
 ) -> dict:
     """
-    Adds a pattern to the dictionary.
+    Add a pattern to the dictionary.
 
     Parameters
     ----------
@@ -233,7 +233,7 @@ def match_to_patterns(
     verbose: bool = False,
 ) -> dict:
     """
-    Matches the pattern to existing patterns and updates the dictionary.
+    Match the pattern to existing patterns and updates the dictionary.
 
     Parameters
     ----------
@@ -342,7 +342,7 @@ def post_hoc_merging(
     pattern_list = list(all_patterns.items())
 
     def should_merge(p1, p2):
-        """Helper to check if two patterns should merge based on the similarity threshold."""
+        """Check if two patterns should merge based on the similarity threshold."""
         sim = max(
             match_score_patterns(p1["pattern"], p2["pattern"]),
             match_score_patterns(p2["pattern"], p1["pattern"]),
@@ -435,7 +435,7 @@ def post_hoc_merging(
 
 def merge_patterns(pattern1: dict, pattern2: dict) -> dict:
     """
-    Merges two patterns into one. The resulting pattern will have the highest IC pattern as the representative pattern.
+    Merge two patterns into one. The resulting pattern will have the highest IC pattern as the representative pattern.
 
     Parameters
     ----------
@@ -485,7 +485,7 @@ def merge_patterns(pattern1: dict, pattern2: dict) -> dict:
 
 def pattern_similarity(all_patterns: dict, idx1: int, idx2: int) -> float:
     """
-    Computes the similarity between two patterns.
+    Compute the similarity between two patterns.
 
     Parameters
     ----------
@@ -543,7 +543,7 @@ def normalize_rows(arr: np.ndarray) -> np.ndarray:
 
 def find_pattern(pattern_id: str, pattern_dict: dict) -> int | None:
     """
-    Finds the index of a pattern by its ID.
+    Find the index of a pattern by its ID.
 
     Parameters
     ----------
@@ -569,7 +569,7 @@ def match_h5_files_to_classes(
     contribution_dir: str, classes: list[str]
 ) -> dict[str, str | None]:
     """
-    Matches .h5 files in a given directory with a list of class names and returns a dictionary mapping.
+    Match .h5 files in a given directory with a list of class names and returns a dictionary mapping.
 
     Parameters
     ----------
@@ -743,7 +743,7 @@ def create_pattern_matrix(
 
 def calculate_similarity_matrix(all_patterns: dict) -> np.ndarray:
     """
-    Calculates the similarity matrix for the given patterns.
+    Calculate the similarity matrix for the given patterns.
 
     Parameters
     ----------
@@ -891,7 +891,7 @@ def find_pattern_matches(
     all_patterns: dict, html_paths: list[str], q_val_thr: float = 0.05
 ) -> dict[int, dict[str, list[str]]]:
     """
-    Finds and filters pattern matches from the modisco-lite list of patterns to the motif database from the corresponding HTML paths.
+    Find and filter pattern matches from the modisco-lite list of patterns to the motif database from the corresponding HTML paths.
 
     Parameters
     ----------
@@ -955,7 +955,7 @@ def find_pattern_matches(
 
 def read_motif_to_tf_file(file_path: str) -> pd.DataFrame:
     """
-    Reads a TSV file mapping motifs to transcription factors (TFs) into a DataFrame.
+    Read a TSV file mapping motifs to transcription factors (TFs) into a DataFrame.
 
     Parameters
     ----------
@@ -976,7 +976,7 @@ def create_pattern_tf_dict(
     cols: list[str],
 ) -> tuple[dict, np.ndarray]:
     """
-    Creates a dictionary mapping patterns to their associated transcription factors (TFs) and other metadata.
+    Create a dictionary mapping patterns to their associated transcription factors (TFs) and other metadata.
 
     Parameters
     ----------
@@ -1040,7 +1040,7 @@ def create_tf_ct_matrix(
     min_tf_gex: float = 0,
 ) -> tuple[np.ndarray, list[str]]:
     """
-    Creates a tensor (matrix) of transcription factor (TF) expression and cell type contributions.
+    Create a tensor (matrix) of transcription factor (TF) expression and cell type contributions.
 
     Parameters
     ----------
@@ -1137,7 +1137,7 @@ def calculate_mean_expression_per_cell_type(
     file_path: str, cell_type_column: str
 ) -> pd.DataFrame:
     """
-    Reads an AnnData object from an H5AD file and calculates the mean gene expression per cell type subclass.
+    Read an AnnData object from an H5AD file and calculates the mean gene expression per cell type subclass.
 
     Parameters
     ----------

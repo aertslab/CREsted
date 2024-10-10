@@ -355,7 +355,7 @@ def clustermap(
 
 def selected_instances(pattern_dict: dict, idcs: list[int]) -> None:
     """
-    Plots the patterns specified by the indices in `idcs` from the `pattern_dict`.
+    Plot the patterns specified by the indices in `idcs` from the `pattern_dict`.
 
     Parameters
     ----------
@@ -397,7 +397,7 @@ def class_instances(
     pattern_dict: dict, idx: int, class_representative: bool = False
 ) -> None:
     """
-    Plots instances of a specific pattern, either the representative pattern per class or all instances for a given pattern index.
+    Plot instances of a specific pattern, either the representative pattern per class or all instances for a given pattern index.
 
     Parameters
     ----------
@@ -453,7 +453,7 @@ def similarity_heatmap(
     fig_path: str | None = None,
 ) -> None:
     """
-    Plots a similarity heatmap of all pattern indices.
+    Plot a similarity heatmap of all pattern indices.
 
     Parameters
     ----------
@@ -512,7 +512,7 @@ def tf_expression_per_cell_type(
     title: str = "TF Expression per Cell Type",
 ) -> None:
     """
-    Plots the expression levels of specified transcription factors (TFs) per cell type.
+    Plot the expression levels of specified transcription factors (TFs) per cell type.
 
     Parameters
     ----------

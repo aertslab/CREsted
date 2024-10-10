@@ -9,7 +9,7 @@ import pandas as pd
 
 
 def grad_times_input_to_df(x, grad, alphabet="ACGT"):
-    """Generate pandas dataframe for saliency plot based on grad x inputs"""
+    """Generate pandas dataframe for saliency plot based on grad x inputs."""
     x_index = np.argmax(np.squeeze(x), axis=1)
     grad = np.squeeze(grad)
     L, A = grad.shape
@@ -26,7 +26,7 @@ def grad_times_input_to_df(x, grad, alphabet="ACGT"):
 
 
 def grad_times_input_to_df_mutagenesis(x, grad, alphabet="ACGT"):
-    """Generate pandas dataframe for mutagenesis plot based on grad x inputs"""
+    """Generate pandas dataframe for mutagenesis plot based on grad x inputs."""
     x = np.squeeze(x)  # Ensure x is correctly squeezed
     grad = np.squeeze(grad)
     L, A = x.shape
@@ -57,7 +57,7 @@ def _plot_attribution_map(
     spines: bool = True,
     figsize: tuple | None = (20, 1),
 ):
-    """Plot an attribution map using logomaker"""
+    """Plot an attribution map using logomaker."""
     if type(saliency_df) is not pd.DataFrame:
         saliency_df = pd.DataFrame(saliency_df, columns=["A", "C", "G", "T"])
     if figsize is not None:

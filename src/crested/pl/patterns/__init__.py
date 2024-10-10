@@ -1,3 +1,5 @@
+"""Init file for the patterns module."""
+
 from importlib.util import find_spec
 
 from loguru import logger
