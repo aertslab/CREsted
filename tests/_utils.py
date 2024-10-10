@@ -1,4 +1,4 @@
-"""Utils for testing functionss"""
+"""Utils for testing functions."""
 
 import anndata as ad
 import numpy as np
