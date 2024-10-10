@@ -386,18 +386,20 @@ class Crested:
         epochs_second_phase: int = 50,
         learning_rate_first_phase: float = 1e-4,
         learning_rate_second_phase: float = 1e-6,
-        dense_block_name: str = "denseblock",
+        freeze_until_layer_name: str | None = None,
+        freeze_until_layer_index: int | None = None,
         set_output_activation: str | None = None,
         **kwargs,
     ):
         """
         Perform transfer learning on the model.
 
-        The first phase freezes all layers before the DenseBlock (if it exists, else it freezes all layers), replaces the Dense layer, and trains with a low learning rate.
+        The first phase freezes layers up to a specified layer (if provided), removes the later layers, adds a dense output layer, and trains with a low learning rate.
         The second phase unfreezes all layers and continues training with an even lower learning rate.
-        This is especially useful in topic classification to be able to transfer learn to annotated cell type labels instead of topics.
 
-        Ensure that you load a model first using Crested.load_model() before calling this function.
+        Ensure that you load a model first using Crested.load_model() before calling this function and have a datamodule and config loaded in your Crested object.
+
+        One of freeze_until_layer_name or freeze_until_layer_index must be provided.
 
         Parameters
         ----------
@@ -409,10 +411,12 @@ class Crested:
             Learning rate for the first phase.
         learning_rate_second_phase
             Learning rate for the second phase.
-        mixed_precision
-            Enable mixed precision training.
+        freeze_until_layer_name
+            Name of the layer up to which to freeze layers. If None, defaults to freezing all layers except the last layer.
+        freeze_until_layer_index
+            Index of the layer up to which to freeze layers. If None, defaults to freezing all layers except the last layer.
         set_output_activation
-            Set outpu activation if different from the previous model.
+            Set output activation if different from the previous model.
         kwargs
             Additional keyword arguments to pass to the fit method.
 
@@ -421,7 +425,7 @@ class Crested:
         crested.tl.Crested.fit
         """
         logger.info(
-            f"First phase of transfer learning. Freezing all layers before the DenseBlock (if it exists) and adding a new Dense Layer. Training with learning rate {learning_rate_first_phase}..."
+            f"First phase of transfer learning. Freezing all layers before the specified layer and adding a new Dense Layer. Training with learning rate {learning_rate_first_phase}..."
         )
         assert (
             self.model is not None
@@ -434,37 +438,57 @@ class Crested:
 
         base_model = self.model
 
-        # Freeze all layers before the DenseBlock or dense_out
-        for layer in base_model.layers:
-            if dense_block_name in layer.name:
-                found_dense_block = True
-                break
-            layer.trainable = False  # Freeze the layer
-
-        if not found_dense_block:
-            if not any("dense_out" in layer.name for layer in base_model.layers):
+        # Freeze layers up to specified layer
+        if freeze_until_layer_name is not None:
+            layer_names = [layer.name for layer in base_model.layers]
+            if freeze_until_layer_name not in layer_names:
                 raise ValueError(
-                    f"Neither '{dense_block_name}' nor 'dense_out' found in model layers."
+                    f"Layer with name '{freeze_until_layer_name}' not found in the model."
                 )
-            else:
-                base_model.trainable = False
+            layer_index = (
+                layer_names.index(freeze_until_layer_name) + 1
+            )  # Include this layer
+        elif freeze_until_layer_index is not None:
+            layer_index = freeze_until_layer_index + 1
+        else:
+            raise ValueError(
+                "One of freeze_until_layer_name or freeze_until_layer_index must be provided."
+            )
 
-        # Change the number of output units to match the new task
-        old_activation_layer = base_model.layers[-1]
-        if set_output_activation is None:
-            old_activation = old_activation_layer.activation
-        elif set_output_activation:
-            old_activation = keras.activations.get(set_output_activation)
+        # Freeze layers up to the specified layer
+        for layer in base_model.layers[:layer_index]:
+            layer.trainable = False
 
-        x = base_model.layers[-3].output
+        # Remove layers after the specified layer and get the output
+        truncated_model_output = base_model.layers[layer_index - 1].output
+
+        # Get the activation function from the original model's output layer
+        if isinstance(base_model.layers[-1], keras.layers.Activation):
+            old_activation = base_model.layers[-1].activation
+        elif hasattr(base_model.layers[-1], "activation"):
+            old_activation = base_model.layers[-1].activation
+        else:
+            old_activation = None
+
+        if set_output_activation is not None:
+            activation = keras.activations.get(set_output_activation)
+        else:
+            activation = old_activation
+
         new_output_units = self.anndatamodule.adata.X.shape[0]
+
         new_output_layer = keras.layers.Dense(
             new_output_units, name="dense_out_transfer", trainable=True
-        )(x)
-        new_activation_layer = keras.layers.Activation(
-            old_activation, name="activation_transfer"
-        )(new_output_layer)
-        new_model = keras.Model(inputs=base_model.input, outputs=new_activation_layer)
+        )(truncated_model_output)
+
+        if activation is not None:
+            outputs = keras.layers.Activation(activation, name="activation_transfer")(
+                new_output_layer
+            )
+        else:
+            outputs = new_output_layer
+
+        new_model = keras.Model(inputs=base_model.input, outputs=outputs)
 
         new_optimizer = optimizer_class.from_config(optimizer_config)
         new_optimizer.learning_rate = learning_rate_first_phase
