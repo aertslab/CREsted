@@ -40,7 +40,7 @@ def _sort_files(filename: PathLike):
     )
 
 
-def _custom_region_sort(region: str) -> tuple(int, int, int):
+def _custom_region_sort(region: str) -> tuple[int, int, int]:
     """Custom sorting function for regions in the format chr:start-end."""
     chrom, pos = region.split(":")
     start, _ = map(int, pos.split("-"))
@@ -447,12 +447,22 @@ def import_bigwigs(
     else:
         bed_file = regions_file
 
-    bw_files = [
-        os.path.join(bigwigs_folder, file)
-        for file in os.listdir(bigwigs_folder)
-        if file.endswith(".bw")
-    ]
+    bw_files = []
+    for file in os.listdir(bigwigs_folder):
+        file_path = os.path.join(bigwigs_folder, file)
+        try:
+            # Validate using pyBigTools (add specific validation if available)
+            bw = pybigtools.open(file_path, "r")
+            bw_files.append(file_path)
+            bw.close()
+        except ValueError:
+            pass
+        except pybigtools.BBIReadError:
+            pass
+
     bw_files = sorted(bw_files)
+    if not bw_files:
+        raise FileNotFoundError(f"No valid bigWig files found in '{bigwigs_folder}'")
 
     # Process bigWig files in parallel and collect the results
     logger.info(f"Extracting values from {len(bw_files)} bigWig files...")
