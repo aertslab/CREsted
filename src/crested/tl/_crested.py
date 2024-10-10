@@ -499,6 +499,9 @@ class Crested:
         """
         Evaluate the model on the test set.
 
+        Make sure to load a model first using Crested.load_model() before calling this function.
+        Make sure the model is compiled before calling this function.
+
         Parameters
         ----------
         return_metrics
@@ -516,10 +519,17 @@ class Crested:
         n_test_steps = (
             len(test_loader) if os.environ["KERAS_BACKEND"] == "tensorflow" else None
         )
-
-        evaluation_metrics = self.model.evaluate(
-            test_loader.data, steps=n_test_steps, return_dict=True
-        )
+        try:
+            evaluation_metrics = self.model.evaluate(
+                test_loader.data, steps=n_test_steps, return_dict=True
+            )
+        except AttributeError as e:
+            logger.error(
+                "Something went wrong during evaluation. This is most likely caused by the model not being compiled.\n"
+                "Please compile the model by loading the model with compile=True or manually by using crested_object.model.compile()."
+            )
+            logger.error(e)
+            return None
 
         # Log the evaluation results
         for metric_name, metric_value in evaluation_metrics.items():
