@@ -96,9 +96,11 @@ class AnnDataLoader:
         return self._create_dataset()
 
     def __len__(self):
+        """Return the number of batches in the DataLoader based on the dataset size and batch size."""
         return (len(self.dataset) + self.batch_size - 1) // self.batch_size
 
     def __repr__(self):
+        """Return the string representation of the DataLoader."""
         return (
             f"AnnDataLoader(dataset={self.dataset}, batch_size={self.batch_size}, "
             f"shuffle={self.shuffle}, drop_remainder={self.drop_remainder})"

@@ -144,7 +144,7 @@ def _get_ic(
     background: list[float] | None = None,
 ) -> np.ndarray:
     """
-    Computes the information content (IC) for the given contribution scores.
+    Compute the information content (IC) for the given contribution scores.
 
     Parameters
     ----------
@@ -157,7 +157,7 @@ def _get_ic(
 
     Returns
     -------
-        Information content for the contribution scores.
+    Information content for the contribution scores.
     """
     if background is None:
         background = [0.27, 0.23, 0.23, 0.27]
@@ -307,7 +307,7 @@ def compute_ic(ppm, background_freqs: list | None = None):
 
 def l1(X: np.ndarray) -> np.ndarray:
     """
-    Normalizes the input array using the L1 norm.
+    Normalize the input array using the L1 norm.
 
     Parameters
     ----------
@@ -326,13 +326,16 @@ def get_2d_data_from_patterns(
     pattern: dict, transformer: str = "l1", include_hypothetical: bool = True
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Gets 2D data from patterns using specified transformer.
+    Get 2D data from patterns using specified transformer.
 
     Parameters
     ----------
-    - pattern (dict): Dictionary containing pattern data.
-    - transformer (str): Transformer function to use ('l1' or 'magnitude').
-    - include_hypothetical (bool): Whether to include hypothetical contributions.
+    pattern
+        Dictionary containing pattern data.
+    transformer
+        Transformer function to use ('l1' or 'magnitude').
+    include_hypothetical
+        Whether to include hypothetical contributions.
 
     Returns
     -------
@@ -361,7 +364,7 @@ def get_2d_data_from_patterns(
 
 def pad_pattern(pattern: dict, pad_len: int = 2) -> dict:
     """
-    Pads the pattern with zeros.
+    Pad the pattern with zeros.
 
     Parameters
     ----------
@@ -386,7 +389,7 @@ def pad_pattern(pattern: dict, pad_len: int = 2) -> dict:
 
 def match_score_patterns(a: dict, b: dict) -> float:
     """
-    Computes the match score between two patterns.
+    Compute the match score between two patterns.
 
     Parameters
     ----------
@@ -421,7 +424,7 @@ def match_score_patterns(a: dict, b: dict) -> float:
 
 def _match_score_patterns_old(a: dict, b: dict) -> float:
     """
-    Computes the match score between two patterns.
+    Compute the match score between two patterns.
 
     Parameters
     ----------
@@ -449,15 +452,16 @@ def _match_score_patterns_old(a: dict, b: dict) -> float:
 
 def read_html_to_dataframe(source: str):
     """
-    Reads an HTML table from the Modisco report function into a DataFrame.
+    Read an HTML table from the Modisco report function into a DataFrame.
 
     Parameters
     ----------
-    - source: str - The URL or file path to the HTML content.
+    source
+        The URL or file path to the HTML content.
 
     Returns
     -------
-    - DataFrame containing the HTML table or an error message if no table is found.
+    DataFrame containing the HTML table or an error message if no table is found.
     """
     try:
         # Attempt to read the HTML content

@@ -1,4 +1,4 @@
-"""Utility functions for the PP module"""
+"""Utility functions for the PP module."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import numpy as np
 
 def _calc_gini(targets: np.ndarray) -> np.ndarray:
     """
-    Returns Gini scores for the given targets.
+    Return Gini scores for the given targets.
 
     This function calculates the Gini coefficient for each row in the targets array
     and assigns the score to the maximum value's position in the corresponding row

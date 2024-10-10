@@ -1,3 +1,5 @@
+"""Import all submodules, set the backend, and setup logging."""
+
 import os
 import warnings
 

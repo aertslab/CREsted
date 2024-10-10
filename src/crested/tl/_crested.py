@@ -107,6 +107,7 @@ class Crested:
         logger: str | None = None,
         seed: int = None,
     ):
+        """Initialize the Crested object."""
         self.anndatamodule = data
         self.model = model
         self.config = config
@@ -144,7 +145,7 @@ class Crested:
         learning_rate_reduce_mode: str,
         custom_callbacks: list | None,
     ) -> list:
-        """Initialize callbacks"""
+        """Initialize callbacks."""
         callbacks = []
         if early_stopping:
             early_stopping_callback = keras.callbacks.EarlyStopping(
@@ -177,7 +178,7 @@ class Crested:
 
     @staticmethod
     def _initialize_logger(logger_type: str | None, project_name: str, run_name: str):
-        """Initialize logger"""
+        """Initialize logger."""
         callbacks = []
         if logger_type == "wandb":
             if os.environ["KERAS_BACKEND"] != "tensorflow":
@@ -571,7 +572,7 @@ class Crested:
         model_name: str | None = None,
     ) -> None | np.ndarray:
         """
-        Make predictions using the model on the full dataset
+        Make predictions using the model on the full dataset.
 
         If anndata and model_name are provided, will add the predictions to anndata as a .layers[model_name] attribute.
         Else, will return the predictions as a numpy array.
@@ -612,7 +613,7 @@ class Crested:
         region_idx: list[str] | str,
     ) -> np.ndarray:
         """
-        Make predictions using the model on the specified region(s)
+        Make predictions using the model on the specified region(s).
 
         Parameters
         ----------
@@ -1069,7 +1070,7 @@ class Crested:
         class_names: list[str] | None = None,
     ):
         """
-        Calculate and save contribution scores for seqeunce
+        Calculate and save contribution scores for the sequence(s).
 
         Parameters
         ----------
@@ -1746,4 +1747,5 @@ class Crested:
                 )
 
     def __repr__(self):
+        """Return the string representation of the object."""
         return f"Crested(data={self.anndatamodule is not None}, model={self.model is not None}, config={self.config is not None})"

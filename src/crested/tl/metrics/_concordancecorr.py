@@ -9,7 +9,8 @@ import keras
 class ConcordanceCorrelationCoefficient(keras.metrics.Metric):
     """Concordance correlation coefficient metric."""
 
-    def __init__(self, name="concordance_correlation_coefficient", **kwargs):
+    def __init__(self, name: str = "concordance_correlation_coefficient", **kwargs):
+        """Initialize the metric."""
         super().__init__(name=name, **kwargs)
         self.y_true_sum = self.add_weight(name="y_true_sum", initializer="zeros")
         self.y_pred_sum = self.add_weight(name="y_pred_sum", initializer="zeros")
@@ -21,6 +22,7 @@ class ConcordanceCorrelationCoefficient(keras.metrics.Metric):
         self.count = self.add_weight(name="count", initializer="zeros")
 
     def update_state(self, y_true, y_pred, sample_weight=None):
+        """Update the state of the metric."""
         y_true = keras.ops.cast(y_true, dtype="float32")
         y_pred = keras.ops.cast(y_pred, dtype="float32")
         batch_size = keras.ops.cast(keras.ops.size(y_true), dtype="float32")
@@ -33,6 +35,7 @@ class ConcordanceCorrelationCoefficient(keras.metrics.Metric):
         self.count.assign_add(batch_size)
 
     def result(self):
+        """Calculate the result of the metric."""
         y_true_mean = keras.ops.divide_no_nan(self.y_true_sum, self.count)
         y_pred_mean = keras.ops.divide_no_nan(self.y_pred_sum, self.count)
         y_true_var = keras.ops.divide_no_nan(
@@ -54,5 +57,6 @@ class ConcordanceCorrelationCoefficient(keras.metrics.Metric):
         return keras.ops.divide_no_nan(numerator, denominator + keras.backend.epsilon())
 
     def reset_state(self):
+        """Reset the state of the metric."""
         for s in self.variables:
             s.assign(keras.ops.zeros_like(s))

@@ -75,6 +75,7 @@ def one_hot_encode_sequence(sequence: str, expand_dim: bool = True) -> np.ndarra
 
 
 def generate_mutagenesis(x, include_original=True, flanks=(0, 0)):
+    """Generate all possible single point mutations in a sequence."""
     _, L, A = x.shape
     start, end = 0, L
     x_mut = []
@@ -93,6 +94,7 @@ def generate_mutagenesis(x, include_original=True, flanks=(0, 0)):
 
 
 def generate_motif_insertions(x, motif, flanks=(0, 0), masked_locations=None):
+    """Generate motif insertions in a sequence."""
     _, L, A = x.shape
     start, end = 0, L
     x_mut = []
@@ -133,6 +135,7 @@ class EnhancerOptimizer:
     """
 
     def __init__(self, optimize_func: Callable[..., int]) -> None:
+        """Initialize the EnhancerOptimizer class."""
         self.optimize_func = optimize_func
 
     def get_best(
@@ -238,7 +241,7 @@ def hot_encoding_to_sequence(one_hot_encoded_sequence: np.ndarray) -> str:
 
 def get_value_from_dataframe(df: pd.DataFrame, row_name: str, column_name: str):
     """
-    Retrieves a single value from a DataFrame based on the given row index and column name.
+    Retrieve a single value from a DataFrame based on the given row index and column name.
 
     Parameters
     ----------

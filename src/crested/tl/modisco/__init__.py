@@ -1,3 +1,5 @@
+"""Init file for the modisco module."""
+
 from ._tfmodisco import (
     calculate_mean_expression_per_cell_type,
     calculate_similarity_matrix,

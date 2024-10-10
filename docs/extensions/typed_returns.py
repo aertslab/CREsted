@@ -1,5 +1,5 @@
-# code from https://github.com/theislab/scanpy/blob/master/docs/extensions/typed_returns.py
-# with some minor adjustment
+"""Code from https://github.com/theislab/scanpy/blob/master/docs/extensions/typed_returns.py with some minor adjustment."""
+
 from __future__ import annotations
 
 import re

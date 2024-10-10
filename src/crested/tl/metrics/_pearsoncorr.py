@@ -10,6 +10,7 @@ class PearsonCorrelation(keras.metrics.Metric):
     """Pearson correlation metric."""
 
     def __init__(self, name: str = "pearson_correlation", **kwargs):
+        """Initialize the metric."""
         super().__init__(name=name, **kwargs)
         self.y_true_sum = self.add_weight(name="y_true_sum", initializer="zeros")
         self.y_pred_sum = self.add_weight(name="y_pred_sum", initializer="zeros")
@@ -25,6 +26,7 @@ class PearsonCorrelation(keras.metrics.Metric):
         self.count = self.add_weight(name="count", initializer="zeros")
 
     def update_state(self, y_true, y_pred, sample_weight=None):
+        """Update the state of the metric."""
         y_true = keras.ops.cast(y_true, dtype="float32")
         y_pred = keras.ops.cast(y_pred, dtype="float32")
 
@@ -36,6 +38,7 @@ class PearsonCorrelation(keras.metrics.Metric):
         self.count.assign_add(keras.ops.cast(keras.ops.size(y_true), dtype="float32"))
 
     def result(self):
+        """Calculate the result of the metric."""
         numerator = (
             self.count * self.y_true_y_pred_sum - self.y_true_sum * self.y_pred_sum
         )
@@ -47,6 +50,7 @@ class PearsonCorrelation(keras.metrics.Metric):
         return numerator / (denominator + keras.backend.epsilon())
 
     def reset_state(self):
+        """Reset the state of the metric."""
         self.y_true_sum.assign(0.0)
         self.y_pred_sum.assign(0.0)
         self.y_true_squared_sum.assign(0.0)
