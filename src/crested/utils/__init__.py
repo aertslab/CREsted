@@ -1,4 +1,5 @@
 from ._logging import setup_logging
+from ._model_utils import permute_model
 from ._utils import (
     EnhancerOptimizer,
     extract_bigwig_values_per_bp,
