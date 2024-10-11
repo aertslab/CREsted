@@ -5,8 +5,8 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 
-from crested._logging import log_and_raise
 from crested.pl._utils import render_plot
+from crested.utils._logging import log_and_raise
 
 from ._contribution_scores import _check_contrib_params
 from ._utils import (

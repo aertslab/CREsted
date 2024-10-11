@@ -992,14 +992,14 @@ class Crested:
             sequences.append(
                 self.anndatamodule.predict_dataset.sequence_loader.get_sequence(region)
             )
-        return self.calculate_contribution_scores_sequences(
+        return self.calculate_contribution_scores_sequence(
             sequences=sequences,
             class_names=class_names,
             method=method,
             disable_tqdm=disable_tqdm,
         )
 
-    def calculate_contribution_scores_sequences(
+    def calculate_contribution_scores_sequence(
         self,
         sequences: list[str] | str,
         class_names: list[str],
@@ -1132,7 +1132,7 @@ class Crested:
         scores_list = []
         onehot_list = []
         for designed_list in all_designed_list:
-            scores, onehot = self.calculate_contribution_scores_sequences(
+            scores, onehot = self.calculate_contribution_scores_sequence(
                 sequences=designed_list,
                 class_names=class_names,
                 method=method,
