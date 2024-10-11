@@ -833,7 +833,6 @@ class Crested:
         class_names: list[str],
         anndata: AnnData | None = None,
         method: str = "expected_integrated_grad",
-        store_in_varm: bool = False,
     ) -> tuple[np.ndarray, np.ndarray] | None:
         """
         Calculate contribution scores based on the given method for the full dataset.
@@ -1094,6 +1093,71 @@ class Crested:
         return np.concatenate(all_scores, axis=0), np.concatenate(
             all_one_hot_sequences, axis=0
         )
+
+    def calculate_contribution_scores_enhancer_design(
+        self,
+        enhancer_design_intermediate: list[dict],
+        class_names: list[str] | None = None,
+        method: str = "expected_integrated_grad",
+        disable_tqdm: bool = False,
+    ) -> tuple[np.ndarray, np.ndarray] | list[tuple[np.ndarray, np.ndarray]]:
+        """
+        Calculate contribution scores of enhancer design.
+
+        These scores can then be plotted to visualize the importance of each base in the region
+        using :func:`~crested.pl.patterns.enhancer_design_steps_contribution_scores`.
+
+        Parameters
+        ----------
+        enhancer_design_intermediate
+            Intermediate output from enhancer design when return_intermediate is True
+        class_names
+            List of class names to calculate the contribution scores for (should match anndata.obs_names)
+            If None, the contribution scores for the 'combined' class will be calculated.
+        method
+            Method to use for calculating the contribution scores.
+            Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
+        disable_tqdm
+            Boolean for disabling the plotting progress of calculations using tqdm.
+
+        Returns
+        -------
+        A tuple of arrays or a list of tuple of arrays of contribution scores (N, C, L, 4) and one-hot encoded sequences (N, L, 4).
+
+        See Also
+        --------
+        crested.pl.patterns.enhancer_design_steps_contribution_scores
+        crested.tl.Crested.enhancer_design_in_silico_evolution
+        crested.tl.Crested.enhancer_design_motif_implementation
+
+        Examples
+        --------
+        >>> scores, onehot = crested.calculate_contribution_scores_enhancer_design(
+        ...     enhancer_design_intermediate,
+        ...     class_names=["cell_type_A"],
+        ...     method="expected_integrated_grad",
+        ... )
+        """
+        all_designed_list = self._derive_intermediate_sequences(
+            enhancer_design_intermediate
+        )
+
+        scores_list = []
+        onehot_list = []
+        for designed_list in all_designed_list:
+            scores, onehot = self.calculate_contribution_scores_sequence(
+                sequences=designed_list,
+                class_names=class_names,
+                method=method,
+                disable_tqdm=disable_tqdm,
+            )
+            scores_list.append(scores)
+            onehot_list.append(onehot)
+
+        if len(all_designed_list) == 1:
+            return scores, onehot
+        else:
+            return scores_list, onehot_list
 
     def tfmodisco_calculate_and_save_contribution_scores_sequences(
         self,
@@ -1377,7 +1441,7 @@ class Crested:
                         "inital_sequence": sequence,
                         "changes": [(-1, "N")],
                         "predictions": [
-                            self.model.predict(sequence_onehot, verbose=False)
+                            self.model.predict(sequence_onehot, verbose=False)[0]
                         ],
                         "designed_sequence": "",
                     }
@@ -1488,7 +1552,24 @@ class Crested:
         Returns
         -------
         A list of designed sequences and if return_intermediate is True a list of dictionaries of intermediate
-        mutations and predictions
+        mutations and predictions as well as the designed sequences
+
+        See Also
+        --------
+        crested.tl.Crested.calculate_contribution_scores_enhancer_design
+        crested.utils.EnhancerOptimizer
+
+        Examples
+        --------
+        >>> (
+        ...     intermediate_results,
+        ...     designed_sequences,
+        ... ) = trained_crested_object.enhancer_design_in_silico_evolution(
+        ...     target_class="cell_type_A",
+        ...     n_mutations=20,
+        ...     n_sequences=1,
+        ...     return_intermediate=True,
+        ... )
         """
         if self.model is None:
             raise ValueError("Model should be loaded first!")
@@ -1686,6 +1767,24 @@ class Crested:
         self.acgt_distribution = acgt_distribution
         return acgt_distribution
 
+    def _derive_intermediate_sequences(self, enhancer_design_intermediate):
+        all_designed_list = []
+        for intermediate_dict in enhancer_design_intermediate:
+            current_sequence = intermediate_dict["inital_sequence"]
+            sequence_list = [current_sequence]
+            for loc, change in intermediate_dict["changes"]:
+                if loc == -1:
+                    continue
+                else:
+                    current_sequence = (
+                        current_sequence[:loc]
+                        + change
+                        + current_sequence[loc + len(change) :]
+                    )
+                    sequence_list.append(current_sequence)
+            all_designed_list.append(sequence_list)
+        return all_designed_list
+
     @staticmethod
     def _check_gpu_availability():
         """Check if GPUs are available."""
@@ -1766,11 +1865,6 @@ class Crested:
         if not self.model:
             raise ValueError(
                 "Model not set. Please load a model from pretrained using Crested.load_model(...) before calling calculate_contribution_scores_(regions)."
-            )
-        # check if class names is a list
-        if not isinstance(class_names, list):
-            raise ValueError(
-                "Class names should be a list of class names or an empty list (if calculating the average accross classes)."
             )
 
         all_class_names = list(self.anndatamodule.adata.obs_names)

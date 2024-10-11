@@ -5,6 +5,10 @@ from importlib.util import find_spec
 from loguru import logger
 
 from ._contribution_scores import contribution_scores
+from ._enhancer_design import (
+    enhancer_design_steps_contribution_scores,
+    enhancer_design_steps_predictions,
+)
 
 
 def _optional_function_warning(*args, **kwargs):
@@ -48,6 +52,8 @@ else:
 # Export these functions for public use
 __all__ = [
     "contribution_scores",
+    "enhancer_design_steps_contribution_scores",
+    "enhancer_design_steps_predictions",
 ]
 
 if MODISCOLITE_AVAILABLE:

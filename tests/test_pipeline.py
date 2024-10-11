@@ -93,6 +93,13 @@ def test_peak_regression():
         class_names=[],
         method="integrated_grad",
     )
-    trainer.enhancer_design_in_silico_evolution(
-        target_class="cell_1", n_sequences=1, n_mutations=1
+    intermediate, seqs = trainer.enhancer_design_in_silico_evolution(
+        target_class="cell_1", n_sequences=1, n_mutations=2, return_intermediate=True
+    )
+
+    scores, seqs = trainer.calculate_contribution_scores_enhancer_design(
+        intermediate, class_names=["cell_1"], method="integrated_grad"
+    )
+    crested.pl.patterns.enhancer_design_steps_contribution_scores(
+        intermediate, scores, seqs
     )

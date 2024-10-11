@@ -12,6 +12,8 @@ Plot contribution scores and analyze them using tfmodisco.
 
     contribution_scores
     modisco_results
+    enhancer_design_steps_contribution_scores
+    enhancer_design_steps_predictions
     selected_instances
     class_instances
     clustermap
