@@ -1836,11 +1836,6 @@ class Crested:
             raise ValueError(
                 "Model not set. Please load a model from pretrained using Crested.load_model(...) before calling calculate_contribution_scores_(regions)."
             )
-        # check if class names is a list
-        if not isinstance(class_names, list):
-            raise ValueError(
-                "Class names should be a list of class names or an empty list (if calculating the average accross classes)."
-            )
 
         all_class_names = list(self.anndatamodule.adata.obs_names)
         for class_name in class_names:
