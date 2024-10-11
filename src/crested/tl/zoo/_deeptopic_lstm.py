@@ -1,7 +1,8 @@
 """Deeptopic LSTM model architecture."""
 
-import keras
 import pickle
+
+import keras
 
 from crested.tl.zoo.utils import get_output
 
@@ -59,8 +60,7 @@ def deeptopic_lstm(
 
     Returns
     -------
-    keras.Model
-        A Keras model.
+    A Keras model.
     """
     inputs = keras.layers.Input(shape=(seq_len, 4), name="sequence")
 
@@ -70,26 +70,28 @@ def deeptopic_lstm(
             kernel_size=first_kernel_size,
             activation=first_activation,
             padding="valid",
-            kernel_initializer='random_uniform'
+            kernel_initializer="random_uniform",
         ),
         keras.layers.MaxPooling1D(
-            pool_size=max_pool_size,
-            strides=max_pool_stride,
-            padding='valid'
+            pool_size=max_pool_size, strides=max_pool_stride, padding="valid"
         ),
         keras.layers.Dropout(pre_dense_do),
-        keras.layers.TimeDistributed(keras.layers.Dense(lstm_out, activation=activation)),
-        keras.layers.Bidirectional(keras.layers.LSTM(
-            lstm_out,
-            dropout=lstm_do,
-            recurrent_dropout=lstm_do,
-            return_sequences=True)
+        keras.layers.TimeDistributed(
+            keras.layers.Dense(lstm_out, activation=activation)
+        ),
+        keras.layers.Bidirectional(
+            keras.layers.LSTM(
+                lstm_out,
+                dropout=lstm_do,
+                recurrent_dropout=lstm_do,
+                return_sequences=True,
+            )
         ),
         keras.layers.Dropout(pre_dense_do),
         keras.layers.Flatten(),
         keras.layers.Dense(dense_out, activation=activation),
         keras.layers.Dropout(dense_do),
-        keras.layers.Dense(num_classes, activation='sigmoid')
+        keras.layers.Dense(num_classes, activation="sigmoid"),
     ]
 
     outputs = get_output(inputs, hidden_layers)
@@ -104,7 +106,14 @@ def deeptopic_lstm(
 
         for i, name in enumerate(motif_dict):
             conv_weights[0][:, :, i] = conv_weights[0][:, :, i] * 0.1
-            conv_weights[0][int((30 - len(motif_dict[name])) / 2):int((30 - len(motif_dict[name])) / 2) + len(motif_dict[name]), :, i] = motif_dict[name]
+            conv_weights[0][
+                int((30 - len(motif_dict[name])) / 2) : int(
+                    (30 - len(motif_dict[name])) / 2
+                )
+                + len(motif_dict[name]),
+                :,
+                i,
+            ] = motif_dict[name]
         model.layers[2].set_weights(conv_weights)
 
     return model

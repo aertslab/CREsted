@@ -7,7 +7,7 @@ from typing import NamedTuple
 
 import keras
 
-from crested.tl.losses import CosineMSELoss
+from crested.tl.losses import CosineMSELogLoss
 from crested.tl.metrics import (
     ConcordanceCorrelationCoefficient,
     PearsonCorrelation,
@@ -22,16 +22,19 @@ class BaseConfig(ABC):
     @property
     @abstractmethod
     def loss(self) -> keras.losses.Loss:
+        """Get default loss."""
         pass
 
     @property
     @abstractmethod
     def optimizer(self) -> keras.optimizers.Optimizer:
+        """Get default optimizer."""
         pass
 
     @property
     @abstractmethod
     def metrics(self) -> list[keras.metrics.Metric]:
+        """Get default metrics."""
         pass
 
 
@@ -40,14 +43,17 @@ class TopicClassificationConfig(BaseConfig):
 
     @property
     def loss(self) -> keras.losses.Loss:
+        """Get default loss."""
         return keras.losses.BinaryCrossentropy(from_logits=False)
 
     @property
     def optimizer(self) -> keras.optimizers.Optimizer:
+        """Get default optimizer."""
         return keras.optimizers.Adam(learning_rate=1e-3)
 
     @property
     def metrics(self) -> list[keras.metrics.Metric]:
+        """Get default metrics."""
         return [
             keras.metrics.AUC(
                 num_thresholds=200,
@@ -75,18 +81,22 @@ class PeakRegressionConfig(BaseConfig):
     """Default configuration for peak regression task."""
 
     def __init__(self, num_classes=None):
+        """Initialize the configuration."""
         self.num_classes = num_classes
 
     @property
     def loss(self) -> keras.losses.Loss:
-        return CosineMSELoss()
+        """Get default loss."""
+        return CosineMSELogLoss()
 
     @property
     def optimizer(self) -> keras.optimizers.Optimizer:
+        """Get default optimizer."""
         return keras.optimizers.Adam(learning_rate=1e-3)
 
     @property
     def metrics(self) -> list[keras.metrics.Metric]:
+        """Get default metrics."""
         metrics = [
             keras.metrics.MeanAbsoluteError(),
             keras.metrics.MeanSquaredError(),
@@ -159,7 +169,7 @@ class TaskConfig(NamedTuple):
         }
 
 
-def default_configs(task: str, num_classes: int = None) -> TaskConfig:
+def default_configs(task: str, num_classes: int | None = None) -> TaskConfig:
     """
     Get default loss, optimizer, and metrics for an existing task.
 

@@ -7,7 +7,10 @@ import keras
 
 @keras.utils.register_keras_serializable(package="Metrics")
 class SpearmanCorrelationPerClass(keras.metrics.Metric):
+    """Spearman correlation metric per class."""
+
     def __init__(self, num_classes, name="spearman_correlation_per_class", **kwargs):
+        """Initialize the metric."""
         super().__init__(name=name, **kwargs)
         self.num_classes = num_classes
         self.correlation_sums = self.add_weight(
@@ -18,6 +21,8 @@ class SpearmanCorrelationPerClass(keras.metrics.Metric):
         )
 
     def update_state(self, y_true, y_pred, sample_weight=None):
+        """Update the state of the metric."""
+
         def _compute():
             return self.compute_correlation(y_true_non_zero, y_pred_non_zero)
 
@@ -41,6 +46,7 @@ class SpearmanCorrelationPerClass(keras.metrics.Metric):
             self.update_counts[i].assign_add(keras.ops.cast(proceed, dtype="float32"))
 
     def compute_correlation(self, y_true_non_zero, y_pred_non_zero):
+        """Compute the Spearman correlation."""
         ranks_true = keras.ops.argsort(keras.ops.argsort(y_true_non_zero))
         ranks_pred = keras.ops.argsort(keras.ops.argsort(y_pred_non_zero))
 
@@ -54,10 +60,12 @@ class SpearmanCorrelationPerClass(keras.metrics.Metric):
         return keras.ops.where(keras.ops.isnan(correlation), 0.0, correlation)
 
     def result(self):
+        """Compute the final result of the metric (mean)."""
         valid_counts = self.update_counts
         avg_correlations = self.correlation_sums / valid_counts
         return keras.ops.mean(avg_correlations)
 
     def reset_state(self):
+        """Reset the state of the metric."""
         self.correlation_sums.assign(keras.ops.zeros_like(self.correlation_sums))
         self.update_counts.assign(keras.ops.zeros_like(self.update_counts))

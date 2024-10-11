@@ -8,8 +8,8 @@ import seaborn as sns
 from anndata import AnnData
 from loguru import logger
 
-from crested._logging import log_and_raise
 from crested.pl._utils import render_plot
+from crested.utils._logging import log_and_raise
 
 
 def _generate_heatmap(correlation_matrix, classes, vmin, vmax):
@@ -73,16 +73,11 @@ def correlations_self(
     if log_transform:
         x = np.log1p(x)
 
-    n_features = x.shape[0]
-
-    correlation_matrix = np.zeros((n_features, n_features))
-    for i in range(n_features):
-        for j in range(n_features):
-            correlation_matrix[i, j] = np.corrcoef(x[i, :], x[j, :])[0, 1]
+    correlation_matrix = np.corrcoef(x)
 
     fig = _generate_heatmap(correlation_matrix, classes, vmin, vmax)
 
-    render_plot(fig, **kwargs)
+    return render_plot(fig, **kwargs)
 
 
 def correlations_predictions(
@@ -93,7 +88,7 @@ def correlations_predictions(
     vmin: float | None = None,
     vmax: float | None = None,
     **kwargs,
-):
+) -> plt.Figure:
     """
     Plot correlation heatmaps of predictions vs ground truth or target values for different cell types.
 
@@ -180,17 +175,20 @@ def correlations_predictions(
             predicted_values[key] = np.log1p(predicted_values[key])
 
     n_models = len(predicted_values)
-    n_features = x.shape[0]
 
     fig, axes = plt.subplots(1, n_models, sharey=False)
     if n_models == 1:
         axes = [axes]
 
     for ax, (model_name, y) in zip(axes, predicted_values.items()):
-        correlation_matrix = np.zeros((n_features, n_features))
-        for i in range(n_features):
-            for j in range(n_features):
-                correlation_matrix[i, j] = np.corrcoef(x[i, :], y[j, :])[0, 1]
+        # this is the same as
+        # c = np.corrcoef(np.vstack([x, y]))
+        # so c[0, 0] in the old funciton would correspond to
+        # c[0, x.shape[0]] in this new function
+        correlation_matrix = np.corrcoef(x, y)
+        # reformat the array to only get correlations between x and y
+        # and no self correlations
+        correlation_matrix = np.hsplit(np.vsplit(correlation_matrix, 2)[1], 2)[0].T
 
         sns.heatmap(
             correlation_matrix,
@@ -211,4 +209,4 @@ def correlations_predictions(
     if "height" not in kwargs:
         kwargs["height"] = default_height
 
-    render_plot(fig, **kwargs)
+    return render_plot(fig, **kwargs)

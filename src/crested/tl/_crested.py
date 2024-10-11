@@ -4,24 +4,29 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from typing import Any
 
 import keras
 import numpy as np
 from anndata import AnnData
 from loguru import logger
+from pysam import FastaFile
 from tqdm import tqdm
 
-from crested._logging import log_and_raise
 from crested.tl import TaskConfig
-from crested.tl._utils import (
-    _weighted_difference,
-    generate_motif_insertions,
-    generate_mutagenesis,
+from crested.tl.data import AnnDataModule
+from crested.tl.data._dataset import SequenceLoader
+from crested.utils import (
+    EnhancerOptimizer,
     hot_encoding_to_sequence,
     one_hot_encode_sequence,
 )
-from crested.tl.data import AnnDataModule
-from crested.tl.data._dataset import SequenceLoader
+from crested.utils._logging import log_and_raise
+from crested.utils._utils import (
+    _weighted_difference,
+    generate_motif_insertions,
+    generate_mutagenesis,
+)
 
 if os.environ["KERAS_BACKEND"] == "tensorflow":
     from crested.tl._explainer_tf import Explainer
@@ -87,7 +92,7 @@ class Crested:
     >>> # Calculate contribution scores
     >>> scores, seqs_one_hot = trainer.calculate_contribution_scores_regions(
     ...     region_idx="chr1:1000-2000",
-    ...     class_indices=[0, 1, 2],
+    ...     class_names=["class1", "class2"],
     ...     method="integrated_grad",
     ... )
     """
@@ -102,6 +107,7 @@ class Crested:
         logger: str | None = None,
         seed: int = None,
     ):
+        """Initialize the Crested object."""
         self.anndatamodule = data
         self.model = model
         self.config = config
@@ -139,7 +145,7 @@ class Crested:
         learning_rate_reduce_mode: str,
         custom_callbacks: list | None,
     ) -> list:
-        """Initialize callbacks"""
+        """Initialize callbacks."""
         callbacks = []
         if early_stopping:
             early_stopping_callback = keras.callbacks.EarlyStopping(
@@ -172,7 +178,7 @@ class Crested:
 
     @staticmethod
     def _initialize_logger(logger_type: str | None, project_name: str, run_name: str):
-        """Initialize logger"""
+        """Initialize logger."""
         callbacks = []
         if logger_type == "wandb":
             if os.environ["KERAS_BACKEND"] != "tensorflow":
@@ -380,17 +386,20 @@ class Crested:
         epochs_second_phase: int = 50,
         learning_rate_first_phase: float = 1e-4,
         learning_rate_second_phase: float = 1e-6,
-        dense_block_name: str = "denseblock",
+        freeze_until_layer_name: str | None = None,
+        freeze_until_layer_index: int | None = None,
+        set_output_activation: str | None = None,
         **kwargs,
     ):
         """
         Perform transfer learning on the model.
 
-        The first phase freezes all layers before the DenseBlock (if it exists, else it freezes all layers), replaces the Dense layer, and trains with a low learning rate.
+        The first phase freezes layers up to a specified layer (if provided), removes the later layers, adds a dense output layer, and trains with a low learning rate.
         The second phase unfreezes all layers and continues training with an even lower learning rate.
-        This is especially useful in topic classification to be able to transfer learn to annotated cell type labels instead of topics.
 
-        Ensure that you load a model first using Crested.load_model() before calling this function.
+        Ensure that you load a model first using Crested.load_model() before calling this function and have a datamodule and config loaded in your Crested object.
+
+        One of freeze_until_layer_name or freeze_until_layer_index must be provided.
 
         Parameters
         ----------
@@ -402,8 +411,12 @@ class Crested:
             Learning rate for the first phase.
         learning_rate_second_phase
             Learning rate for the second phase.
-        mixed_precision
-            Enable mixed precision training.
+        freeze_until_layer_name
+            Name of the layer up to which to freeze layers. If None, defaults to freezing all layers except the last layer.
+        freeze_until_layer_index
+            Index of the layer up to which to freeze layers. If None, defaults to freezing all layers except the last layer.
+        set_output_activation
+            Set output activation if different from the previous model.
         kwargs
             Additional keyword arguments to pass to the fit method.
 
@@ -412,7 +425,7 @@ class Crested:
         crested.tl.Crested.fit
         """
         logger.info(
-            f"First phase of transfer learning. Freezing all layers before the DenseBlock (if it exists) and adding a new Dense Layer. Training with learning rate {learning_rate_first_phase}..."
+            f"First phase of transfer learning. Freezing all layers before the specified layer and adding a new Dense Layer. Training with learning rate {learning_rate_first_phase}..."
         )
         assert (
             self.model is not None
@@ -425,34 +438,57 @@ class Crested:
 
         base_model = self.model
 
-        # Freeze all layers before the DenseBlock or dense_out
-        for layer in base_model.layers:
-            if dense_block_name in layer.name:
-                found_dense_block = True
-                break
-            layer.trainable = False  # Freeze the layer
-
-        if not found_dense_block:
-            if not any("dense_out" in layer.name for layer in base_model.layers):
+        # Freeze layers up to specified layer
+        if freeze_until_layer_name is not None:
+            layer_names = [layer.name for layer in base_model.layers]
+            if freeze_until_layer_name not in layer_names:
                 raise ValueError(
-                    f"Neither '{dense_block_name}' nor 'dense_out' found in model layers."
+                    f"Layer with name '{freeze_until_layer_name}' not found in the model."
                 )
-            else:
-                base_model.trainable = False
+            layer_index = (
+                layer_names.index(freeze_until_layer_name) + 1
+            )  # Include this layer
+        elif freeze_until_layer_index is not None:
+            layer_index = freeze_until_layer_index + 1
+        else:
+            raise ValueError(
+                "One of freeze_until_layer_name or freeze_until_layer_index must be provided."
+            )
 
-        # Change the number of output units to match the new task
-        old_activation_layer = base_model.layers[-1]
-        old_activation = old_activation_layer.activation
+        # Freeze layers up to the specified layer
+        for layer in base_model.layers[:layer_index]:
+            layer.trainable = False
 
-        x = base_model.layers[-3].output
+        # Remove layers after the specified layer and get the output
+        truncated_model_output = base_model.layers[layer_index - 1].output
+
+        # Get the activation function from the original model's output layer
+        if isinstance(base_model.layers[-1], keras.layers.Activation):
+            old_activation = base_model.layers[-1].activation
+        elif hasattr(base_model.layers[-1], "activation"):
+            old_activation = base_model.layers[-1].activation
+        else:
+            old_activation = None
+
+        if set_output_activation is not None:
+            activation = keras.activations.get(set_output_activation)
+        else:
+            activation = old_activation
+
         new_output_units = self.anndatamodule.adata.X.shape[0]
+
         new_output_layer = keras.layers.Dense(
             new_output_units, name="dense_out_transfer", trainable=True
-        )(x)
-        new_activation_layer = keras.layers.Activation(
-            old_activation, name="activation_transfer"
-        )(new_output_layer)
-        new_model = keras.Model(inputs=base_model.input, outputs=new_activation_layer)
+        )(truncated_model_output)
+
+        if activation is not None:
+            outputs = keras.layers.Activation(activation, name="activation_transfer")(
+                new_output_layer
+            )
+        else:
+            outputs = new_output_layer
+
+        new_model = keras.Model(inputs=base_model.input, outputs=outputs)
 
         new_optimizer = optimizer_class.from_config(optimizer_config)
         new_optimizer.learning_rate = learning_rate_first_phase
@@ -487,6 +523,9 @@ class Crested:
         """
         Evaluate the model on the test set.
 
+        Make sure to load a model first using Crested.load_model() before calling this function.
+        Make sure the model is compiled before calling this function.
+
         Parameters
         ----------
         return_metrics
@@ -504,25 +543,70 @@ class Crested:
         n_test_steps = (
             len(test_loader) if os.environ["KERAS_BACKEND"] == "tensorflow" else None
         )
-
-        evaluation_metrics = self.model.evaluate(
-            test_loader.data, steps=n_test_steps, return_dict=True
-        )
+        try:
+            evaluation_metrics = self.model.evaluate(
+                test_loader.data, steps=n_test_steps, return_dict=True
+            )
+        except AttributeError as e:
+            logger.error(
+                "Something went wrong during evaluation. This is most likely caused by the model not being compiled.\n"
+                "Please compile the model by loading the model with compile=True or manually by using crested_object.model.compile()."
+            )
+            logger.error(e)
+            return None
 
         # Log the evaluation results
         for metric_name, metric_value in evaluation_metrics.items():
             logger.info(f"Test {metric_name}: {metric_value:.4f}")
-
+            return None
         if return_metrics:
             return evaluation_metrics
+
+    def get_embeddings(
+        self,
+        layer_name: str = "global_average_pooling1d",
+        anndata: AnnData | None = None,
+    ) -> np.ndarray:
+        """
+        Extract embeddings from a specified layer in the model for all regions in the dataset.
+
+        If anndata is provided, it will add the embeddings to anndata.obsm[layer_name].
+
+        Parameters
+        ----------
+        anndata
+            Anndata object containing the data.
+        layer_name
+            The name of the layer from which to extract the embeddings.
+
+        Returns
+        -------
+        Embeddings of shape (N, D), where D is the size of the embedding layer.
+        """
+        if layer_name not in [layer.name for layer in self.model.layers]:
+            raise ValueError(f"Layer '{layer_name}' not found in model.")
+        embedding_model = keras.models.Model(
+            inputs=self.model.input, outputs=self.model.get_layer(layer_name).output
+        )
+        if self.anndatamodule.predict_dataset is None:
+            self.anndatamodule.setup("predict")
+        predict_loader = self.anndatamodule.predict_dataloader
+        n_predict_steps = (
+            len(predict_loader) if os.environ["KERAS_BACKEND"] == "tensorflow" else None
+        )
+        embeddings = embedding_model.predict(predict_loader.data, steps=n_predict_steps)
+
+        if anndata is not None:
+            anndata.obsm[layer_name] = embeddings
+        return embeddings
 
     def predict(
         self,
         anndata: AnnData | None = None,
         model_name: str | None = None,
-    ) -> np.ndarray:
+    ) -> None | np.ndarray:
         """
-        Make predictions using the model on the full dataset
+        Make predictions using the model on the full dataset.
 
         If anndata and model_name are provided, will add the predictions to anndata as a .layers[model_name] attribute.
         Else, will return the predictions as a numpy array.
@@ -536,7 +620,7 @@ class Crested:
 
         Returns
         -------
-        Predictions of shape (N, C)
+        None or Predictions of shape (N, C)
         """
         self._check_predict_params(anndata, model_name)
 
@@ -554,15 +638,16 @@ class Crested:
         if anndata is not None and model_name is not None:
             logger.info(f"Adding predictions to anndata.layers[{model_name}].")
             anndata.layers[model_name] = predictions.T
-
-        return predictions
+            return None
+        else:
+            return predictions
 
     def predict_regions(
         self,
         region_idx: list[str] | str,
     ) -> np.ndarray:
         """
-        Make predictions using the model on the specified region(s)
+        Make predictions using the model on the specified region(s).
 
         Parameters
         ----------
@@ -596,14 +681,12 @@ class Crested:
 
         Parameters
         ----------
-        model : a trained TensorFlow/Keras model
-        sequence : str
+        sequence
             A string containing a DNA sequence (A, C, G, T).
 
         Returns
         -------
-        np.ndarray
-            Predictions for the provided sequence.
+        Predictions for the provided sequence.
         """
         # One-hot encode the sequence
         x = one_hot_encode_sequence(sequence)
@@ -613,10 +696,142 @@ class Crested:
 
         return predictions
 
+    def score_gene_locus(
+        self,
+        chr_name: str,
+        gene_start: int,
+        gene_end: int,
+        class_name: str,
+        strand: str = "+",
+        upstream: int = 50000,
+        downstream: int = 10000,
+        window_size: int = 2114,
+        central_size: int = 1000,
+        step_size: int = 50,
+    ) -> tuple[np.ndarray, np.ndarray, int, int, int]:
+        """
+        Score regions upstream and downstream of a gene locus using the model's prediction.
+
+        The model predicts a value for the central 1000bp of each window.
+
+        Parameters
+        ----------
+        chr_name
+            The chromosome name (e.g., 'chr12').
+        gene_start
+            The start position of the gene locus (TSS for + strand).
+        gene_end
+            The end position of the gene locus (TSS for - strand).
+        class_name
+            Output class name for prediction.
+        strand
+            '+' for positive strand, '-' for negative strand. Default '+'.
+        upstream
+            Distance upstream of the gene to score. Default 50 000.
+        downstream
+            Distance downstream of the gene to score. Default 10 000.
+        window_size
+            Size of the window to use for scoring. Default 2114.
+        central_size
+            Size of the central region that the model predicts for. Default 1000.
+        step_size
+            Distance between consecutive windows. Default 50.
+
+        Returns
+        -------
+        scores
+            An array of prediction scores across the entire genomic range.
+        coordinates
+            An array of tuples, each containing the chromosome name and the start and end positions of the sequence for each window.
+        min_loc
+            Start position of the entire scored region.
+        max_loc
+            End position of the entire scored region.
+        tss_position
+            The transcription start site (TSS) position.
+        """
+        # Adjust upstream and downstream based on the strand
+        if strand == "+":
+            start_position = gene_start - upstream
+            end_position = gene_end + downstream
+            tss_position = gene_start  # TSS is at the gene_start for positive strand
+        elif strand == "-":
+            end_position = gene_end + upstream
+            start_position = gene_start - downstream
+            tss_position = gene_end  # TSS is at the gene_end for negative strand
+        else:
+            raise ValueError("Strand must be '+' or '-'.")
+
+        total_length = abs(end_position - start_position)
+
+        # Ratio to normalize the score contributions
+        ratio = central_size / step_size
+
+        # Initialize an array to store the scores, filled with zeros
+        scores = np.zeros(total_length)
+
+        # Get class index
+        all_class_names = list(self.anndatamodule.adata.obs_names)
+        idx = all_class_names.index(class_name)
+
+        genome = FastaFile(self.anndatamodule.genome_file)
+
+        # Generate all windows and one-hot encode the sequences in parallel
+        all_sequences = []
+        all_coordinates = []
+
+        for pos in range(start_position, end_position, step_size):
+            window_start = pos
+            window_end = pos + window_size
+
+            # Ensure the window stays within the bounds of the region
+            if window_end > end_position:
+                break
+
+            # Fetch the sequence
+            seq = genome.fetch(chr_name, window_start, window_end).upper()
+
+            # One-hot encode the sequence (you would need to ensure this function is available)
+            seq_onehot = one_hot_encode_sequence(seq)
+
+            all_sequences.append(seq_onehot)
+            all_coordinates.append((chr_name, int(window_start), int(window_end)))
+
+        # Stack sequences for batch processing
+        all_sequences = np.squeeze(np.stack(all_sequences), axis=1)
+
+        # Perform batched predictions
+        predictions = self.model.predict(all_sequences, verbose=0)
+
+        # Map predictions to the score array
+        for _, (pos, prediction) in enumerate(
+            zip(range(start_position, end_position, step_size), predictions)
+        ):
+            window_start = pos
+            central_start = pos + (window_size - central_size) // 2
+            central_end = central_start + central_size
+
+            scores[
+                central_start - start_position : central_end - start_position
+            ] += prediction[idx]
+            # if strand == '+':
+            #    scores[central_start - start_position:central_end - start_position] += prediction[idx]
+            # else:
+            #    scores[total_length - (central_end - start_position):total_length - (central_start - start_position)] += prediction[idx]
+
+        # Normalize the scores based on the number of times each position is included in the central window
+        return (
+            scores / ratio,
+            np.array(all_coordinates),
+            start_position,
+            end_position,
+            tss_position,
+        )
+
     def calculate_contribution_scores(
         self,
+        class_names: list[str],
         anndata: AnnData | None = None,
-        class_names: list[str] | None = None,
         method: str = "expected_integrated_grad",
         store_in_varm: bool = False,
     ) -> tuple[np.ndarray, np.ndarray] | None:
@@ -628,12 +843,12 @@ class Crested:
 
         Parameters
         ----------
+        class_names
+            List of class names to calculate the contribution scores for (should match anndata.obs_names)
+            If the list is empty, the contribution scores for the 'combined' class will be calculated.
         anndata
             Anndata object to store the contribution scores in as a .varm[class_name] attribute.
             If None, will only return the contribution scores without storing them.
-        class_names
-            List of class names to calculate the contribution scores for (should match anndata.obs_names)
-            If None, the contribution scores for the 'combined' class will be calculated.
         method
             Method to use for calculating the contribution scores.
             Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
@@ -646,6 +861,8 @@ class Crested:
         --------
         crested.pl.patterns.contribution_scores
         """
+        if isinstance(class_names, str):
+            class_names = [class_names]
         self._check_contribution_scores_params(class_names)
 
         if self.anndatamodule.predict_dataset is None:
@@ -657,13 +874,16 @@ class Crested:
 
         all_class_names = list(self.anndatamodule.adata.obs_names)
 
-        if class_names is not None:
+        if len(class_names) > 0:
             n_classes = len(class_names)
             class_indices = [
                 all_class_names.index(class_name) for class_name in class_names
             ]
             varm_names = class_names
         else:
+            logger.warning(
+                "No class names provided. Calculating contribution scores for the 'combined' class."
+            )
             n_classes = 1  # 'combined' class
             class_indices = [None]
             varm_names = ["combined"]
@@ -727,7 +947,7 @@ class Crested:
     def calculate_contribution_scores_regions(
         self,
         region_idx: list[str] | str,
-        class_names: list[str] | None = None,
+        class_names: list[str],
         method: str = "expected_integrated_grad",
         disable_tqdm: bool = False,
     ) -> tuple[np.ndarray, np.ndarray]:
@@ -743,7 +963,7 @@ class Crested:
             Region(s) for which to calculate the contribution scores in the format "chr:start-end".
         class_names
             List of class names to calculate the contribution scores for (should match anndata.obs_names)
-            If None, the contribution scores for the 'combined' class will be calculated.
+            If the list is empty, the contribution scores for the 'combined' class will be calculated.
         method
             Method to use for calculating the contribution scores.
             Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
@@ -761,6 +981,12 @@ class Crested:
         if isinstance(region_idx, str):
             region_idx = [region_idx]
 
+        if isinstance(class_names, str):
+            class_names = [class_names]
+
+        if self.anndatamodule.predict_dataset is None:
+            self.anndatamodule.setup("predict")
+
         sequences = []
         for region in region_idx:
             sequences.append(
@@ -776,7 +1002,7 @@ class Crested:
     def calculate_contribution_scores_sequences(
         self,
         sequences: list[str] | str,
-        class_names: list[str] | None = None,
+        class_names: list[str],
         method: str = "expected_integrated_grad",
         disable_tqdm: bool = False,
     ) -> tuple[np.ndarray, np.ndarray]:
@@ -792,7 +1018,7 @@ class Crested:
             Sequence(s) for which to calculate the contribution scores.
         class_names
             List of class names to calculate the contribution scores for (should match anndata.obs_names)
-            If None, the contribution scores for the 'combined' class will be calculated.
+            If the list is empty, the contribution scores for the 'combined' class will be calculated.
         method
             Method to use for calculating the contribution scores.
             Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
@@ -823,13 +1049,15 @@ class Crested:
 
         all_class_names = list(self.anndatamodule.adata.obs_names)
 
-        if class_names is not None:
-            print(class_names)
+        if len(class_names) > 0:
             n_classes = len(class_names)
             class_indices = [
                 all_class_names.index(class_name) for class_name in class_names
             ]
         else:
+            logger.warning(
+                "No class names provided. Calculating contribution scores for the 'combined' class."
+            )
             n_classes = 1  # 'combined' class
             class_indices = [None]
 
@@ -873,7 +1101,7 @@ class Crested:
         class_names: list[str] | None = None,
         method: str = "expected_integrated_grad",
         disable_tqdm: bool = False,
-    ) -> tuple[np.ndarray, np.ndarray] | list(tuple[np.ndarray, np.ndarray]):
+    ) -> tuple[np.ndarray, np.ndarray] | list[tuple[np.ndarray, np.ndarray]]:
         """
         Calculate contribution scores of enhancer design.
 
@@ -918,6 +1146,78 @@ class Crested:
         else:
             return scores_list, onehot_list
 
+    def tfmodisco_calculate_and_save_contribution_scores_sequences(
+        self,
+        adata: AnnData,
+        sequences: list[str],
+        output_dir: os.PathLike = "modisco_results",
+        method: str = "expected_integrated_grad",
+        class_names: list[str] | None = None,
+    ):
+        """
+        Calculate and save contribution scores for the sequence(s).
+
+        Parameters
+        ----------
+        adata
+            The AnnData object containing class information.
+        sequences:
+            List of sequences (string encoded) to calculate contribution on.
+        output_dir
+            Directory to save the output files.
+        method
+            Method to use for calculating the contribution scores.
+            Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
+        class_names
+            List of class names to process. If None, all class names in adata.obs_names will be processed.
+        """
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        # Extract regions and class names from adata.var
+        all_class_names = list(adata.obs_names)
+
+        # If class_names is None, process all classes
+        if class_names is None:
+            class_names = all_class_names
+        else:
+            # Ensure that class_names contains valid classes
+            valid_class_names = [
+                class_name
+                for class_name in class_names
+                if class_name in all_class_names
+            ]
+            if len(valid_class_names) != len(class_names):
+                raise ValueError(
+                    f"Invalid class names provided. Valid class names are: {all_class_names}"
+                )
+            class_names = valid_class_names
+
+        for class_name in class_names:
+            # Calculate contribution scores
+            contrib_scores, one_hot_seqs = self.calculate_contribution_scores_sequence(
+                sequences=sequences,
+                class_names=[class_name],
+                method=method,
+                disable_tqdm=True,
+            )
+
+            # Transform the contrib scores and one hot numpy arrays to (#regions, 4, seq_len), the expected format of modisco-lite.
+            contrib_scores = contrib_scores.squeeze(axis=1).transpose(0, 2, 1)
+            one_hot_seqs = one_hot_seqs.transpose(0, 2, 1)
+
+            # Save the results to the output directory
+            np.savez_compressed(
+                os.path.join(output_dir, f"{class_name}_oh.npz"), one_hot_seqs
+            )
+            np.savez_compressed(
+                os.path.join(output_dir, f"{class_name}_contrib.npz"), contrib_scores
+            )
+
+        logger.info(
+            f"Contribution scores and one-hot encoded sequences saved to {output_dir}"
+        )
+
     def tfmodisco_calculate_and_save_contribution_scores(
         self,
         adata: AnnData,
@@ -930,35 +1230,57 @@ class Crested:
 
         Parameters
         ----------
-        adata : AnnData
+        adata
             The AnnData object containing regions and class information, obtained from crested.pp.sort_and_filter_regions_on_specificity.
-        output_dir : str
+        output_dir
             Directory to save the output files.
-        method : str, optional
+        method
             Method to use for calculating the contribution scores.
-            Default is 'expected_integrated_grad'.
-        class_names : list[str] | None, optional
-            List of class names to process. If None, all class names in adata.var["Class name"] will be processed.
+            Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
+        class_names
+            List of class names to process. If None, all class names in adata.obs_names will be processed.
         """
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
         # Extract regions and class names from adata.var
-        all_class_names = adata.var["Class name"].unique().tolist()
+        all_class_names = list(adata.obs_names)
 
         # If class_names is None, process all classes
         if class_names is None:
             class_names = all_class_names
         else:
             # Ensure that class_names contains valid classes
-            class_names = [cls for cls in class_names if cls in all_class_names]
+            valid_class_names = [
+                class_name
+                for class_name in class_names
+                if class_name in all_class_names
+            ]
+            if len(valid_class_names) != len(class_names):
+                raise ValueError(
+                    f"Invalid class names provided. Valid class names are: {all_class_names}"
+                )
+            class_names = valid_class_names
 
-        # Iterate over each class and calculate contribution scores
+        # If regions specificity filtering performed, then only use specific regions
+        # else, use all regions in anndata.var
+        if "Class name" in adata.var.columns:
+            logger.info(
+                "Found 'Class name' column in adata.var. Using specific regions per class to calculate contribution scores."
+            )
+        else:
+            logger.info(
+                "No 'Class name' column found in adata.var. Using all regions per class to calculate contribution scores."
+            )
+
         for class_name in class_names:
             # Filter regions for the current class
-            class_regions = adata.var[
-                adata.var["Class name"] == class_name
-            ].index.tolist()
+            if "Class name" in adata.var.columns:
+                class_regions = adata.var[
+                    adata.var["Class name"] == class_name
+                ].index.tolist()
+            else:
+                class_regions = adata.var.index.tolist()
 
             # Calculate contribution scores for the regions of the current class
             contrib_scores, one_hot_seqs = self.calculate_contribution_scores_regions(
@@ -986,27 +1308,33 @@ class Crested:
 
     def enhancer_design_motif_implementation(
         self,
-        target_class: str,
         n_sequences: int,
         patterns: dict,
+        target_class: str | None = None,
+        target: int | np.ndarray | None = None,
         insertions_per_pattern: dict | None = None,
         return_intermediate: bool = False,
         class_penalty_weights: np.ndarray | None = None,
         no_mutation_flanks: tuple | None = None,
         target_len: int | None = None,
         preserve_inserted_motifs: bool = True,
-    ) -> tuple[list(dict), list] | list:
+        enhancer_optimizer: EnhancerOptimizer | None = None,
+        **kwargs: dict[str, Any],
+    ) -> tuple[list[dict], list] | list:
         """
         Create synthetic enhancers for a specified class using motif implementation.
 
         Parameters
         ----------
-        target_class
-            Class name for which the enhancers will be designed for.
         n_sequences
             Number of enhancers to design.
         patterns
             Dictionary of patterns to be implemented in the form of 'pattern_name':'pattern_sequence'
+        target_class
+            Class name for which the enhancers will be designed for. If this value is set to None
+            target needs to be specified.
+        target
+            target index, needs to be specified when target_class is None
         insertions_per_pattern
             Dictionary of number of patterns to be implemented in the form of 'pattern_name':number_of_insertions
             If not used one of each pattern in patterns will be implemented.
@@ -1023,17 +1351,32 @@ class Crested:
             is supplied.
         preserve_inserted_motifs
             If True, sequentially inserted motifs can't be inserted on previous motifs.
+        enhancer_optimizer
+            An instance of EnhancerOptimizer, defining how sequences should be optimized.
+            If None, a default EnhancerOptimizer will be initialized using `_weighted_difference`
+            as optimization function.
+        kwargs
+            Keyword arguments that will be passed to the `get_best` function of the EnhancerOptimizer
 
         Returns
         -------
         A list of designed sequences and if return_intermediate is True a list of dictionaries of intermediate
         mutations and predictions
         """
-        self._check_contribution_scores_params([target_class])
+        if target_class is not None:
+            self._check_contribution_scores_params([target_class])
 
-        all_class_names = list(self.anndatamodule.adata.obs_names)
+            all_class_names = list(self.anndatamodule.adata.obs_names)
 
-        target = all_class_names.index(target_class)
+            target = all_class_names.index(target_class)
+
+        elif target is None:
+            raise ValueError(
+                "`target` need to be specified when `target_class` is None"
+            )
+
+        if enhancer_optimizer is None:
+            enhancer_optimizer = EnhancerOptimizer(optimize_func=_weighted_difference)
 
         # get input sequence length of the model
         seq_len = (
@@ -1108,14 +1451,16 @@ class Crested:
                         masked_locations=inserted_motif_locations,
                     )
 
-                    mutagenesis_predictions = self.model.predict(mutagenesis)
+                    mutagenesis_predictions = self.model.predict(
+                        mutagenesis, verbose=False
+                    )
 
                     # determine the best insertion site
-                    best_mutation = _weighted_difference(
-                        mutagenesis_predictions,
-                        current_prediction,
-                        target,
-                        class_penalty_weights,
+                    best_mutation = enhancer_optimizer.get_best(
+                        mutated_predictions=mutagenesis_predictions,
+                        original_prediction=current_prediction,
+                        target=target,
+                        **kwargs,
                     )
 
                     sequence_onehot = mutagenesis[best_mutation : best_mutation + 1]
@@ -1152,47 +1497,67 @@ class Crested:
 
     def enhancer_design_in_silico_evolution(
         self,
-        target_class: str,
         n_mutations: int,
         n_sequences: int,
+        target_class: str | None = None,
+        target: int | np.ndarray | None = None,
         return_intermediate: bool = False,
-        class_penalty_weights: np.ndarray | None = None,
         no_mutation_flanks: tuple | None = None,
         target_len: int | None = None,
-    ) -> tuple[list(dict), list] | list:
+        enhancer_optimizer: EnhancerOptimizer | None = None,
+        **kwargs: dict[str, Any],
+    ) -> tuple[list[dict], list] | list:
         """
         Create synthetic enhancers for a specified class using in silico evolution (ISE).
 
         Parameters
         ----------
-        target_class
-            Class name for which the enhancers will be designed for.
         n_mutations
-            Number of mutations per sequence
+            Number of iterations
         n_sequences
             Number of enhancers to design
+        target_class
+            Class name for which the enhancers will be designed for. If this value is set to None
+            target needs to be specified.
+        target
+            target index, needs to be specified when target_class is None
         return_intermediate
             If True, returns a dictionary with predictions and changes made in intermediate steps for selected
             sequences
-        class_penalty_weights
-            Array with a value per class, determining the penalty weight for that class to be used in scoring
-            function for sequence selection.
         no_mutation_flanks
             A tuple of integers which determine the regions in each flank to not do implementations.
         target_len
             Length of the area in the center of the sequence to make implementations, ignored if no_mutation_flanks
             is supplied.
+        enhancer_optimizer
+            An instance of EnhancerOptimizer, defining how sequences should be optimized.
+            If None, a default EnhancerOptimizer will be initialized using `_weighted_difference`
+            as optimization function.
+        kwargs
+            Keyword arguments that will be passed to the `get_best` function of the EnhancerOptimizer
 
         Returns
         -------
         A list of designed sequences and if return_intermediate is True a list of dictionaries of intermediate
         mutations and predictions
         """
-        self._check_contribution_scores_params([target_class])
+        if self.model is None:
+            raise ValueError("Model should be loaded first!")
 
-        all_class_names = list(self.anndatamodule.adata.obs_names)
+        if target_class is not None:
+            self._check_contribution_scores_params([target_class])
 
-        target = all_class_names.index(target_class)
+            all_class_names = list(self.anndatamodule.adata.obs_names)
+
+            target = all_class_names.index(target_class)
+
+        elif target is None:
+            raise ValueError(
+                "`target` need to be specified when `target_class` is None"
+            )
+
+        if enhancer_optimizer is None:
+            enhancer_optimizer = EnhancerOptimizer(optimize_func=_weighted_difference)
 
         # get input sequence length of the model
         seq_len = (
@@ -1225,58 +1590,107 @@ class Crested:
             n_sequences=n_sequences, seq_len=seq_len
         )
 
-        designed_sequences = []
-        intermediate_info_list = []
+        # initialize
+        designed_sequences: list[str] = []
+        intermediate_info_list: list[dict] = []
 
-        for idx, sequence in enumerate(random_sequences):
-            sequence_onehot = one_hot_encode_sequence(sequence)
-            if return_intermediate:
-                intermediate_info_list.append(
-                    {
-                        "inital_sequence": sequence,
-                        "changes": [(-1, "N")],
-                        "predictions": [
-                            self.model.predict(sequence_onehot, verbose=False)[0]
-                        ],
-                        "designed_sequence": "",
-                    }
+        sequence_onehot_prev_iter = np.zeros((n_sequences, seq_len, 4), dtype=np.uint8)
+
+        # calculate total number of mutations per sequence
+        _, L, A = sequence_onehot_prev_iter.shape
+        start, end = 0, L
+        start = no_mutation_flanks[0]
+        end = L - no_mutation_flanks[1]
+        TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ = (end - start) * (A - 1)
+
+        mutagenesis = np.zeros(
+            (n_sequences, TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ, seq_len, 4)
+        )
+
+        for i, sequence in enumerate(random_sequences):
+            sequence_onehot_prev_iter[i] = one_hot_encode_sequence(sequence)
+
+        for _iter in tqdm(range(n_mutations)):
+            baseline_prediction = self.model.predict(
+                sequence_onehot_prev_iter, verbose=False
+            )
+
+            if _iter == 0:
+                for i in range(n_sequences):
+                    # initialize info
+                    intermediate_info_list.append(
+                        {
+                            "inital_sequence": hot_encoding_to_sequence(
+                                sequence_onehot_prev_iter[i]
+                            ),
+                            "changes": [(-1, "N")],
+                            "predictions": [baseline_prediction[i]],
+                            "designed_sequence": "",
+                        }
+                    )
+
+            # do all possible mutations
+            for i in range(n_sequences):
+                mutagenesis[i] = generate_mutagenesis(
+                    sequence_onehot_prev_iter[i : i + 1],
+                    include_original=False,
+                    flanks=no_mutation_flanks,
                 )
 
-            # sequentially do mutations
-            for _mutation_step in range(n_mutations):
-                current_prediction = self.model.predict(sequence_onehot, verbose=False)
+            mutagenesis_predictions = self.model.predict(
+                mutagenesis.reshape(
+                    (n_sequences * TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ, seq_len, 4)
+                ),
+                verbose=False,
+            )
 
-                # do every possible mutation
-                mutagenesis = generate_mutagenesis(
-                    sequence_onehot, include_original=False, flanks=no_mutation_flanks
+            mutagenesis_predictions = mutagenesis_predictions.reshape(
+                (
+                    n_sequences,
+                    TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ,
+                    mutagenesis_predictions.shape[1],
                 )
-                mutagenesis_predictions = self.model.predict(mutagenesis)
+            )
 
-                # determine the best mutation
-                best_mutation = _weighted_difference(
-                    mutagenesis_predictions,
-                    current_prediction,
-                    target,
-                    class_penalty_weights,
+            for i in range(n_sequences):
+                best_mutation = enhancer_optimizer.get_best(
+                    mutated_predictions=mutagenesis_predictions[i],
+                    original_prediction=baseline_prediction[i],
+                    target=target,
+                    **kwargs,
                 )
-
-                sequence_onehot = mutagenesis[best_mutation : best_mutation + 1]
-
+                sequence_onehot_prev_iter[i] = mutagenesis[
+                    i, best_mutation : best_mutation + 1, :
+                ]
                 if return_intermediate:
                     mutation_index = best_mutation // 3 + no_mutation_flanks[0]
-                    changed_to = sequence_onehot[0, mutation_index, :]
-                    intermediate_info_list[idx]["changes"].append(
-                        (mutation_index, hot_encoding_to_sequence(changed_to))
+                    changed_to = hot_encoding_to_sequence(
+                        sequence_onehot_prev_iter[i, mutation_index, :]
                     )
-                    intermediate_info_list[idx]["predictions"].append(
-                        mutagenesis_predictions[best_mutation]
+                    intermediate_info_list[i]["changes"].append(
+                        (mutation_index, changed_to)
+                    )
+                    intermediate_info_list[i]["predictions"].append(
+                        mutagenesis_predictions[i][best_mutation]
                     )
 
-            designed_sequence = hot_encoding_to_sequence(sequence_onehot)
+        # get final sequence
+        for i in range(n_sequences):
+            best_mutation = enhancer_optimizer.get_best(
+                mutated_predictions=mutagenesis_predictions[i],
+                original_prediction=baseline_prediction[i],
+                target=target,
+                **kwargs,
+            )
+
+            designed_sequence = hot_encoding_to_sequence(
+                mutagenesis[i, best_mutation : best_mutation + 1, :]
+            )
+
             designed_sequences.append(designed_sequence)
 
             if return_intermediate:
-                intermediate_info_list[idx]["designed_sequence"] = designed_sequence
+                intermediate_info_list[i]["designed_sequence"] = designed_sequence
 
         if return_intermediate:
             return intermediate_info_list, designed_sequences
@@ -1416,19 +1830,25 @@ class Crested:
             )
 
     @log_and_raise(ValueError)
-    def _check_contribution_scores_params(self, class_names: list | None):
+    def _check_contribution_scores_params(self, class_names: list):
         """Check if the necessary parameters are set for the calculate_contribution_scores method."""
         if not self.model:
             raise ValueError(
                 "Model not set. Please load a model from pretrained using Crested.load_model(...) before calling calculate_contribution_scores_(regions)."
             )
-        if class_names is not None:
-            all_class_names = list(self.anndatamodule.adata.obs_names)
-            for class_name in class_names:
-                if class_name not in all_class_names:
-                    raise ValueError(
-                        f"Class name {class_name} not found in anndata.obs_names."
-                    )
+        # check if class names is a list
+        if not isinstance(class_names, list):
+            raise ValueError(
+                "Class names should be a list of class names or an empty list (if calculating the average accross classes)."
+            )
+
+        all_class_names = list(self.anndatamodule.adata.obs_names)
+        for class_name in class_names:
+            if class_name not in all_class_names:
+                raise ValueError(
+                    f"Class name {class_name} not found in anndata.obs_names."
+                )
 
     def __repr__(self):
+        """Return the string representation of the object."""
         return f"Crested(data={self.anndatamodule is not None}, model={self.model is not None}, config={self.config is not None})"

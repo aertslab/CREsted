@@ -7,8 +7,8 @@ import numpy as np
 from anndata import AnnData
 from loguru import logger
 
-from crested._logging import log_and_raise
 from crested.pl._utils import render_plot
+from crested.utils._logging import log_and_raise
 
 
 def region_predictions(
@@ -17,7 +17,7 @@ def region_predictions(
     model_names: list[str] | None = None,
     share_y: bool = True,
     **kwargs,
-) -> None:
+) -> plt.Figure:
     """
     Barplots of all predictions in .layers vs the groundtruth for a specific region across comparing classes.
 
@@ -108,10 +108,12 @@ def region_predictions(
     if "height" not in kwargs:
         kwargs["height"] = default_height
 
-    render_plot(fig, **kwargs)
+    return render_plot(fig, **kwargs)
 
 
-def region(adata: AnnData, region: str, target: str = "groundtruth", **kwargs) -> None:
+def region(
+    adata: AnnData, region: str, target: str = "groundtruth", **kwargs
+) -> plt.Figure:
     """
     Barplot of groundtruths or predictions for a specific region comparing classes.
 
@@ -175,4 +177,70 @@ def region(adata: AnnData, region: str, target: str = "groundtruth", **kwargs) -
     if "height" not in kwargs:
         kwargs["height"] = default_height
 
-    render_plot(fig, **kwargs)
+    return render_plot(fig, **kwargs)
+
+
+def prediction(
+    prediction: np.array,
+    classes: list,
+    ylabel="Prediction",
+    xlabel="Cell types",
+    title="Prediction plot",
+    **kwargs,
+) -> plt.Figure:
+    """
+    Bar plot for predictions comparing different classes or cell types.
+
+    Parameters
+    ----------
+    prediction
+        An array containing the prediction values for each class or cell type. It is reshaped if necessary.
+    classes
+        A list of class or cell type labels corresponding to the predictions.
+    ylabel
+        Label for the y-axis. Default is 'prediction'.
+    xlabel
+        Label for the x-axis. Default is 'cell types'.
+    title
+        Title of the plot. Default is 'Prediction plot'.
+    kwargs
+        Additional keyword arguments to pass to `render_plot`.
+
+    Returns
+    -------
+    plt.Figure
+        The generated bar plot figure.
+    """
+    # Ensure the prediction array is 1-dimensional
+    if prediction.ndim > 1 and prediction.shape[0] == 1:
+        prediction = prediction.flatten()
+
+    if len(prediction) != len(classes):
+        raise ValueError(
+            "The length of prediction array must match the number of classes."
+        )
+
+    # Create the bar plot
+    fig, ax = plt.subplots()
+    ax.bar(classes, prediction, alpha=0.8)
+
+    # Set plot labels and title
+    ax.set_ylabel(ylabel)
+    ax.set_xlabel(xlabel)
+    ax.set_title(title)
+    ax.grid(True)
+
+    # Set the x-ticks to match the number of classes
+    ax.set_xticks(range(len(classes)))
+    ax.set_xticklabels(classes, rotation=45, ha="center")
+
+    # Default figure size, can be overridden by kwargs
+    default_height = 3
+    default_width = 18
+    if "width" not in kwargs:
+        kwargs["width"] = default_width
+    if "height" not in kwargs:
+        kwargs["height"] = default_height
+
+    # Use render_plot to finalize and return the figure
+    return render_plot(fig, **kwargs)

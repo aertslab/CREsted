@@ -13,7 +13,7 @@ from pysam import FastaFile
 from scipy.sparse import spmatrix
 from tqdm import tqdm
 
-from crested.tl._utils import one_hot_encode_sequence
+from crested.utils import one_hot_encode_sequence
 
 
 def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
@@ -26,6 +26,28 @@ def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
 
 
 class SequenceLoader:
+    """
+    Load sequences from a genome file.
+
+    Options for reverse complementing and stochastic shifting are available.
+
+    Parameters
+    ----------
+    genome_file
+        Path to the genome file.
+    chromsizes
+        Dictionary with chromosome sizes. Required if max_stochastic_shift > 0.
+    in_memory
+        If True, the sequences of supplied regions will be loaded into memory.
+    always_reverse_complement
+        If True, all sequences will be augmented with their reverse complement.
+        Doubles the dataset size.
+    max_stochastic_shift
+        Maximum stochastic shift (n base pairs) to apply randomly to each sequence.
+    regions
+        List of regions to load into memory. Required if in_memory is True.
+    """
+
     def __init__(
         self,
         genome_file: PathLike,
@@ -33,8 +55,9 @@ class SequenceLoader:
         in_memory: bool = False,
         always_reverse_complement: bool = False,
         max_stochastic_shift: int = 0,
-        regions: list[str] = None,
+        regions: list[str] | None = None,
     ):
+        """Initialize the SequenceLoader with the provided genome file and options."""
         self.genome = FastaFile(genome_file)
         self.chromsizes = chromsizes
         self.in_memory = in_memory
@@ -96,16 +119,36 @@ class SequenceLoader:
         if (strand == "-") and (not self.in_memory):
             sub_sequence = self._reverse_complement(sub_sequence)
 
+        # pad with Ns if sequence is shorter than expected
+        if len(sub_sequence) < (end - start):
+            sub_sequence = sub_sequence.ljust(end - start, "N")
+
         return sub_sequence
 
 
 class IndexManager:
+    """
+    Manage indices for the dataset.
+
+    Augments indices with strand information if always reverse complement.
+
+    Parameters
+    ----------
+    indices
+        List of indices in format "chrom:start-end".
+    always_reverse_complement
+        If True, all sequences will be augmented with their reverse complement.
+    deterministic_shift
+        If True, each region will be shifted twice with stride 50bp to each side.
+    """
+
     def __init__(
         self,
         indices: list[str],
         always_reverse_complement: bool,
         deterministic_shift: bool = False,
     ):
+        """Initialize the IndexManager with the provided indices."""
         self.indices = indices
         self.always_reverse_complement = always_reverse_complement
         self.deterministic_shift = deterministic_shift
@@ -114,7 +157,7 @@ class IndexManager:
         )
 
     def shuffle_indices(self):
-        """Shuffling of indices. Managed by subclass AnnDataLoader."""
+        """Shuffle indices. Managed by subclass AnnDataLoader."""
         np.random.shuffle(self.augmented_indices)
 
     def _augment_indices(self, indices: list[str]) -> tuple[list[str], dict[str, str]]:
@@ -165,6 +208,34 @@ else:
 
 
 class AnnDataset(BaseClass):
+    """
+    Dataset class for combining genome files and AnnData objects.
+
+    Called by the by the AnnDataModule class.
+
+    Parameters
+    ----------
+    anndata
+        AnnData object containing the data.
+    genome_file
+        Path to the genome file.
+    split
+        'train', 'val', or 'test' split column in anndata.var.
+    chromsizes_file
+        Path to the chromsizes file. Advised if max_stochastic_shift > 0.
+    in_memory
+        If True, the train and val sequences will be loaded into memory.
+    random_reverse_complement
+        If True, the sequences will be randomly reverse complemented during training.
+    always_reverse_complement
+        If True, all sequences will be augmented with their reverse complement during training.
+    max_stochastic_shift
+        Maximum stochastic shift (n base pairs) to apply randomly to each sequence during training.
+    deterministic_shift
+        If true, each region will be shifted twice with stride 50bp to each side.
+        This is our legacy shifting, we recommend using max_stochastic_shift instead.
+    """
+
     def __init__(
         self,
         anndata: AnnData,
@@ -177,6 +248,7 @@ class AnnDataset(BaseClass):
         max_stochastic_shift: int = 0,
         deterministic_shift: bool = False,
     ):
+        """Initialize the dataset with the provided AnnData object and options."""
         self.anndata = self._split_anndata(anndata, split)
         self.split = split
         self.indices = list(self.anndata.var_names)
@@ -220,7 +292,7 @@ class AnnDataset(BaseClass):
         return subset
 
     def __len__(self) -> int:
-        """Number of (augmented) samples in the dataset."""
+        """Get number of (augmented) samples in the dataset."""
         return len(self.index_manager.augmented_indices)
 
     def _get_target(self, index: str) -> np.ndarray:
@@ -259,7 +331,7 @@ class AnnDataset(BaseClass):
         return x, y
 
     def __call__(self):
-        """Generator for the dataset."""
+        """Call generator for the dataset."""
         for i in range(len(self)):
             if i == 0:
                 if self.shuffle:
@@ -267,5 +339,5 @@ class AnnDataset(BaseClass):
             yield self.__getitem__(i)
 
     def __repr__(self) -> str:
-        """Representation of the dataset."""
+        """Get string representation of the dataset."""
         return f"AnnDataset(anndata_shape={self.anndata.shape}, n_samples={len(self)}, num_outputs={self.num_outputs}, split={self.split}, in_memory={self.in_memory})"

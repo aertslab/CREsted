@@ -9,7 +9,7 @@ import pandas as pd
 
 
 def grad_times_input_to_df(x, grad, alphabet="ACGT"):
-    """Generate pandas dataframe for saliency plot based on grad x inputs"""
+    """Generate pandas dataframe for saliency plot based on grad x inputs."""
     x_index = np.argmax(np.squeeze(x), axis=1)
     grad = np.squeeze(grad)
     L, A = grad.shape
@@ -26,7 +26,7 @@ def grad_times_input_to_df(x, grad, alphabet="ACGT"):
 
 
 def grad_times_input_to_df_mutagenesis(x, grad, alphabet="ACGT"):
-    """Generate pandas dataframe for mutagenesis plot based on grad x inputs"""
+    """Generate pandas dataframe for mutagenesis plot based on grad x inputs."""
     x = np.squeeze(x)  # Ensure x is correctly squeezed
     grad = np.squeeze(grad)
     L, A = x.shape
@@ -57,7 +57,7 @@ def _plot_attribution_map(
     spines: bool = True,
     figsize: tuple | None = (20, 1),
 ):
-    """Plot an attribution map using logomaker"""
+    """Plot an attribution map using logomaker."""
     if type(saliency_df) is not pd.DataFrame:
         saliency_df = pd.DataFrame(saliency_df, columns=["A", "C", "G", "T"])
     if figsize is not None:
@@ -72,26 +72,34 @@ def _plot_attribution_map(
     if return_ax:
         return ax
 
+
 def _plot_mutagenesis_map(mutagenesis_df, ax=None):
     """Plot an attribution map for mutagenesis using different colored dots, with adjusted x-axis limits."""
-    colors = {'A': 'green', 'C': 'blue', 'G': 'orange', 'T': 'red'}
+    colors = {"A": "green", "C": "blue", "G": "orange", "T": "red"}
     if ax is None:
         ax = plt.gca()
-    
     # Add horizontal line at y=0
-    ax.axhline(0, color='gray', linewidth=1, linestyle='--')
+    ax.axhline(0, color="gray", linewidth=1, linestyle="--")
 
     # Scatter plot for each nucleotide type
     for nuc, color in colors.items():
         # Filter out dots where the variant is the same as the original nucleotide
-        subset = mutagenesis_df[(mutagenesis_df['Nucleotide'] == nuc) & (mutagenesis_df['Nucleotide'] != mutagenesis_df['Original'])]
-        ax.scatter(subset['Position'], subset['Effect'], color=color, label=nuc, s=10)  # s is the size of the dot
+        subset = mutagenesis_df[
+            (mutagenesis_df["Nucleotide"] == nuc)
+            & (mutagenesis_df["Nucleotide"] != mutagenesis_df["Original"])
+        ]
+        ax.scatter(
+            subset["Position"], subset["Effect"], color=color, label=nuc, s=10
+        )  # s is the size of the dot
 
     # Set the limits of the x-axis to match exactly the first and last position
     if not mutagenesis_df.empty:
-        ax.set_xlim(mutagenesis_df['Position'].min() - 0.5, mutagenesis_df['Position'].max() + 0.5)
+        ax.set_xlim(
+            mutagenesis_df["Position"].min() - 0.5,
+            mutagenesis_df["Position"].max() + 0.5,
+        )
 
-    ax.legend(title="Nucleotide", loc='upper right')
+    ax.legend(title="Nucleotide", loc="upper right")
     ax.spines["right"].set_visible(False)
     ax.spines["top"].set_visible(False)
     ax.xaxis.set_ticks_position("none")

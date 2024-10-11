@@ -1,5 +1,5 @@
 # References
 
 ```{bibliography}
-:cited:
+
 ```

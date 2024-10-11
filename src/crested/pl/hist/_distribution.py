@@ -8,8 +8,8 @@ import seaborn as sns
 from anndata import AnnData
 from loguru import logger
 
-from crested._logging import log_and_raise
 from crested.pl._utils import render_plot
+from crested.utils._logging import log_and_raise
 
 
 def distribution(
@@ -20,7 +20,7 @@ def distribution(
     log_transform: bool = True,
     share_y: bool = False,
     **kwargs,
-) -> None:
+) -> plt.Figure:
     """
     Histogram of region distribution for specified classes.
 
@@ -123,4 +123,4 @@ def distribution(
     if "height" not in kwargs:
         kwargs["height"] = default_height
 
-    render_plot(fig, **kwargs)
+    return render_plot(fig, **kwargs)

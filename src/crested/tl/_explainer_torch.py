@@ -9,14 +9,16 @@ import torch
 
 
 class Explainer:
-    """wrapper class for attribution maps"""
+    """Wrapper class for attribution maps."""
 
     def __init__(self, model, class_index=None, func=torch.mean):
+        """Initialize the explainer."""
         self.model = model
         self.class_index = class_index
         self.func = func
 
     def saliency_maps(self, X, batch_size=128):
+        """Calculate saliency maps for a given sequence."""
         return function_batch(
             X,
             saliency_map,
@@ -27,6 +29,7 @@ class Explainer:
         )
 
     def smoothgrad(self, X, num_samples=50, mean=0.0, stddev=0.1):
+        """Calculate smoothgrad for a given sequence."""
         return function_batch(
             X,
             smoothgrad,
@@ -40,6 +43,7 @@ class Explainer:
         )
 
     def integrated_grad(self, X, baseline_type="random", num_steps=25):
+        """Calculate integrated gradients for a given sequence."""
         scores = []
         for x in X:
             x = torch.tensor(np.expand_dims(x, axis=0), dtype=torch.float32)
@@ -60,6 +64,7 @@ class Explainer:
     def expected_integrated_grad(
         self, X, num_baseline=25, baseline_type="random", num_steps=25
     ):
+        """Calculate expected integrated gradients for a given sequence."""
         scores = []
         for x in X:
             x = torch.tensor(np.expand_dims(x, axis=0), dtype=torch.float32)
@@ -79,6 +84,7 @@ class Explainer:
         return np.concatenate(scores, axis=0)
 
     def mutagenesis(self, X, class_index=None):
+        """In silico mutagenesis analysis for a given sequence."""
         scores = []
         for x in X:
             x = torch.tensor(np.expand_dims(x, axis=0), dtype=torch.float32)
@@ -86,6 +92,7 @@ class Explainer:
         return np.concatenate(scores, axis=0)
 
     def set_baseline(self, x, baseline, num_samples):
+        """Generate the background sequences."""
         if baseline == "random":
             baseline = random_shuffle(x, num_samples)
         else:
@@ -94,8 +101,8 @@ class Explainer:
 
 
 def saliency_map(X, model, class_index=None, func=torch.mean):
-    """Fast function to generate saliency maps"""
-    X = torch.tensor(X, requires_grad=True)
+    """Fast function to generate saliency maps."""
+    X = X.clone().detach().requires_grad_(True)
 
     outputs = model(X)
     if class_index is not None:
@@ -116,6 +123,7 @@ def smoothgrad(
     class_index=None,
     func=torch.mean,
 ):
+    """Calculate the smoothgrad for a given sequence."""
     _, L, A = x.shape
     x = torch.tensor(x)
     x_noise = x.repeat((num_samples, 1, 1)) + torch.normal(
@@ -128,6 +136,8 @@ def smoothgrad(
 def integrated_grad(
     x, model, baseline, num_steps=25, class_index=None, func=torch.mean
 ):
+    """Calculate integrated gradients for a given sequence."""
+
     def integral_approximation(gradients):
         # riemann_trapezoidal
         grads = (gradients[:-1] + gradients[1:]) / 2.0
@@ -214,6 +224,7 @@ def mutagenesis(x, model, class_index=None):
 
 
 def grad_times_input(x, scores):
+    """Compute the gradient times input."""
     new_scores = []
     for i, score in enumerate(scores):
         new_scores.append(np.sum(x[i] * score, axis=1))
@@ -221,6 +232,7 @@ def grad_times_input(x, scores):
 
 
 def l2_norm(scores):
+    """Compute the L2 norm of the scores."""
     return np.sum(np.sqrt(scores**2), axis=2)
 
 
@@ -235,7 +247,7 @@ def function_batch(X, fun, batch_size=128, **kwargs):
 
 
 def random_shuffle(x, num_samples=1):
-    """Randomly shuffle sequences. Assumes x shape is (N,L,A)"""
+    """Randomly shuffle sequences. Assumes x shape is (N,L,A)."""
     x_shuffle = []
     for _ in range(num_samples):
         shuffle = np.random.permutation(x.shape[1])

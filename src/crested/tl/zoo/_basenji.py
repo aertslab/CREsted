@@ -42,7 +42,7 @@ def basenji(
 
     Returns
     -------
-    A TensorFlow Keras model.
+    A Keras model.
     """
     window_size = int(seq_len // 2)
 

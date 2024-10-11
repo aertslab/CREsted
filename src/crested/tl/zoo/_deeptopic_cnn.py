@@ -58,7 +58,7 @@ def deeptopic_cnn(
 
     Returns
     -------
-    A TensorFlow Keras model.
+    A Keras model.
     """
     inputs = keras.layers.Input(shape=(seq_len, 4), name="sequence")
 

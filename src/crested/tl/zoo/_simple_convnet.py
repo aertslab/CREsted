@@ -10,7 +10,7 @@ def simple_convnet(
     num_classes: int,
     num_conv_blocks: int = 3,
     num_dense_blocks: int = 2,
-    residual: int = 0,
+    residual: bool = False,
     first_activation: str = "exponential",
     activation: str = "swish",
     output_activation: str = "softplus",
@@ -77,7 +77,7 @@ def simple_convnet(
 
     Returns
     -------
-    A TensorFlow Keras model.
+    A Keras model.
     """
     inputs = keras.layers.Input(shape=(seq_len, 4), name="sequence")
 
@@ -125,7 +125,7 @@ def simple_convnet(
         activation,
         dropout=dense_dropout,
         normalization=normalization,
-        prefix="denseblock",
+        name_prefix="denseblock",
     )
 
     outputs = keras.layers.Dense(

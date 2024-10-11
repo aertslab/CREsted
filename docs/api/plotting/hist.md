@@ -11,4 +11,5 @@ Plots for inspecting distributions of ground truth and predictions?
     :toctree: _autosummary
 
     distribution
+    locus_scoring
 ```
