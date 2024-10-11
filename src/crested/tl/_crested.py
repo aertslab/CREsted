@@ -833,7 +833,6 @@ class Crested:
         class_names: list[str],
         anndata: AnnData | None = None,
         method: str = "expected_integrated_grad",
-        store_in_varm: bool = False,
     ) -> tuple[np.ndarray, np.ndarray] | None:
         """
         Calculate contribution scores based on the given method for the full dataset.
@@ -1124,6 +1123,20 @@ class Crested:
         Returns
         -------
         A tuple of arrays or a list of tuple of arrays of contribution scores (N, C, L, 4) and one-hot encoded sequences (N, L, 4).
+
+        See Also
+        --------
+        crested.pl.patterns.enhancer_design_steps_contribution_scores
+        crested.tl.Crested.enhancer_design_in_silico_evolution
+        crested.tl.Crested.enhancer_design_motif_implementation
+
+        Examples
+        --------
+        >>> scores, onehot = crested.calculate_contribution_scores_enhancer_design(
+        ...     enhancer_design_intermediate,
+        ...     class_names=["cell_type_A"],
+        ...     method="expected_integrated_grad",
+        ... )
         """
         all_designed_list = self._derive_intermediate_sequences(
             enhancer_design_intermediate
@@ -1539,7 +1552,24 @@ class Crested:
         Returns
         -------
         A list of designed sequences and if return_intermediate is True a list of dictionaries of intermediate
-        mutations and predictions
+        mutations and predictions as well as the designed sequences
+
+        See Also
+        --------
+        crested.tl.Crested.calculate_contribution_scores_enhancer_design
+        crested.utils.EnhancerOptimizer
+
+        Examples
+        --------
+        >>> (
+        ...     intermediate_results,
+        ...     designed_sequences,
+        ... ) = trained_crested_object.enhancer_design_in_silico_evolution(
+        ...     target_class="cell_type_A",
+        ...     n_mutations=20,
+        ...     n_sequences=1,
+        ...     return_intermediate=True,
+        ... )
         """
         if self.model is None:
             raise ValueError("Model should be loaded first!")

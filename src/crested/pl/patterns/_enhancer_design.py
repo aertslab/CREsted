@@ -141,7 +141,7 @@ def enhancer_design_steps_contribution_scores(
     if not isinstance(seqs_one_hot_all, list):
         seqs_one_hot_all = [seqs_one_hot_all]
 
-    _check_contrib_params(zoom_n_bases, scores_all[0], labels)
+    _check_contrib_params(zoom_n_bases, scores_all[0], labels, None)
 
     # Center and zoom
     if zoom_n_bases is None:
