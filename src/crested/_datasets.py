@@ -43,6 +43,7 @@ def _get_dataset_index():
                 # Melanoma datasets
                 # Fly datasets
                 # Models
+                "models/tn5_bias.h5": "sha256:95b31dc31f0ac63c3d65cd4c70c0762a11e49b69ebe45877ddf35c20e32c40d2",
                 # Motif databases
                 "motif_db/motif_db.meme": "sha256:31d3fa1117e752b0d3076a73b278b59bb4a056d744401e9d5861310d03186cfd",
                 "motif_db/motif_tf_collection.tsv": "sha256:438933d41033b274035ec0bcf66bdafb1de2f22a1eb142800d1e76b6729e3438",
@@ -129,3 +130,37 @@ def get_motif_db():
         "motif_db/motif_tf_collection.tsv", progressbar=True
     )
     return motif_db_path, motif_collection_path
+
+
+def get_model(model: str):
+    """
+    Fetch a pre-trained model. This function retrieves the pre-trained model, downloading if not already cached, and returns the path to the model.
+
+    Provided examples:
+    - 'tn5_bias': a model trained to predict Tn5 bias from sequence by :cite:p:`hu2023single`.
+
+    Note
+    ----
+    The cache location can be changed by setting environment variable $CRESTED_DATA_DIR.
+
+    Parameters
+    ----------
+    model
+        The name of the model to fetch.
+        Options: 'tn5_bias'
+
+    Returns
+    -------
+    The path to the pre-trained model.
+
+    Example
+    -------
+    >>> tn5_bias_model_path = crested.get_model("tn5_bias")
+    """
+    model_mapping = {
+        "tn5_bias": "models/tn5_bias.h5",
+    }
+    assert (
+        model in model_mapping
+    ), f"Model {model} is not recognised. Available models: {tuple(model_mapping.keys())}"
+    return _get_dataset_index().fetch(model_mapping[model], progressbar=True)
