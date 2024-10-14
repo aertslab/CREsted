@@ -11,6 +11,7 @@
     Crested
     TaskConfig
     default_configs
+    tn5_bias_prediction
 ```
 
 ```{toctree}

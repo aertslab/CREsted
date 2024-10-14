@@ -7,6 +7,7 @@ from loguru import logger
 from . import data, losses, metrics, zoo
 from ._configs import TaskConfig, default_configs
 from ._crested import Crested
+from ._tn5_bias import tn5_bias_prediction
 
 if find_spec("modiscolite") is not None:
     MODISCOLITE_AVAILABLE = True
@@ -35,6 +36,7 @@ __all__ = [
     "TaskConfig",
     "default_configs",
     "Crested",
+    "tn5_bias_prediction",
 ]
 
 if MODISCOLITE_AVAILABLE:
