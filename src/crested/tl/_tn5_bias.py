@@ -4,6 +4,7 @@ import os
 
 import keras
 import numpy as np
+from loguru import logger
 
 import crested.utils
 
@@ -67,7 +68,7 @@ def tn5_bias_prediction(
     region_onehots = []
     for seq_index, seq in enumerate(sequences):
         if "N" in seq:
-            print(
+            logger.warning(
                 f"Region  {seq_index} contains N's. Bias prediction will be inaccurate."
             )
         assert (

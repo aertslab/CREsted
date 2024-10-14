@@ -1,4 +1,4 @@
-# Hist  `pl.hist`
+# Hist `pl.hist`
 
 Plots for inspecting distributions of ground truth and predictions?
 
@@ -12,4 +12,5 @@ Plots for inspecting distributions of ground truth and predictions?
 
     distribution
     locus_scoring
+    tn5_bias
 ```
