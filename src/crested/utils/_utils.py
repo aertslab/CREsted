@@ -6,6 +6,7 @@ from typing import Any, Callable
 import numpy as np
 import pandas as pd
 import pyBigWig
+import pysam
 
 
 def get_hot_encoding_table(
@@ -317,3 +318,43 @@ def extract_bigwig_values_per_bp(
     bw.close()
 
     return bw_values, all_midpoints
+
+
+def fetch_sequences(
+    regions: str | list[str], genome: os.PathLike, uppercase: bool = True
+) -> list[str]:
+    """
+    Fetch sequences from a genome file for a list of regions using pysam.
+
+    Regions should be formatted as "chr:start-end".
+
+    Parameters
+    ----------
+    regions
+        List of regions to fetch sequences for.
+    genome
+        Path to the genome file.
+    uppercase
+        If True, return sequences in uppercase.
+
+    Returns
+    -------
+    List of sequence strings for each region.
+
+    Examples
+    --------
+    >>> regions = ["chr1:1000000-1000100", "chr1:1000100-1000200"]
+    >>> region_seqs = crested.utils.fetch_sequences(regions, genome_path)
+    """
+    if isinstance(regions, str):
+        regions = [regions]
+    fasta = pysam.FastaFile(genome)
+    seqs = []
+    for region in regions:
+        chrom, start_end = region.split(":")
+        start, end = start_end.split("-")
+        seq = fasta.fetch(chrom, int(start), int(end))
+        if uppercase:
+            seq = seq.upper()
+        seqs.append(seq)
+    return seqs
