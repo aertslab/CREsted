@@ -34,10 +34,12 @@ def tn5_bias_prediction(
 
     Examples
     --------
-    >>> tn5_bias_model = crested.get_model("tn5_bias")
+    >>> tn5_bias_model_path = crested.get_model("tn5_bias")
     >>> regions = ["chr1:1000000-1000200", "chr1:1000200-1000400"]
     >>> region_seqs = crested.utils.fetch_sequences(regions, genome_path)
-    >>> predicted_biases = crested.tl.tn5_bias_prediction(region_seqs, model)
+    >>> predicted_biases = crested.tl.tn5_bias_prediction(
+    ...     region_seqs, tn5_bias_model_path
+    ... )
     >>> print(predicted_biases.shape)
     (2, 100)
     """
