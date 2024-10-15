@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import tempfile
 from concurrent.futures import ProcessPoolExecutor
 from os import PathLike
 from pathlib import Path
@@ -73,36 +74,65 @@ def _extract_values_from_bigwig(
     if isinstance(bw_file, Path):
         bw_file = str(bw_file)
 
+    # Get chromosomes available in bigWig file.
+    with pybigtools.open(bw_file, "r") as bw:
+        chromosomes_in_bigwig = set(bw.chroms())
+
+    # Create temporary BED file with only BED entries that are in the bigWig file.
+    temp_bed_file = tempfile.NamedTemporaryFile()
+    bed_entries_to_keep_idx = []
+
+    with open(bed_file) as fh:
+        for idx, line in enumerate(fh):
+            chrom = line.split("\t", 1)[0]
+            if chrom in chromosomes_in_bigwig:
+                temp_bed_file.file.write(line.encode("utf-8"))
+                bed_entries_to_keep_idx.append(idx)
+        # Make sure all content is written to temporary BED file.
+        temp_bed_file.file.flush()
+
+    total_bed_entries = idx + 1
+    bed_entries_to_keep_idx = np.array(bed_entries_to_keep_idx, np.intp)
+
     if target == "mean":
         with pybigtools.open(bw_file, "r") as bw:
             values = np.fromiter(
-                bw.average_over_bed(bed=bed_file, names=None, stats="mean0"),
+                bw.average_over_bed(bed=temp_bed_file.name, names=None, stats="mean0"),
                 dtype=np.float32,
             )
     elif target == "max":
         with pybigtools.open(bw_file, "r") as bw:
             values = np.fromiter(
-                bw.average_over_bed(bed=bed_file, names=None, stats="max"),
+                bw.average_over_bed(bed=temp_bed_file.name, names=None, stats="max"),
                 dtype=np.float32,
             )
     elif target == "count":
         with pybigtools.open(bw_file, "r") as bw:
             values = np.fromiter(
-                bw.average_over_bed(bed=bed_file, names=None, stats="sum"),
+                bw.average_over_bed(bed=temp_bed_file.name, names=None, stats="sum"),
                 dtype=np.float32,
             )
     elif target == "logcount":
         with pybigtools.open(bw_file, "r") as bw:
             values = np.log1p(
                 np.fromiter(
-                    bw.average_over_bed(bed=bed_file, names=None, stats="sum"),
+                    bw.average_over_bed(bed=temp_bed_file.name, names=None, stats="sum"),
                     dtype=np.float32,
                 )
             )
     else:
         raise ValueError(f"Unsupported target '{target}'")
 
-    return values
+    # Remove temporary BED file.
+    temp_bed_file.close()
+
+    if values.shape[0] != total_bed_entries:
+        # Set all values for BED entries for which the chromosome was not in in the bigWig file to NaN.
+        all_values = np.full(total_bed_entries, np.nan, dtype=np.float32)
+        all_values[bed_entries_to_keep_idx] = values
+        return all_values
+    else:
+        return values
 
 
 def _read_consensus_regions(
