@@ -5,8 +5,8 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 from anndata import AnnData
 
-from crested._logging import log_and_raise
 from crested.pl._utils import render_plot
+from crested.utils._logging import log_and_raise
 
 
 def normalization_weights(adata: AnnData, **kwargs) -> plt.Figure:

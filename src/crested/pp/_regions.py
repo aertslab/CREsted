@@ -9,7 +9,7 @@ import pandas as pd
 from anndata import AnnData
 from loguru import logger
 
-from crested._logging import log_and_raise
+from crested.utils._logging import log_and_raise
 
 
 def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
@@ -94,6 +94,5 @@ def change_regions_width(
                 regions_to_keep.remove(idx)
         if len(regions_to_keep) < len(adata.var_names):
             adata._inplace_subset_var(regions_to_keep)
-
 
     adata.var_names.name = "region"

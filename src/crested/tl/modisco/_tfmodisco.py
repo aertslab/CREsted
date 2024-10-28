@@ -3,15 +3,22 @@ from __future__ import annotations
 import os
 import re
 
+import anndata
 import h5py
 import modiscolite as modisco
 import numpy as np
 import pandas as pd
 from loguru import logger
-import anndata
 
-from crested._logging import log_and_raise
-from ._modisco_utils import match_score_patterns, read_html_to_dataframe, _get_ic, _trim_pattern_by_ic, _pattern_to_ppm, compute_ic
+from crested.utils._logging import log_and_raise
+
+from ._modisco_utils import (
+    _pattern_to_ppm,
+    _trim_pattern_by_ic,
+    compute_ic,
+    match_score_patterns,
+    read_html_to_dataframe,
+)
 
 
 def _calculate_window_offsets(center: int, window_size: int) -> tuple:
@@ -31,7 +38,7 @@ def tfmodisco(
     verbose: bool = True,
 ):
     """
-    Runs tf-modisco on one-hot encoded sequences and contribution scores stored in .npz files.
+    Run tf-modisco on one-hot encoded sequences and contribution scores stored in .npz files.
 
     Parameters
     ----------
@@ -175,7 +182,7 @@ def add_pattern_to_dict(
     all_patterns: dict,
 ) -> dict:
     """
-    Adds a pattern to the dictionary.
+    Add a pattern to the dictionary.
 
     Parameters
     ----------
@@ -194,17 +201,21 @@ def add_pattern_to_dict(
     -------
     Updated dictionary with the new pattern.
     """
-
     ppm = _pattern_to_ppm(p)
     ic, ic_pos, ic_mat = compute_ic(ppm)
 
-    p['ppm']=ppm
+    p["ppm"] = ppm
+    p["ic"] = np.mean(ic_pos)
     all_patterns[str(idx)] = {}
     all_patterns[str(idx)]["pattern"] = p
     all_patterns[str(idx)]["pos_pattern"] = pos_pattern
-    
-    all_patterns[str(idx)]['ppm']=ppm
-    all_patterns[str(idx)]["ic"] = np.mean(ic_pos)#np.mean(_get_ic(p["contrib_scores"], pos_pattern))
+
+    all_patterns[str(idx)]["ppm"] = ppm
+    all_patterns[str(idx)]["ic"] = np.mean(
+        ic_pos
+    )  # np.mean(_get_ic(p["contrib_scores"], pos_pattern))
+    all_patterns[str(idx)]["instances"] = {}
+    all_patterns[str(idx)]["instances"][p["id"]] = p
     all_patterns[str(idx)]["classes"] = {}
     all_patterns[str(idx)]["classes"][cell_type] = p
     return all_patterns
@@ -222,7 +233,7 @@ def match_to_patterns(
     verbose: bool = False,
 ) -> dict:
     """
-    Matches the pattern to existing patterns and updates the dictionary.
+    Match the pattern to existing patterns and updates the dictionary.
 
     Parameters
     ----------
@@ -260,7 +271,11 @@ def match_to_patterns(
 
     ppm = _pattern_to_ppm(p)
     ic, ic_pos, ic_mat = compute_ic(ppm)
-    p['ppm'] = ppm
+    p_ic = np.mean(ic_pos)
+    p["ic"] = p_ic
+    p["ppm"] = ppm
+
+    p["class"] = cell_type
 
     for pat_idx, pattern in enumerate(all_patterns.keys()):
         sim = match_score_patterns(p, all_patterns[pattern]["pattern"])
@@ -276,10 +291,20 @@ def match_to_patterns(
 
     if verbose:
         print(
-            f'Match between {pattern_id} and {all_patterns[str(match_idx)]["pattern"]["id"]}'
+            f'Match between {pattern_id} and {all_patterns[str(match_idx)]["pattern"]["id"]} with similarity score {max_sim:.2f}'
         )
-    all_patterns[str(match_idx)]["classes"][cell_type] = p
-    p_ic = np.mean(ic_pos)#np.mean(_get_ic(p["contrib_scores"], pos_pattern))
+
+    all_patterns[str(match_idx)]["instances"][pattern_id] = p
+
+    if cell_type in all_patterns[str(match_idx)]["classes"].keys():
+        ic_class_representative = all_patterns[str(match_idx)]["classes"][cell_type][
+            "ic"
+        ]
+        if p_ic > ic_class_representative:
+            all_patterns[str(match_idx)]["classes"][cell_type] = p
+    else:
+        all_patterns[str(match_idx)]["classes"][cell_type] = p
+
     if p_ic > all_patterns[str(match_idx)]["ic"]:
         all_patterns[str(match_idx)]["ic"] = p_ic
         all_patterns[str(match_idx)]["pattern"] = p
@@ -317,13 +342,13 @@ def post_hoc_merging(
     pattern_list = list(all_patterns.items())
 
     def should_merge(p1, p2):
-        """ Helper to check if two patterns should merge based on the similarity threshold. """
+        """Check if two patterns should merge based on the similarity threshold."""
         sim = max(
             match_score_patterns(p1["pattern"], p2["pattern"]),
-            match_score_patterns(p2["pattern"], p1["pattern"])
+            match_score_patterns(p2["pattern"], p1["pattern"]),
         )
         return sim > sim_threshold, sim
-    
+
     iterations = 0  # Track number of iterations for debugging
     while True:
         merged_patterns = {}
@@ -393,22 +418,24 @@ def post_hoc_merging(
         print(f"Total iterations: {iterations}")
 
     # Debugging step to check for any remaining patterns exceeding the similarity threshold
-    for i, (idx1, pattern1) in enumerate(final_patterns.items()):
-        for j, (idx2, pattern2) in enumerate(final_patterns.items()):
+    for i, (idx1, _) in enumerate(final_patterns.items()):
+        for j, (idx2, _) in enumerate(final_patterns.items()):
             if i >= j:
                 continue
 
             sim = pattern_similarity(final_patterns, idx1, idx2)
 
             if sim > sim_threshold:
-                print(f"Warning: Patterns {idx1} and {idx2} exceed similarity threshold with similarity {sim}")
+                print(
+                    f"Warning: Patterns {idx1} and {idx2} exceed similarity threshold with similarity {sim}"
+                )
 
     return final_patterns
 
 
 def merge_patterns(pattern1: dict, pattern2: dict) -> dict:
     """
-    Merges two patterns into one. The resulting pattern will have the highest IC pattern as the representative pattern.
+    Merge two patterns into one. The resulting pattern will have the highest IC pattern as the representative pattern.
 
     Parameters
     ----------
@@ -421,7 +448,25 @@ def merge_patterns(pattern1: dict, pattern2: dict) -> dict:
     -------
     Merged pattern with updated metadata.
     """
+    merged_classes = {}
+    for cell_type in pattern1["classes"].keys():
+        if cell_type in pattern2["classes"].keys():
+            ic_a = pattern1["classes"][cell_type]["ic"]
+            ic_b = pattern2["classes"][cell_type]["ic"]
+            merged_classes[cell_type] = (
+                pattern1["classes"][cell_type]
+                if ic_a > ic_b
+                else pattern2["classes"][cell_type]
+            )
+        else:
+            merged_classes[cell_type] = pattern1["classes"][cell_type]
+
+    for cell_type in pattern2["classes"].keys():
+        if cell_type not in merged_classes.keys():
+            merged_classes[cell_type] = pattern2["classes"][cell_type]
+
     merged_classes = {**pattern1["classes"], **pattern2["classes"]}
+    merged_instances = {**pattern1["instances"], **pattern2["instances"]}
 
     if pattern2["ic"] > pattern1["ic"]:
         representative_pattern = pattern2["pattern"]
@@ -434,14 +479,13 @@ def merge_patterns(pattern1: dict, pattern2: dict) -> dict:
         "pattern": representative_pattern,
         "ic": highest_ic,
         "classes": merged_classes,
+        "instances": merged_instances,
     }
 
 
-def pattern_similarity(
-    all_patterns: dict, idx1: int, idx2: int
-) -> float:
+def pattern_similarity(all_patterns: dict, idx1: int, idx2: int) -> float:
     """
-    Computes the similarity between two patterns.
+    Compute the similarity between two patterns.
 
     Parameters
     ----------
@@ -464,7 +508,7 @@ def pattern_similarity(
             all_patterns[str(idx2)]["pattern"], all_patterns[str(idx1)]["pattern"]
         ),
     )
-    return sim[0]
+    return sim
 
 
 def normalize_rows(arr: np.ndarray) -> np.ndarray:
@@ -497,13 +541,13 @@ def normalize_rows(arr: np.ndarray) -> np.ndarray:
     return normalized_array
 
 
-def find_pattern(id_: str, pattern_dict: dict) -> int | None:
+def find_pattern(pattern_id: str, pattern_dict: dict) -> int | None:
     """
-    Finds the index of a pattern by its ID.
+    Find the index of a pattern by its ID.
 
     Parameters
     ----------
-    id_
+    pattern_id
         The ID of the pattern to find.
     pattern_dict
         A dictionary containing pattern data.
@@ -513,10 +557,10 @@ def find_pattern(id_: str, pattern_dict: dict) -> int | None:
     The index of the pattern if found, otherwise None.
     """
     for idx, p in enumerate(pattern_dict):
-        if id_ == pattern_dict[p]["pattern"]["id"]:
+        if pattern_id == pattern_dict[p]["pattern"]["id"]:
             return idx
         for c in pattern_dict[p]["classes"]:
-            if id_ == pattern_dict[p]["classes"][c]["id"]:
+            if pattern_id == pattern_dict[p]["classes"][c]["id"]:
                 return idx
     return None
 
@@ -525,7 +569,7 @@ def match_h5_files_to_classes(
     contribution_dir: str, classes: list[str]
 ) -> dict[str, str | None]:
     """
-    Matches .h5 files in a given directory with a list of class names and returns a dictionary mapping.
+    Match .h5 files in a given directory with a list of class names and returns a dictionary mapping.
 
     Parameters
     ----------
@@ -533,6 +577,10 @@ def match_h5_files_to_classes(
         Directory containing .h5 files.
     classes
         list of class names to match against file names.
+
+    See Also
+    --------
+    crested.tl.modisco.tfmodisco
 
     Returns
     -------
@@ -553,9 +601,9 @@ def match_h5_files_to_classes(
 
 def process_patterns(
     matched_files: dict[str, str | list[str] | None],
-    sim_threshold: float = 0.5,
+    sim_threshold: float = 3.0,
     trim_ic_threshold: float = 0.1,
-    discard_ic_threshold: float = 0.15,
+    discard_ic_threshold: float = 0.1,
     verbose: bool = False,
 ) -> dict[str, dict[str, str | list[float]]]:
     """
@@ -566,13 +614,17 @@ def process_patterns(
     matched_files
         dictionary with class names as keys and paths to HDF5 files as values.
     sim_threshold
-        Similarity threshold for matching patterns.
+        Similarity threshold for matching patterns (-log10(pval), pval obtained through TOMTOM matching from tangermeme)
     trim_ic_threshold
         Information content threshold for trimming patterns.
     discard_ic_threshold
         Information content threshold for discarding patterns.
     verbose
         Flag to enable verbose output.
+
+    See Also
+    --------
+    crested.tl.modisco.match_h5_files_to_classes
 
     Returns
     -------
@@ -584,7 +636,6 @@ def process_patterns(
         trimmed_patterns = []
         pattern_ids = []
         is_pattern_pos = []
-        pattern_idx = 0
 
         if matched_files[cell_type] is None:
             continue
@@ -599,18 +650,22 @@ def process_patterns(
             try:
                 with h5py.File(h5_file) as hdf5_results:
                     for metacluster_name in list(hdf5_results.keys()):
-                        for p in hdf5_results[metacluster_name]:
+                        pattern_idx = 0
+                        for i in range(len(list(hdf5_results[metacluster_name]))):
+                            p = "pattern_" + str(i)
                             pattern_ids.append(
                                 f"{cell_type.replace(' ', '_')}_{metacluster_name}_{pattern_idx}"
                             )
                             is_pos = metacluster_name == "pos_patterns"
-                            trimmed_patterns.append(
-                                _trim_pattern_by_ic(
-                                    hdf5_results[metacluster_name][p],
-                                    is_pos,
-                                    trim_ic_threshold
-                                )
+                            pattern = _trim_pattern_by_ic(
+                                hdf5_results[metacluster_name][p],
+                                is_pos,
+                                trim_ic_threshold,
                             )
+                            # store file path so it is possible to track back
+                            # where the pattern comes from.
+                            pattern["file_path"] = h5_file
+                            trimmed_patterns.append(pattern)
                             is_pattern_pos.append(is_pos)
                             pattern_idx = pattern_idx + 1
 
@@ -658,6 +713,11 @@ def create_pattern_matrix(
     normalize
         Flag to indicate whether to normalize the rows of the matrix.
 
+    See Also
+    --------
+    crested.tl.modisco.process_patterns
+    crested.pl.patterns.clustermap
+
     Returns
     -------
     The resulting pattern matrix, optionally normalized.
@@ -683,7 +743,7 @@ def create_pattern_matrix(
 
 def calculate_similarity_matrix(all_patterns: dict) -> np.ndarray:
     """
-    Calculates the similarity matrix for the given patterns.
+    Calculate the similarity matrix for the given patterns.
 
     Parameters
     ----------
@@ -693,6 +753,10 @@ def calculate_similarity_matrix(all_patterns: dict) -> np.ndarray:
     Returns
     -------
     A 2D numpy array containing the similarity values.
+
+    See Also
+    --------
+    crested.pl.patterns.similarity_heatmap
     """
     indices = list(all_patterns.keys())
     num_patterns = len(indices)
@@ -714,6 +778,10 @@ def generate_nucleotide_sequences(all_patterns: dict) -> list[tuple[str, np.ndar
     ----------
     all_patterns
         dictionary containing pattern data.
+
+    See Also
+    --------
+    crested.tl.modisco.process_patterns
 
     Returns
     -------
@@ -806,7 +874,7 @@ def generate_html_paths(
 
     for i, _ in enumerate(all_patterns):
         pattern_id = all_patterns[str(i)]["pattern"]["id"]
-        pattern_class_parts = pattern_id.split("_")[:-4]
+        pattern_class_parts = pattern_id.split("_")[:-3]
         pattern_class = (
             "_".join(pattern_class_parts)
             if len(pattern_class_parts) > 1
@@ -823,7 +891,7 @@ def find_pattern_matches(
     all_patterns: dict, html_paths: list[str], q_val_thr: float = 0.05
 ) -> dict[int, dict[str, list[str]]]:
     """
-    Finds and filters pattern matches from the modisco-lite list of patterns to the motif database from the corresponding HTML paths.
+    Find and filter pattern matches from the modisco-lite list of patterns to the motif database from the corresponding HTML paths.
 
     Parameters
     ----------
@@ -845,11 +913,11 @@ def find_pattern_matches(
         pattern_id = all_patterns[p_idx]["pattern"]["id"]
         pattern_id_parts = pattern_id.split("_")
         pattern_id = (
-            pattern_id_parts[-4]
+            pattern_id_parts[-3]
             + "_"
-            + pattern_id_parts[-3]
-            + "."
             + pattern_id_parts[-2]
+            + "."
+            + "pattern"
             + "_"
             + pattern_id_parts[-1]
         )
@@ -887,7 +955,7 @@ def find_pattern_matches(
 
 def read_motif_to_tf_file(file_path: str) -> pd.DataFrame:
     """
-    Reads a TSV file mapping motifs to transcription factors (TFs) into a DataFrame.
+    Read a TSV file mapping motifs to transcription factors (TFs) into a DataFrame.
 
     Parameters
     ----------
@@ -908,7 +976,7 @@ def create_pattern_tf_dict(
     cols: list[str],
 ) -> tuple[dict, np.ndarray]:
     """
-    Creates a dictionary mapping patterns to their associated transcription factors (TFs) and other metadata.
+    Create a dictionary mapping patterns to their associated transcription factors (TFs) and other metadata.
 
     Parameters
     ----------
@@ -969,19 +1037,19 @@ def create_tf_ct_matrix(
     classes: list[str],
     log_transform: bool = True,
     normalize: bool = True,
-    min_tf_gex: float = 0
+    min_tf_gex: float = 0,
 ) -> tuple[np.ndarray, list[str]]:
     """
-    Creates a tensor (matrix) of transcription factor (TF) expression and cell type contributions.
+    Create a tensor (matrix) of transcription factor (TF) expression and cell type contributions.
 
     Parameters
     ----------
     pattern_tf_dict
-        A dictionary with pattern indices and their TFs.
+        A dictionary with pattern indices and their TFs. See `crested.tl.modisco.create_pattern_tf_dict`.
     all_patterns
-        A list of patterns with metadata.
+        A list of patterns with metadata. See `crested.tl.modisco.process_patterns`.
     df
-        A DataFrame containing gene expression data.
+        A DataFrame containing gene expression data. See `crested.tl.modisco.calculate_mean_expression_per_cell_type`
     classes
         A list of cell type classes.
     log_transform
@@ -991,12 +1059,16 @@ def create_tf_ct_matrix(
     min_tf_gex
         The minimal GEX value to select potential TF candidates. Default 0.
 
+    See Also
+    --------
+    crested.tl.modisco.create_pattern_tf_dict, crested.tl.modisco.process_patterns, crested.tl.modisco.calculate_mean_expression_per_cell_type
+
     Returns
     -------
     A tuple containing the TF-cell type matrix and the list of TF pattern annotations.
     """
     total_tf_patterns = sum(len(pattern_tf_dict[p]["tfs"]) for p in pattern_tf_dict)
-    tf_ct_matrix = np.zeros((len(classes), total_tf_patterns,2))
+    tf_ct_matrix = np.zeros((len(classes), total_tf_patterns, 2))
     tf_pattern_annots = []
 
     counter = 0
@@ -1004,9 +1076,7 @@ def create_tf_ct_matrix(
         ct_contribs = np.zeros(len(classes))
         for ct in all_patterns[p_idx]["classes"]:
             idx = np.argwhere(np.array(classes) == ct)[0][0]
-            contribs = np.mean(
-                all_patterns[p_idx]["classes"][ct]["contrib_scores"]
-            )
+            contribs = np.mean(all_patterns[p_idx]["classes"][ct]["contrib_scores"])
             ct_contribs[idx] = contribs
 
         for tf in pattern_tf_dict[p_idx]["tfs"]:
@@ -1029,27 +1099,31 @@ def create_tf_ct_matrix(
     # Logic to remove columns where tf_gex is zero for all non-zero ct_contribs
     initial_columns = tf_ct_matrix.shape[1]
     columns_to_keep = []
-    
+
     for col in range(initial_columns):
         tf_gex_col = tf_ct_matrix[:, col, 0]
         ct_contribs_col = tf_ct_matrix[:, col, 1]
-        
+
         # Identify non-zero ct_contribs
         non_zero_contribs = ct_contribs_col != 0
-        
+
         # Check if all non-zero ct_contribs have zero tf_gex values
-        if np.any(non_zero_contribs) and np.any(tf_gex_col[non_zero_contribs] > min_tf_gex):
+        if np.any(non_zero_contribs) and np.any(
+            tf_gex_col[non_zero_contribs] > min_tf_gex
+        ):
             columns_to_keep.append(col)
 
     # Convert columns_to_keep to a boolean mask
     columns_to_keep = np.array(columns_to_keep)
-    
+
     # Filter the matrix and annotations based on the columns_to_keep
     final_columns = len(columns_to_keep)
     removed_columns = initial_columns - final_columns
 
     tf_ct_matrix = tf_ct_matrix[:, columns_to_keep, :]
-    tf_pattern_annots = [annot for i, annot in enumerate(tf_pattern_annots) if i in columns_to_keep]
+    tf_pattern_annots = [
+        annot for i, annot in enumerate(tf_pattern_annots) if i in columns_to_keep
+    ]
 
     # Print stats about the number of columns removed
     print(f"Total columns before filtering: {initial_columns}")
@@ -1058,20 +1132,23 @@ def create_tf_ct_matrix(
 
     return tf_ct_matrix, tf_pattern_annots
 
+
 def calculate_mean_expression_per_cell_type(
-    file_path: str,
-    cell_type_column: str
-    ) -> pd.DataFrame:
+    file_path: str, cell_type_column: str
+) -> pd.DataFrame:
     """
-    Reads an AnnData object from an H5AD file and calculates the mean gene expression 
-    per cell type subclass.
+    Read an AnnData object from an H5AD file and calculates the mean gene expression per cell type subclass.
 
-    Parameters:
-    - file_path (str): The path to the H5AD file containing the single-cell RNA-seq data.
-    - cell_type_column (str): The column name in the cell metadata that defines the cell type subclass.
+    Parameters
+    ----------
+    file_path
+        The path to the H5AD file containing the single-cell RNA-seq data.
+    cell_type_column
+        The column name in the cell metadata that defines the cell type subclass.
 
-    Returns:
-    - pd.DataFrame: A DataFrame containing the mean gene expression per cell type subclass.
+    Returns
+    -------
+    A DataFrame containing the mean gene expression per cell type subclass.
     """
     # Read the AnnData object from the specified H5AD file
     adata: anndata.AnnData = anndata.read_h5ad(file_path)
@@ -1087,7 +1164,8 @@ def calculate_mean_expression_per_cell_type(
         raise ValueError(f"Column '{cell_type_column}' not found in cell metadata")
 
     # Calculate the mean gene expression per cell type subclass
-    mean_expression_per_cell_type: pd.DataFrame = gene_expression_df.groupby(cell_metadata[cell_type_column]).mean()
+    mean_expression_per_cell_type: pd.DataFrame = gene_expression_df.groupby(
+        cell_metadata[cell_type_column]
+    ).mean()
 
     return mean_expression_per_cell_type
-

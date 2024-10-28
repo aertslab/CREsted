@@ -1,4 +1,4 @@
-"""Utility functions for the PP module"""
+"""Utility functions for the PP module."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import numpy as np
 
 def _calc_gini(targets: np.ndarray) -> np.ndarray:
     """
-    Returns Gini scores for the given targets.
+    Return Gini scores for the given targets.
 
     This function calculates the Gini coefficient for each row in the targets array
     and assigns the score to the maximum value's position in the corresponding row
@@ -15,12 +15,12 @@ def _calc_gini(targets: np.ndarray) -> np.ndarray:
 
     Parameters
     ----------
-    targets : np.ndarray
+    targets
         A 2D numpy array where each row represents a set of target values.
 
     Returns
     -------
-    np.ndarray
+    gini scores
         A 2D numpy array with the same shape as `targets` containing Gini scores,
         where each score is assigned to the position of the maximum value in each row.
     """
@@ -45,6 +45,7 @@ def _calc_gini(targets: np.ndarray) -> np.ndarray:
 
     return gini_scores
 
+
 def _calc_proportion(arr: np.ndarray, scale=False):
     """
     Compute relative specificity scores for a given 1D or 2D array.
@@ -55,9 +56,9 @@ def _calc_proportion(arr: np.ndarray, scale=False):
 
     Parameters
     ----------
-    arr : np.ndarray
+    arr
         Input array (1D or 2D).
-    scale : bool, optional
+    scale
         Whether to scale the specificity scores by multiplying with orginal array.
 
     Returns
@@ -78,8 +79,10 @@ def _calc_proportion(arr: np.ndarray, scale=False):
     elif arr.ndim == 2:
         total_per_row = np.sum(arr, axis=1, keepdims=True)
         total_per_row[total_per_row == 0] = 1e-9
-        specificity_scores = (arr / total_per_row) * arr if scale else arr / total_per_row
+        specificity_scores = (
+            (arr / total_per_row) * arr if scale else arr / total_per_row
+        )
     else:
         raise ValueError("Input array must be 1D or 2D.")
-    
+
     return specificity_scores

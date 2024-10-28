@@ -10,7 +10,7 @@ def simple_convnet(
     num_classes: int,
     num_conv_blocks: int = 3,
     num_dense_blocks: int = 2,
-    residual: int = 0,
+    residual: bool = False,
     first_activation: str = "exponential",
     activation: str = "swish",
     output_activation: str = "softplus",

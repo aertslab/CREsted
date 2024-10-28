@@ -46,7 +46,7 @@ pip install torch
 pip install crested
 ```
 
-3. If you plan on doing motif analysis using the tf-modisco (lite) and tangermeme functionality inside CREsted, you will need to run the following additional install:
+3. If you plan on doing motif analysis using the tf-modisco (lite) and tangermeme's tomtom functionality inside CREsted, you will need to run the following additional install:
 
 ```bash
 pip install crested[tfmodisco]
@@ -68,7 +68,7 @@ For questions and help requests, please use the [issue tracker][issue-tracker].
 
 ## Citation
 
-Kempynck, N., Mahieu, L., Ekşi, E. C., Konstantakos, V., Blaauw, C., De Winter, S., Hulselmans, G., Taskiran, I., & Aerts, S. (2024). CREsted: Cis Regulatory Element Sequence Training, Explanation, and Design (1.0.0). Zenodo. https://doi.org/10.5281/zenodo.13320756
+Kempynck, N., Mahieu, L., Ekşi, E. C., Konstantakos, V., Blaauw, C., De Winter, S., Hulselmans, G., Taskiran, I., & Aerts, S. (2024). CREsted: Cis Regulatory Element Sequence Training, Explanation, and Design (1.1.0). Zenodo. https://10.5281/zenodo.13918932
 
 ## Choosing your backend
 

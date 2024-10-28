@@ -12,6 +12,9 @@ def render_plot(
     title: str | None = None,
     xlabel: str | None = None,
     ylabel: str | None = None,
+    supxlabel: str | None = None,
+    supylabel: str | None = None,
+    tight_rect: tuple | None = None,
     title_fontsize: int = 16,
     x_label_fontsize: int = 14,
     y_label_fontsize: int = 14,
@@ -43,6 +46,12 @@ def render_plot(
         Label for the X-axis.
     ylabel
         Label for the Y-axis.
+    supxlabel
+        Suplabel for the X-axis.
+    supylabel
+        Suplabel for the Y-axis.
+    tight_rect
+        Normalized coordinates in which subplots will fit.
     title_fontsize
         Font size for the title.
     x_label_fontsize
@@ -65,6 +74,10 @@ def render_plot(
     fig.set_size_inches(width, height)
     if title:
         fig.suptitle(title, fontsize=title_fontsize)
+    if supxlabel:
+        fig.supxlabel(supxlabel)
+    if supylabel:
+        fig.supylabel(supylabel)
     for ax in fig.axes:
         if xlabel:
             ax.set_xlabel(xlabel, fontsize=x_label_fontsize)
@@ -76,8 +89,10 @@ def render_plot(
         for label in ax.get_yticklabels():
             label.set_fontsize(y_tick_fontsize)
             label.set_rotation(y_label_rotation)
-
-    plt.tight_layout()
+    if tight_rect:
+        plt.tight_layout(rect=tight_rect)
+    else:
+        plt.tight_layout()
     if save_path:
         plt.savefig(save_path)
 

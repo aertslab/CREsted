@@ -109,7 +109,7 @@ class AnnDataModule:
 
     def setup(self, stage: str) -> None:
         """
-        Setup the Anndatasets for a given stage.
+        Set up the Anndatasets for a given stage.
 
         Generates the train, val, test or predict dataset based on the provided stage.
         Should always be called before accessing the dataloaders.
@@ -213,6 +213,7 @@ class AnnDataModule:
         )
 
     def __repr__(self):
+        """Return a string representation of the AnndataModule."""
         return (
             f"AnndataModule(adata={self.adata}, genome_file={self.genome_file}, "
             f"chromsizes_file={self.chromsizes_file}, in_memory={self.in_memory}, "

@@ -3,14 +3,14 @@ from __future__ import annotations
 import modiscolite as modisco
 import numpy as np
 import pandas as pd
-from tangermeme.tools import tomtom as tangermeme_tomtom
-import torch
+from loguru import logger
+
 
 def _trim_pattern_by_ic_old(
     pattern: dict,
     pos_pattern: bool,
     min_v: float,
-    background: list[float] = None,
+    background: list[float] | None = None,
     pseudocount: float = 1e-6,
 ) -> dict:
     """
@@ -54,6 +54,7 @@ def _trim_pattern_by_ic_old(
         logger.error("No valid pattern found. Aborting...")
 
     return _trim(pattern, start_idx, end_idx)
+
 
 def _trim_pattern_by_ic(
     pattern: dict,
@@ -117,28 +118,33 @@ def _trim(pattern: dict, start_idx: int, end_idx: int) -> dict:
     -------
         Trimmed pattern.
     """
+    # TODO: Reading the pattern from disk should really be done in a seperate function!
 
-    seqlets_sequences = pattern['seqlets']['sequence']
-    trimmed_sequences = [seq[start_idx:end_idx] for seq in seqlets_sequences]
     seqlet_dict = {}
-    seqlet_dict['sequence'] = trimmed_sequences
+    # read seqlet information
+    for k in pattern["seqlets"].keys():
+        seqlet_dict[k] = pattern["seqlets"][k][:]
+    # do actual trimming
+    seqlets_sequences = pattern["seqlets"]["sequence"]
+    trimmed_sequences = [seq[start_idx:end_idx] for seq in seqlets_sequences]
+    seqlet_dict["sequence"] = trimmed_sequences
     return {
         "sequence": np.array(pattern["sequence"])[start_idx:end_idx],
         "contrib_scores": np.array(pattern["contrib_scores"])[start_idx:end_idx],
         "hypothetical_contribs": np.array(pattern["hypothetical_contribs"])[
             start_idx:end_idx
         ],
-        "seqlets" : seqlet_dict
+        "seqlets": seqlet_dict,
     }
 
 
 def _get_ic(
     contrib_scores: np.ndarray,
     pos_pattern: bool,
-    background: list[float] = None,
+    background: list[float] | None = None,
 ) -> np.ndarray:
     """
-    Computes the information content (IC) for the given contribution scores.
+    Compute the information content (IC) for the given contribution scores.
 
     Parameters
     ----------
@@ -151,7 +157,7 @@ def _get_ic(
 
     Returns
     -------
-        Information content for the contribution scores.
+    Information content for the contribution scores.
     """
     if background is None:
         background = [0.27, 0.23, 0.23, 0.27]
@@ -166,35 +172,42 @@ def _get_ic(
     )
     return ppm * (np.sum(ic, axis=1)[:, None])
 
+
 def _one_hot_to_count_matrix(sequences):
     """
     Convert a set of one-hot encoded sequences to a count matrix.
 
-    Args:
-        sequences (numpy.ndarray): A numpy array of shape (n_sequences, sequence_length, 4),
-                                   representing the one-hot encoded sequences.
+    Parameters
+    ----------
+    sequences
+        A numpy array of shape (n_sequences, sequence_length, 4), representing the one-hot encoded sequences.
 
-    Returns:
-        count_matrix (numpy.ndarray): A count matrix of shape (sequence_length, 4)
-                                      where each entry represents the count of
-                                      A, C, G, or T at each position.
+    Returns
+    -------
+    count_matrix
+        A count matrix of shape (sequence_length, 4) where each entry represents the count of A, C, G, or T at each position.
     """
     # Sum the one-hot encoded sequences along the first axis (the sequence axis)
     count_matrix = np.sum(sequences, axis=0)
 
     return count_matrix
 
+
 def _count_matrix_to_ppm(count_matrix, pseudocount=1.0):
     """
-    Convert a count matrix to a position weight matrix (PWM) by adding pseudocounts
-    and normalizing by the total counts per position.
+    Convert a count matrix to a position weight matrix (PWM) by adding pseudocounts and normalizing by the total counts per position.
 
-    Args:
-        count_matrix (numpy.ndarray): A count matrix of shape (sequence_length, 4).
-        pseudocount (float): A pseudocount added to each nucleotide count to avoid zeros.
+    Parameters
+    ----------
+    count_matrix
+        A count matrix of shape (sequence_length, 4).
+    pseudocount
+        A pseudocount added to each nucleotide count to avoid zeros.
 
-    Returns:
-        pwm (numpy.ndarray): The position weight matrix of shape (sequence_length, 4).
+    Returns
+    -------
+    pwm
+        The position weight matrix of shape (sequence_length, 4).
     """
     # Add pseudocount to avoid zero probabilities
     count_matrix += pseudocount
@@ -207,17 +220,22 @@ def _count_matrix_to_ppm(count_matrix, pseudocount=1.0):
 
     return ppm
 
+
 def _ppm_to_pwm(ppm, background_frequencies=None):
     """
     Convert a Position Probability Matrix (PPM) to a Position Weight Matrix (PWM) using log-odds.
 
-    Args:
-        ppm (numpy.ndarray): A PPM of shape (sequence_length, 4) where each value is a probability.
-        background_frequencies (list or numpy.ndarray): Background frequencies for A, C, G, T.
-                                                        Default is [0.27, 0.23, 0.23, 0.27].
+    Parameters
+    ----------
+    ppm
+        A PPM of shape (sequence_length, 4) where each value is a probability.
+    background_frequencies
+        Background frequencies for A, C, G, T. Default is [0.27, 0.23, 0.23, 0.27].
 
-    Returns:
-        pwm (numpy.ndarray): The Position Weight Matrix of shape (sequence_length, 4).
+    Returns
+    -------
+    pwm
+        The Position Weight Matrix of shape (sequence_length, 4).
     """
     if background_frequencies is None:
         # Uniform background frequencies for A, C, G, T
@@ -233,28 +251,37 @@ def _ppm_to_pwm(ppm, background_frequencies=None):
 
     return pwm
 
+
 def _pattern_to_ppm(pattern):
-    seqs = np.array(pattern['seqlets']['sequence'])
+    seqs = np.array(pattern["seqlets"]["sequence"])
     count_matrix = _one_hot_to_count_matrix(seqs)
     ppm = _count_matrix_to_ppm(count_matrix)
     return ppm
 
 
-def compute_ic(ppm, background_freqs=[0.28,0.22,0.22,0.28]):
+def compute_ic(ppm, background_freqs: list | None = None):
     """
     Compute the information content (IC) of a Position Probability Matrix (PPM).
 
-    Args:
-    ppm: 2D numpy array where rows correspond to positions in the motif, and
-         columns correspond to symbols (A, T, C, G for example).
-    background_freqs: 1D numpy array with the background frequencies of each symbol.
+    Parameters
+    ----------
+    ppm
+        2D numpy array where rows correspond to positions in the motif, and columns correspond to symbols (A, T, C, G for example).
+    background_freqs
+        1D numpy array with the background frequencies of each symbol.
 
-    Returns:
-    total_ic: Total information content of the PPM.
-    ic_per_position: Information content per position in the motif.
-    ic_per_element: 2D array of information content per element in the PPM.
+    Returns
+    -------
+    total_ic
+        Total information content of the PPM.
+    ic_per_position
+        Information content per position in the motif.
+    ic_per_element
+        2D array of information content per element in the PPM.
     """
     # Ensure ppm is a numpy array
+    if background_freqs is None:
+        background_freqs = [0.28, 0.22, 0.22, 0.28]
     ppm = np.array(ppm)
     background_freqs = np.array(background_freqs)
 
@@ -265,7 +292,9 @@ def compute_ic(ppm, background_freqs=[0.28,0.22,0.22,0.28]):
     for i in range(ppm.shape[0]):  # for each position in the motif
         for j in range(ppm.shape[1]):  # for each symbol (A, T, C, G)
             if ppm[i, j] > 0:  # Avoid log(0)
-                ic_per_element[i, j] = ppm[i, j] * np.log2(ppm[i, j] / background_freqs[j])
+                ic_per_element[i, j] = ppm[i, j] * np.log2(
+                    ppm[i, j] / background_freqs[j]
+                )
 
     # IC per position is the sum of IC values across symbols at each position
     ic_per_position = np.sum(ic_per_element, axis=1)
@@ -275,9 +304,10 @@ def compute_ic(ppm, background_freqs=[0.28,0.22,0.22,0.28]):
 
     return total_ic, ic_per_position, ic_per_element
 
+
 def l1(X: np.ndarray) -> np.ndarray:
     """
-    Normalizes the input array using the L1 norm.
+    Normalize the input array using the L1 norm.
 
     Parameters
     ----------
@@ -296,13 +326,16 @@ def get_2d_data_from_patterns(
     pattern: dict, transformer: str = "l1", include_hypothetical: bool = True
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Gets 2D data from patterns using specified transformer.
+    Get 2D data from patterns using specified transformer.
 
     Parameters
     ----------
-    - pattern (dict): Dictionary containing pattern data.
-    - transformer (str): Transformer function to use ('l1' or 'magnitude').
-    - include_hypothetical (bool): Whether to include hypothetical contributions.
+    pattern
+        Dictionary containing pattern data.
+    transformer
+        Transformer function to use ('l1' or 'magnitude').
+    include_hypothetical
+        Whether to include hypothetical contributions.
 
     Returns
     -------
@@ -331,7 +364,7 @@ def get_2d_data_from_patterns(
 
 def pad_pattern(pattern: dict, pad_len: int = 2) -> dict:
     """
-    Pads the pattern with zeros.
+    Pad the pattern with zeros.
 
     Parameters
     ----------
@@ -353,9 +386,10 @@ def pad_pattern(pattern: dict, pad_len: int = 2) -> dict:
     )
     return p0
 
+
 def match_score_patterns(a: dict, b: dict) -> float:
     """
-    Computes the match score between two patterns.
+    Compute the match score between two patterns.
 
     Parameters
     ----------
@@ -368,25 +402,29 @@ def match_score_patterns(a: dict, b: dict) -> float:
     -------
     Match score between the patterns.
     """
-    #a_pos = a['pos_pattern']
-    #b_pos = b['pos_pattern']
+    _, _, ic_a = compute_ic(a["ppm"])
+    _, _, ic_b = compute_ic(b["ppm"])
+    try:
+        from tangermeme.tools import tomtom as tangermeme_tomtom
+    except ImportError as e:
+        raise ImportError("Please install tangermeme to use this function.") from e
+    try:
+        score = tangermeme_tomtom.tomtom(Qs=[ic_a.T], Ts=[ic_b.T])[0, 0][0]
+    except Exception as e:  # noqa: BLE001
+        print(
+            f"Warning: TOMTOM error while comparing patterns {a['id']} and {b['id']}. Returning no match."
+        )
+        print(f"Error details: {e}")
+        score = 1
 
-    #score = tangermeme_tomtom.tomtom(Qs = [_get_ic(a["contrib_scores"], a_pos).T], Ts = [_get_ic(b["contrib_scores"], b_pos).T])
-    _,_,ic_a = compute_ic(a['ppm'])
-    _,_,ic_b = compute_ic(b['ppm'])
-    #print(a['id'])
-    #vizsequence.plot_weights(ic_a)
-    #print(b['id'])
-    #vizsequence.plot_weights(ic_b)
-    score = tangermeme_tomtom.tomtom(Qs = [ic_a.T], Ts = [ic_b.T])
-
-    log_score = -np.log10(max(score[0,0], 0))
+    log_score = -np.log10(max(score, 1e-12))
 
     return log_score
 
+
 def _match_score_patterns_old(a: dict, b: dict) -> float:
     """
-    Computes the match score between two patterns.
+    Compute the match score between two patterns.
 
     Parameters
     ----------
@@ -414,15 +452,16 @@ def _match_score_patterns_old(a: dict, b: dict) -> float:
 
 def read_html_to_dataframe(source: str):
     """
-    Reads an HTML table from the Modisco report function into a DataFrame.
+    Read an HTML table from the Modisco report function into a DataFrame.
 
     Parameters
     ----------
-    - source: str - The URL or file path to the HTML content.
+    source
+        The URL or file path to the HTML content.
 
     Returns
     -------
-    - DataFrame containing the HTML table or an error message if no table is found.
+    DataFrame containing the HTML table or an error message if no table is found.
     """
     try:
         # Attempt to read the HTML content

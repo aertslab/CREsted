@@ -553,7 +553,7 @@ def dilated_residual(
     inputs: keras.KerasTensor,
     filters: int,
     kernel_size: int = 3,
-    rate_mult: int = 2,
+    rate_mult: float = 2.0,
     dropout: float = 0,
     conv_type: str = "standard",
     repeat: int = 1,

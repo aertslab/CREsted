@@ -1,3 +1,5 @@
+"""Import all submodules, set the backend, and setup logging."""
+
 import os
 import warnings
 
@@ -20,18 +22,17 @@ except ImportError:
 import sys
 from importlib.metadata import version
 
-from . import pl, pp, tl
+from . import pl, pp, tl, utils
 from ._datasets import get_dataset, get_motif_db
 from ._io import import_beds, import_bigwigs
-from ._logging import setup_logging
 
 __all__ = [
     "pl",
     "pp",
     "tl",
+    "utils",
     "import_beds",
     "import_bigwigs",
-    "setup_logging",
     "get_dataset",
     "get_motif_db",
 ]
@@ -41,4 +42,4 @@ __version__ = version("crested")
 os.environ["AUTOGRAPH_VERBOSITY"] = "0"
 
 # Setup loguru logging
-setup_logging(log_level="INFO", log_file=None)
+utils.setup_logging(log_level="INFO", log_file=None)

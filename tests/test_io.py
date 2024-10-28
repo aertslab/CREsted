@@ -75,3 +75,45 @@ def test_import_beds_chromsizes():
     expected_removed_regions = ["chr19:60789836-60790336"]
     for region in expected_removed_regions:
         assert region not in list(ann_data.var.index)
+
+
+def test_import_bigwigs_type():
+    ann_data = crested.import_bigwigs(
+        bigwigs_folder="tests/data/test_bigwigs",
+        regions_file="tests/data/test_bigwigs/consensus_peaks_subset.bed",
+    )
+    # Test type
+    assert isinstance(ann_data, AnnData)
+
+
+def test_import_bigwigs_invalid_files():
+    with pytest.raises(FileNotFoundError):
+        crested.import_bigwigs(
+            bigwigs_folder="invalid_folder", regions_file="invalid_file"
+        )
+
+
+def test_import_bigwigs_shape():
+    ann_data = crested.import_bigwigs(
+        bigwigs_folder="tests/data/test_bigwigs",
+        regions_file="tests/data/test_bigwigs/consensus_peaks_subset.bed",
+    )
+    # Test shape
+    expected_number_of_bigwigs = 2
+    expected_number_of_peaks = 5000
+
+    assert ann_data.shape == (expected_number_of_bigwigs, expected_number_of_peaks)
+
+
+def test_import_bigwigs_columns():
+    ann_data = crested.import_bigwigs(
+        bigwigs_folder="tests/data/test_bigwigs",
+        regions_file="tests/data/test_bigwigs/consensus_peaks_subset.bed",
+    )
+    # Test columns in .obs
+    assert "file_path" in ann_data.obs.columns
+
+    # Test columns in .var (chromosome regions)
+    assert "chr" in ann_data.var.columns
+    assert "start" in ann_data.var.columns
+    assert "end" in ann_data.var.columns

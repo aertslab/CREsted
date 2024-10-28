@@ -4,7 +4,7 @@ requires = ["hatchling"]
 
 [project]
 name = "crested"
-version = "1.0.0"
+version = "1.1.0"
 description = "CREsted: Cis-Regulatory Element Sequence Training, Explanation, and Design"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -38,7 +38,7 @@ dependencies = [
 
 [project.optional-dependencies]
 tfmodisco = [
-    "modisco-lite",
+    "modisco-lite>=2.2.1",
     "tangermeme"
 ]
 
@@ -46,6 +46,7 @@ dev = [
     "pre-commit",
     "twine>=4.0.2",
     "pytest",
+    "pydocstyle",
 ]
 doc = [
     "docutils>=0.8,!=0.18.*,!=0.19.*",
@@ -61,12 +62,13 @@ doc = [
     "sphinx-copybutton",
     "pandas",
     "tensorflow",
+    "ruff",
+    "modisco-lite",
 ]
 test = [
     "pytest",
     "coverage",
     "anndata",
-    "tensorflow",
     "genomepy",
 ]
 

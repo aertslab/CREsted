@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 from typing import Any, Callable
 
 import numpy as np
+import pandas as pd
 import pyBigWig
 
 
@@ -19,7 +21,9 @@ def get_hot_encoding_table(
         return np.frombuffer(string.encode("ascii"), dtype=np.uint8)
 
     # 256 x 4
-    hot_encoding_table = np.zeros((np.iinfo(np.uint8).max + 1, len(alphabet)), dtype=dtype)
+    hot_encoding_table = np.zeros(
+        (np.iinfo(np.uint8).max + 1, len(alphabet)), dtype=dtype
+    )
 
     # For each ASCII value of the nucleotides used in the alphabet
     # (upper and lower case), set 1 in the correct column.
@@ -42,7 +46,23 @@ HOT_ENCODING_TABLE = get_hot_encoding_table()
 
 
 def one_hot_encode_sequence(sequence: str, expand_dim: bool = True) -> np.ndarray:
-    """One hot encode a DNA sequence."""
+    """
+    One hot encode a DNA sequence.
+
+    Will return a numpy array with shape (len(sequence), 4) if expand_dim is True, otherwise (4,).
+    Alphabet is ACGT.
+
+    Parameters
+    ----------
+    sequence
+        The DNA sequence to one hot encode.
+    expand_dim
+        Whether to expand the dimensions of the output array.
+
+    Returns
+    -------
+    The one hot encoded DNA sequence.
+    """
     if expand_dim:
         return np.expand_dims(
             HOT_ENCODING_TABLE[np.frombuffer(sequence.encode("ascii"), dtype=np.uint8)],
@@ -55,6 +75,7 @@ def one_hot_encode_sequence(sequence: str, expand_dim: bool = True) -> np.ndarra
 
 
 def generate_mutagenesis(x, include_original=True, flanks=(0, 0)):
+    """Generate all possible single point mutations in a sequence."""
     _, L, A = x.shape
     start, end = 0, L
     x_mut = []
@@ -73,6 +94,7 @@ def generate_mutagenesis(x, include_original=True, flanks=(0, 0)):
 
 
 def generate_motif_insertions(x, motif, flanks=(0, 0), masked_locations=None):
+    """Generate motif insertions in a sequence."""
     _, L, A = x.shape
     start, end = 0, L
     x_mut = []
@@ -95,11 +117,25 @@ def generate_motif_insertions(x, motif, flanks=(0, 0), masked_locations=None):
 
     return np.concatenate(x_mut, axis=0), insertion_locations
 
+
 class EnhancerOptimizer:
-    def __init__(
-            self,
-            optimize_func: Callable[..., np.intp]
-            ) -> None:
+    """
+    Class to optimize the mutated sequence based on the original prediction.
+
+    Can be passed as the 'enhancer_optimizer' argument to :func:`crested.tl.Crested.enhancer_design_in_silico_evolution`
+
+    Parameters
+    ----------
+    optimize_func
+        Function to optimize the mutated sequence based on the original prediction.
+
+    See Also
+    --------
+    crested.tl.Crested.enhancer_design_in_silico_evolution
+    """
+
+    def __init__(self, optimize_func: Callable[..., int]) -> None:
+        """Initialize the EnhancerOptimizer class."""
         self.optimize_func = optimize_func
 
     def get_best(
@@ -107,20 +143,19 @@ class EnhancerOptimizer:
         mutated_predictions: np.ndarray,
         original_prediction: np.ndarray,
         target: int | np.ndarray,
-        **kwargs: dict[str, Any]
-    ) -> np.intp:
+        **kwargs: dict[str, Any],
+    ) -> int:
+        """Get the index of the best mutated sequence based on the original prediction."""
         return self.optimize_func(
-            mutated_predictions,
-            original_prediction,
-            target,
-            **kwargs
+            mutated_predictions, original_prediction, target, **kwargs
         )
+
 
 def _weighted_difference(
     mutated_predictions: np.ndarray,
     original_prediction: np.ndarray,
     target: int,
-    class_penalty_weights: np.ndarray | None = None
+    class_penalty_weights: np.ndarray | None = None,
 ):
     if len(original_prediction.shape) == 1:
         original_prediction = original_prediction[None]
@@ -144,7 +179,9 @@ def _weighted_difference(
 
 def build_one_hot_decoding_table() -> np.ndarray:
     """Get hot decoding table to decode a one hot encoded sequence to a DNA sequence string."""
-    one_hot_decoding_table = np.full(np.iinfo(np.uint8).max + 1, ord("N"), dtype=np.uint8)
+    one_hot_decoding_table = np.full(
+        np.iinfo(np.uint8).max + 1, ord("N"), dtype=np.uint8
+    )
     one_hot_decoding_table[1] = ord("A")
     one_hot_decoding_table[2] = ord("C")
     one_hot_decoding_table[4] = ord("G")
@@ -157,7 +194,18 @@ HOT_DECODING_TABLE = build_one_hot_decoding_table()
 
 
 def hot_encoding_to_sequence(one_hot_encoded_sequence: np.ndarray) -> str:
-    """Decode a one hot encoded sequence to a DNA sequence string."""
+    """
+    Decode a one hot encoded sequence to a DNA sequence string.
+
+    Parameters
+    ----------
+    one_hot_encoded_sequence
+        A numpy array with shape (x, 4) with dtype=np.float32.
+
+    Returns
+    -------
+    The DNA sequence string of length x.
+    """
     # Convert hot encoded seqeuence from:
     #   (x, 4) with dtype=np.float32
     # to:
@@ -189,24 +237,30 @@ def hot_encoding_to_sequence(one_hot_encoded_sequence: np.ndarray) -> str:
     )
 
     return sequence
-    
+
+
 def get_value_from_dataframe(df: pd.DataFrame, row_name: str, column_name: str):
     """
-    Retrieves a single value from a DataFrame based on the given row index and column name.
-    
-    Parameters:
-    - df: pd.DataFrame - The DataFrame to retrieve the value from.
-    - row_name: str - The name of the row.
-    - column_name: str - The name of the column.
-    
-    Returns:
-    - The value at the specified row index and column name, or an error message if the column is not found.
+    Retrieve a single value from a DataFrame based on the given row index and column name.
+
+    Parameters
+    ----------
+    df
+        The DataFrame to retrieve the value from.
+    row_name
+        The name of the row.
+    column_name
+        The name of the column.
+
+    Returns
+    -------
+    The value at the specified row index and column name, or an error message if the column is not found.
     """
     try:
         # Check if the column exists in the DataFrame
         if column_name not in df.columns:
             raise KeyError(f"Column '{column_name}' not found in DataFrame.")
-        
+
         # Retrieve the value
         value = df.loc[row_name, column_name]
         return value
@@ -215,25 +269,29 @@ def get_value_from_dataframe(df: pd.DataFrame, row_name: str, column_name: str):
         return str(e)
     except IndexError:
         # Handle the case where the row index is out of bounds
-        return f"Row index '{row_index}' is out of bounds for DataFrame with {len(df)} rows."
-    except Exception as e:
-        # Handle any other unexpected exceptions
-        return f"An error occurred: {str(e)}"
+        return f"Row index is out of bounds for DataFrame with {len(df)} rows."
 
 
-def extract_bigwig_values_per_bp(bigwig_file, coordinates):
+def extract_bigwig_values_per_bp(
+    bigwig_file: os.PathLike, coordinates: list[tuple[str, int, int]]
+) -> tuple[np.ndarray, list[int]]:
     """
     Extract per-base pair values from a bigWig file for the given genomic coordinates.
 
-    Parameters:
-    bigwig_file (str): Path to the bigWig file.
-    coordinates (np.array): An array of tuples, each containing the chromosome name and the start and end positions of the sequence.
+    Parameters
+    ----------
+    bigwig_file
+        Path to the bigWig file.
+    coordinates
+        An array of tuples, each containing the chromosome name and the start and end positions of the sequence.
 
-    Returns:
-    bw_values (np.array): A numpy array of values from the bigWig file for each base pair in the specified range.
-    all_midpoints (list): A list of all base pair positions covered in the specified coordinates.
+    Returns
+    -------
+    bw_values
+        A numpy array of values from the bigWig file for each base pair in the specified range.
+    all_midpoints
+        A list of all base pair positions covered in the specified coordinates.
     """
-
     # Calculate the full range of coordinates
     min_coord = min([int(start) for _, start, _ in coordinates])
     max_coord = max([int(end) for _, _, end in coordinates])

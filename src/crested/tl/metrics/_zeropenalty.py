@@ -10,11 +10,13 @@ class ZeroPenaltyMetric(keras.metrics.Metric):
     """Zero penalty metric."""
 
     def __init__(self, name="zero_penalty_metric", **kwargs):
+        """Initialize the metric."""
         super().__init__(name=name, **kwargs)
         self.zero_penalty = self.add_weight(name="zero_penalty", initializer="zeros")
         self.num_batches = self.add_weight(name="num_batches", initializer="zeros")
 
     def update_state(self, y_true, y_pred, sample_weight=None):
+        """Update the state of the metric."""
         # Ensure y_true and y_pred are float32 for consistency
         y_true = keras.ops.cast(y_true, dtype="float32")
         y_pred = keras.ops.cast(y_pred, dtype="float32")
@@ -41,8 +43,10 @@ class ZeroPenaltyMetric(keras.metrics.Metric):
         self.num_batches.assign_add(1.0)
 
     def result(self):
+        """Calculate the result of the metric by averaging the zero penalty over num batches."""
         return self.zero_penalty / self.num_batches
 
     def reset_state(self):
+        """Reset the state of the metric."""
         self.zero_penalty.assign(0.0)
         self.num_batches.assign(0.0)
