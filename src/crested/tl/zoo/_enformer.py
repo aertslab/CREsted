@@ -34,6 +34,7 @@ def enformer(
     ----------
     seq_len
         Width of the input region.
+        Enformer default is 196608
     num_classes
         Number of classes to predict.
         If an int, creates a single head with num_classes classes.
@@ -46,7 +47,8 @@ def enformer(
     target_length
         The target length in bins to crop to. Default is 896, cropping away 320 bins (41kb) on each side.
     start_filters
-        Starting number of filters for the first block, exponentially increasing towards filters through the conv tower.
+        Starting number of filters for the first DNA-facing and first conv tower block, 
+        exponentially increasing towards `filters` through the conv tower.
     filters
         Number of filters at the end of the conv tower. 
     pointwise_filters
@@ -76,7 +78,7 @@ def enformer(
     # Tower output length: n of bins after convolution pooling.
     #   every conv layer (and stem layer) halves length -> seq_len/binwidth = dimensionality
     # Crop length: (original dimensionality - target_length) // 2 = crop length from both sides 
-    tower_out_length = int(seq_len/(2**(num_conv_blocks + 1)))
+    tower_out_length = int(seq_len/(2**(num_conv_blocks + 1))) # Should be same as filters
     crop_length = int((tower_out_length-target_length)//2)
     
     # Sequence input
@@ -94,22 +96,17 @@ def enformer(
         current,
         filters=start_filters,
         kernel_size=1,
-        activation=conv_activation,
-        activation_end=None,
-        strides=1,
-        dilation_rate=1,
-        l2_scale=0,
-        dropout=0,
-        conv_type="standard",
-        pool_type="attention",
-        residual=True,
         pool_size=2,
         batch_norm=True,
+        activation=conv_activation,
+        residual=True,
+        l2_scale=0,
+        pool_type="attention",
         bn_momentum=0.9,
         bn_gamma=None,
-        bn_type="standard",
+        bn_sync=True,
+        bn_epsilon=1e-5,
         kernel_initializer="he_normal",
-        padding="same",
         name_prefix="stem_pointwise"
     )
 
@@ -123,21 +120,14 @@ def enformer(
             filters=layer_filters,
             kernel_size=kernel_size,
             activation=conv_activation,
-            activation_end=None,
-            strides=1,
-            dilation_rate=1,
-            l2_scale=0,
-            dropout=0,
-            conv_type="standard",
-            pool_type="attention",
-            residual=False,
-            pool_size=1,
             batch_norm=True,
+            residual=False,
+            l2_scale=0,
             bn_momentum=0.9,
             bn_gamma=None,
-            bn_type="standard",
+            bn_sync=True,
+            bn_epsilon=1e-5,
             kernel_initializer="he_normal",
-            padding="same",
             name_prefix=f"tower_conv_{cidx+1}"
         )
         # Add residual pointwise conv block
@@ -145,22 +135,17 @@ def enformer(
             current,
             filters=layer_filters,
             kernel_size=1,
-            activation=conv_activation,
-            activation_end=None,
-            strides=1,
-            dilation_rate=1,
-            l2_scale=0,
-            dropout=0,
-            conv_type="standard",
-            pool_type="attention",
-            residual=True,
             pool_size=2,
             batch_norm=True,
+            activation=conv_activation,
+            residual=True,
+            l2_scale=0,
+            pool_type="attention",
             bn_momentum=0.9,
             bn_gamma=None,
-            bn_type="standard",
+            bn_sync=True,
+            bn_epsilon=1e-5,
             kernel_initializer="he_normal",
-            padding="same",
             name_prefix=f"tower_pointwise_{cidx+1}"
         )
     
@@ -180,12 +165,12 @@ def enformer(
             attn_dropout = 0.05,
             pos_dropout = 0.01,
             final_dropout = transformer_dropout,
-            pos_encoding = True,
             symmetric_pos_encoding = False,
-            pos_encoding_funs = ['pos_feats_exponential', 'pos_feats_central_mask', 'pos_feats_gamma'],
+            pos_encoding_funs = 'enformer',
             num_pos_feats = filters // num_transformer_heads,
             zero_init = True,
             residual = True,
+            ln_epsilon = 1e-5,
             name_prefix = f"transformer_mha_{tidx+1}"
         )
         current = ffn_block_enf(
@@ -194,6 +179,7 @@ def enformer(
             dropout = transformer_dropout,
             activation = transformer_activation,
             residual = True,
+            ln_epsilon = 1e-5,
             name_prefix = f"transformer_ff_{tidx+1}"
 
         )
@@ -206,22 +192,15 @@ def enformer(
             current,
             filters=pointwise_filters,
             kernel_size=1,
-            activation=conv_activation,
-            activation_end=None,
-            strides=1,
-            dilation_rate=1,
-            l2_scale=0,
-            dropout=0,
-            conv_type="standard",
-            pool_type="attention",
-            residual=True,
-            pool_size=2,
             batch_norm=True,
+            activation=conv_activation,
+            residual=False,
+            l2_scale=0,
             bn_momentum=0.9,
             bn_gamma=None,
-            bn_type="standard",
+            bn_sync=True,
+            bn_epsilon=1e-5,
             kernel_initializer="he_normal",
-            padding="same",
             name_prefix=f"final_pointwise"
         )
     current = keras.layers.Dropout(pointwise_dropout, name = 'final_pointwise_dropout')(current)
@@ -229,15 +208,15 @@ def enformer(
     
     # Build heads
     if isinstance(num_classes, int):
-        outputs = keras.layers.Dense(num_classes, activation=output_activation, input_shape = (target_length, filters*2), name = head)(current)
+        outputs = keras.layers.Conv1D(num_classes, kernel_size = 1, activation=output_activation, name = head)(current)
     elif isinstance(num_classes, cabc.Mapping):
         outputs = {}
         for head, n_tracks in num_classes.items():
-            outputs[head] = keras.layers.Dense(n_tracks, activation=output_activation, input_shape = (target_length, filters*2), name = head)(current)
+            outputs[head] = keras.layers.Conv1D(n_tracks, kernel_size = 1, activation=output_activation, name = head)(current)
     elif isinstance(num_classes, cabc.Sequence):
         outputs = []
         for head, n_tracks in num_classes:
-            outputs.append(keras.layers.Dense(n_tracks, activation=output_activation, input_shape = (target_length, filters*2), name = head)(current))
+            outputs.append(keras.layers.Conv1D(n_tracks, kernel_size = 1, activation=output_activation, name = head)(current))
 
     
     # Construct model
