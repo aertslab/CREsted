@@ -32,8 +32,7 @@ dependencies = [
     "logomaker",
     "pybigtools>=0.2.0",
     "seaborn",
-    "pooch",
-    "pybigwig"
+    "pooch"
 ]
 
 [project.optional-dependencies]
