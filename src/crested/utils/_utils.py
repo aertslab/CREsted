@@ -319,7 +319,7 @@ def read_bigwig_region(
     target: str = 'mean',
     missing: float = 0.0,
     oob: float = 0.0
-) -> np.ndarray:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Extract per-base or binned pair values from a bigWig file for a set of genomic region.
 
