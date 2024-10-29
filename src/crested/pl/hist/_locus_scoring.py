@@ -45,7 +45,7 @@ def locus_scoring(
     See Also
     --------
     crested.tl.Crested.score_gene_locus
-    crested.read_bigwig_region
+    crested.utils.read_bigwig_region
 
     Example
     --------
