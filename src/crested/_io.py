@@ -105,16 +105,17 @@ def _extract_values_from_bigwig(
     return values
 
 def _extract_tracks_from_bigwig(
-    bw_file: PathLike, 
-    coordinates: List[tuple[str, int, int]], 
-    bin_size: int | None = None, 
+    bw_file: PathLike,
+    coordinates: list[tuple[str, int, int]],
+    bin_size: int | None = None,
     target: str = 'mean',
     missing: float = 0.0,
     oob: float = 0.0,
     exact: bool = True
 ) -> np.ndarray:
     """
-    Extract per-base or binned pair values of a list of genomic ranges from a bigWig file. 
+    Extract per-base or binned pair values of a list of genomic ranges from a bigWig file.
+
     Expects all coordinate pairs to be the same length.
 
     bigwig_file
@@ -131,7 +132,7 @@ def _extract_tracks_from_bigwig(
         Fill-in value for out-of-bounds regions.
     exact
         Whether to always return the exact values, or to use the built-in zoom levels to interpolate, when binning.
-        Setting exact = False leads to a slight speed advantage, but slight loss in accuracy. 
+        Setting exact = False leads to a slight speed advantage, but slight loss in accuracy.
 
     Returns a numpy array of values from the bigWig file of shape [n_coordinates, n_base_pairs] or [n_coordinates, n_base_pairs//bin_size] if bin_size is set.
     """
@@ -144,7 +145,7 @@ def _extract_tracks_from_bigwig(
         if region_length != prev_region_length:
             raise ValueError(f"All coordinate pairs should be the same length. Coordinate pair {region[0]}:{region[1]}-{region[2]} is not {prev_region_length}bp, but {region_length}bp.")
         prev_region_length = region_length
-    
+
     # Check that length is divisible by bin size
     if bin_size and (region_length % bin_size != 0):
         raise ValueError(f"All region lengths must be divisible by bin_size. Region length {region_length} is not divisible by bin size {bin_size}.")
@@ -159,18 +160,18 @@ def _extract_tracks_from_bigwig(
         for region in coordinates:
             arr = np.empty(binned_length, dtype = 'float64') # pybigtools returns values in float64
             chrom, start, end = region
-            
+
             # Extract values
             results.append(
                 bw.values(
-                    chrom, 
-                    start, 
-                    end, 
-                    bins = bins, 
+                    chrom,
+                    start,
+                    end,
+                    bins = bins,
                     summary = target,
                     exact = True,
-                    missing = missing, 
-                    oob = oob, 
+                    missing = missing,
+                    oob = oob,
                     arr = arr
                 )
             )

@@ -6,7 +6,8 @@ from typing import Any, Callable
 import numpy as np
 import pandas as pd
 from loguru import logger
-from .._io import _extract_tracks_from_bigwig
+
+from crested._io import _extract_tracks_from_bigwig
 
 
 def get_hot_encoding_table(
@@ -294,7 +295,7 @@ def extract_bigwig_values_per_bp(
         A list of all base pair positions covered in the specified coordinates.
     """
     logger.warning(
-        f"extract_bigwig_values_per_bp() is deprecated. Please use crested.utils.read_bigwig_region(bw_file, (chr, start, end)) instead."
+        "extract_bigwig_values_per_bp() is deprecated. Please use crested.utils.read_bigwig_region(bw_file, (chr, start, end)) instead."
     )
     # Calculate the full range of coordinates
     min_coord = min([int(start) for _, start, _ in coordinates])
@@ -312,15 +313,15 @@ def extract_bigwig_values_per_bp(
     return bw_values, all_midpoints
 
 def read_bigwig_region(
-    bigwig_file: PathLike, 
-    coordinates: tuple[str, int, int], 
-    bin_size: int | None = None, 
+    bigwig_file: os.PathLike,
+    coordinates: tuple[str, int, int],
+    bin_size: int | None = None,
     target: str = 'mean',
     missing: float = 0.0,
     oob: float = 0.0
 ) -> np.ndarray:
     """
-    Helper function to extract per-base or binned pair values from a bigWig file for a set of genomic region.
+    Extract per-base or binned pair values from a bigWig file for a set of genomic region.
 
     Parameters
     ----------
@@ -331,7 +332,7 @@ def read_bigwig_region(
     bin_size
         If set, the returned values are mean-binned at this resolution.
     target
-        How to summarize the values per bin, when binning. Can be 'mean', 'min', or 'max'.    
+        How to summarize the values per bin, when binning. Can be 'mean', 'min', or 'max'.
     missing
         Fill-in value for unreported data in valid regions. Default is 0.
     oob
@@ -357,7 +358,7 @@ def read_bigwig_region(
     """
     # Check for accidental passing of lists of coordinates or wrong orders
     if not (isinstance(coordinates[0], str) and isinstance(coordinates[1], int) and isinstance(coordinates[2], int)):
-        raise ValueError(f"Your coordinates must be a single tuple of types (str, int, int).")
+        raise ValueError("Your coordinates must be a single tuple of types (str, int, int).")
     if not (coordinates[1] < coordinates[2]):
         raise ValueError(f"End coordinate {coordinates[2]} should be bigger than start coordinate {coordinates[1]}")
 
