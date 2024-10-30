@@ -5,7 +5,9 @@ from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
-import pyBigWig
+from loguru import logger
+
+from crested._io import _extract_tracks_from_bigwig
 
 
 def get_hot_encoding_table(
@@ -292,6 +294,9 @@ def extract_bigwig_values_per_bp(
     all_midpoints
         A list of all base pair positions covered in the specified coordinates.
     """
+    logger.warning(
+        "extract_bigwig_values_per_bp() is deprecated. Please use crested.utils.read_bigwig_region(bw_file, (chr, start, end)) instead."
+    )
     # Calculate the full range of coordinates
     min_coord = min([int(start) for _, start, _ in coordinates])
     max_coord = max([int(end) for _, _, end in coordinates])
@@ -299,21 +304,84 @@ def extract_bigwig_values_per_bp(
     # Initialize the list to store values
     bw_values = []
 
-    # Open the bigWig file
-    bw = pyBigWig.open(bigwig_file)
-
-    # Iterate over each chromosome (all coordinates should be for the same chromosome)
+    # Get chromosome
     chrom = coordinates[0][0]  # Assuming all coordinates are for the same chromosome
 
     # Extract per-base values
-    bw_values = bw.values(chrom, min_coord, max_coord)
-
-    # Replace NaN with 0
-    bw_values = np.nan_to_num(bw_values, nan=0)
-
-    # Generate the list of all base pair positions
-    all_midpoints = list(range(min_coord, max_coord))
-
-    bw.close()
+    bw_values, all_midpoints = read_bigwig_region(
+        bigwig_file, (chrom, min_coord, max_coord), missing=0.0
+    )
 
     return bw_values, all_midpoints
+
+
+def read_bigwig_region(
+    bigwig_file: os.PathLike,
+    coordinates: tuple[str, int, int],
+    bin_size: int | None = None,
+    target: str = "mean",
+    missing: float = 0.0,
+    oob: float = 0.0,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Extract per-base or binned pair values from a bigWig file for a set of genomic region.
+
+    Parameters
+    ----------
+    bigwig_file
+        Path to the bigWig file.
+    coordinates
+        A tuple looking like (chr, start, end).
+    bin_size
+        If set, the returned values are mean-binned at this resolution.
+    target
+        How to summarize the values per bin, when binning. Can be 'mean', 'min', or 'max'.
+    missing
+        Fill-in value for unreported data in valid regions. Default is 0.
+    oob
+        Fill-in value for out-of-bounds regions. Default is 0.
+
+    Returns
+    -------
+    values
+        numpy array with the values from the bigwig for the requested coordinates. Shape: [n_bp], or [n_bp//bin_size] if bin_size is specified.
+    positions
+        numpy array with genomic positions as integers of the values in values. Shape: [n_bp], or [n_bp//bin_size] if bin_size is specified.
+
+    Example
+    -------
+    >>> anndata = crested.read_bigwig_region(
+    ...     bw_file="path/to/bigwig",
+    ...     coordinates=("chr1", 0, 32000),
+    ...     bin_size=32,
+    ...     target="mean",
+    ... )
+    """
+    # Check for accidental passing of lists of coordinates or wrong orders
+    if not (
+        isinstance(coordinates[0], str)
+        and isinstance(coordinates[1], int)
+        and isinstance(coordinates[2], int)
+    ):
+        raise ValueError(
+            "Your coordinates must be a single tuple of types (str, int, int)."
+        )
+    if not (coordinates[1] < coordinates[2]):
+        raise ValueError(
+            f"End coordinate {coordinates[2]} should be bigger than start coordinate {coordinates[1]}"
+        )
+
+    # Get locations of the values given the binning
+    if bin_size:
+        positions = np.arange(
+            start=coordinates[1] + bin_size / 2, stop=coordinates[2], step=bin_size
+        )
+    else:
+        positions = np.arange(coordinates[1], coordinates[2])
+
+    # Get values
+    values = _extract_tracks_from_bigwig(
+        bigwig_file, [coordinates], bin_size, target, missing, oob
+    ).squeeze()
+
+    return values, positions

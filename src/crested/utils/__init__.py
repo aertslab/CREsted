@@ -7,4 +7,5 @@ from ._utils import (
     extract_bigwig_values_per_bp,
     hot_encoding_to_sequence,
     one_hot_encode_sequence,
+    read_bigwig_region,
 )
