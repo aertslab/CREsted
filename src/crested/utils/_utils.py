@@ -343,8 +343,7 @@ def read_bigwig_region(
 
     Returns
     -------
-    A tuple of two numpy arrays (values, positions).
-    values:
+    values
         numpy array with the values from the bigwig for the requested coordinates. Shape: [n_bp], or [n_bp//bin_size] if bin_size is specified.
     positions
         numpy array with genomic positions as integers of the values in values. Shape: [n_bp], or [n_bp//bin_size] if bin_size is specified.
