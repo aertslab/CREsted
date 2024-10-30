@@ -308,17 +308,20 @@ def extract_bigwig_values_per_bp(
     chrom = coordinates[0][0]  # Assuming all coordinates are for the same chromosome
 
     # Extract per-base values
-    bw_values, all_midpoints = read_bigwig_region(bigwig_file, (chrom, min_coord, max_coord), missing = 0.0)
+    bw_values, all_midpoints = read_bigwig_region(
+        bigwig_file, (chrom, min_coord, max_coord), missing=0.0
+    )
 
     return bw_values, all_midpoints
+
 
 def read_bigwig_region(
     bigwig_file: os.PathLike,
     coordinates: tuple[str, int, int],
     bin_size: int | None = None,
-    target: str = 'mean',
+    target: str = "mean",
     missing: float = 0.0,
-    oob: float = 0.0
+    oob: float = 0.0,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Extract per-base or binned pair values from a bigWig file for a set of genomic region.
@@ -338,7 +341,6 @@ def read_bigwig_region(
     oob
         Fill-in value for out-of-bounds regions. Default is 0.
 
-
     Returns
     -------
     A tuple of two numpy arrays (values, positions).
@@ -351,24 +353,36 @@ def read_bigwig_region(
     -------
     >>> anndata = crested.read_bigwig_region(
     ...     bw_file="path/to/bigwig",
-    ...     coordinates=('chr1', 0, 32000),
+    ...     coordinates=("chr1", 0, 32000),
     ...     bin_size=32,
-    ...     target="mean"
+    ...     target="mean",
     ... )
     """
     # Check for accidental passing of lists of coordinates or wrong orders
-    if not (isinstance(coordinates[0], str) and isinstance(coordinates[1], int) and isinstance(coordinates[2], int)):
-        raise ValueError("Your coordinates must be a single tuple of types (str, int, int).")
+    if not (
+        isinstance(coordinates[0], str)
+        and isinstance(coordinates[1], int)
+        and isinstance(coordinates[2], int)
+    ):
+        raise ValueError(
+            "Your coordinates must be a single tuple of types (str, int, int)."
+        )
     if not (coordinates[1] < coordinates[2]):
-        raise ValueError(f"End coordinate {coordinates[2]} should be bigger than start coordinate {coordinates[1]}")
+        raise ValueError(
+            f"End coordinate {coordinates[2]} should be bigger than start coordinate {coordinates[1]}"
+        )
 
     # Get locations of the values given the binning
     if bin_size:
-        positions = np.arange(start = coordinates[1]+bin_size/2, stop = coordinates[2], step = bin_size)
+        positions = np.arange(
+            start=coordinates[1] + bin_size / 2, stop=coordinates[2], step=bin_size
+        )
     else:
         positions = np.arange(coordinates[1], coordinates[2])
 
     # Get values
-    values =  _extract_tracks_from_bigwig(bigwig_file, [coordinates], bin_size, target, missing, oob).squeeze()
+    values = _extract_tracks_from_bigwig(
+        bigwig_file, [coordinates], bin_size, target, missing, oob
+    ).squeeze()
 
     return values, positions
