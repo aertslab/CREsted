@@ -169,7 +169,7 @@ def _extract_tracks_from_bigwig(
                     end,
                     bins = bins,
                     summary = target,
-                    exact = True,
+                    exact = exact,
                     missing = missing,
                     oob = oob,
                     arr = arr
