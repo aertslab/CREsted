@@ -409,9 +409,9 @@ class AnnDataset(BaseClass):
             shift = np.random.randint(
                 -self.max_stochastic_shift, self.max_stochastic_shift + 1
             )
-            x = self.sequence_loader.get_sequence(original_index, shift = shift)
+            x = self.sequence_loader.get_sequence(augmented_index, shift = shift)
         else:
-            x = self.sequence_loader.get_sequence(original_index)
+            x = self.sequence_loader.get_sequence(augmented_index)
 
         # random reverse complement (always_reverse_complement is done in the sequence loader)
         if self.random_reverse_complement and np.random.rand() < 0.5:
