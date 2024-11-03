@@ -220,20 +220,16 @@ class IndexManager:
         List of indices in format "chr:start-end" or "chr:start-end:strand".
     always_reverse_complement
         If True, all sequences will be augmented with their reverse complement.
-    deterministic_shift
-        If True, each region will be shifted twice with stride 50bp to each side.
     """
 
     def __init__(
         self,
         indices: list[str],
         always_reverse_complement: bool,
-        deterministic_shift: bool = False,
     ):
         """Initialize the IndexManager with the provided indices."""
         self.indices = indices
         self.always_reverse_complement = always_reverse_complement
-        self.deterministic_shift = deterministic_shift
         self.augmented_indices, self.augmented_indices_map = self._augment_indices(
             indices
         )
@@ -251,21 +247,11 @@ class IndexManager:
                 stranded_region = f"{region}:+"
             else:
                 stranded_region = region
-
-            if self.deterministic_shift:
-                shifted_regions = self._deterministic_shift_region(stranded_region)
-                for shifted_region in shifted_regions:
-                    augmented_indices.append(shifted_region)
-                    augmented_indices_map[shifted_region] = region
-                    if self.always_reverse_complement:
-                        augmented_indices.append(_flip_region_strand(shifted_region))
-                        augmented_indices_map[_flip_region_strand(shifted_region)] = region
-            else:
-                augmented_indices.append(stranded_region)
-                augmented_indices_map[stranded_region] = region
-                if self.always_reverse_complement:
-                    augmented_indices.append(_flip_region_strand(stranded_region))
-                    augmented_indices_map[_flip_region_strand(stranded_region)] = region
+            augmented_indices.append(stranded_region)
+            augmented_indices_map[stranded_region] = region
+            if self.always_reverse_complement:
+                augmented_indices.append(_flip_region_strand(stranded_region))
+                augmented_indices_map[_flip_region_strand(stranded_region)] = region
         return augmented_indices, augmented_indices_map
 
     def _deterministic_shift_region(
@@ -318,9 +304,6 @@ class AnnDataset(BaseClass):
         If True, all sequences will be augmented with their reverse complement during training.
     max_stochastic_shift
         Maximum stochastic shift (n base pairs) to apply randomly to each sequence during training.
-    deterministic_shift
-        If true, each region will be shifted twice with stride 50bp to each side.
-        This is our legacy shifting, we recommend using max_stochastic_shift instead.
     """
 
     def __init__(
@@ -333,7 +316,6 @@ class AnnDataset(BaseClass):
         random_reverse_complement: bool = False,
         always_reverse_complement: bool = False,
         max_stochastic_shift: int = 0,
-        deterministic_shift: bool = False,
     ):
         """Initialize the dataset with the provided AnnData object and options."""
         self.anndata = self._split_anndata(anndata, split)
@@ -367,8 +349,7 @@ class AnnDataset(BaseClass):
         )
         self.index_manager = IndexManager(
             self.indices,
-            always_reverse_complement=always_reverse_complement,
-            deterministic_shift=deterministic_shift,
+            always_reverse_complement=always_reverse_complement
         )
         self.seq_len = len(self.sequence_loader.get_sequence(self.indices[0]))
 
