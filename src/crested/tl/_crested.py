@@ -652,7 +652,7 @@ class Crested:
         Parameters
         ----------
         region_idx
-            List of regions for which to make predictions in the format "chr:start-end".
+            List of regions for which to make predictions in the format of your original data, either "chr:start-end" or "chr:start-end:strand".
 
         Returns
         -------
@@ -959,7 +959,7 @@ class Crested:
         Parameters
         ----------
         region_idx
-            Region(s) for which to calculate the contribution scores in the format "chr:start-end".
+            Region(s) for which to calculate the contribution scores in the format "chr:start-end" or "chr:start-end:strand".
         class_names
             List of class names to calculate the contribution scores for (should match anndata.obs_names)
             If the list is empty, the contribution scores for the 'combined' class will be calculated.

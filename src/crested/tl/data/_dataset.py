@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from os import PathLike
 
 import numpy as np
@@ -24,6 +25,20 @@ def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
     chromsizes_dict = chromsizes.set_index("chr")["size"].to_dict()
     return chromsizes_dict
 
+def _flip_region_strand(region: str) -> str:
+    """Reverse the strand of a region."""
+    strand_reverser = {'+': '-', '-': '+'}
+    return region[:-1]+strand_reverser[region[-1]]
+
+def _check_strandedness(region: str) -> bool:
+    """Check the strandedness of a region, raising an error if the formatting isn't recognised."""
+    if re.fullmatch(r".+:\d+-\d+:[-+]", region):
+        return True
+    elif re.fullmatch(r".+:\d+-\d+", region):
+        return False
+    else:
+        raise ValueError(f"Region {region} was not recognised as a valid coordinate set (chr:start-end or chr:start-end:strand).")
+
 
 class SequenceLoader:
     """
@@ -39,6 +54,8 @@ class SequenceLoader:
         Dictionary with chromosome sizes. Required if max_stochastic_shift > 0.
     in_memory
         If True, the sequences of supplied regions will be loaded into memory.
+    stranded
+        Whether the dataset regions have strand information. If None, inferred from regions.
     always_reverse_complement
         If True, all sequences will be augmented with their reverse complement.
         Doubles the dataset size.
@@ -53,6 +70,7 @@ class SequenceLoader:
         genome_file: PathLike,
         chromsizes: dict | None,
         in_memory: bool = False,
+        stranded: bool | None = None,
         always_reverse_complement: bool = False,
         max_stochastic_shift: int = 0,
         regions: list[str] | None = None,
@@ -61,6 +79,7 @@ class SequenceLoader:
         self.genome = FastaFile(genome_file)
         self.chromsizes = chromsizes
         self.in_memory = in_memory
+        self.stranded = stranded
         self.always_reverse_complement = always_reverse_complement
         self.max_stochastic_shift = max_stochastic_shift
         self.sequences = {}
@@ -72,19 +91,32 @@ class SequenceLoader:
     def _load_sequences_into_memory(self, regions: list[str]):
         """Load all sequences into memory (dict)."""
         logger.info("Loading sequences into memory...")
+        strand_reverser = {'+': '-', '-': '+'}
+        # Check region formatting
+        if self.stranded is None:
+            self.stranded = _check_strandedness(regions[0])
+
         for region in tqdm(regions):
-            extended_sequence = self._get_extended_sequence(region)
-            self.sequences[f"{region}:+"] = extended_sequence
+            # Parse region
+            if self.stranded:
+                chrom, start_end, strand = region.split(":")
+            else:
+                chrom, start_end = region.split(":")
+                strand = "+"
+            start, end = map(int, start_end.split("-"))
+
+            # Add region to self.sequences
+            extended_sequence = self._get_extended_sequence(chrom, start, end, strand)
+            self.sequences[f"{chrom}:{start}-{end}:{strand}"] = extended_sequence
+
+            # Add reverse-complemented region to self.sequences if always_reverse_complement
             if self.always_reverse_complement:
-                self.sequences[f"{region}:-"] = self._reverse_complement(
+                self.sequences[f"{chrom}:{start}-{end}:{strand_reverser[strand]}"] = self._reverse_complement(
                     extended_sequence
                 )
 
-    def _get_extended_sequence(self, region: str) -> str:
+    def _get_extended_sequence(self, chrom: str, start: int, end: int, strand: str) -> str:
         """Get sequence from genome file, extended for stochastic shifting."""
-        chrom, start_end = region.split(":")
-        start, end = map(int, start_end.split("-"))
-
         extended_start = max(0, start - self.max_stochastic_shift)
         extended_end = extended_start + (end - start) + (self.max_stochastic_shift * 2)
 
@@ -96,32 +128,80 @@ class SequenceLoader:
                 )
                 extended_end = chrom_size
 
-        return self.genome.fetch(chrom, extended_start, extended_end).upper()
+        seq = self.genome.fetch(chrom, extended_start, extended_end).upper()
+        if strand == "-":
+            seq = self._reverse_complement(seq)
+        return seq
 
     def _reverse_complement(self, sequence: str) -> str:
         """Reverse complement a sequence."""
         return sequence.translate(self.complement)[::-1]
 
-    def get_sequence(self, region: str, strand: str = "+", shift: int = 0) -> str:
-        """Get sequence for a region, strand, and shift from memory or fasta."""
-        key = f"{region}:{strand}"
-        if self.in_memory:
-            sequence = self.sequences[key]
+    def get_sequence(self, region: str, strand: str | None = None, shift: int = 0) -> str:
+        """
+        Get sequence for a region, strand, and shift from memory or fasta.
+
+        If no strand is given in region or strand, assumes positive strand.
+
+        Parameters
+        ----------
+        region
+            Region to get the sequence for. Either (chr:start-end) or (chr:start-end:strand).
+        strand
+            Strand to extract sequence for. Default uses region info if available and positive strand if not.
+        shift:
+            Shift of the sequence within the extended sequence, for use with the stochastic shift mechanism.
+
+        Returns
+        -------
+        The DNA sequence, as a string.
+        """
+        # If strand status is unknown (because not provided at init
+        # and not inferred by _load_sequences_into_memory), infer:
+        # Common case: with 'predict' sequenceloader
+        if self.stranded is None:
+            stranded_region = _check_strandedness(region)
         else:
-            sequence = self._get_extended_sequence(region)
-        chrom, start_end = region.split(":")
+            stranded_region = self.stranded
+
+        # Add strand if not provided
+        if not stranded_region:
+            if strand is None:
+                region = f"{region}:+"
+            else:
+                region = f"{region}:{strand}"
+        else:
+            if strand is not None:
+                # Check whether actually stranded or just SequenceLoader setting
+                if _check_strandedness(region):
+                    logger.warning(
+                        f"Argument 'strand' provided while region {region} already had strand information. Using provided strand {strand}.",
+                    )
+                    region = f"{region[:-2]}:{strand}"
+                else:
+                    region = f"{region}:{strand}"
+
+        # Parse region
+        chrom, start_end, strand = region.split(":")
         start, end = map(int, start_end.split("-"))
+
+        # Get extended sequence
+        if self.in_memory:
+            sequence = self.sequences[region]
+        else:
+            sequence = self._get_extended_sequence(chrom, start, end, strand)
+
+        # Extract from extended sequence
         start_idx = self.max_stochastic_shift + shift
         end_idx = start_idx + (end - start)
         sub_sequence = sequence[start_idx:end_idx]
 
-        # handle reverse complement on the go if not loaded into memory
-        if (strand == "-") and (not self.in_memory):
-            sub_sequence = self._reverse_complement(sub_sequence)
-
-        # pad with Ns if sequence is shorter than expected
+        # Pad with Ns if sequence is shorter than expected
         if len(sub_sequence) < (end - start):
-            sub_sequence = sub_sequence.ljust(end - start, "N")
+            if strand == "+":
+                sub_sequence = sub_sequence.ljust(end - start, "N")
+            else:
+                sub_sequence = sub_sequence.rjust(end - start, "N")
 
         return sub_sequence
 
@@ -135,7 +215,7 @@ class IndexManager:
     Parameters
     ----------
     indices
-        List of indices in format "chrom:start-end".
+        List of indices in format "chr:start-end" or "chr:start-end:strand".
     always_reverse_complement
         If True, all sequences will be augmented with their reverse complement.
     deterministic_shift
@@ -157,7 +237,7 @@ class IndexManager:
         )
 
     def shuffle_indices(self):
-        """Shuffle indices. Managed by subclass AnnDataLoader."""
+        """Shuffle indices. Managed by wrapping class AnnDataLoader."""
         np.random.shuffle(self.augmented_indices)
 
     def _augment_indices(self, indices: list[str]) -> tuple[list[str], dict[str, str]]:
@@ -165,20 +245,25 @@ class IndexManager:
         augmented_indices = []
         augmented_indices_map = {}
         for region in indices:
-            if self.deterministic_shift:
-                shifted_regions = self._deterministic_shift_region(region)
-                for shifted_region in shifted_regions:
-                    augmented_indices.append(f"{shifted_region}:+")
-                    augmented_indices_map[f"{shifted_region}:+"] = region
-                    if self.always_reverse_complement:
-                        augmented_indices.append(f"{shifted_region}:-")
-                        augmented_indices_map[f"{shifted_region}:-"] = region
+            if not _check_strandedness(region): # If slow, can use AnnDataset stranded argument - but this validates every region's formatting as well
+                stranded_region = f"{region}:+"
             else:
-                augmented_indices.append(f"{region}:+")
-                augmented_indices_map[f"{region}:+"] = region
+                stranded_region = region
+
+            if self.deterministic_shift:
+                shifted_regions = self._deterministic_shift_region(stranded_region)
+                for shifted_region in shifted_regions:
+                    augmented_indices.append(shifted_region)
+                    augmented_indices_map[shifted_region] = region
+                    if self.always_reverse_complement:
+                        augmented_indices.append(_flip_region_strand(shifted_region))
+                        augmented_indices_map[_flip_region_strand(shifted_region)] = region
+            else:
+                augmented_indices.append(stranded_region)
+                augmented_indices_map[stranded_region] = region
                 if self.always_reverse_complement:
-                    augmented_indices.append(f"{region}:-")
-                    augmented_indices_map[f"{region}:-"] = region
+                    augmented_indices.append(_flip_region_strand(stranded_region))
+                    augmented_indices_map[_flip_region_strand(stranded_region)] = region
         return augmented_indices, augmented_indices_map
 
     def _deterministic_shift_region(
@@ -190,12 +275,12 @@ class IndexManager:
         This is a legacy function, it's recommended to use stochastic shifting instead.
         """
         new_regions = []
-        chrom, start_end = region.split(":")
+        chrom, start_end, strand = region.split(":")
         start, end = map(int, start_end.split("-"))
         for i in range(-n_shifts, n_shifts + 1):
             new_start = start + i * stride
             new_end = end + i * stride
-            new_regions.append(f"{chrom}:{new_start}-{new_end}")
+            new_regions.append(f"{chrom}:{new_start}-{new_end}:{strand}")
         return new_regions
 
 
@@ -259,15 +344,19 @@ class AnnDataset(BaseClass):
         self.num_outputs = self.anndata.X.shape[0]
         self.random_reverse_complement = random_reverse_complement
         self.max_stochastic_shift = max_stochastic_shift
-        self.shuffle = False  # managed by subclass AnnDataLoader
+        self.shuffle = False  # managed by wrapping class AnnDataLoader
+
+        # Check region formatting
+        stranded = _check_strandedness(self.indices[0])
 
         self.sequence_loader = SequenceLoader(
             genome_file,
-            self.chromsizes,
-            in_memory,
-            always_reverse_complement,
-            max_stochastic_shift,
-            self.indices,
+            chromsizes=self.chromsizes,
+            in_memory=in_memory,
+            stranded=stranded,
+            always_reverse_complement=always_reverse_complement,
+            max_stochastic_shift=max_stochastic_shift,
+            regions=self.indices,
         )
         self.index_manager = IndexManager(
             self.indices,
@@ -308,19 +397,16 @@ class AnnDataset(BaseClass):
         """Return sequence and target for a given index."""
         augmented_index = self.index_manager.augmented_indices[idx]
         original_index = self.index_manager.augmented_indices_map[augmented_index]
-
-        strand = "-" if augmented_index.endswith(":-") else "+"
-
         # stochastic shift
         if self.max_stochastic_shift > 0:
             shift = np.random.randint(
                 -self.max_stochastic_shift, self.max_stochastic_shift + 1
             )
-            x = self.sequence_loader.get_sequence(original_index, strand, shift)
+            x = self.sequence_loader.get_sequence(original_index, shift)
         else:
-            x = self.sequence_loader.get_sequence(original_index, strand)
+            x = self.sequence_loader.get_sequence(original_index)
 
-        # random reverse complement (always is done in the sequence loader)
+        # random reverse complement (always_reverse_complement is done in the sequence loader)
         if self.random_reverse_complement and np.random.rand() < 0.5:
             x = self.sequence_loader._reverse_complement(x)
 
