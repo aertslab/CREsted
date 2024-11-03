@@ -1392,10 +1392,7 @@ class Crested:
             enhancer_optimizer = EnhancerOptimizer(optimize_func=_weighted_difference)
 
         # get input sequence length of the model
-        seq_len = (
-            self.anndatamodule.adata.var.iloc[0]["end"]
-            - self.anndatamodule.adata.var.iloc[0]["start"]
-        )
+        seq_len = self.model.input_shape[1]
 
         # determine the flanks without changes
         if no_mutation_flanks is not None and target_len is not None:
@@ -1590,10 +1587,7 @@ class Crested:
             enhancer_optimizer = EnhancerOptimizer(optimize_func=_weighted_difference)
 
         # get input sequence length of the model
-        seq_len = (
-            self.anndatamodule.adata.var.iloc[0]["end"]
-            - self.anndatamodule.adata.var.iloc[0]["start"]
-        )
+        seq_len = self.model.input_shape[1]
 
         # determine the flanks without changes
         if no_mutation_flanks is not None and target_len is not None:
