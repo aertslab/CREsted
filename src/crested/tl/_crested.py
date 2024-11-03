@@ -570,7 +570,7 @@ class Crested:
         """
         Extract embeddings from a specified layer in the model for all regions in the dataset.
 
-        If anndata is provided, it will add the embeddings to anndata.obsm[layer_name].
+        If anndata is provided, it will add the embeddings to anndata.varm[layer_name].
 
         Parameters
         ----------
@@ -581,7 +581,7 @@ class Crested:
 
         Returns
         -------
-        Embeddings of shape (N, D), where D is the size of the embedding layer.
+        Embeddings of shape (N, D), where N is the number of regions in the dataset and D is the size of the embedding layer.
         """
         if layer_name not in [layer.name for layer in self.model.layers]:
             raise ValueError(f"Layer '{layer_name}' not found in model.")
@@ -597,7 +597,7 @@ class Crested:
         embeddings = embedding_model.predict(predict_loader.data, steps=n_predict_steps)
 
         if anndata is not None:
-            anndata.obsm[layer_name] = embeddings
+            anndata.varm[layer_name] = embeddings
         return embeddings
 
     def predict(
