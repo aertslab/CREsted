@@ -56,8 +56,6 @@ class SequenceLoader:
         Dictionary with chromosome sizes. Required if max_stochastic_shift > 0.
     in_memory
         If True, the sequences of supplied regions will be loaded into memory.
-    stranded
-        Whether the dataset regions have strand information. If None, inferred from regions.
     always_reverse_complement
         If True, all sequences will be augmented with their reverse complement.
         Doubles the dataset size.
@@ -72,7 +70,6 @@ class SequenceLoader:
         genome_file: PathLike,
         chromsizes: dict | None,
         in_memory: bool = False,
-        stranded: bool | None = None,
         always_reverse_complement: bool = False,
         max_stochastic_shift: int = 0,
         regions: list[str] | None = None,
@@ -81,7 +78,6 @@ class SequenceLoader:
         self.genome = FastaFile(genome_file)
         self.chromsizes = chromsizes
         self.in_memory = in_memory
-        self.stranded = stranded
         self.always_reverse_complement = always_reverse_complement
         self.max_stochastic_shift = max_stochastic_shift
         self.sequences = {}
@@ -95,12 +91,11 @@ class SequenceLoader:
         logger.info("Loading sequences into memory...")
         strand_reverser = {'+': '-', '-': '+'}
         # Check region formatting
-        if self.stranded is None:
-            self.stranded = _check_strandedness(regions[0])
+        stranded = _check_strandedness(regions[0])
 
         for region in tqdm(regions):
             # Parse region
-            if self.stranded:
+            if stranded:
                 chrom, start_end, strand = region.split(":")
             else:
                 chrom, start_end = region.split(":")
@@ -139,7 +134,7 @@ class SequenceLoader:
         """Reverse complement a sequence."""
         return sequence.translate(self.complement)[::-1]
 
-    def get_sequence(self, region: str, strand: str | None = None, shift: int = 0) -> str:
+    def get_sequence(self, region: str, stranded: bool | None = None, shift: int = 0) -> str:
         """
         Get sequence for a region, strand, and shift from memory or fasta.
 
@@ -149,8 +144,9 @@ class SequenceLoader:
         ----------
         region
             Region to get the sequence for. Either (chr:start-end) or (chr:start-end:strand).
-        strand
-            Strand to extract sequence for. Default uses region info if available and positive strand if not.
+        stranded
+            Whether the input data is stranded. Default (None) infers from sequence (at a computational cost).
+            If not stranded, positive strand is assumed.
         shift:
             Shift of the sequence within the extended sequence, for use with the stochastic shift mechanism.
 
@@ -158,31 +154,10 @@ class SequenceLoader:
         -------
         The DNA sequence, as a string.
         """
-        # If strand status is unknown (because not provided at init
-        # and not inferred by _load_sequences_into_memory), infer:
-        # Common case: with 'predict' sequenceloader
-        if self.stranded is None:
-            stranded_region = _check_strandedness(region)
-        else:
-            stranded_region = self.stranded
-
-        # Add strand if not provided
-        if not stranded_region:
-            if strand is None:
-                region = f"{region}:+"
-            else:
-                region = f"{region}:{strand}"
-        else:
-            if strand is not None:
-                # Check whether actually stranded or just SequenceLoader setting
-                if _check_strandedness(region):
-                    logger.warning(
-                        f"Argument 'strand' provided while region {region} already had strand information. Using provided strand {strand}.",
-                    )
-                    region = f"{region[:-2]}:{strand}"
-                else:
-                    region = f"{region}:{strand}"
-
+        if stranded is None:
+            stranded = _check_strandedness(region)
+        if not stranded:
+            region = f"{region}:+"
         # Parse region
         chrom, start_end, strand = region.split(":")
         start, end = map(int, start_end.split("-"))
@@ -325,7 +300,6 @@ class AnnDataset(BaseClass):
             genome_file,
             chromsizes=self.chromsizes,
             in_memory=in_memory,
-            stranded=stranded,
             always_reverse_complement=always_reverse_complement,
             max_stochastic_shift=max_stochastic_shift,
             regions=self.indices,
@@ -334,7 +308,7 @@ class AnnDataset(BaseClass):
             self.indices,
             always_reverse_complement=always_reverse_complement
         )
-        self.seq_len = len(self.sequence_loader.get_sequence(self.indices[0]))
+        self.seq_len = len(self.sequence_loader.get_sequence(self.indices[0], stranded = stranded))
 
     @staticmethod
     def _split_anndata(anndata: AnnData, split: str) -> AnnData:
@@ -373,9 +347,11 @@ class AnnDataset(BaseClass):
             shift = np.random.randint(
                 -self.max_stochastic_shift, self.max_stochastic_shift + 1
             )
-            x = self.sequence_loader.get_sequence(augmented_index, shift = shift)
         else:
-            x = self.sequence_loader.get_sequence(augmented_index)
+            shift = 0
+
+        # Get sequence
+        x = self.sequence_loader.get_sequence(augmented_index, stranded = True, shift = shift)
 
         # random reverse complement (always_reverse_complement is done in the sequence loader)
         if self.random_reverse_complement and np.random.rand() < 0.5:
