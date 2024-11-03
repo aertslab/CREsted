@@ -348,6 +348,11 @@ class AnnDataset(BaseClass):
 
         # Check region formatting
         stranded = _check_strandedness(self.indices[0])
+        if stranded and (always_reverse_complement or random_reverse_complement):
+            logger.info(
+                    "Setting always_reverse_complement=True or random_reverse_complement=True with stranded data.",
+                    "This means both strands are used when training and the strand information is effectively disregarded."
+                )
 
         self.sequence_loader = SequenceLoader(
             genome_file,
