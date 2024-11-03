@@ -409,7 +409,7 @@ class AnnDataset(BaseClass):
             shift = np.random.randint(
                 -self.max_stochastic_shift, self.max_stochastic_shift + 1
             )
-            x = self.sequence_loader.get_sequence(original_index, shift)
+            x = self.sequence_loader.get_sequence(original_index, shift = shift)
         else:
             x = self.sequence_loader.get_sequence(original_index)
 
