@@ -37,7 +37,9 @@ def _check_strandedness(region: str) -> bool:
     elif re.fullmatch(r".+:\d+-\d+", region):
         return False
     else:
-        raise ValueError(f"Region {region} was not recognised as a valid coordinate set (chr:start-end or chr:start-end:strand).")
+        raise ValueError(
+            f"Region {region} was not recognised as a valid coordinate set (chr:start-end or chr:start-end:strand)."
+            "If provided, strand must be + or -.")
 
 
 class SequenceLoader:
