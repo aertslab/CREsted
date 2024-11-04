@@ -108,7 +108,6 @@ class SequenceLoader:
     def _load_sequences_into_memory(self, regions: list[str]):
         """Load all sequences into memory (dict)."""
         logger.info("Loading sequences into memory...")
-        strand_reverser = {'+': '-', '-': '+'}
         # Check region formatting
         stranded = _check_strandedness(regions[0])
 
@@ -133,11 +132,11 @@ class SequenceLoader:
 
                 # Add region to self.sequences
                 extended_sequence = self._get_extended_sequence(chrom, start, end, strand)
-                self.sequences[f"{chrom}:{start}-{end}:{strand}"] = extended_sequence
+                self.sequences[region] = extended_sequence
 
                 # Add reverse-complemented region to self.sequences if always_reverse_complement
                 if self.always_reverse_complement:
-                    self.sequences[f"{chrom}:{start}-{end}:{strand_reverser[strand]}"] = self._reverse_complement(
+                    self.sequences[_flip_region_strand(region)] = self._reverse_complement(
                         extended_sequence
                     )
 
