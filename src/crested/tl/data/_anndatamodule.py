@@ -49,6 +49,9 @@ class AnnDataModule:
         If True, the sequences will be randomly reverse complemented during training. Default is False.
     max_stochastic_shift
         Maximum stochastic shift (n base pairs) to apply randomly to each sequence during training. Default is 0.
+    deterministic_shift
+        If true, each region will be shifted twice with stride 50bp to each side. Default is False.
+        This is our legacy shifting, we recommend using max_stochastic_shift instead.
     shuffle
         If True, the data will be shuffled at the end of each epoch during training. Default is True.
     batch_size
@@ -64,18 +67,11 @@ class AnnDataModule:
         always_reverse_complement=True,
         random_reverse_complement: bool = False,
         max_stochastic_shift: int = 0,
+        deterministic_shift: bool = False,
         shuffle: bool = True,
         batch_size: int = 256,
-        deterministic_shift = None
     ):
         """Initialize the DataModule with the provided dataset and options."""
-        if deterministic_shift is not None:
-            determ_shift_warning = "Argument `deterministic_shift` is deprecated and is no longer functional. Use max_stochastic_shift instead."
-            if max_stochastic_shift == 0:
-                determ_shift_warning +=  " Setting max_stochastic_shift to 3."
-                max_stochastic_shift = 3
-            logger.warning(determ_shift_warning)
-
         self.adata = adata
         self.genome_file = genome_file
         self.chromsizes_file = chromsizes_file
@@ -83,6 +79,7 @@ class AnnDataModule:
         self.in_memory = in_memory
         self.random_reverse_complement = random_reverse_complement
         self.max_stochastic_shift = max_stochastic_shift
+        self.deterministic_shift = deterministic_shift
         self.shuffle = shuffle
         self.batch_size = batch_size
 
@@ -133,6 +130,7 @@ class AnnDataModule:
                 always_reverse_complement=self.always_reverse_complement,
                 random_reverse_complement=self.random_reverse_complement,
                 max_stochastic_shift=self.max_stochastic_shift,
+                deterministic_shift=self.deterministic_shift,
             )
             self.val_dataset = AnnDataset(
                 self.adata,
