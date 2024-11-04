@@ -243,6 +243,23 @@ class IndexManager:
                     augmented_indices_map[_flip_region_strand(stranded_region)] = region
         return augmented_indices, augmented_indices_map
 
+    def _deterministic_shift_region(
+        self, region: str, stride: int = 50, n_shifts: int = 2
+    ) -> list[str]:
+        """
+        Shift each region by a deterministic stride to each side. Will increase the number of regions by n_shifts times two.
+
+        This is a legacy function, it's recommended to use stochastic shifting instead.
+        """
+        new_regions = []
+        chrom, start_end, strand = region.split(":")
+        start, end = map(int, start_end.split("-"))
+        for i in range(-n_shifts, n_shifts + 1):
+            new_start = start + i * stride
+            new_end = end + i * stride
+            new_regions.append(f"{chrom}:{new_start}-{new_end}:{strand}")
+        return new_regions
+
 
 if os.environ["KERAS_BACKEND"] == "pytorch":
     import torch
