@@ -41,6 +41,23 @@ def _check_strandedness(region: str) -> bool:
             f"Region {region} was not recognised as a valid coordinate set (chr:start-end or chr:start-end:strand)."
             "If provided, strand must be + or -.")
 
+def _deterministic_shift_region(
+    region: str, stride: int = 50, n_shifts: int = 2
+) -> list[str]:
+    """
+    Shift each region by a deterministic stride to each side. Will increase the number of regions by n_shifts times two.
+
+    This is a legacy function, it's recommended to use stochastic shifting instead.
+    """
+    new_regions = []
+    chrom, start_end, strand = region.split(":")
+    start, end = map(int, start_end.split("-"))
+    for i in range(-n_shifts, n_shifts + 1):
+        new_start = start + i * stride
+        new_end = end + i * stride
+        new_regions.append(f"{chrom}:{new_start}-{new_end}:{strand}")
+    return new_regions
+
 
 class SequenceLoader:
     """
@@ -71,6 +88,7 @@ class SequenceLoader:
         chromsizes: dict | None,
         in_memory: bool = False,
         always_reverse_complement: bool = False,
+        deterministic_shift: bool = False,
         max_stochastic_shift: int = 0,
         regions: list[str] | None = None,
     ):
@@ -79,6 +97,7 @@ class SequenceLoader:
         self.chromsizes = chromsizes
         self.in_memory = in_memory
         self.always_reverse_complement = always_reverse_complement
+        self.deterministic_shift = deterministic_shift
         self.max_stochastic_shift = max_stochastic_shift
         self.sequences = {}
         self.complement = str.maketrans("ACGT", "TGCA")
@@ -94,23 +113,33 @@ class SequenceLoader:
         stranded = _check_strandedness(regions[0])
 
         for region in tqdm(regions):
-            # Parse region
-            if stranded:
-                chrom, start_end, strand = region.split(":")
-            else:
-                chrom, start_end = region.split(":")
+            # Make region stranded if not
+            if not stranded:
                 strand = "+"
-            start, end = map(int, start_end.split("-"))
+                region = f"{region}:{strand}"
+                if region[-4] == ":":
+                    raise ValueError(f"You are double-adding strand ids to your region {region}. Check if all regions are stranded or unstranded.")
 
-            # Add region to self.sequences
-            extended_sequence = self._get_extended_sequence(chrom, start, end, strand)
-            self.sequences[f"{chrom}:{start}-{end}:{strand}"] = extended_sequence
+            # Add deterministic shift regions
+            if self.deterministic_shift:
+                regions = _deterministic_shift_region(region)
+            else:
+                regions = [region]
 
-            # Add reverse-complemented region to self.sequences if always_reverse_complement
-            if self.always_reverse_complement:
-                self.sequences[f"{chrom}:{start}-{end}:{strand_reverser[strand]}"] = self._reverse_complement(
-                    extended_sequence
-                )
+            for region in regions:
+                # Parse region
+                chrom, start_end, strand = region.split(":")
+                start, end = map(int, start_end.split("-"))
+
+                # Add region to self.sequences
+                extended_sequence = self._get_extended_sequence(chrom, start, end, strand)
+                self.sequences[f"{chrom}:{start}-{end}:{strand}"] = extended_sequence
+
+                # Add reverse-complemented region to self.sequences if always_reverse_complement
+                if self.always_reverse_complement:
+                    self.sequences[f"{chrom}:{start}-{end}:{strand_reverser[strand]}"] = self._reverse_complement(
+                        extended_sequence
+                    )
 
     def _get_extended_sequence(self, chrom: str, start: int, end: int, strand: str) -> str:
         """Get sequence from genome file, extended for stochastic shifting."""
@@ -228,7 +257,7 @@ class IndexManager:
                 stranded_region = region
 
             if self.deterministic_shift:
-                shifted_regions = self._deterministic_shift_region(stranded_region)
+                shifted_regions = _deterministic_shift_region(stranded_region)
                 for shifted_region in shifted_regions:
                     augmented_indices.append(shifted_region)
                     augmented_indices_map[shifted_region] = region
@@ -242,23 +271,6 @@ class IndexManager:
                     augmented_indices.append(_flip_region_strand(stranded_region))
                     augmented_indices_map[_flip_region_strand(stranded_region)] = region
         return augmented_indices, augmented_indices_map
-
-    def _deterministic_shift_region(
-        self, region: str, stride: int = 50, n_shifts: int = 2
-    ) -> list[str]:
-        """
-        Shift each region by a deterministic stride to each side. Will increase the number of regions by n_shifts times two.
-
-        This is a legacy function, it's recommended to use stochastic shifting instead.
-        """
-        new_regions = []
-        chrom, start_end, strand = region.split(":")
-        start, end = map(int, start_end.split("-"))
-        for i in range(-n_shifts, n_shifts + 1):
-            new_start = start + i * stride
-            new_end = end + i * stride
-            new_regions.append(f"{chrom}:{new_start}-{new_end}:{strand}")
-        return new_regions
 
 
 if os.environ["KERAS_BACKEND"] == "pytorch":
@@ -336,6 +348,7 @@ class AnnDataset(BaseClass):
             chromsizes=self.chromsizes,
             in_memory=in_memory,
             always_reverse_complement=always_reverse_complement,
+            deterministic_shift=deterministic_shift,
             max_stochastic_shift=max_stochastic_shift,
             regions=self.indices,
         )
