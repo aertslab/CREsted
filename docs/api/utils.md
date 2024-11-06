@@ -11,7 +11,7 @@ CREsted provides a few utility function to help with sequence encoding, function
     :toctree: _autosummary
 
     EnhancerOptimizer
-    extract_bigwig_values_per_bp
+    read_bigwig_region
     hot_encoding_to_sequence
     one_hot_encode_sequence
     fetch_sequences

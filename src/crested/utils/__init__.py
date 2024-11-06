@@ -8,4 +8,5 @@ from ._utils import (
     fetch_sequences,
     hot_encoding_to_sequence,
     one_hot_encode_sequence,
+    read_bigwig_region,
 )
