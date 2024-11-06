@@ -53,7 +53,7 @@ class Crested:
         Name of the run. Used for wandb logging and creating output directories.
         If not provided, the current date and time will be used.
     logger
-        Logger to use for logging. Can be "wandb" or "tensorboard" (tensorboard not implemented yet)
+        Logger to use for logging. Can be "wandb", "tensorboard", or "dvc" (tensorboard not implemented yet)
         If not provided, no additional logging will be done.
     seed
         Seed to use for reproducibility.
@@ -203,6 +203,16 @@ class Crested:
                 log_dir=log_dir, update_freq=10
             )
             callbacks.append(tensorboard_callback)
+            run = None
+        elif logger_type == "dvc":
+            if os.environ["KERAS_BACKEND"] != "tensorflow":
+                raise ValueError("DVC Keras logging requires a tensorflow backend")
+            logger.warning("Using DVC logger. Make sure to have dvclive installed.")
+            from dvclive.keras import DVCLiveCallback
+
+            log_dir = os.path.join("logs", project_name, run_name)
+            dvc_callback = DVCLiveCallback()
+            callbacks.append(dvc_callback)
             run = None
         else:
             run = None
