@@ -14,6 +14,7 @@ CREsted provides a few utility function to help with sequence encoding, function
     read_bigwig_region
     hot_encoding_to_sequence
     one_hot_encode_sequence
+    fetch_sequences
     permute_model
     setup_logging
 ```
