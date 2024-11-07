@@ -1331,8 +1331,8 @@ class Crested:
 
     def enhancer_design_motif_implementation(
         self,
-        n_sequences: int,
         patterns: dict,
+        n_sequences: int = 1,
         target_class: str | None = None,
         target: int | np.ndarray | None = None,
         insertions_per_pattern: dict | None = None,
@@ -1342,6 +1342,7 @@ class Crested:
         target_len: int | None = None,
         preserve_inserted_motifs: bool = True,
         enhancer_optimizer: EnhancerOptimizer | None = None,
+        starting_sequences: str | list | None = None,
         **kwargs: dict[str, Any],
     ) -> tuple[list[dict], list] | list:
         """
@@ -1349,10 +1350,10 @@ class Crested:
 
         Parameters
         ----------
-        n_sequences
-            Number of enhancers to design.
         patterns
             Dictionary of patterns to be implemented in the form of 'pattern_name':'pattern_sequence'
+        n_sequences
+            Number of enhancers to design.
         target_class
             Class name for which the enhancers will be designed for. If this value is set to None
             target needs to be specified.
@@ -1378,6 +1379,9 @@ class Crested:
             An instance of EnhancerOptimizer, defining how sequences should be optimized.
             If None, a default EnhancerOptimizer will be initialized using `_weighted_difference`
             as optimization function.
+        starting_sequences
+            A DNA sequence or a list of DNA sequences that will be used instead of randomly generated
+            sequences, if provided, n_sequences is ignored
         kwargs
             Keyword arguments that will be passed to the `get_best` function of the EnhancerOptimizer
 
@@ -1435,15 +1439,19 @@ class Crested:
         else:
             inserted_motif_locations = None
 
-        # create random sequences
-        random_sequences = self._create_random_sequences(
-            n_sequences=n_sequences, seq_len=seq_len
-        )
+        # create initial sequences
+        if starting_sequences is None:
+            initial_sequences = self._create_random_sequences(
+                n_sequences=n_sequences, seq_len=seq_len
+            )
+        else:
+            initial_sequences = self._parse_starting_sequences(starting_sequences)
+            n_sequences = initial_sequences.shape[0]
 
         designed_sequences = []
         intermediate_info_list = []
 
-        for idx, sequence in enumerate(random_sequences):
+        for idx, sequence in enumerate(initial_sequences):
             sequence_onehot = one_hot_encode_sequence(sequence)
             if return_intermediate:
                 intermediate_info_list.append(
@@ -1521,13 +1529,14 @@ class Crested:
     def enhancer_design_in_silico_evolution(
         self,
         n_mutations: int,
-        n_sequences: int,
+        n_sequences: int = 1,
         target_class: str | None = None,
         target: int | np.ndarray | None = None,
         return_intermediate: bool = False,
         no_mutation_flanks: tuple | None = None,
         target_len: int | None = None,
         enhancer_optimizer: EnhancerOptimizer | None = None,
+        starting_sequences: str | list | None = None,
         **kwargs: dict[str, Any],
     ) -> tuple[list[dict], list] | list:
         """
@@ -1556,6 +1565,9 @@ class Crested:
             An instance of EnhancerOptimizer, defining how sequences should be optimized.
             If None, a default EnhancerOptimizer will be initialized using `_weighted_difference`
             as optimization function.
+        starting_sequences
+            A DNA sequence or a list of DNA sequences that will be used instead of randomly generated
+            sequences, if provided, n_sequences is ignored
         kwargs
             Keyword arguments that will be passed to the `get_best` function of the EnhancerOptimizer
 
@@ -1625,10 +1637,14 @@ class Crested:
         elif no_mutation_flanks is None and target_len is None:
             no_mutation_flanks = (0, 0)
 
-        # create random sequences
-        random_sequences = self._create_random_sequences(
-            n_sequences=n_sequences, seq_len=seq_len
-        )
+        # create initial sequences
+        if starting_sequences is None:
+            initial_sequences = self._create_random_sequences(
+                n_sequences=n_sequences, seq_len=seq_len
+            )
+        else:
+            initial_sequences = self._parse_starting_sequences(starting_sequences)
+            n_sequences = initial_sequences.shape[0]
 
         # initialize
         designed_sequences: list[str] = []
@@ -1647,7 +1663,7 @@ class Crested:
             (n_sequences, TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ, seq_len, 4)
         )
 
-        for i, sequence in enumerate(random_sequences):
+        for i, sequence in enumerate(initial_sequences):
             sequence_onehot_prev_iter[i] = one_hot_encode_sequence(sequence)
 
         for _iter in tqdm(range(n_mutations)):
@@ -1754,6 +1770,17 @@ class Crested:
             random_sequences[idx_seq] = "".join(current_sequence)
 
         return random_sequences
+
+    def _parse_starting_sequences(self, starting_sequences) -> np.ndarray:
+        if isinstance(starting_sequences, str):
+            starting_sequences = [starting_sequences]
+
+        n_sequences = len(starting_sequences)
+        starting_sequences_array = np.empty((n_sequences), dtype=object)
+        for idx, sequence in enumerate(starting_sequences):
+            starting_sequences_array[idx] = sequence
+
+        return starting_sequences_array
 
     def _calculate_location_gc_frequencies(self) -> np.ndarray:
         regions = self.anndatamodule.adata.var
