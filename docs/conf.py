@@ -141,6 +141,7 @@ nitpick_ignore = [
     ("py:class", "keras.src.losses.loss.Loss"),
     ("py:class", "keras.src.metrics.metric.Metric"),
     ("py:class", "seaborn.matrix.ClusterGrid"),
+    ("py:class", "pysam.libcfaidx.FastaFile"),
 ]
 
 suppress_warnings = [

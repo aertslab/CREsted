@@ -718,6 +718,7 @@ class Crested:
         window_size: int = 2114,
         central_size: int = 1000,
         step_size: int = 50,
+        genome: FastaFile | None = None,
     ) -> tuple[np.ndarray, np.ndarray, int, int, int]:
         """
         Score regions upstream and downstream of a gene locus using the model's prediction.
@@ -746,6 +747,8 @@ class Crested:
             Size of the central region that the model predicts for. Default 1000.
         step_size
             Distance between consecutive windows. Default 50.
+        genome
+            Genome of species to score locus on. If none, genome of crested class is used.
 
         Returns
         -------
@@ -784,7 +787,8 @@ class Crested:
         all_class_names = list(self.anndatamodule.adata.obs_names)
         idx = all_class_names.index(class_name)
 
-        genome = FastaFile(self.anndatamodule.genome_file)
+        if genome is None:
+            genome = FastaFile(self.anndatamodule.genome_file)
 
         # Generate all windows and one-hot encode the sequences in parallel
         all_sequences = []
