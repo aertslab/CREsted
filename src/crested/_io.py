@@ -104,7 +104,6 @@ def _extract_values_from_bigwig(
 
     return values
 
-
 def _read_consensus_regions(
     regions_file: PathLike, chromsizes_file: PathLike | None = None
 ) -> pd.DataFrame:
