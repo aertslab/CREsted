@@ -291,13 +291,13 @@ class MultiheadAttention(keras.layers.Layer):
             shape=[1, self._num_heads, 1, self._key_size],
             initializer=self._initializer,
             dtype="float32",
-            name = f"r_w_bias",
+            name = "r_w_bias",
         )
         self._r_r_bias = self.add_weight(
             shape=[1, self._num_heads, 1, self._key_size],
             initializer=self._initializer,
             dtype="float32",
-            name = f"r_r_bias"
+            name = "r_r_bias"
         )
 
         # Create dropout layers (layers so that they handle randomness correctly in Keras 3)
@@ -351,17 +351,23 @@ class MultiheadAttention(keras.layers.Layer):
             positional_encodings = self.pos_dropout(positional_encodings, training = training)
 
             # Relative position weights
-            # r_k: [1, H, 2T-1, K] -> (1, 8, 3071, 64)
-            r_k = self._multihead_output(self._r_k_layer, positional_encodings)
+            # r_k goal: [H, 2T-1, K] -> (8, 3071, 64)
+            # r_k = self._multihead_output(self._r_k_layer, positional_encodings)
+            r_k = self._r_k_layer(positional_encodings) # [1, 2T-1, H*K]
+            r_k = keras.ops.reshape(
+                r_k, [-1, self._num_heads, self._key_size] # [2T-1, H, K]
+            )
+            # [H, 2T-1, K] -> (8, 3071, 64)
+            r_k =  keras.ops.transpose(r_k, [1, 0, 2])
 
             # Add shifted relative logits to content logits.
             if self._content_position_bias:
                 # relative_logits: [B, H, T', 2T-1] -> (1, 8, 1536, 3071)
-                relative_logits = keras.ops.einsum('b h i d, b h j d -> b h i j', q + self._r_r_bias, r_k)
+                relative_logits = keras.ops.einsum('b h i d, h j d -> b h i j', q + self._r_r_bias, r_k)
 
             else:
                 # relative_logits: [1, H, 1, 2T-1] -> (1, 8, 1, 3071)
-                relative_logits = keras.ops.einsum('b h i d, b h j d -> b h i j', self._r_r_bias, r_k)
+                relative_logits = keras.ops.einsum('b h i d, h j d -> b h i j', self._r_r_bias, r_k)
                 # relative_logits post-broadcast: [1, H, T', 2T-1] -> (1, 8, 1536, 3071)
                 relative_logits = keras.ops.broadcast_to(
                     relative_logits,
