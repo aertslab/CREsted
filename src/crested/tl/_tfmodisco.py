@@ -11,7 +11,17 @@ from loguru import logger
 import anndata
 
 from crested._logging import log_and_raise
-from ._modisco_utils import match_score_patterns, read_html_to_dataframe, _get_ic, _trim_pattern_by_ic, _pattern_to_ppm, compute_ic
+from ._modisco_utils import (
+    match_score_patterns,
+    read_html_to_dataframe, 
+    _get_ic,
+    _trim_pattern_by_ic,
+    _pattern_to_ppm,
+    compute_ic,
+    Pattern,
+    MergedPatterns,
+    read_modisco_results
+)
 
 
 def _calculate_window_offsets(center: int, window_size: int) -> tuple:
@@ -583,7 +593,7 @@ def match_h5_files_to_classes(
 
 
 def process_patterns(
-    matched_files: dict[str, str | list[str] | None],
+    matched_files: dict[str, os.PathLike | list[os.PathLike] | None],
     sim_threshold: float = 3,
     trim_ic_threshold: float = 0.1,
     discard_ic_threshold: float = 0.1,
@@ -609,6 +619,10 @@ def process_patterns(
     -------
     All processed patterns with metadata.
     """
+
+    for cell_type in matched_files:
+
+
     all_patterns = {}
 
     for cell_type in matched_files:

@@ -4,56 +4,114 @@ import modiscolite as modisco
 import numpy as np
 import pandas as pd
 from tangermeme.tools import tomtom as tangermeme_tomtom
-import torch
+import h5py
+import os
 
-def _trim_pattern_by_ic_old(
-    pattern: dict,
-    pos_pattern: bool,
-    min_v: float,
-    background: list[float] = None,
-    pseudocount: float = 1e-6,
-) -> dict:
+class Pattern(modisco.core.SeqletSet):
+
+    def __init__(
+        self,
+        seqlets: list[modisco.core.Seqlet],
+        is_pos: bool,
+        file_path: os.PathLike
+    ):
+        super().__init__(seqlets=seqlets)
+        self.is_pos = is_pos
+        self.file_path = file_path
+
+    def get_ppm(self) -> np.ndarray:
+        return self.sequence
+    
+    def get_ic(
+            self,
+            background_freqs: list[float] | None = None
+    ) -> tuple[float, np.ndarray, np.ndarray]:
+        if background_freqs is None:
+            background_freqs = [0.28, 0.22, 0.22, 0.28]
+        return compute_ic(
+            ppm=self.get_ppm(),
+            background_freqs=background_freqs)
+
+    def trim_by_ic(
+            self,
+            ic_threshold: float,
+            background_freqs: list[float] | None = None
+    ):
+        _, ic_pos, _ = self.get_ic(background_freqs=background_freqs)
+        np.nan_to_num(ic_pos, copy=False, nan=0.0)
+        v = (abs(self.get_ppm()) * ic_pos[:, None]).max(1)
+        v = (v - v.min()) / (v.max() - v.min() + 1e-9)
+
+        try:
+            start_idx = min(np.where(np.diff((v > ic_threshold) * 1))[0])
+            end_idx = max(np.where(np.diff((v > ic_threshold) * 1))[0]) + 1
+        except ValueError:
+            raise ValueError("No valid pattern found.")
+        
+        self.trim_to_idx(start_idx = start_idx, end_idx = end_idx)
+
+class MergedPatterns:
+    def __init__(
+        self,
+        patterns: list[Pattern]
+    ):
+        self.patterns = patterns
+    
+    def get_representative(self) -> Pattern:
+        max_ic: float = -np.inf
+        representative: Pattern = self.patterns[0]
+        for pattern in self.patterns:
+            _, ic_pos, _ = pattern.get_ic()
+            p_ic = np.mean(ic_pos)
+            if p_ic > max_ic:
+                max_ic = p_ic
+                representative = pattern
+        return representative
+
+def read_modisco_results(path: os.PathLike) -> tuple[ list[Pattern], list[Pattern] ]:
     """
-    Trims the pattern based on information content (IC).
+    Read results from tfmodiscolite.
 
     Parameters
     ----------
-    pattern
-        Dictionary containing the pattern data.
-    pos_pattern
-        Indicates if the pattern is a positive pattern.
-    min_v
-        Minimum value for trimming.
-    background
-        Background probabilities for each nucleotide.
-    pseudocount
-        Pseudocount for IC calculation.
+    path: os.PathLike
+        path to tfmodiscolite result (hdf5 file).
 
     Returns
     -------
-        Trimmed pattern.
+    tuple[ list[Pattern], list[Pattern] ]
+        positive_patterns, negative_patterns
     """
-    if background is None:
-        background = [0.28, 0.22, 0.22, 0.28]
-    contrib_scores = np.array(pattern["contrib_scores"])
-    if not pos_pattern:
-        contrib_scores = -contrib_scores
-    contrib_scores[contrib_scores < 0] = 1e-9  # avoid division by zero
-
-    ic = modisco.util.compute_per_position_ic(
-        ppm=np.array(contrib_scores), background=background, pseudocount=pseudocount
-    )
-    np.nan_to_num(ic, copy=False, nan=0.0)
-    v = (abs(np.array(contrib_scores)) * ic[:, None]).max(1)
-    v = (v - v.min()) / (v.max() - v.min() + 1e-9)
-
-    try:
-        start_idx = min(np.where(np.diff((v > min_v) * 1))[0])
-        end_idx = max(np.where(np.diff((v > min_v) * 1))[0]) + 1
-    except ValueError:
-        logger.error("No valid pattern found. Aborting...")
-
-    return _trim(pattern, start_idx, end_idx)
+    pos_patterns: list[Pattern] = []
+    neg_patterns: list[Pattern] = []
+    with h5py.File(path) as m:
+        for pos_neg, pattern_list in zip(["pos_patterns", "neg_patterns"] , [pos_patterns, neg_patterns]):
+            if pos_neg not in m.keys():
+                continue
+            for pattern in m[pos_neg].keys():
+                seqlets = []
+                _s = m[pos_neg][pattern]["seqlets"]
+                for example_idx, start, end, is_revcomp, contrib, hypot_contrib, sequence in zip(
+                    _s["example_idx"][:], _s["start"][:], _s["end"][:], _s["is_revcomp"][:], _s["contrib_scores"][:],
+                    _s["hypothetical_contribs"][:], _s["sequence"]
+                ):
+                    s = modisco.core.Seqlet(
+                        example_idx = example_idx,
+                        start = start,
+                        end = end,
+                        is_revcomp = is_revcomp)
+                    s.contrib_scores = contrib
+                    s.hypothetical_contribs = hypot_contrib
+                    s.sequence = sequence
+                    seqlets.append(s)
+                pattern_list.append(
+                    Pattern(
+                        seqlets=seqlets,
+                        is_pos=pos_neg=="pos_patterns",
+                        file_path=path
+                    ),
+                )
+    return pos_patterns, neg_patterns
 
 def _trim_pattern_by_ic(
     pattern: dict,
@@ -244,7 +302,7 @@ def _pattern_to_ppm(pattern):
     return ppm
 
 
-def compute_ic(ppm, background_freqs=[0.28,0.22,0.22,0.28]):
+def compute_ic(ppm: np.ndarray, background_freqs=[0.28,0.22,0.22,0.28]):
     """
     Compute the information content (IC) of a Position Probability Matrix (PPM).
 
