@@ -16,6 +16,7 @@ def chrombpnet(
     num_filters: int = 512,
     filter_size: int = 3,
     activation: str = "relu",
+    output_activation: str = "softplus",
     l2: float = 0.00001,
     dropout: float = 0.1,
     batch_norm: bool = True,
@@ -50,6 +51,8 @@ def chrombpnet(
         Size of the kernel in the dilated convolutional layers.
     activation
         Activation function in the dilated convolutional layers.
+    output_activation
+        Activation function for the output layer.
     l2
         L2 regularization for the dilated convolutional layers.
     dropout
@@ -126,7 +129,10 @@ def chrombpnet(
 
     x = keras.layers.GlobalAveragePooling1D()(x)
     outputs = keras.layers.Dense(
-        units=num_classes, activation="softplus", use_bias=dense_bias, name="dense_out"
+        units=num_classes,
+        activation=output_activation,
+        use_bias=dense_bias,
+        name="dense_out",
     )(x)
 
     model = keras.Model(inputs=inputs, outputs=outputs)
