@@ -426,3 +426,52 @@ def read_bigwig_region(
     ).squeeze()
 
     return values, positions
+
+
+def reverse_complement(sequence: str | list[str] | np.ndarray) -> str | np.ndarray:
+    """
+    Perform reverse complement on either a one-hot encoded array or a (list of) DNA sequence string(s).
+
+    Parameters
+    ----------
+    sequence
+        The DNA sequence string(s) or one-hot encoded array to reverse complement.
+
+    Returns
+    -------
+    The reverse complemented DNA sequence string or one-hot encoded array.
+    """
+
+    def complement_str(seq: str) -> str:
+        complement = str.maketrans("ACGTacgt", "TGCAtgca")
+        return seq.translate(complement)[::-1]
+
+    if isinstance(sequence, str):
+        return complement_str(sequence)
+    elif isinstance(sequence, list):
+        return [complement_str(seq) for seq in sequence]
+    elif isinstance(sequence, np.ndarray):
+        if sequence.ndim == 2:
+            if sequence.shape[1] == 4:
+                return sequence[::-1, ::-1]
+            elif sequence.shape[0] == 4:
+                return sequence[:, ::-1][:, ::-1]
+            else:
+                raise ValueError(
+                    "One-hot encoded array must have shape (W, 4) or (4, W)"
+                )
+        elif sequence.ndim == 3:
+            if sequence.shape[1] == 4:
+                return sequence[:, ::-1, ::-1]
+            elif sequence.shape[2] == 4:
+                return sequence[:, ::-1, ::-1]
+            else:
+                raise ValueError(
+                    "One-hot encoded array must have shape (B, 4, W) or (B, W, 4)"
+                )
+        else:
+            raise ValueError("One-hot encoded array must have 2 or 3 dimensions")
+    else:
+        raise TypeError(
+            "Input must be either a DNA sequence string or a one-hot encoded array"
+        )
