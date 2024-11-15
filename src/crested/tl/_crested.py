@@ -1341,7 +1341,6 @@ class Crested:
         target: int | np.ndarray | None = None,
         insertions_per_pattern: dict | None = None,
         return_intermediate: bool = False,
-        class_penalty_weights: np.ndarray | None = None,
         no_mutation_flanks: tuple | None = None,
         target_len: int | None = None,
         preserve_inserted_motifs: bool = True,
@@ -1369,9 +1368,6 @@ class Crested:
         return_intermediate
             If True, returns a dictionary with predictions and changes made in intermediate steps for selected
             sequences
-        class_penalty_weights
-            Array with a value per class, determining the penalty weight for that class to be used in scoring
-            function for sequence selection.
         no_mutation_flanks
             A tuple of integers which determine the regions in each flank to not do implementations.
         target_len
