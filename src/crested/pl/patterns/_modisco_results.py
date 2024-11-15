@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from loguru import logger
-from scipy.cluster.hierarchy import leaves_list, linkage, dendrogram
+from scipy.cluster.hierarchy import dendrogram, leaves_list, linkage
 
 from crested.pl._utils import render_plot
 from crested.tl.modisco._modisco_utils import (
@@ -204,7 +204,7 @@ def clustermap(
     dy: float = 0.002,
     fig_path: str | None = None,
     pat_seqs: list[tuple[str, np.ndarray]] | None = None,
-    dendrogram_ratio: typle[float, float] = (0.05, 0.2),
+    dendrogram_ratio: tuple[float, float] = (0.05, 0.2),
 ) -> sns.matrix.ClusterGrid:
     """
     Create a clustermap from the given pattern matrix and class labels with customizable options.

@@ -1,7 +1,6 @@
-from keras import metrics
-from keras import ops
+from keras import backend as K
+from keras import metrics, ops
 from keras.utils import register_keras_serializable
-from keras import backend as K  
 
 
 @register_keras_serializable(package="Metrics")
