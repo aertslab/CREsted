@@ -718,7 +718,7 @@ class Crested:
         window_size: int = 2114,
         central_size: int = 1000,
         step_size: int = 50,
-        genome: FastaFile | None = None 
+        genome: FastaFile | None = None,
     ) -> tuple[np.ndarray, np.ndarray, int, int, int]:
         """
         Score regions upstream and downstream of a gene locus using the model's prediction.
@@ -836,7 +836,7 @@ class Crested:
         # Normalize the scores based on the number of times each position is included in the central window
         return (
             scores / ratio,
-            np.array(all_coordinates),
+            all_coordinates,
             start_position,
             end_position,
             tss_position,
