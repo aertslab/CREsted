@@ -46,13 +46,13 @@ pip install torch
 pip install crested
 ```
 
-3. If you plan on doing motif analysis using the tf-modisco (lite) and tangermeme's tomtom functionality inside CREsted, you will need to run the following additional install:
+3. If you plan on doing motif analysis using the tf-modisco (lite) inside CREsted, you will need to run the following additional install:
 
 ```bash
-pip install crested[tfmodisco]
+pip install "modisco-lite>=2.2.1"
 ```
 
-This requires a cmake installation on your system. If you don't have it, you can install it with:
+Modiscolite may require a cmake installation on your system. If you don't have it, you can install it with:
 
 ```bash
 pip install cmake
