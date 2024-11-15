@@ -14,6 +14,7 @@ def deeptopic_cnn(
     dense_out: int = 1024,
     first_activation: str = "gelu",
     activation: str = "relu",
+    output_activation: str = "sigmoid",
     conv_do: float = 0.15,
     normalization: str = "batch",
     dense_do: float = 0.5,
@@ -43,6 +44,8 @@ def deeptopic_cnn(
         Activation function for the first conv block.
     activation
         Activation function for subsequent blocks.
+    output_activation
+        Activation function for the output layer.
     conv_do
         Dropout rate for the convolutional layers.
     normalization
@@ -135,6 +138,7 @@ def deeptopic_cnn(
         name_prefix="denseblock",
         use_bias=False,
     )
-    logits = keras.layers.Dense(num_classes, activation="linear", use_bias=True)(x)
-    outputs = keras.layers.Activation("sigmoid")(logits)
+    outputs = keras.layers.Dense(
+        num_classes, activation=output_activation, use_bias=True
+    )(x)
     return keras.Model(inputs=inputs, outputs=outputs)
