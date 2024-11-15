@@ -22,7 +22,6 @@ Please refer to the [documentation][link-docs]. In particular, the
 
 -   [Tutorials][link-tutorials]
 -   [API documentation][link-api]
--   [API documentation dev][link-api-latest]
 
 ## Installation
 
