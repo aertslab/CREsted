@@ -407,7 +407,10 @@ def match_score_patterns(a: dict, b: dict) -> float:
     try:
         from tangermeme.tools import tomtom as tangermeme_tomtom
     except ImportError as e:
-        raise ImportError("Please install tangermeme to use this function.") from e
+        raise ImportError(
+            "Please install tangermeme to use this function with 'pip install tangermeme'. \
+            Warning: tangermeme also installs torch and may cause issues with a tensorflow environment."
+        ) from e
     try:
         score = tangermeme_tomtom.tomtom(Qs=[ic_a.T], Ts=[ic_b.T])[0, 0][0]
     except Exception as e:  # noqa: BLE001

@@ -580,7 +580,7 @@ class Crested:
         """
         Extract embeddings from a specified layer in the model for all regions in the dataset.
 
-        If anndata is provided, it will add the embeddings to anndata.obsm[layer_name].
+        If anndata is provided, it will add the embeddings to anndata.varm[layer_name].
 
         Parameters
         ----------
@@ -591,7 +591,7 @@ class Crested:
 
         Returns
         -------
-        Embeddings of shape (N, D), where D is the size of the embedding layer.
+        Embeddings of shape (N, D), where N is the number of regions in the dataset and D is the size of the embedding layer.
         """
         if layer_name not in [layer.name for layer in self.model.layers]:
             raise ValueError(f"Layer '{layer_name}' not found in model.")
@@ -607,7 +607,7 @@ class Crested:
         embeddings = embedding_model.predict(predict_loader.data, steps=n_predict_steps)
 
         if anndata is not None:
-            anndata.obsm[layer_name] = embeddings
+            anndata.varm[layer_name] = embeddings
         return embeddings
 
     def predict(
@@ -662,7 +662,7 @@ class Crested:
         Parameters
         ----------
         region_idx
-            List of regions for which to make predictions in the format "chr:start-end".
+            List of regions for which to make predictions in the format of your original data, either "chr:start-end" or "chr:start-end:strand".
 
         Returns
         -------
@@ -973,7 +973,7 @@ class Crested:
         Parameters
         ----------
         region_idx
-            Region(s) for which to calculate the contribution scores in the format "chr:start-end".
+            Region(s) for which to calculate the contribution scores in the format "chr:start-end" or "chr:start-end:strand".
         class_names
             List of class names to calculate the contribution scores for (should match anndata.obs_names)
             If the list is empty, the contribution scores for the 'combined' class will be calculated.
@@ -1341,7 +1341,6 @@ class Crested:
         target: int | np.ndarray | None = None,
         insertions_per_pattern: dict | None = None,
         return_intermediate: bool = False,
-        class_penalty_weights: np.ndarray | None = None,
         no_mutation_flanks: tuple | None = None,
         target_len: int | None = None,
         preserve_inserted_motifs: bool = True,
@@ -1369,9 +1368,6 @@ class Crested:
         return_intermediate
             If True, returns a dictionary with predictions and changes made in intermediate steps for selected
             sequences
-        class_penalty_weights
-            Array with a value per class, determining the penalty weight for that class to be used in scoring
-            function for sequence selection.
         no_mutation_flanks
             A tuple of integers which determine the regions in each flank to not do implementations.
         target_len
@@ -1410,10 +1406,7 @@ class Crested:
             enhancer_optimizer = EnhancerOptimizer(optimize_func=_weighted_difference)
 
         # get input sequence length of the model
-        seq_len = (
-            self.anndatamodule.adata.var.iloc[0]["end"]
-            - self.anndatamodule.adata.var.iloc[0]["start"]
-        )
+        seq_len = self.model.input_shape[1]
 
         # determine the flanks without changes
         if no_mutation_flanks is not None and target_len is not None:
@@ -1616,10 +1609,7 @@ class Crested:
             enhancer_optimizer = EnhancerOptimizer(optimize_func=_weighted_difference)
 
         # get input sequence length of the model
-        seq_len = (
-            self.anndatamodule.adata.var.iloc[0]["end"]
-            - self.anndatamodule.adata.var.iloc[0]["start"]
-        )
+        seq_len = self.model.input_shape[1]
 
         # determine the flanks without changes
         if no_mutation_flanks is not None and target_len is not None:

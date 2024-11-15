@@ -15,6 +15,7 @@ CREsted provides a few utility function to help with sequence encoding, function
     hot_encoding_to_sequence
     one_hot_encode_sequence
     fetch_sequences
+    reverse_complement
     permute_model
     setup_logging
 ```
