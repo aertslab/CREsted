@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from loguru import logger
-from scipy.cluster.hierarchy import leaves_list, linkage
+from scipy.cluster.hierarchy import dendrogram, leaves_list, linkage
 
 from crested.pl._utils import render_plot
 from crested.tl.modisco._modisco_utils import (
@@ -204,6 +204,7 @@ def clustermap(
     dy: float = 0.002,
     fig_path: str | None = None,
     pat_seqs: list[tuple[str, np.ndarray]] | None = None,
+    dendrogram_ratio: tuple[float, float] = (0.05, 0.2),
 ) -> sns.matrix.ClusterGrid:
     """
     Create a clustermap from the given pattern matrix and class labels with customizable options.
@@ -232,6 +233,8 @@ def clustermap(
         Path to save the figure.
     pat_seqs
         List of sequences to use as xticklabels.
+    dendrogram_ratio
+        Ratio of dendograms in x and y directions.
 
     See Also
     --------
@@ -283,7 +286,7 @@ def clustermap(
         if pat_seqs is None
         else False,  # Disable default xticklabels if pat_seqs provided.  #xticklabels=xtick_labels,
         method=method,
-        dendrogram_ratio=(0.1, 0.1),
+        dendrogram_ratio=dendrogram_ratio,
         cbar_pos=(1.05, 0.4, 0.01, 0.3),
     )
     col_order = g.dendrogram_col.reordered_ind
@@ -348,7 +351,7 @@ def clustermap(
         g.fig.canvas.draw()
 
     if fig_path is not None:
-        plt.savefig(fig_path)
+        plt.savefig(fig_path, bbox_inches='tight')
 
     plt.show()
 
@@ -558,8 +561,9 @@ def clustermap_tf_motif(
     color_idx: str = "gex",
     size_idx: str = "contrib",
     grid: bool = True,
-    log_transform: bool = False,
-    normalize: bool = False,
+    fig_size: tuple[int, int] | None = None,
+    save_path: str | None = None,
+    cluster: bool = True
 ) -> None:
     """
     Plot a clustermap from a 3D matrix where one third dimension is indicated by dot sizen and the other by color.
@@ -580,10 +584,12 @@ def clustermap_tf_motif(
         either 'gex' or 'contrib', indicating the dimension to use for size
     grid
         whether to add a grid to the figure
-    log_transform
-        whether to apply log transformation to the data
-    normalize
-         whether to normalize the data
+    fig_size
+        Size of figure. If set to None, will be auto configured.
+    save_path
+        File path to save figure to.
+    cluster
+        Boolean to cluster the cell types on the y axis. Default True.
 
     See Also
     --------
@@ -623,53 +629,55 @@ def clustermap_tf_motif(
     # Mapping from string to index
     dim_mapping = {"gex": 0, "contrib": 1}
 
-    # Choose the dimension to cluster on
-    clustering_data = data[:, :, dim_mapping[cluster_on_dim]]
-
-    if log_transform:
-        clustering_data = np.log(clustering_data)
-
-    if normalize:
-        clustering_data = clustering_data / np.linalg.norm(
-            clustering_data, axis=1, keepdims=True
-        )
-
-    # Perform hierarchical clustering
-    linkage_matrix = linkage(clustering_data, method="ward")
-    cluster_order = leaves_list(linkage_matrix)
-
-    # Reorder data according to clustering
-    data_ordered = data[cluster_order, :, :]
+   # Optional clustering
+    if cluster:
+        clustering_data = data[:, :, dim_mapping[cluster_on_dim]]
+        linkage_matrix = linkage(clustering_data, method="ward")
+        cluster_order = leaves_list(linkage_matrix)
+        data = data[cluster_order, :, :]
+        class_labels = [class_labels[i] for i in cluster_order]
+    else:
+        linkage_matrix = None
 
     # Extract the two dimensions
-    size_data = data_ordered[:, :, dim_mapping[size_idx]]
+    size_data = data[:, :, dim_mapping[size_idx]]
     max_size = np.max(size_data)
     size_data = size_data / max_size
-    color_data = data_ordered[:, :, dim_mapping[color_idx]]
+    color_data = data[:, :, dim_mapping[color_idx]]
 
-    # Adjust figure size dynamically
-    fig, ax = plt.subplots(figsize=(max(20, data.shape[1] // 4), 10))
+    # Figure layout
+    if fig_size is None:
+        # Adjust figure size dynamically
+        fig = plt.figure(figsize=(max(20, data.shape[1] // 4), data.shape[0]/2))
+    else:
+        fig = plt.figure(figsize=fig_size)
 
-    # Determine color scale limits to center on zero
-    max_val = np.max(color_data)
-    min_val = np.min(color_data)
+    if cluster:
+        gs = fig.add_gridspec(1, 2, width_ratios=[0.2, 4], wspace=0.075)
+        ax_dendro = fig.add_subplot(gs[0, 0])
+        dendrogram(linkage_matrix, orientation="left", no_labels=True, ax=ax_dendro)
+        ax_dendro.invert_yaxis()
+        ax_dendro.axis("off")
+        ax_scatter = fig.add_subplot(gs[0, 1])
+    else:
+        ax_scatter = fig.add_subplot(111)
 
-    # Define the normalization to center at zero
-    norm = mcolors.TwoSlopeNorm(vmin=min_val, vcenter=0, vmax=max_val)
+    # Define color normalization
+    norm = mcolors.TwoSlopeNorm(vmin=color_data.min(), vcenter=0, vmax=color_data.max())
 
-    # Use the norm parameter in scatter
-    sc = ax.scatter(
-        np.tile(np.arange(data_ordered.shape[1]), data_ordered.shape[0]),
-        np.repeat(np.arange(data_ordered.shape[0]), data_ordered.shape[1]),
+    # Plot scatter matrix
+    sc = ax_scatter.scatter(
+        np.tile(np.arange(data.shape[1]), data.shape[0]),
+        np.repeat(np.arange(data.shape[0]), data.shape[1]),
         s=size_data.flatten() * 500,
         c=color_data.flatten(),
         cmap="coolwarm",
         alpha=0.6,
-        norm=norm,  # Apply the centered colormap
+        norm=norm,
     )
 
     # Add color bar
-    cbar = plt.colorbar(sc, ax=ax)
+    cbar = plt.colorbar(sc, ax=ax_scatter)
     label = (
         "Average pattern contribution score"
         if dim_mapping[color_idx] == 1
@@ -677,19 +685,17 @@ def clustermap_tf_motif(
     )
     cbar.set_label(label)
 
-    # Set labels
-    ax.set_xticks(np.arange(data_ordered.shape[1]))
-    ax.set_yticks(np.arange(data_ordered.shape[0]))
+    # Set axis labels and ticks
+    ax_scatter.set_xticks(np.arange(data.shape[1]))
+    ax_scatter.set_xticklabels(pattern_labels, rotation=90)
+    ax_scatter.set_yticks(np.arange(data.shape[0]))
+    ax_scatter.set_yticklabels(class_labels)
 
-    # Reduce the number of x-axis labels displayed
-    ax.set_xticklabels(
-        [pattern_labels[i] for i in range(data_ordered.shape[1])], rotation=90
-    )
-    ax.set_yticklabels([class_labels[i] for i in cluster_order])
-    ax.set_xlim([-0.5, len(pattern_labels) + 0.5])
+    # Add grid
+    ax_scatter.grid(grid)
 
-    plt.xlabel("Patterns")
-    plt.ylabel("Classes")
-    plt.grid(grid)
+    # Final layout adjustments
     plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, bbox_inches="tight")
     plt.show()

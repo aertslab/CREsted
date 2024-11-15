@@ -836,7 +836,7 @@ class Crested:
         # Normalize the scores based on the number of times each position is included in the central window
         return (
             scores / ratio,
-            np.array(all_coordinates),
+            all_coordinates,
             start_position,
             end_position,
             tss_position,
