@@ -9,4 +9,5 @@ from ._utils import (
     hot_encoding_to_sequence,
     one_hot_encode_sequence,
     read_bigwig_region,
+    reverse_complement,
 )
