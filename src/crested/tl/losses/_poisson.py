@@ -28,6 +28,21 @@ class PoissonLoss(keras.losses.Loss):
         reduction: str = "sum_over_batch_size",
         name: str = "PoissonLoss"
     ):
+        """
+        Initialize the PoissonLoss class.
+
+        Parameters
+        ----------
+        log_transform : bool, optional
+            Whether to apply a log(x + 1) transformation to the inputs. Default is True.
+        eps : float, optional
+            A small epsilon value to avoid log(0). Default is 1e-7.
+        reduction : str, optional
+            The type of reduction to apply to the loss, e.g., "sum_over_batch_size".
+            Default is "sum_over_batch_size".
+        name : str, optional
+            Name of the loss function. Default is "PoissonLoss".
+        """
         super().__init__(name=name, reduction=reduction)
         self.log_transform = log_transform
         self.eps = eps
