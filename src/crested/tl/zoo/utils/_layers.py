@@ -99,6 +99,7 @@ def conv_block(
     padding: str = "valid",
     l2: float = 1e-5,
     batchnorm_momentum: float = 0.99,
+    name_prefix: str | None = None
 ) -> keras.KerasTensor:
     """
     Convolution building block.
@@ -129,6 +130,8 @@ def conv_block(
         L2 regularization weight (default is 1e-5).
     batchnorm_momentum
         Batch normalization momentum (default is 0.99).
+    name_prefix
+        Prefix for layer names.
 
     Returns
     -------
@@ -143,23 +146,42 @@ def conv_block(
         padding=padding,
         kernel_regularizer=keras.regularizers.L2(l2),
         use_bias=conv_bias,
+        name=name_prefix + "_conv" if name_prefix else None,
     )(inputs)
     if normalization == "batch":
-        x = keras.layers.BatchNormalization(momentum=batchnorm_momentum)(x)
+        x = keras.layers.BatchNormalization(
+            momentum=batchnorm_momentum, 
+            name=name_prefix + "_batchnorm" if name_prefix else None
+        )(x)
     elif normalization == "layer":
-        x = keras.layers.LayerNormalization()(x)
-    x = keras.layers.Activation(activation)(x)
+        x = keras.layers.LayerNormalization(
+            name=name_prefix + "_layernorm" if name_prefix else None,
+        )(x)
+    x = keras.layers.Activation(
+        activation,
+        name=name_prefix + "_activation" if name_prefix else None,
+    )(x)
     if res:
         if filters != residual.shape[2]:
             residual = keras.layers.Convolution1D(
-                filters=filters, kernel_size=1, strides=1
+                filters=filters, 
+                kernel_size=1, 
+                strides=1,
+                name=name_prefix + "_resconv" if name_prefix else None,
             )(residual)
         x = keras.layers.Add()([x, residual])
 
     if pool_size > 1:
-        x = keras.layers.MaxPooling1D(pool_size=pool_size, padding=padding)(x)
+        x = keras.layers.MaxPooling1D(
+            pool_size=pool_size, 
+            padding=padding,
+            name=name_prefix + "_pool" if name_prefix else None,
+        )(x)
     if dropout > 0:
-        x = keras.layers.Dropout(dropout)(x)
+        x = keras.layers.Dropout(
+            dropout,
+            name=name_prefix + "_dropout" if name_prefix else None
+            )(x)
 
     return x
 
@@ -249,6 +271,7 @@ def conv_block_bs(
     bn_type: str = "standard",
     kernel_initializer: str = "he_normal",
     padding: str = "same",
+    name_prefix: str | None = None,
 ):
     """
     Construct a convolution block (for Basenji).
@@ -287,6 +310,8 @@ def conv_block_bs(
         Convolution kernel initializer.
     padding
         Padding type.
+    name_prefix
+        Prefix for layer names.
 
     Returns
     -------
@@ -318,6 +343,7 @@ def conv_block_bs(
         dilation_rate=dilation_rate,
         kernel_initializer=kernel_initializer,
         kernel_regularizer=keras.regularizers.l2(l2_scale),
+        name=name_prefix + "_conv" if name_prefix else None,
     )(current)
 
     # batch norm
@@ -328,11 +354,18 @@ def conv_block_bs(
             bn_layer = keras.layers.experimental.SyncBatchNormalization
         else:
             bn_layer = keras.layers.BatchNormalization
-        current = bn_layer(momentum=bn_momentum, gamma_initializer=bn_gamma)(current)
+        current = bn_layer(
+            momentum=bn_momentum, 
+            gamma_initializer=bn_gamma,
+            name=name_prefix + "_bnorm" if name_prefix else None,
+        )(current)
 
     # dropout
     if dropout > 0:
-        current = keras.layers.Dropout(rate=dropout)(current)
+        current = keras.layers.Dropout(
+            rate=dropout,
+            name=name_prefix + "_dropout" if name_prefix else None,
+            )(current)
 
     # residual add
     if residual:
@@ -345,14 +378,14 @@ def conv_block_bs(
     # Pool
     if pool_size > 1:
         if w1:
-            current = keras.layers.MaxPool2D(pool_size=pool_size, padding=padding)(
-                current
-            )
+            pool_layer = keras.layers.MaxPool2D
         else:
-            current = keras.layers.MaxPool1D(pool_size=pool_size, padding=padding)(
-                current
-            )
-
+            pool_layer = keras.layers.MaxPool1D
+        current = pool_layer(
+            pool_size=pool_size, 
+            padding=padding,
+            name=name_prefix + "_pool" if name_prefix else None,
+        )(current)
     return current
 
 
