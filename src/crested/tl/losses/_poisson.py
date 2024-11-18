@@ -1,6 +1,7 @@
 import keras
 import keras.ops as ops
 
+
 @keras.saving.register_keras_serializable(package="Losses")
 class PoissonLoss(keras.losses.Loss):
     """
@@ -19,6 +20,7 @@ class PoissonLoss(keras.losses.Loss):
     reduction : str
         Type of reduction to apply to the loss. Default: "sum_over_batch_size".
     """
+
     def __init__(
         self,
         log_transform: bool = True,
