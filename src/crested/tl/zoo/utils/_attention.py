@@ -3,6 +3,7 @@
 import keras
 import numpy as np
 
+
 # Attention pooling layer
 class AttentionPool1D(keras.layers.Layer):
     """
@@ -13,19 +14,20 @@ class AttentionPool1D(keras.layers.Layer):
     pool_size
         Pooling size, same as in Max/AvgPooling.
     per_channel
-        If True, the logits/softmax weights will be computed for each channel separately. 
+        If True, the logits/softmax weights will be computed for each channel separately.
         If False, same weights will be used across all channels.
     w_init_scale
         Initialisation of w. When 0.0 is equivalent to avg pooling, and when
-        ~2.0 and `per_channel=False` it's equivalent to max pooling.  
+        ~2.0 and `per_channel=False` it's equivalent to max pooling.
     strides/padding/data_format
-        placeholder arguments to capture them from from_config. 
+        placeholder arguments to capture them from from_config.
         Not used in setting up the layer.
     name
         Module name.
     **kwargs
         Extra arguments passed to keras.layers.Layer.
     """
+
     def __init__(
         self,
         pool_size: int = 2,
@@ -58,8 +60,8 @@ class AttentionPool1D(keras.layers.Layer):
             initializer="random_normal",
             trainable=True,
             name = 'att_pool_weight'
-        )  
-    
+        )
+
     def get_config(self):
         config = super().get_config()
         config.update({
@@ -71,13 +73,13 @@ class AttentionPool1D(keras.layers.Layer):
             "data_format": self._data_format
         })
         return config
-    
+
     def call(self, inputs, training = False):
         _, length, num_features = inputs.shape
-        
-        if length == None: # this can happen at when creating fast_ism_model
+
+        if length is None: # this can happen at when creating fast_ism_model
             return inputs # don't do anything for now
-            
+
         inputs = keras.ops.reshape(
             inputs,
             (-1, length // self._pool_size, self._pool_size, num_features))
@@ -89,9 +91,10 @@ class AttentionPool1D(keras.layers.Layer):
 class MultiheadAttention(keras.layers.Layer):
     """
     Creates a MultiheadAttention module.
+
     Adapted from Baskerville's MultiheadAttention, original version written by Ziga Avsec.
 
-    Parameters:
+    Parameters
     ----------
     value_size
         The size of each value embedding per head.
@@ -104,26 +107,26 @@ class MultiheadAttention(keras.layers.Layer):
     attention_dropout_rate
         Dropout rate for attention logits.
     relative_position_symmetric
-        If True, the symmetric version of basis functions will be used. 
+        If True, the symmetric version of basis functions will be used.
         If False, a symmetric and asymmetric versions will be used.
     relative_position_functions
-        Relative position functions to use. 
+        Relative position functions to use.
         Can be 'enformer' or 'borzoi'.
-        Enformer default is 'enformer' (exponential & central_mask (scaling factor 2) & gamma). 
+        Enformer default is 'enformer' (exponential & central_mask (scaling factor 2) & gamma).
         Borzoi default is 'borzoi' (central mask only (scaling factor depending on length)).
     relative_position_absolute
         Whether to use the absolute of values before calculating the relative position encoding.
     num_position_features
-        Number of relative positional features to compute. 
+        Number of relative positional features to compute.
         If None, `value_size * num_heads` is used.
     positional_dropout_rate: Dropout rate for the positional encodings if
         relative positions are used.
     content_position_bias
         Whether to add shifted relative logits to content logits.
         Default in both Enformer and Borzoi.
-    zero_initialize: 
+    zero_initialize:
         if True, the final linear layer will be 0 initialized.
-    initializer: 
+    initializer:
         Initializer for the projection layers. If unspecified,
         VarianceScaling is used with scale = 2.0.
 
@@ -153,10 +156,12 @@ class MultiheadAttention(keras.layers.Layer):
         name: str = 'mhsa',
         **kwargs
         ):
-        """Initialize the MultiheadAttention layer.
-        Note: transpose_stride, gated, qkv_width are implemented, 
-        but not used in Enformer/Borzoi and therefore not tested."""
-        
+        """
+        Initialize the MultiheadAttention layer.
+
+        Note: transpose_stride, gated, qkv_width are implemented,
+        but not used in Enformer/Borzoi and therefore not tested.
+        """
         super().__init__(name = name, **kwargs)
         # Save init parameters for use in the model and at get_config()
         self._value_size = value_size
@@ -188,7 +193,7 @@ class MultiheadAttention(keras.layers.Layer):
         self._embedding_size = self._value_size * self._num_heads
 
         self.relative_position_func = get_position_features_func(
-            relative_position_functions=relative_position_functions, 
+            relative_position_functions=relative_position_functions,
             absolute=relative_position_absolute)
 
     def build(self, input_shape):
@@ -389,7 +394,7 @@ class MultiheadAttention(keras.layers.Layer):
         output = keras.ops.transpose(output, [0, 2, 1, 3])  # [B, T', H, V] -> (1, 1536, 8, 192)
         output = keras.ops.reshape(
             output, [-1, seq_len, embedding_size]
-        ) # [B, T, H*V] -> (1, 1536, 1536) 
+        ) # [B, T, H*V] -> (1, 1536, 1536)
 
         # Gate
         if self._gated:
@@ -403,7 +408,7 @@ class MultiheadAttention(keras.layers.Layer):
     def get_config(self):
         config = super().get_config().copy()
         config.update({
-            "value_size": self._value_size, 
+            "value_size": self._value_size,
             "key_size": self._key_size,
             "heads": self._num_heads,
             "scaling": self._scaling,
@@ -428,7 +433,7 @@ def relative_shift(x):
     # we prepend zeros on the final timescale dimension
     to_pad = keras.ops.zeros_like(x[..., :1])
     x = keras.ops.concatenate([to_pad, x], -1)
-    # t1 and t2 are expected to be the same, as they are result of 
+    # t1 and t2 are expected to be the same, as they are result of
     # matmul(Q + self._r_w_bias, K, transpose_b=True) -> [B, H, T', T]
     # so should be the seq_lengths/num_bins of Q and K, which should be the same
     num_heads = x.shape[1]
@@ -438,25 +443,24 @@ def relative_shift(x):
     x = keras.ops.slice(x, [0, 0, 1, 0], [-1, -1, -1, -1])
     x = keras.ops.reshape(x, [-1, num_heads, t1, t2-1])
     x = keras.ops.slice(x, [0, 0, 0, 0], [-1, -1, -1, (t2+1)//2])
-    
+
     return x
 
 def get_position_features_func(relative_position_functions: str, absolute: bool):
     """
-    Generate a position features function. 
-    
-    Parameters:
+    Generate a position features function.
+
+    Parameters
     ----------
     relative_position_functions
-        Relative position function(s) to use. 'enformer' (exponential+enformer's central_mask+gamma) or 'borzoi' (borzoi's central_mask only). 
+        Relative position function(s) to use. 'enformer' (exponential+enformer's central_mask+gamma) or 'borzoi' (borzoi's central_mask only).
     absolute
         Whether to take the absolute of the values before calculating feature embeddings.
         Enformer uses this, Borzoi does not.
-    
     """
     if relative_position_functions == 'enformer':
         # Using gamma position function, which uses functions currently not implemented in keras 3 (lgamma, xlogy)
-        # Solution: check backend on our own. 
+        # Solution: check backend on our own.
         backend = keras.src.backend.config.backend()
         if backend == 'tensorflow':
             gamma_pdf = gamma_pdf_tf
@@ -465,7 +469,7 @@ def get_position_features_func(relative_position_functions: str, absolute: bool)
         else:
             raise NotImplementedError(f"Using gamma position functions (as part of relative_position_functions == 'enformer') currently only supports TensorFlow and PyTorch backends, not {backend}.")
     def _position_features(
-        positions: keras.KerasTensor, 
+        positions: keras.KerasTensor,
         feature_size: int, # num_relative_position_features: total number of basis functions*n(int)
         seq_length: int | None = None, # length of the transformer input sequence (default 1536)
         symmetric=False
@@ -495,7 +499,7 @@ def get_position_features_func(relative_position_functions: str, absolute: bool)
             embeddings = pos_feats_central_mask_borzoi(positions, num_basis_per_class, seq_length)
         else:
             raise ValueError(f"Did not recognise relative_position_functions {relative_position_functions}")
-        
+
         # if False, both symmetric and asymmetric versions of rel encodings will be contenated in rows
         if not symmetric:
             embeddings = keras.ops.concatenate(
@@ -503,7 +507,7 @@ def get_position_features_func(relative_position_functions: str, absolute: bool)
                 axis=-1)
         # TODO: port check to keras 3 -> not sure if possible
         # tf.TensorShape(embeddings.shape).assert_is_compatible_with(positions.shape + [feature_size])
-        
+
         # tensor of shape: `positions.shape+(feature_size, )`
         return embeddings
     return _position_features
@@ -528,17 +532,20 @@ def pos_feats_exponential(
     outputs = keras.ops.exp(-keras.ops.log(2.0)/half_life*keras.ops.expand_dims(positions, axis=-1))
     # TODO: convert to Keras 3
     # tf.TensorShape(outputs.shape).assert_is_compatible_with(positions.shape + [num_basis])
-    
+
     # a tensor with shape [2*seq_length-1, num_basis]
     return outputs
 
 def pos_feats_central_mask_borzoi(
-    positions: keras.KerasTensor, 
-    num_basis: int, 
+    positions: keras.KerasTensor,
+    num_basis: int,
     seq_length: int
 ):
-    """Positional features using a central mask (allow only central features).
-    Uses the Borzoi implementation, which calculates pow_rate based on seq_len (default)"""
+    """
+    Positional features using a central mask (allow only central features).
+
+    Uses the Borzoi implementation, which calculates pow_rate based on seq_len (default).
+    """
     pow_rate = np.exp(np.log(seq_length + 1) / num_basis).astype("float32")
     center_widths = keras.ops.power(pow_rate, keras.ops.arange(1, num_basis + 1, dtype="float32"))
     center_widths = center_widths - 1
@@ -557,8 +564,11 @@ def pos_feats_central_mask_enformer(
     positions: keras.KerasTensor,
     num_basis: int,
 ):
-    """Positional features using a central mask (allow only central features).
-    Uses the Enformer implementation, which has a fixed power rate of 2."""
+    """
+    Positional features using a central mask (allow only central features).
+
+    Uses the Enformer implementation, which has a fixed power rate of 2.
+    """
     center_widths = keras.ops.power(2.0, keras.ops.arange(1, num_basis+1, dtype="float32"))
     center_widths = center_widths - 1
     center_widths = _prepend_dims(center_widths, positions.shape.rank)
@@ -578,8 +588,11 @@ def gamma_pdf_tf(x, concentration, rate):
     return tf.exp(log_unnormalized_prob - log_normalization)
 
 def gamma_pdf_pt(x, concentration, rate):
-    """Gamma probability distribution function: p(x|concentration, rate) in pytorch.
-    Taken from lucidrains/enformer-pytorch."""
+    """
+    Gamma probability distribution function: p(x|concentration, rate) in pytorch.
+
+    Taken from lucidrains/enformer-pytorch.
+    """
     import torch
     log_unnormalized_prob = torch.xlogy(concentration - 1., x) - rate * x
     log_normalization = (torch.lgamma(concentration) - concentration * torch.log(rate))

@@ -1,10 +1,12 @@
 """Enformer model architecture. Adapted from github.com/casblaauw/enformer_keras."""
 
-import keras
-import numpy as np
 import collections.abc as cabc
 
-from crested.tl.zoo.utils import conv_block_bs, activate, mha_block_enf, ffn_block_enf
+import keras
+import numpy as np
+
+from crested.tl.zoo.utils import activate, conv_block_bs, ffn_block_enf, mha_block_enf
+
 
 def enformer(
     seq_len: int,
@@ -25,9 +27,10 @@ def enformer(
     pointwise_dropout: float = 0.05,
     name: str = 'Enformer'
 ) -> keras.Model:
-    """"
+    """
     Construct an fully replicated Enformer model.
-    Note that unlike other CREsted model zoo architectures, this architecture is not suited for 
+
+    Note that unlike other CREsted model zoo architectures, this architecture is not suited for
     predicting individual regions out of the box.
 
     Parameters
@@ -38,8 +41,8 @@ def enformer(
     num_classes
         Number of classes to predict.
         If an int, creates a single head with num_classes classes.
-        If a list of integers, creates multiple heads in a list. 
-        If a dictionary of names and integers, creates multiple named heads. 
+        If a list of integers, creates multiple heads in a list.
+        If a dictionary of names and integers, creates multiple named heads.
     num_conv_blocks
         Number of convolution blocks to include in the tower, after the stem block.
     num_transformer_blocks
@@ -47,10 +50,10 @@ def enformer(
     target_length
         The target length in bins to crop to. Default is 896, cropping away 320 bins (41kb) on each side.
     start_filters
-        Starting number of filters for the first DNA-facing and first conv tower block, 
+        Starting number of filters for the first DNA-facing and first conv tower block,
         exponentially increasing towards `filters` through the conv tower.
     filters
-        Number of filters at the end of the conv tower. 
+        Number of filters at the end of the conv tower.
     pointwise_filters
         Number of filters of the post-transformer final pointwise convolution.
     conv_activation
@@ -77,18 +80,18 @@ def enformer(
     # Calculate derived parameters
     # Tower output length: n of bins after convolution pooling.
     #   every conv layer (and stem layer) halves length -> seq_len/binwidth = dimensionality
-    # Crop length: (original dimensionality - target_length) // 2 = crop length from both sides 
+    # Crop length: (original dimensionality - target_length) // 2 = crop length from both sides
     tower_out_length = int(seq_len/(2**(num_conv_blocks + 1))) # Should be same as filters
     crop_length = int((tower_out_length-target_length)//2)
-    
+
     # Sequence input
     sequence = keras.layers.Input(shape=(seq_len, 4), name="input")
-   
+
     # Build stem (standard conv + residual(batchnorm+gelu+conv)+pooling block)
     current = keras.layers.Conv1D(
-        filters=start_filters, 
-        kernel_size=first_kernel_size, 
-        padding='same', 
+        filters=start_filters,
+        kernel_size=first_kernel_size,
+        padding='same',
         name='stem_conv'
         )(sequence)
 
@@ -148,10 +151,10 @@ def enformer(
             kernel_initializer="he_normal",
             name_prefix=f"tower_pointwise_{cidx+1}"
         )
-    
+
     # Identity layer to use as stopping point for FastISM - after this operations are global
     # Covers an edge case according to devs
-    
+
     # current = keras.layers.Layer()(current)
 
     # Build transformer tower
@@ -201,14 +204,14 @@ def enformer(
             bn_sync=True,
             bn_epsilon=1e-5,
             kernel_initializer="he_normal",
-            name_prefix=f"final_pointwise"
+            name_prefix="final_pointwise"
         )
     current = keras.layers.Dropout(pointwise_dropout, name = 'final_pointwise_dropout')(current)
     current = activate(current, conv_activation)
-    
+
     # Build heads
     if isinstance(num_classes, int):
-        outputs = keras.layers.Conv1D(num_classes, kernel_size = 1, activation=output_activation, name = head)(current)
+        outputs = keras.layers.Conv1D(num_classes, kernel_size = 1, activation=output_activation, name = "head")(current)
     elif isinstance(num_classes, cabc.Mapping):
         outputs = {}
         for head, n_tracks in num_classes.items():
@@ -218,7 +221,7 @@ def enformer(
         for head, n_tracks in num_classes:
             outputs.append(keras.layers.Conv1D(n_tracks, kernel_size = 1, activation=output_activation, name = head)(current))
 
-    
+
     # Construct model
     m = keras.Model(inputs = sequence, outputs = outputs, name = name)
     return m
@@ -227,5 +230,5 @@ def exp_linspace_int(start, end, num_modules, divisible_by=1):
     def _round(x):
         return int(np.round(x/divisible_by)*divisible_by)
     base = np.exp(np.log(end/start)/(num_modules-1))
-    
+
     return [_round(start*base**i) for i in range(num_modules)]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import keras
 import numpy as np
+
 from ._attention import AttentionPool1D, MultiheadAttention
 
 __all__ = [
@@ -287,7 +288,7 @@ def conv_block_bs(
     dropout
         Dropout rate probability.
     residual
-        Residual connection boolean.  
+        Residual connection boolean.
     strides
         Conv1D strides.
     dilation_rate
@@ -295,9 +296,9 @@ def conv_block_bs(
     l2_scale
         L2 regularization weight.
     conv_type
-        Conv1D layer type. 
+        Conv1D layer type.
     conv_bias
-        Whether to use a bias in the convolution layer. 
+        Whether to use a bias in the convolution layer.
         Should be True for Enformer/Borzoi and (maybe) False for Borzoi?
     pool_type
         Pooling type. Either 'max' or 'attention'.
@@ -336,16 +337,16 @@ def conv_block_bs(
         if bn_gamma is None:
             bn_gamma = "zeros" if residual else "ones"
         current = keras.layers.BatchNormalization(
-            momentum=bn_momentum, 
+            momentum=bn_momentum,
             epsilon=bn_epsilon,
             gamma_initializer=bn_gamma,
             synchronized=bn_sync,
             name = name_prefix + "_bnorm" if name_prefix else None
             )(current)
-    
+
     # activation
     current = activate(current, activation)
-    
+
     # convolution
     current = conv_layer(
         filters=filters,
@@ -407,7 +408,7 @@ def mha_block_enf(
 ) -> keras.KerasTensor:
     """
     Construct a MHA block (for Enformer/Borzoi), consisting of Residual(LayerNorm+MHSelfAttention+Dropout).
-    
+
     Parameters
     ----------
     inputs
@@ -445,19 +446,18 @@ def mha_block_enf(
         Epsilon to use in the layer normalisation layer.
     name_prefix
         Prefix for layer names.
-    
+
     Returns
     -------
     Output tensor after applying the MHA block.
     """
-
     # MHA block
     current = keras.layers.LayerNormalization(
-        epsilon = ln_epsilon,  
-        center = True, 
-        scale = True, 
-        beta_initializer = "zeros", 
-        gamma_initializer = "ones", 
+        epsilon = ln_epsilon,
+        center = True,
+        scale = True,
+        beta_initializer = "zeros",
+        gamma_initializer = "ones",
         name=f'{name_prefix}_lnorm'
     )(inputs)
     current = MultiheadAttention(
@@ -481,7 +481,7 @@ def mha_block_enf(
         name = f"{name_prefix}_mhsa"
     )(current)
     current = keras.layers.Dropout(
-        rate = final_dropout, 
+        rate = final_dropout,
         name = f"{name_prefix}_dropout"
     )(current)
     if residual:
@@ -498,7 +498,7 @@ def ffn_block_enf(
     ln_epsilon: float = 1e-5,
     name_prefix: str | None = None
 ) -> keras.KerasTensor:
-    """"
+    """
     Construct a feedforward block (for Enformer), consisting of Residual(LayerNorm+PointwiseConv+Dropout+ReLU+PointwiseConv+Dropout).
 
     Parameters
@@ -508,7 +508,7 @@ def ffn_block_enf(
     filters
         Pointwise convolution filters.
     expansion_rate
-        Scaling factor of base filters inside the FFN. 
+        Scaling factor of base filters inside the FFN.
     dropout
         Dropout rate.
     activation
@@ -528,11 +528,11 @@ def ffn_block_enf(
 
     # First half
     current = keras.layers.LayerNormalization(
-        epsilon=ln_epsilon, 
-        center=True, 
-        scale=True, 
-        beta_initializer="zeros", 
-        gamma_initializer="ones", 
+        epsilon=ln_epsilon,
+        center=True,
+        scale=True,
+        beta_initializer="zeros",
+        gamma_initializer="ones",
         name=f'{name_prefix}_lnorm'
     )(inputs)
     current = keras.layers.Conv1D(filters=expansion_filters, kernel_size=1, name=f'{name_prefix}_pointwise_1')(current)
