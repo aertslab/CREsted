@@ -150,7 +150,7 @@ def conv_block(
     )(inputs)
     if normalization == "batch":
         x = keras.layers.BatchNormalization(
-            momentum=batchnorm_momentum, 
+            momentum=batchnorm_momentum,
             name=name_prefix + "_batchnorm" if name_prefix else None
         )(x)
     elif normalization == "layer":
@@ -164,8 +164,8 @@ def conv_block(
     if res:
         if filters != residual.shape[2]:
             residual = keras.layers.Convolution1D(
-                filters=filters, 
-                kernel_size=1, 
+                filters=filters,
+                kernel_size=1,
                 strides=1,
                 name=name_prefix + "_resconv" if name_prefix else None,
             )(residual)
@@ -173,7 +173,7 @@ def conv_block(
 
     if pool_size > 1:
         x = keras.layers.MaxPooling1D(
-            pool_size=pool_size, 
+            pool_size=pool_size,
             padding=padding,
             name=name_prefix + "_pool" if name_prefix else None,
         )(x)
@@ -355,7 +355,7 @@ def conv_block_bs(
         else:
             bn_layer = keras.layers.BatchNormalization
         current = bn_layer(
-            momentum=bn_momentum, 
+            momentum=bn_momentum,
             gamma_initializer=bn_gamma,
             name=name_prefix + "_bnorm" if name_prefix else None,
         )(current)
@@ -382,7 +382,7 @@ def conv_block_bs(
         else:
             pool_layer = keras.layers.MaxPool1D
         current = pool_layer(
-            pool_size=pool_size, 
+            pool_size=pool_size,
             padding=padding,
             name=name_prefix + "_pool" if name_prefix else None,
         )(current)
