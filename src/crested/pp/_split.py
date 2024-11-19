@@ -210,7 +210,8 @@ def train_val_test_split(
         AnnData object to which the 'train/val/test' split column will be added.
     strategy
         strategy of split. Either 'region', 'chr' or 'chr_auto'. If 'chr' or 'chr_auto', the anndata's var_names should
-            contain the chromosome name at the start, followed by a `:` (e.g. I:2000-2500 or chr3:10-20:+).
+        contain the chromosome name at the start, followed by a `:` (e.g. I:2000-2500 or chr3:10-20:+).
+
         region: Split randomly on region indices.
 
         chr: Split based on provided chromosomes.
