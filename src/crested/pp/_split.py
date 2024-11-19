@@ -261,14 +261,15 @@ def train_val_test_split(
     # Input checks
     if strategy not in ["region", "chr", "chr_auto"]:
         raise ValueError("`strategy` should be either 'region','chr', or 'chr_auto'")
-    if strategy == "region" and not 0 <= val_size <= 1:
+    if strategy in ["region", "chr_auto"] and not 0 <= val_size <= 1:
         raise ValueError("`val_size` should be a float between 0 and 1.")
-    if strategy == "region" and not 0 <= test_size <= 1:
+    if strategy in ["region", "chr_auto"] and not 0 <= test_size <= 1:
         raise ValueError("`test_size` should be a float between 0 and 1.")
-    if strategy == "chr_auto" and not 0 <= val_size <= 1:
-        raise ValueError("`val_size` should be a float between 0 and 1.")
-    if strategy == "chr_auto" and not 0 <= test_size <= 1:
-        raise ValueError("`test_size` should be a float between 0 and 1.")
+    if strategy in ["chr", "chr_auto"] and chr_var_key not in adata.var.columns:
+        raise ValueError(
+                f"Column '{chr_var_key}' not found in `.var`. "
+                "Make sure to add the chromosome information to the `.var` DataFrame."
+            )
     if (strategy == "region") and (val_chroms is not None or test_chroms is not None):
         logger.warning(
             "`val_chroms` and `test_chroms` provided but splitting strategy is 'region'. Will use 'chr' strategy instead."
@@ -278,11 +279,6 @@ def train_val_test_split(
         if val_chroms is None or test_chroms is None:
             raise ValueError(
                 "If `strategy` is 'chr', `val_chroms` and `test_chroms` should be provided."
-            )
-        if chr_var_key not in adata.var.columns:
-            raise ValueError(
-                f"Column '{chr_var_key}' not found in `.var`. "
-                "Make sure to add the chromosome information to the `.var` DataFrame."
             )
         unique_chr = adata.var[chr_var_key].unique()
         if not set(val_chroms).issubset(unique_chr):
