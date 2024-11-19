@@ -5,6 +5,7 @@ from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
+import pysam
 from loguru import logger
 
 from crested._io import _extract_tracks_from_bigwig
@@ -308,17 +309,60 @@ def extract_bigwig_values_per_bp(
     chrom = coordinates[0][0]  # Assuming all coordinates are for the same chromosome
 
     # Extract per-base values
-    bw_values, all_midpoints = read_bigwig_region(bigwig_file, (chrom, min_coord, max_coord), missing = 0.0)
+    bw_values, all_midpoints = read_bigwig_region(
+        bigwig_file, (chrom, min_coord, max_coord), missing=0.0
+    )
 
     return bw_values, all_midpoints
+
+
+def fetch_sequences(
+    regions: str | list[str], genome: os.PathLike, uppercase: bool = True
+) -> list[str]:
+    """
+    Fetch sequences from a genome file for a list of regions using pysam.
+
+    Regions should be formatted as "chr:start-end".
+
+    Parameters
+    ----------
+    regions
+        List of regions to fetch sequences for.
+    genome
+        Path to the genome file.
+    uppercase
+        If True, return sequences in uppercase.
+
+    Returns
+    -------
+    List of sequence strings for each region.
+
+    Examples
+    --------
+    >>> regions = ["chr1:1000000-1000100", "chr1:1000100-1000200"]
+    >>> region_seqs = crested.utils.fetch_sequences(regions, genome_path)
+    """
+    if isinstance(regions, str):
+        regions = [regions]
+    fasta = pysam.FastaFile(genome)
+    seqs = []
+    for region in regions:
+        chrom, start_end = region.split(":")
+        start, end = start_end.split("-")
+        seq = fasta.fetch(chrom, int(start), int(end))
+        if uppercase:
+            seq = seq.upper()
+        seqs.append(seq)
+    return seqs
+
 
 def read_bigwig_region(
     bigwig_file: os.PathLike,
     coordinates: tuple[str, int, int],
     bin_size: int | None = None,
-    target: str = 'mean',
+    target: str = "mean",
     missing: float = 0.0,
-    oob: float = 0.0
+    oob: float = 0.0,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Extract per-base or binned pair values from a bigWig file for a set of genomic region.
@@ -338,11 +382,9 @@ def read_bigwig_region(
     oob
         Fill-in value for out-of-bounds regions. Default is 0.
 
-
     Returns
     -------
-    A tuple of two numpy arrays (values, positions).
-    values:
+    values
         numpy array with the values from the bigwig for the requested coordinates. Shape: [n_bp], or [n_bp//bin_size] if bin_size is specified.
     positions
         numpy array with genomic positions as integers of the values in values. Shape: [n_bp], or [n_bp//bin_size] if bin_size is specified.
@@ -351,24 +393,85 @@ def read_bigwig_region(
     -------
     >>> anndata = crested.read_bigwig_region(
     ...     bw_file="path/to/bigwig",
-    ...     coordinates=('chr1', 0, 32000),
+    ...     coordinates=("chr1", 0, 32000),
     ...     bin_size=32,
-    ...     target="mean"
+    ...     target="mean",
     ... )
     """
     # Check for accidental passing of lists of coordinates or wrong orders
-    if not (isinstance(coordinates[0], str) and isinstance(coordinates[1], int) and isinstance(coordinates[2], int)):
-        raise ValueError("Your coordinates must be a single tuple of types (str, int, int).")
+    if not (
+        isinstance(coordinates[0], str)
+        and isinstance(coordinates[1], int)
+        and isinstance(coordinates[2], int)
+    ):
+        raise ValueError(
+            "Your coordinates must be a single tuple of types (str, int, int)."
+        )
     if not (coordinates[1] < coordinates[2]):
-        raise ValueError(f"End coordinate {coordinates[2]} should be bigger than start coordinate {coordinates[1]}")
+        raise ValueError(
+            f"End coordinate {coordinates[2]} should be bigger than start coordinate {coordinates[1]}"
+        )
 
     # Get locations of the values given the binning
     if bin_size:
-        positions = np.arange(start = coordinates[1]+bin_size/2, stop = coordinates[2], step = bin_size)
+        positions = np.arange(
+            start=coordinates[1] + bin_size / 2, stop=coordinates[2], step=bin_size
+        )
     else:
         positions = np.arange(coordinates[1], coordinates[2])
 
     # Get values
-    values =  _extract_tracks_from_bigwig(bigwig_file, [coordinates], bin_size, target, missing, oob).squeeze()
+    values = _extract_tracks_from_bigwig(
+        bigwig_file, [coordinates], bin_size, target, missing, oob
+    ).squeeze()
 
     return values, positions
+
+
+def reverse_complement(sequence: str | list[str] | np.ndarray) -> str | np.ndarray:
+    """
+    Perform reverse complement on either a one-hot encoded array or a (list of) DNA sequence string(s).
+
+    Parameters
+    ----------
+    sequence
+        The DNA sequence string(s) or one-hot encoded array to reverse complement.
+
+    Returns
+    -------
+    The reverse complemented DNA sequence string or one-hot encoded array.
+    """
+
+    def complement_str(seq: str) -> str:
+        complement = str.maketrans("ACGTacgt", "TGCAtgca")
+        return seq.translate(complement)[::-1]
+
+    if isinstance(sequence, str):
+        return complement_str(sequence)
+    elif isinstance(sequence, list):
+        return [complement_str(seq) for seq in sequence]
+    elif isinstance(sequence, np.ndarray):
+        if sequence.ndim == 2:
+            if sequence.shape[1] == 4:
+                return sequence[::-1, ::-1]
+            elif sequence.shape[0] == 4:
+                return sequence[:, ::-1][:, ::-1]
+            else:
+                raise ValueError(
+                    "One-hot encoded array must have shape (W, 4) or (4, W)"
+                )
+        elif sequence.ndim == 3:
+            if sequence.shape[1] == 4:
+                return sequence[:, ::-1, ::-1]
+            elif sequence.shape[2] == 4:
+                return sequence[:, ::-1, ::-1]
+            else:
+                raise ValueError(
+                    "One-hot encoded array must have shape (B, 4, W) or (B, W, 4)"
+                )
+        else:
+            raise ValueError("One-hot encoded array must have 2 or 3 dimensions")
+    else:
+        raise TypeError(
+            "Input must be either a DNA sequence string or a one-hot encoded array"
+        )

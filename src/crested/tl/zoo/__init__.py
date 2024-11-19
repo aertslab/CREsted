@@ -3,6 +3,7 @@
 from ._basenji import basenji
 from ._borzoi import borzoi
 from ._chrombpnet import chrombpnet
+from ._chrombpnet_decoupled import chrombpnet_decoupled
 from ._deeptopic_cnn import deeptopic_cnn
 from ._deeptopic_lstm import deeptopic_lstm
 from ._enformer import enformer

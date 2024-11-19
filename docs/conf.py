@@ -1,4 +1,4 @@
-# Configuration file for the Sphinx documentation builder.
+"""Configuration file for the Sphinx documentation builder."""
 #
 # This file only contains a selection of the most common options. For a full
 # list see the documentation:
@@ -64,6 +64,7 @@ extensions = [
 
 autosummary_generate = True
 autodoc_member_order = "groupwise"
+bibtex_reference_style = "author_year"
 default_role = "literal"
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
@@ -140,6 +141,7 @@ nitpick_ignore = [
     ("py:class", "keras.src.losses.loss.Loss"),
     ("py:class", "keras.src.metrics.metric.Metric"),
     ("py:class", "seaborn.matrix.ClusterGrid"),
+    ("py:class", "pysam.libcfaidx.FastaFile"),
 ]
 
 suppress_warnings = [

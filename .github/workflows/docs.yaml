@@ -36,13 +36,6 @@ jobs:
           # Build the docs and capture output, treat warnings as errors (-W)
           sphinx-build -b html -W . _build/html 2>&1 | tee sphinx-output.log
 
-      - name: Upload Documentation Artifacts (HTML Pages)
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: sphinx-docs
-          path: docs/_build/html
-
       - name: Upload Log if Build Failed
         if: failure()
         uses: actions/upload-artifact@v3

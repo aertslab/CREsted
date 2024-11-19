@@ -46,13 +46,13 @@ pip install torch
 pip install crested
 ```
 
-3. If you plan on doing motif analysis using the tf-modisco (lite) and tangermeme's tomtom functionality inside CREsted, you will need to run the following additional install:
+3. If you plan on doing motif analysis using tf-modisco (lite) inside CREsted, you will need to run the following additional install:
 
 ```bash
-pip install crested[tfmodisco]
+pip install "modisco-lite>=2.2.1"
 ```
 
-This requires a cmake installation on your system. If you don't have it, you can install it with:
+Modiscolite may require a cmake installation on your system. If you don't have it, you can install it with:
 
 ```bash
 pip install cmake
@@ -79,7 +79,8 @@ CREsted is build on top of keras 3.0 and can therefore be used with your deep le
 3. Current Keras 3.0 is still in active development and some features (mainly multi GPU training and weights and biases logging) are currently only supported with the Tensorflow backend. If you plan on using these features, you should choose Tensorflow. We will implement these features in a backend agnostic way as soon as Keras 3.0 has done so (it is on their roadmap).
 
 [issue-tracker]: https://github.com/aertslab/CREsted/issues
-[changelog]: https://crested.readthedocs.io/en/latest/changelog.html
+[changelog]: https://crested.readthedocs.io/en/stable/changelog.html
 [link-docs]: https://crested.readthedocs.io
-[link-tutorials]: https://crested.readthedocs.io/en/latest/tutorials/index.html
-[link-api]: https://crested.readthedocs.io/en/latest/api/index.html
+[link-tutorials]: https://crested.readthedocs.io/en/stable/tutorials/index.html
+[link-api]: https://crested.readthedocs.io/en/stable/index.html
+[link-api-latest]: https://crested.readthedocs.io/en/latest/index.html

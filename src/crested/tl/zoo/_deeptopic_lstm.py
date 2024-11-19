@@ -18,6 +18,7 @@ def deeptopic_lstm(
     lstm_out: int = 128,
     first_activation: str = "relu",
     activation: str = "relu",
+    output_activation: str = "sigmoid",
     lstm_do: float = 0.1,
     dense_do: float = 0.4,
     pre_dense_do: float = 0.2,
@@ -49,6 +50,8 @@ def deeptopic_lstm(
         Activation function for the first conv block.
     activation
         Activation function for subsequent blocks.
+    output_activation
+        Activation function for the output layer.
     lstm_do
         Dropout rate for the lstm layer.
     dense_do
@@ -91,7 +94,7 @@ def deeptopic_lstm(
         keras.layers.Flatten(),
         keras.layers.Dense(dense_out, activation=activation),
         keras.layers.Dropout(dense_do),
-        keras.layers.Dense(num_classes, activation="sigmoid"),
+        keras.layers.Dense(num_classes, activation=output_activation),
     ]
 
     outputs = get_output(inputs, hidden_layers)

@@ -53,7 +53,7 @@ class Crested:
         Name of the run. Used for wandb logging and creating output directories.
         If not provided, the current date and time will be used.
     logger
-        Logger to use for logging. Can be "wandb" or "tensorboard" (tensorboard not implemented yet)
+        Logger to use for logging. Can be "wandb", "tensorboard", or "dvc" (tensorboard not implemented yet)
         If not provided, no additional logging will be done.
     seed
         Seed to use for reproducibility.
@@ -203,6 +203,16 @@ class Crested:
                 log_dir=log_dir, update_freq=10
             )
             callbacks.append(tensorboard_callback)
+            run = None
+        elif logger_type == "dvc":
+            if os.environ["KERAS_BACKEND"] != "tensorflow":
+                raise ValueError("DVC Keras logging requires a tensorflow backend")
+            logger.warning("Using DVC logger. Make sure to have dvclive installed.")
+            from dvclive.keras import DVCLiveCallback
+
+            log_dir = os.path.join("logs", project_name, run_name)
+            dvc_callback = DVCLiveCallback()
+            callbacks.append(dvc_callback)
             run = None
         else:
             run = None
@@ -570,7 +580,7 @@ class Crested:
         """
         Extract embeddings from a specified layer in the model for all regions in the dataset.
 
-        If anndata is provided, it will add the embeddings to anndata.obsm[layer_name].
+        If anndata is provided, it will add the embeddings to anndata.varm[layer_name].
 
         Parameters
         ----------
@@ -581,7 +591,7 @@ class Crested:
 
         Returns
         -------
-        Embeddings of shape (N, D), where D is the size of the embedding layer.
+        Embeddings of shape (N, D), where N is the number of regions in the dataset and D is the size of the embedding layer.
         """
         if layer_name not in [layer.name for layer in self.model.layers]:
             raise ValueError(f"Layer '{layer_name}' not found in model.")
@@ -597,7 +607,7 @@ class Crested:
         embeddings = embedding_model.predict(predict_loader.data, steps=n_predict_steps)
 
         if anndata is not None:
-            anndata.obsm[layer_name] = embeddings
+            anndata.varm[layer_name] = embeddings
         return embeddings
 
     def predict(
@@ -652,7 +662,7 @@ class Crested:
         Parameters
         ----------
         region_idx
-            List of regions for which to make predictions in the format "chr:start-end".
+            List of regions for which to make predictions in the format of your original data, either "chr:start-end" or "chr:start-end:strand".
 
         Returns
         -------
@@ -708,6 +718,7 @@ class Crested:
         window_size: int = 2114,
         central_size: int = 1000,
         step_size: int = 50,
+        genome: FastaFile | None = None,
     ) -> tuple[np.ndarray, np.ndarray, int, int, int]:
         """
         Score regions upstream and downstream of a gene locus using the model's prediction.
@@ -736,6 +747,8 @@ class Crested:
             Size of the central region that the model predicts for. Default 1000.
         step_size
             Distance between consecutive windows. Default 50.
+        genome
+            Genome of species to score locus on. If none, genome of crested class is used.
 
         Returns
         -------
@@ -774,7 +787,8 @@ class Crested:
         all_class_names = list(self.anndatamodule.adata.obs_names)
         idx = all_class_names.index(class_name)
 
-        genome = FastaFile(self.anndatamodule.genome_file)
+        if genome is None:
+            genome = FastaFile(self.anndatamodule.genome_file)
 
         # Generate all windows and one-hot encode the sequences in parallel
         all_sequences = []
@@ -822,7 +836,7 @@ class Crested:
         # Normalize the scores based on the number of times each position is included in the central window
         return (
             scores / ratio,
-            np.array(all_coordinates),
+            all_coordinates,
             start_position,
             end_position,
             tss_position,
@@ -959,7 +973,7 @@ class Crested:
         Parameters
         ----------
         region_idx
-            Region(s) for which to calculate the contribution scores in the format "chr:start-end".
+            Region(s) for which to calculate the contribution scores in the format "chr:start-end" or "chr:start-end:strand".
         class_names
             List of class names to calculate the contribution scores for (should match anndata.obs_names)
             If the list is empty, the contribution scores for the 'combined' class will be calculated.
@@ -1321,17 +1335,17 @@ class Crested:
 
     def enhancer_design_motif_implementation(
         self,
-        n_sequences: int,
         patterns: dict,
+        n_sequences: int = 1,
         target_class: str | None = None,
         target: int | np.ndarray | None = None,
         insertions_per_pattern: dict | None = None,
         return_intermediate: bool = False,
-        class_penalty_weights: np.ndarray | None = None,
         no_mutation_flanks: tuple | None = None,
         target_len: int | None = None,
         preserve_inserted_motifs: bool = True,
         enhancer_optimizer: EnhancerOptimizer | None = None,
+        starting_sequences: str | list | None = None,
         **kwargs: dict[str, Any],
     ) -> tuple[list[dict], list] | list:
         """
@@ -1339,10 +1353,10 @@ class Crested:
 
         Parameters
         ----------
-        n_sequences
-            Number of enhancers to design.
         patterns
             Dictionary of patterns to be implemented in the form of 'pattern_name':'pattern_sequence'
+        n_sequences
+            Number of enhancers to design.
         target_class
             Class name for which the enhancers will be designed for. If this value is set to None
             target needs to be specified.
@@ -1354,9 +1368,6 @@ class Crested:
         return_intermediate
             If True, returns a dictionary with predictions and changes made in intermediate steps for selected
             sequences
-        class_penalty_weights
-            Array with a value per class, determining the penalty weight for that class to be used in scoring
-            function for sequence selection.
         no_mutation_flanks
             A tuple of integers which determine the regions in each flank to not do implementations.
         target_len
@@ -1368,6 +1379,9 @@ class Crested:
             An instance of EnhancerOptimizer, defining how sequences should be optimized.
             If None, a default EnhancerOptimizer will be initialized using `_weighted_difference`
             as optimization function.
+        starting_sequences
+            A DNA sequence or a list of DNA sequences that will be used instead of randomly generated
+            sequences, if provided, n_sequences is ignored
         kwargs
             Keyword arguments that will be passed to the `get_best` function of the EnhancerOptimizer
 
@@ -1392,10 +1406,7 @@ class Crested:
             enhancer_optimizer = EnhancerOptimizer(optimize_func=_weighted_difference)
 
         # get input sequence length of the model
-        seq_len = (
-            self.anndatamodule.adata.var.iloc[0]["end"]
-            - self.anndatamodule.adata.var.iloc[0]["start"]
-        )
+        seq_len = self.model.input_shape[1]
 
         # determine the flanks without changes
         if no_mutation_flanks is not None and target_len is not None:
@@ -1425,15 +1436,19 @@ class Crested:
         else:
             inserted_motif_locations = None
 
-        # create random sequences
-        random_sequences = self._create_random_sequences(
-            n_sequences=n_sequences, seq_len=seq_len
-        )
+        # create initial sequences
+        if starting_sequences is None:
+            initial_sequences = self._create_random_sequences(
+                n_sequences=n_sequences, seq_len=seq_len
+            )
+        else:
+            initial_sequences = self._parse_starting_sequences(starting_sequences)
+            n_sequences = initial_sequences.shape[0]
 
         designed_sequences = []
         intermediate_info_list = []
 
-        for idx, sequence in enumerate(random_sequences):
+        for idx, sequence in enumerate(initial_sequences):
             sequence_onehot = one_hot_encode_sequence(sequence)
             if return_intermediate:
                 intermediate_info_list.append(
@@ -1446,6 +1461,9 @@ class Crested:
                         "designed_sequence": "",
                     }
                 )
+
+            if preserve_inserted_motifs:
+                inserted_motif_locations = np.array([])
 
             # sequentially insert motifs
             for pattern_name in patterns:
@@ -1511,13 +1529,14 @@ class Crested:
     def enhancer_design_in_silico_evolution(
         self,
         n_mutations: int,
-        n_sequences: int,
+        n_sequences: int = 1,
         target_class: str | None = None,
         target: int | np.ndarray | None = None,
         return_intermediate: bool = False,
         no_mutation_flanks: tuple | None = None,
         target_len: int | None = None,
         enhancer_optimizer: EnhancerOptimizer | None = None,
+        starting_sequences: str | list | None = None,
         **kwargs: dict[str, Any],
     ) -> tuple[list[dict], list] | list:
         """
@@ -1546,6 +1565,9 @@ class Crested:
             An instance of EnhancerOptimizer, defining how sequences should be optimized.
             If None, a default EnhancerOptimizer will be initialized using `_weighted_difference`
             as optimization function.
+        starting_sequences
+            A DNA sequence or a list of DNA sequences that will be used instead of randomly generated
+            sequences, if provided, n_sequences is ignored
         kwargs
             Keyword arguments that will be passed to the `get_best` function of the EnhancerOptimizer
 
@@ -1590,10 +1612,7 @@ class Crested:
             enhancer_optimizer = EnhancerOptimizer(optimize_func=_weighted_difference)
 
         # get input sequence length of the model
-        seq_len = (
-            self.anndatamodule.adata.var.iloc[0]["end"]
-            - self.anndatamodule.adata.var.iloc[0]["start"]
-        )
+        seq_len = self.model.input_shape[1]
 
         # determine the flanks without changes
         if no_mutation_flanks is not None and target_len is not None:
@@ -1615,10 +1634,14 @@ class Crested:
         elif no_mutation_flanks is None and target_len is None:
             no_mutation_flanks = (0, 0)
 
-        # create random sequences
-        random_sequences = self._create_random_sequences(
-            n_sequences=n_sequences, seq_len=seq_len
-        )
+        # create initial sequences
+        if starting_sequences is None:
+            initial_sequences = self._create_random_sequences(
+                n_sequences=n_sequences, seq_len=seq_len
+            )
+        else:
+            initial_sequences = self._parse_starting_sequences(starting_sequences)
+            n_sequences = initial_sequences.shape[0]
 
         # initialize
         designed_sequences: list[str] = []
@@ -1637,7 +1660,7 @@ class Crested:
             (n_sequences, TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ, seq_len, 4)
         )
 
-        for i, sequence in enumerate(random_sequences):
+        for i, sequence in enumerate(initial_sequences):
             sequence_onehot_prev_iter[i] = one_hot_encode_sequence(sequence)
 
         for _iter in tqdm(range(n_mutations)):
@@ -1744,6 +1767,17 @@ class Crested:
             random_sequences[idx_seq] = "".join(current_sequence)
 
         return random_sequences
+
+    def _parse_starting_sequences(self, starting_sequences) -> np.ndarray:
+        if isinstance(starting_sequences, str):
+            starting_sequences = [starting_sequences]
+
+        n_sequences = len(starting_sequences)
+        starting_sequences_array = np.empty((n_sequences), dtype=object)
+        for idx, sequence in enumerate(starting_sequences):
+            starting_sequences_array[idx] = sequence
+
+        return starting_sequences_array
 
     def _calculate_location_gc_frequencies(self) -> np.ndarray:
         regions = self.anndatamodule.adata.var
