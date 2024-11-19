@@ -45,7 +45,6 @@ def test_train_val_test_split_by_chromosome():
         strategy="chr",
         val_chroms=["chr1"],
         test_chroms=["chr2"],
-        chr_var_key="chr",
     )
 
     split_counts = adata.var["split"].value_counts()
@@ -74,7 +73,6 @@ def test_train_val_test_split_by_chromosome_auto():
         strategy="chr_auto",
         val_size=0.2,
         test_size=0.2,
-        chr_var_key="chr",
         random_state=None,
     )
 
