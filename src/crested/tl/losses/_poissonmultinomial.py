@@ -34,6 +34,25 @@ class PoissonMultinomialLoss(keras.losses.Loss):
         reduction: str = "sum_over_batch_size",
         name: str = "PoissonMultinomialLoss",
     ):
+        """
+        Initialize the PoissonMultinomialLoss.
+
+        Parameters
+        ----------
+        total_weight : float, optional
+            Weight of the Poisson term in the total loss (default is 1.0).
+        eps : float, optional
+            Small value to avoid log(0) (default is 1e-7).
+        log_input : bool, optional
+            If True, applies exponential transformation to predictions to produce counts (default is True).
+        multinomial_axis : str, optional
+            Either "length" or "task", representing the axis along which multinomial proportions are calculated
+            (default is "task").
+        reduction : str, optional
+            Type of reduction to apply to the loss: "mean" or "none" (default is "sum_over_batch_size").
+        name : str, optional
+            Name of the loss function (default is "PoissonMultinomialLoss").
+        """
         super().__init__(name=name, reduction=reduction)
         self.total_weight = total_weight
         self.eps = eps
