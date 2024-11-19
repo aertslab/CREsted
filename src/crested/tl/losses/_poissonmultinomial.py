@@ -1,6 +1,7 @@
 import keras
 import keras.ops as ops
 
+
 @keras.saving.register_keras_serializable(package="Losses")
 class PoissonMultinomialLoss(keras.losses.Loss):
     """

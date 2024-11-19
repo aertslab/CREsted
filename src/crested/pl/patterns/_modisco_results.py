@@ -205,6 +205,7 @@ def clustermap(
     fig_path: str | None = None,
     pat_seqs: list[tuple[str, np.ndarray]] | None = None,
     dendrogram_ratio: tuple[float, float] = (0.05, 0.2),
+    importance_threshold : float = 0,
 ) -> sns.matrix.ClusterGrid:
     """
     Create a clustermap from the given pattern matrix and class labels with customizable options.
@@ -235,6 +236,8 @@ def clustermap(
         List of sequences to use as xticklabels.
     dendrogram_ratio
         Ratio of dendograms in x and y directions.
+    importance_threshold
+        Minimal pattern importance threshold over all classes to retain the pattern before clustering and plotting.
 
     See Also
     --------
@@ -262,13 +265,13 @@ def clustermap(
         pattern_matrix = pattern_matrix[subset_indices, :]
         classes = [classes[i] for i in subset_indices]
 
-    # Remove columns that contain only zero values
-    non_zero_columns = np.any(pattern_matrix != 0, axis=0)
-    pattern_matrix = pattern_matrix[:, non_zero_columns]
+    # Filter columns based on importance threshold
+    max_importance = np.max(np.abs(pattern_matrix), axis=0)
+    above_threshold = max_importance > importance_threshold
+    pattern_matrix = pattern_matrix[:, above_threshold]
 
-    # Reindex columns based on the original positions of non-zero columns
-    column_indices = np.where(non_zero_columns)[0]
-    data = pd.DataFrame(pattern_matrix, columns=column_indices)
+    if pat_seqs is not None:
+        pat_seqs = [pat_seqs[i] for i in np.where(above_threshold)[0]]
 
     data = pd.DataFrame(pattern_matrix)
 
@@ -301,7 +304,7 @@ def clustermap(
 
     # Reorder the pat_seqs to follow the column order
     if pat_seqs is not None:
-        reordered_pat_seqs = [pat_seqs[column_indices[i]] for i in col_order]
+        reordered_pat_seqs = [pat_seqs[i] for i in col_order]
         ax = g.ax_heatmap
         x_positions = (
             np.arange(len(reordered_pat_seqs)) + 0.5
@@ -663,7 +666,7 @@ def clustermap_tf_motif(
         ax_scatter = fig.add_subplot(111)
 
     # Define color normalization
-    norm = mcolors.TwoSlopeNorm(vmin=color_data.min(), vcenter=0, vmax=color_data.max())
+    norm = mcolors.TwoSlopeNorm(vmin=-max(np.abs(color_data.min()), np.abs(color_data.max())), vcenter=0, vmax=max(np.abs(color_data.min()), np.abs(color_data.max())))
 
     # Plot scatter matrix
     sc = ax_scatter.scatter(
