@@ -31,7 +31,7 @@ def _split_by_chromosome_auto(
     """
     chrom_count = defaultdict(int)
     for region in regions:
-        if not region.contains(":"):
+        if ":" not in region:
             raise ValueError(f"Region names should start with the chromosome name, bound by a colon (:). Offending region: {region}")
         chrom = region.split(":")[0]
         chrom_count[chrom] += 1
