@@ -1462,6 +1462,9 @@ class Crested:
                     }
                 )
 
+            if preserve_inserted_motifs:
+                inserted_motif_locations = np.array([])
+
             # sequentially insert motifs
             for pattern_name in patterns:
                 number_of_insertions = insertions_per_pattern[pattern_name]
