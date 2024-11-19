@@ -15,7 +15,7 @@ __all__ = ["train_val_test_split"]
 
 
 def _split_by_chromosome_auto(
-    regions: list[str], val_fraction: float = 0.1, test_fraction: float = 0.1
+    regions: list[str], val_fraction: float = 0.1, test_fraction: float = 0.1, random_state: int | None = None,
 ) -> pd.Series:
     """Split the dataset based on chromosome, automatically selecting chromosomes for val and test sets.
 
@@ -31,6 +31,8 @@ def _split_by_chromosome_auto(
     """
     chrom_count = defaultdict(int)
     for region in regions:
+        if ":" not in region:
+            raise ValueError(f"Region names should start with the chromosome name, bound by a colon (:). Offending region: {region}")
         chrom = region.split(":")[0]
         chrom_count[chrom] += 1
 
@@ -39,6 +41,7 @@ def _split_by_chromosome_auto(
     target_test_size = int(test_fraction * total_regions)
 
     chromosomes = list(chrom_count.keys())
+    np.random.seed(seed=random_state)
     np.random.shuffle(chromosomes)
 
     val_chroms = set()
@@ -187,7 +190,6 @@ def train_val_test_split(
     test_size: float = 0.1,
     val_chroms: list[str] = None,
     test_chroms: list[str] = None,
-    chr_var_key: str = "chr",
     shuffle: bool = True,
     random_state: None | int = None,
 ) -> None:
@@ -207,8 +209,8 @@ def train_val_test_split(
     adata
         AnnData object to which the 'train/val/test' split column will be added.
     strategy
-        strategy of split. Either 'region', 'chr' or 'chr_auto'. If 'chr' or 'chr_auto', the "target" df should
-        have a column "chr" with the chromosome names.
+        strategy of split. Either 'region', 'chr' or 'chr_auto'. If 'chr' or 'chr_auto', the anndata's var_names should
+        contain the chromosome name at the start, followed by a `:` (e.g. I:2000-2500 or chr3:10-20:+).
 
         region: Split randomly on region indices.
 
@@ -226,8 +228,6 @@ def train_val_test_split(
         List of chromosomes to include in the validation set. Required if strategy='chr'.
     test_chroms
         List of chromosomes to include in the test set. Required if strategy='chr'.
-    chr_var_key
-        Key in `.var` for chromosome.
     shuffle
         Whether or not to shuffle the data before splitting (when strategy='region').
     random_state
@@ -260,13 +260,9 @@ def train_val_test_split(
     # Input checks
     if strategy not in ["region", "chr", "chr_auto"]:
         raise ValueError("`strategy` should be either 'region','chr', or 'chr_auto'")
-    if strategy == "region" and not 0 <= val_size <= 1:
+    if strategy in ["region", "chr_auto"] and not 0 <= val_size <= 1:
         raise ValueError("`val_size` should be a float between 0 and 1.")
-    if strategy == "region" and not 0 <= test_size <= 1:
-        raise ValueError("`test_size` should be a float between 0 and 1.")
-    if strategy == "chr_auto" and not 0 <= val_size <= 1:
-        raise ValueError("`val_size` should be a float between 0 and 1.")
-    if strategy == "chr_auto" and not 0 <= test_size <= 1:
+    if strategy in ["region", "chr_auto"] and not 0 <= test_size <= 1:
         raise ValueError("`test_size` should be a float between 0 and 1.")
     if (strategy == "region") and (val_chroms is not None or test_chroms is not None):
         logger.warning(
@@ -277,20 +273,6 @@ def train_val_test_split(
         if val_chroms is None or test_chroms is None:
             raise ValueError(
                 "If `strategy` is 'chr', `val_chroms` and `test_chroms` should be provided."
-            )
-        if chr_var_key not in adata.var.columns:
-            raise ValueError(
-                f"Column '{chr_var_key}' not found in `.var`. "
-                "Make sure to add the chromosome information to the `.var` DataFrame."
-            )
-        unique_chr = adata.var[chr_var_key].unique()
-        if not set(val_chroms).issubset(unique_chr):
-            raise ValueError(
-                "Some chromosomes in `val_chroms` are not present in the dataset."
-            )
-        if not set(test_chroms).issubset(unique_chr):
-            raise ValueError(
-                "Some chromosomes in `test_chroms` are not present in the dataset."
             )
 
     # Split
@@ -303,7 +285,7 @@ def train_val_test_split(
             regions, val_chroms=val_chroms, test_chroms=test_chroms
         )
     elif strategy == "chr_auto":
-        split = _split_by_chromosome_auto(regions, val_size, test_size)
+        split = _split_by_chromosome_auto(regions, val_size, test_size, random_state)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
