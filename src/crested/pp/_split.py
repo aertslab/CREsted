@@ -15,7 +15,7 @@ __all__ = ["train_val_test_split"]
 
 
 def _split_by_chromosome_auto(
-    regions: list[str], val_fraction: float = 0.1, test_fraction: float = 0.1
+    regions: list[str], val_fraction: float = 0.1, test_fraction: float = 0.1, random_state: int | None = None,
 ) -> pd.Series:
     """Split the dataset based on chromosome, automatically selecting chromosomes for val and test sets.
 
@@ -39,6 +39,7 @@ def _split_by_chromosome_auto(
     target_test_size = int(test_fraction * total_regions)
 
     chromosomes = list(chrom_count.keys())
+    np.random.seed(seed=random_state)
     np.random.shuffle(chromosomes)
 
     val_chroms = set()
@@ -303,7 +304,7 @@ def train_val_test_split(
             regions, val_chroms=val_chroms, test_chroms=test_chroms
         )
     elif strategy == "chr_auto":
-        split = _split_by_chromosome_auto(regions, val_size, test_size)
+        split = _split_by_chromosome_auto(regions, val_size, test_size, random_state)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
