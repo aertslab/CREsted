@@ -67,14 +67,14 @@ def dense_block(
         use_bias=use_bias,
         kernel_initializer="he_normal",
         kernel_regularizer=keras.regularizers.l2(l2),
-        name=name_prefix + "_dense" if name_prefix else None,
+        name=name_prefix + "_dense" if name_prefix else None
     )(inputs)
 
     if normalization == "batch":
         x = keras.layers.BatchNormalization(
             momentum=bn_momentum,
             gamma_initializer=bn_gamma,
-            name=name_prefix + "_batchnorm" if name_prefix else None,
+            name=name_prefix + "_batchnorm" if name_prefix else None
         )(x)
     elif normalization == "layer":
         x = keras.layers.LayerNormalization(
@@ -150,7 +150,7 @@ def conv_block(
         padding=padding,
         kernel_regularizer=keras.regularizers.L2(l2),
         use_bias=conv_bias,
-        name=name_prefix + "_conv" if name_prefix else None,
+        name=name_prefix + "_conv" if name_prefix else None
     )(inputs)
     if normalization == "batch":
         x = keras.layers.BatchNormalization(
@@ -159,11 +159,11 @@ def conv_block(
         )(x)
     elif normalization == "layer":
         x = keras.layers.LayerNormalization(
-            name=name_prefix + "_layernorm" if name_prefix else None,
+            name=name_prefix + "_layernorm" if name_prefix else None
         )(x)
     x = keras.layers.Activation(
         activation,
-        name=name_prefix + "_activation" if name_prefix else None,
+        name=name_prefix + "_activation" if name_prefix else None
     )(x)
     if res:
         if filters != residual.shape[2]:
@@ -171,7 +171,7 @@ def conv_block(
                 filters=filters,
                 kernel_size=1,
                 strides=1,
-                name=name_prefix + "_resconv" if name_prefix else None,
+                name=name_prefix + "_resconv" if name_prefix else None
             )(residual)
         x = keras.layers.Add()([x, residual])
 
@@ -179,7 +179,7 @@ def conv_block(
         x = keras.layers.MaxPooling1D(
             pool_size=pool_size,
             padding=padding,
-            name=name_prefix + "_pool" if name_prefix else None,
+            name=name_prefix + "_pool" if name_prefix else None
         )(x)
     if dropout > 0:
         x = keras.layers.Dropout(
@@ -363,8 +363,8 @@ def conv_block_bs(
             epsilon=bn_epsilon,
             gamma_initializer=bn_gamma,
             synchronized=bn_sync,
-            name = name_prefix + "_bnorm" if name_prefix else None
-            )(current)
+            name = name_prefix + "_batchnorm" if name_prefix else None
+        )(current)
 
     # activation
     current = activate(current, activation)
@@ -386,26 +386,25 @@ def conv_block_bs(
     if batch_norm:
         if bn_gamma is None:
             bn_gamma = "zeros" if residual else "ones"
-        if bn_type == "sync":
-            bn_layer = keras.layers.experimental.SyncBatchNormalization
-        else:
-            bn_layer = keras.layers.BatchNormalization
-        current = bn_layer(
+        current = keras.layers.BatchNormalization(
             momentum=bn_momentum,
             gamma_initializer=bn_gamma,
-            name=name_prefix + "_bnorm" if name_prefix else None,
+            synchronized = bn_sync,
+            name=name_prefix + "_batchnorm" if name_prefix else None
         )(current)
 
     # dropout
     if dropout > 0:
         current = keras.layers.Dropout(
             rate=dropout,
-            name=name_prefix + "_dropout" if name_prefix else None,
+            name=name_prefix + "_dropout" if name_prefix else None
             )(current)
 
     # residual add
     if residual:
-        current = keras.layers.Add()([inputs, current])
+        current = keras.layers.Add(
+            name=name_prefix + "_add" if name_prefix else None
+        )([inputs, current])
 
     # end activation
     if activation_end is not None:
