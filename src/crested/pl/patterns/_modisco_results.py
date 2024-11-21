@@ -213,7 +213,7 @@ def clustermap(
     pattern_matrix
         2D NumPy array containing pattern data.
     classes
-        List of class labels, matching the rows of the pattern matrix.
+        List of all class labels, matching the rows of the pattern matrix.
     subset
         List of class labels to subset the matrix.
     figsize
@@ -266,8 +266,6 @@ def clustermap(
     # Reindex columns based on the original positions of non-zero columns
     column_indices = np.where(non_zero_columns)[0]
     data = pd.DataFrame(pattern_matrix, columns=column_indices)
-
-    data = pd.DataFrame(pattern_matrix)
 
     if pat_seqs is not None:
         plt.rc("text", usetex=False)  # Turn off LaTeX to speed up rendering
