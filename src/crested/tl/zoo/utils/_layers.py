@@ -382,17 +382,6 @@ def conv_block_bs(
         name = name_prefix + "_conv" if name_prefix else None
     )(current)
 
-    # batch norm
-    if batch_norm:
-        if bn_gamma is None:
-            bn_gamma = "zeros" if residual else "ones"
-        current = keras.layers.BatchNormalization(
-            momentum=bn_momentum,
-            gamma_initializer=bn_gamma,
-            synchronized = bn_sync,
-            name=name_prefix + "_batchnorm" if name_prefix else None
-        )(current)
-
     # dropout
     if dropout > 0:
         current = keras.layers.Dropout(
