@@ -8,8 +8,8 @@ import h5py
 import modiscolite as modisco
 import numpy as np
 import pandas as pd
-from loguru import logger
 import scanpy as sc
+from loguru import logger
 
 from crested.utils._logging import log_and_raise
 
