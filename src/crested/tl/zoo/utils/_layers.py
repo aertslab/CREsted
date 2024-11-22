@@ -449,7 +449,7 @@ def conv_block_bs(
             pool_type=pool_type,
             pool_size=pool_size,
             padding=padding,
-            name_prefix = name_prefix + "_pool" if name_prefix else None
+            name = name_prefix + "_pool" if name_prefix else None
         )
     return current
 
