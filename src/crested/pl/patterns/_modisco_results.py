@@ -573,7 +573,7 @@ def clustermap_tf_motif(
 
     Parameters
     ----------
-    data : np.ndarray
+    data : numpy.ndarray
         3D numpy array with shape (len(classes), #patterns, 2).
     heatmap_dim : str
         Either 'gex' or 'contrib', indicating which third dimension to use for heatmap colors.
