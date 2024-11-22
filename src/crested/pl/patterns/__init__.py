@@ -14,7 +14,7 @@ from ._enhancer_design import (
 def _optional_function_warning(*args, **kwargs):
     logger.error(
         "The requested functionality requires the 'tfmodisco' package, which is not installed. "
-        "Please install it with `pip install crested[tfmodisco]`.",
+        "Please install it with `pip install modisco-lite`.",
     )
 
 
