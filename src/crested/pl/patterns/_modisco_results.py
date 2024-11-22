@@ -415,7 +415,7 @@ def selected_instances(pattern_dict: dict, idcs: list[int], **kwargs) -> None:
 
 
 def class_instances(
-    pattern_dict: dict, idx: int, class_representative: bool = False
+    pattern_dict: dict, idx: int, class_representative: bool = False, **kwargs
 ) -> None:
     """
     Plot instances of a specific pattern, either the representative pattern per class or all instances for a given pattern index.
@@ -430,10 +430,15 @@ def class_instances(
     class_representative
         If True, only the best representative instance of each class is plotted. If False (default), all instances of the pattern
         within each class are plotted.
+    kwargs
+        Additional arguments passed to :func:`~crested.pl.render_plot` to
+        control the final plot output. Please see :func:`~crested.pl.render_plot`
+        for details.
 
     See Also
     --------
     crested.tl.modisco.process_patterns
+    crested.pl.render_plot
 
     Examples
     --------
@@ -446,8 +451,9 @@ def class_instances(
     else:
         key = "instances"
     n_instances = len(pattern_dict[str(idx)][key])
-    figure, axes = plt.subplots(
-        nrows=n_instances, ncols=1, figsize=(8, 2 * n_instances)
+    fig, axes = plt.subplots(
+        nrows=n_instances,
+        ncols=1,
     )
     if n_instances == 1:
         axes = [axes]
@@ -463,15 +469,20 @@ def class_instances(
         )
         ax.set_title(pattern_dict[str(idx)][key][cl]["id"])
 
-    plt.tight_layout()
-    plt.show()
+    default_width = 8
+    default_height = 2 * n_instances
+    if "width" not in kwargs:
+        kwargs["width"] = default_width
+    if "height" not in kwargs:
+        kwargs["height"] = default_height
+
+    return render_plot(fig, **kwargs)
 
 
 def similarity_heatmap(
     similarity_matrix: np.ndarray,
     indices: list,
-    fig_size: tuple[int, int] = (30, 15),
-    fig_path: str | None = None,
+    **kwargs,
 ) -> None:
     """
     Plot a similarity heatmap of all pattern indices.
@@ -482,25 +493,26 @@ def similarity_heatmap(
         A 2D numpy array containing the similarity values.
     indices
         List of pattern indices.
-    fig_size
-        Size of the figure for the heatmap.
-    fig_path
-        Path to save the figure. If None, the figure will be shown but not saved.
+    kwargs
+        Additional arguments passed to :func:`~crested.pl.render_plot` to
+        control the final plot output. Please see :func:`~crested.pl.render_plot`
+        for details.
 
     See Also
     --------
     crested.tl.modisco.calculate_similarity_matrix
+    crested.pl.render_plot
 
     Examples
     --------
     >>> sim_matrix, indices = crested.tl.modisco.calculate_similarity_matrix(
     ...     all_patterns
     ... )
-    >>> crested.pl.patterns.similarity_heatmap(sim_matrix, indices, fig_size=(42, 17))
+    >>> crested.pl.patterns.similarity_heatmap(sim_matrix, indices, width=42, height=17))
 
     .. image:: ../../../../docs/_static/img/examples/pattern_similarity_heatmap.png
     """
-    fig, ax = plt.subplots(figsize=fig_size)
+    fig, ax = plt.subplots()
     heatmap = sns.heatmap(
         similarity_matrix,
         ax=ax,
@@ -517,13 +529,27 @@ def similarity_heatmap(
         spine.set_color("grey")
         spine.set_linewidth(0.5)
 
-    plt.title("Pattern Similarity Heatmap", fontsize=20)
-    plt.xlabel("Pattern Index", fontsize=15)
-    plt.ylabel("Pattern Index", fontsize=15)
+    default_width = 30
+    default_height = 15
 
-    if fig_path is not None:
-        plt.savefig(fig_path)
-    plt.show()
+    if "width" not in kwargs:
+        kwargs["width"] = default_width
+    if "height" not in kwargs:
+        kwargs["height"] = default_height
+    if "title" not in kwargs:
+        kwargs["title"] = "Pattern Similarity Heatmap"
+    if "xlabel" not in kwargs:
+        kwargs["xlabel"] = "Pattern Index"
+    if "ylabel" not in kwargs:
+        kwargs["ylabel"] = "Pattern Index"
+    if "title_fontsize" not in kwargs:
+        kwargs["title_fontsize"] = 20
+    if "x_label_fontsize" not in kwargs:
+        kwargs["x_label_fontsize"] = 15
+    if "y_label_fontsize" not in kwargs:
+        kwargs["y_label_fontsize"] = 15
+
+    return render_plot(fig, ax=ax, **kwargs)
 
 
 def tf_expression_per_cell_type(

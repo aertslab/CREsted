@@ -141,5 +141,20 @@ def test_patterns_selected_instances(all_patterns, save_dir):
     )
 
 
+def test_patterns_class_instances(all_patterns, save_dir):
+    save_path = os.path.join(save_dir, "patterns_class_instances.png")
+    crested.pl.patterns.class_instances(
+        all_patterns, idx=2, class_representative=True, save_path=save_path
+    )
+
+
+def test_patterns_similarity_heatmap(all_patterns, save_dir):
+    save_path = os.path.join(save_dir, "patterns_similarity_heatmap.png")
+    sim_matrix, indices = crested.tl.modisco.calculate_similarity_matrix(all_patterns)
+    crested.pl.patterns.similarity_heatmap(
+        sim_matrix, indices=indices, save_path=save_path
+    )
+
+
 if __name__ == "__main__":
     pytest.main()
