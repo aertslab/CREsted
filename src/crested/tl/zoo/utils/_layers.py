@@ -598,7 +598,7 @@ def ffn_block_enf(
         scale=True,
         beta_initializer="zeros",
         gamma_initializer="ones",
-        name=f'{name_prefix}_lnorm'
+        name=f'{name_prefix}_layernorm'
     )(inputs)
     current = keras.layers.Conv1D(filters=expansion_filters, kernel_size=1, name=f'{name_prefix}_pointwise_1')(current)
     current = keras.layers.Dropout(rate=dropout, name=f"{name_prefix}_dropout_1")(current)
