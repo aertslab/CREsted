@@ -8,6 +8,7 @@ import h5py
 import modiscolite as modisco
 import numpy as np
 import pandas as pd
+import scanpy as sc
 from loguru import logger
 
 from crested.utils._logging import log_and_raise
@@ -897,17 +898,20 @@ def generate_html_paths(
     """
     html_paths = []
 
-    for i, _ in enumerate(all_patterns):
-        pattern_id = all_patterns[str(i)]["pattern"]["id"]
-        pattern_class_parts = pattern_id.split("_")[:-3]
-        pattern_class = (
-            "_".join(pattern_class_parts)
-            if len(pattern_class_parts) > 1
-            else pattern_class_parts[0]
-        )
+    for pat_id in all_patterns:
+        html_paths_pattern = []
+        for pattern in all_patterns[pat_id]["instances"]:
+            pattern_id = all_patterns[pat_id]["instances"][pattern]["id"]
+            pattern_class_parts = pattern_id.split("_")[:-3]
+            pattern_class = (
+                "_".join(pattern_class_parts)
+                if len(pattern_class_parts) > 1
+                else pattern_class_parts[0]
+            )
 
-        html_dir = os.path.join(contribution_dir, pattern_class + "_report")
-        html_paths.append(os.path.join(html_dir, "motifs.html"))
+            html_dir = os.path.join(contribution_dir, pattern_class + "_report")
+            html_paths_pattern.append(os.path.join(html_dir, "motifs.html"))
+        html_paths.append(html_paths_pattern)
 
     return html_paths
 
@@ -934,44 +938,54 @@ def find_pattern_matches(
     pattern_match_dict: dict[int, dict[str, list[str]]] = {}
 
     for i, p_idx in enumerate(all_patterns):
-        df_motif_database = read_html_to_dataframe(html_paths[i])
-        pattern_id = all_patterns[p_idx]["pattern"]["id"]
-        pattern_id_parts = pattern_id.split("_")
-        pattern_id = (
-            pattern_id_parts[-3]
-            + "_"
-            + pattern_id_parts[-2]
-            + "."
-            + "pattern"
-            + "_"
-            + pattern_id_parts[-1]
-        )
-        matching_row = df_motif_database.loc[df_motif_database["pattern"] == pattern_id]
+        matching_rows = []
+        pattern_ids = []
+        for j, pattern in enumerate(all_patterns[p_idx]["instances"]):
+            df_motif_database = read_html_to_dataframe(html_paths[i][j])
+            pattern_id_whole = all_patterns[p_idx]["instances"][pattern]["id"]
+            pattern_id_parts = pattern_id_whole.split("_")
+            pattern_id = (
+                pattern_id_parts[-3]
+                + "_"
+                + pattern_id_parts[-2]
+                + "."
+                + "pattern"
+                + "_"
+                + pattern_id_parts[-1]
+            )
+            matching_row = df_motif_database.loc[df_motif_database["pattern"] == pattern_id]
+            matching_rows.append(matching_row)
+            pattern_ids.append(pattern_id_whole)
 
-        # Process the matching row if found
-        if not matching_row.empty:
+        # Process the matching rows if found
+        if len(matching_rows) > 0:
             matches = []
-            for j in range(3):
-                qval_column = f"qval{j}"
-                match_column = f"match{j}"
-                if (
-                    qval_column in matching_row.columns
-                    and match_column in matching_row.columns
-                ):
-                    qval = matching_row[qval_column].values[0]
-                    if qval < q_val_thr:
-                        match = matching_row[match_column].values[0]
-                        matches.append(match)
-
             matches_filt = []
-            for match in matches:
-                if match.startswith("metacluster"):
-                    match_parts = match.split(".")[2:]
-                    match = ".".join(match_parts)
-                matches_filt.append(match)
+
+            patterns = []
+            for i, matching_row in enumerate(matching_rows):
+                if not matching_row.empty:
+                    for j in range(3):
+                        qval_column = f"qval{j}"
+                        match_column = f"match{j}"
+                        if (
+                            qval_column in matching_row.columns
+                            and match_column in matching_row.columns
+                        ):
+                            qval = matching_row[qval_column].values[0]
+                            if qval < q_val_thr:
+                                match = matching_row[match_column].values[0]
+                                matches.append(match)
+
+                    for match in matches:
+                        if match.startswith("metacluster"):
+                            match_parts = match.split(".")[2:]
+                            match = ".".join(match_parts)
+                        matches_filt.append(match)
+                        patterns.append(pattern_ids[i])
 
             if matches_filt:
-                pattern_match_dict[p_idx] = {"matches": matches_filt}
+                pattern_match_dict[p_idx] = {"matches": matches_filt, "patterns": patterns}
         else:
             print(f"No matching row found for pattern_id '{pattern_id}'")
 
@@ -1066,6 +1080,10 @@ def create_tf_ct_matrix(
     min_tf_gex: float = 0,
     importance_threshold: float = 0,
     pattern_parameter : str = "seqlet_count",
+    filter_correlation: bool = False,
+    zscore_threshold: float = 2,
+    correlation_threshold: float = 0.2,
+    verbose : bool = False,
 ) -> tuple[np.ndarray, list[str]]:
     """
     Create a tensor (matrix) of transcription factor (TF) expression and cell type contributions.
@@ -1092,6 +1110,14 @@ def create_tf_ct_matrix(
         The minimum pattern importance value. Default is 0.
     pattern_parameter
         Parameter which is used to indicate the pattern's importance. Either average contribution score ('contrib'), or number of pattern instances ('seqlet_count', default) and its log ('seqlet_count_log').
+    filter_correlation
+        Whether to filter based on Pearson correlation between `tf_gex` and `ct_contribs`. Default is False.
+    zscore_threshold
+        Zscore used for filtering TF candidates. If the max zscore over the cell types is belofw this threshold, the TF gets discarded. Default is 2.
+    correlation_threshold
+        Minimum Pearson correlation between expression and contribution profile required to keep a column if filtering is enabled. Default is 0.2.
+    verbose
+        Whether to print intermediate debugging steps.
 
     See Also
     --------
@@ -1149,7 +1175,7 @@ def create_tf_ct_matrix(
     if normalize_gex:
         tf_ct_matrix[:, :, 0] = normalize_rows(tf_ct_matrix[:, :, 0].T).T
 
-    # Logic to remove columns where tf_gex is zero for all non-zero ct_contribs
+    # Logic to remove columns where tf_gex is not above the expression threshold for all ct_contribs above the contribution threshold.
     initial_columns = tf_ct_matrix.shape[1]
     columns_to_keep = []
 
@@ -1176,15 +1202,47 @@ def create_tf_ct_matrix(
         annot for i, annot in enumerate(tf_pattern_annots) if i in columns_to_keep
     ]
 
-    # Print stats about the number of columns removed
-    print(f"Total columns before filtering: {initial_columns}")
-    print(f"Total columns after filtering: {final_columns}")
-    print(f"Total columns removed: {removed_columns}")
+    if verbose:
+        print(f"Total columns before threshold filtering: {initial_columns}")
+        print(f"Total columns after threshold filtering: {final_columns}")
+        print(f"Total columns removed: {removed_columns}")
+
+    # Filter out TF candidates for patterns that do not show correlation between their expression and importance profiles.
+    if filter_correlation:
+        initial_columns = tf_ct_matrix.shape[1]
+        columns_to_keep = []
+
+        for col in range(initial_columns):
+            tf_gex_col = tf_ct_matrix[:, col, 0]
+            ct_contribs_col = np.abs(tf_ct_matrix[:, col, 1])
+
+            tf_gex_col_z = (tf_gex_col - np.mean(tf_gex_col))/ np.std(tf_gex_col)
+
+            correlation = np.corrcoef(tf_gex_col, ct_contribs_col)[0, 1]
+            #if correlation >= correlation_threshold:
+            if (np.max(tf_gex_col_z) > zscore_threshold) and (correlation >= correlation_threshold):
+                columns_to_keep.append(col)
+
+        # Update matrix and annotations based on filtering
+        tf_ct_matrix = tf_ct_matrix[:, columns_to_keep, :]
+        tf_pattern_annots = [
+            annot for i, annot in enumerate(tf_pattern_annots) if i in columns_to_keep
+        ]
+
+        final_columns = len(columns_to_keep)
+        removed_columns = initial_columns - final_columns
+
+        if verbose:
+            print(f"Total columns before correlation filtering: {initial_columns}")
+            print(f"Total columns after correlation filtering: {final_columns}")
+            print(f"Total columns removed: {removed_columns}")
 
     return tf_ct_matrix, tf_pattern_annots
 
 def calculate_mean_expression_per_cell_type(
-    file_path: str, cell_type_column: str
+    file_path: str,
+    cell_type_column: str,
+    cpm_normalize: bool = False,
 ) -> pd.DataFrame:
     """
     Read an AnnData object from an H5AD file and calculates the mean gene expression per cell type subclass.
@@ -1195,6 +1253,8 @@ def calculate_mean_expression_per_cell_type(
         The path to the H5AD file containing the single-cell RNA-seq data.
     cell_type_column
         The column name in the cell metadata that defines the cell type subclass.
+    cpm_normalize
+        Whether to additionally cpm_normalize the scRNA-seq data.
 
     Returns
     -------
@@ -1202,6 +1262,10 @@ def calculate_mean_expression_per_cell_type(
     """
     # Read the AnnData object from the specified H5AD file
     adata: anndata.AnnData = anndata.read_h5ad(file_path)
+
+    #CPM normalize the counts if necessary
+    if cpm_normalize:
+        sc.pp.normalize_total(adata)
 
     # Convert the AnnData object to a DataFrame containing the gene expression matrix
     gene_expression_df: pd.DataFrame = adata.to_df()
