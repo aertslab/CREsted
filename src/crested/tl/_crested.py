@@ -836,7 +836,7 @@ class Crested:
         # Normalize the scores based on the number of times each position is included in the central window
         return (
             scores / ratio,
-            np.array(all_coordinates),
+            all_coordinates,
             start_position,
             end_position,
             tss_position,
@@ -1461,6 +1461,9 @@ class Crested:
                         "designed_sequence": "",
                     }
                 )
+
+            if preserve_inserted_motifs:
+                inserted_motif_locations = np.array([])
 
             # sequentially insert motifs
             for pattern_name in patterns:

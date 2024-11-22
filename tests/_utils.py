@@ -129,6 +129,7 @@ def generate_simulated_patterns(
                     "ic": np.float32(np.random.uniform(0.5, 2.0)),
                     "ppm": np.random.dirichlet(np.ones(4), size=4).astype(np.float32),
                     "class": class_name,
+                    "n_seqlets": random.randint(1, 10),
                 }
                 for class_name in cell_classes
             },
