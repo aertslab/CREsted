@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 def render_plot(
     fig,
+    ax=None,
     width: int = 8,
     height: int = 8,
     title: str | None = None,
@@ -36,6 +37,8 @@ def render_plot(
     ----------
     fig
         The figure object to render.
+    ax
+        The axis object to which to apply the customizations. If None, all axes in the figure are modified.
     width
         Width of the plot (inches).
     height
@@ -78,7 +81,9 @@ def render_plot(
         fig.supxlabel(supxlabel)
     if supylabel:
         fig.supylabel(supylabel)
-    for ax in fig.axes:
+    axes_to_modify = [ax] if ax else fig.axes
+
+    for ax in axes_to_modify:
         if xlabel:
             ax.set_xlabel(xlabel, fontsize=x_label_fontsize)
         if ylabel:
@@ -89,6 +94,7 @@ def render_plot(
         for label in ax.get_yticklabels():
             label.set_fontsize(y_tick_fontsize)
             label.set_rotation(y_label_rotation)
+
     if tight_rect:
         plt.tight_layout(rect=tight_rect)
     else:
