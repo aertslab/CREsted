@@ -523,7 +523,7 @@ def mha_block_enf(
         scale = True,
         beta_initializer = "zeros",
         gamma_initializer = "ones",
-        name=f'{name_prefix}_lnorm'
+        name=f'{name_prefix}_layernorm'
     )(inputs)
     current = MultiheadAttention(
         value_size = value_dim,
