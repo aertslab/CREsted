@@ -4,6 +4,7 @@ wandb/
 *slurm*
 tests/data/genomes
 tests/data/test_pipeline
+tests/data/pl_output/
 
 # Sphinx documentation
 _build

@@ -63,7 +63,9 @@ def modisco_results(
     background
         Background probabilities for each nucleotide. Default is [0.27, 0.23, 0.23, 0.27].
     kwargs
-        Additional keyword arguments for the plot.
+        Additional arguments passed to :func:`~crested.pl.render_plot` to
+        control the final plot output. Please see :func:`~crested.pl.render_plot`
+        for details.
 
     See Also
     --------
@@ -196,15 +198,14 @@ def clustermap(
     pattern_matrix: np.ndarray,
     classes: list[str],
     subset: list[str] | None = None,  # Subset option
-    figsize: tuple[int, int] = (25, 8),
     grid: bool = False,
     cmap: str = "coolwarm",
     center: float = 0,
     method: str = "average",
     dy: float = 0.002,
-    fig_path: str | None = None,
     pat_seqs: list[tuple[str, np.ndarray]] | None = None,
-) -> sns.matrix.ClusterGrid:
+    **kwargs,
+) -> plt.Figure:
     """
     Create a clustermap from the given pattern matrix and class labels with customizable options.
 
@@ -232,11 +233,16 @@ def clustermap(
         Path to save the figure.
     pat_seqs
         List of sequences to use as xticklabels.
+    kwargs
+        Additional arguments passed to :func:`~crested.pl.render_plot` to
+        control the final plot output. Please see :func:`~crested.pl.render_plot`
+        for details.
 
     See Also
     --------
     crested.tl.modisco.create_pattern_matrix
     crested.tl.modisco.generate_nucleotide_sequences
+    crested.pl.render_plot
 
     Examples
     --------
@@ -245,12 +251,18 @@ def clustermap(
     ...     pattern_matrix,
     ...     classes=list(adata.obs_names)
     ...     subset=["Lamp5", "Pvalb", "Sst", "Sst-Chodl", "Vip"],
-    ...     figsize=(25, 8),
     ...     grid=True,
     ... )
 
     .. image:: ../../../../docs/_static/img/examples/pattern_clustermap.png
     """
+    default_width = 20
+    default_height = 4.2
+    if "width" not in kwargs:
+        kwargs["width"] = default_width
+    if "height" not in kwargs:
+        kwargs["height"] = default_height
+
     # Subset the pattern_matrix and classes if subset is provided
     if subset is not None:
         subset_indices = [
@@ -270,16 +282,18 @@ def clustermap(
     if pat_seqs is not None:
         plt.rc("text", usetex=False)  # Turn off LaTeX to speed up rendering
 
+    width = kwargs.get("width")
+    height = kwargs.get("height")
+    figsize = (width, height)
+
     g = sns.clustermap(
         data,
-        cmap=cmap,
         figsize=figsize,
+        cmap=cmap,
         row_colors=None,
         yticklabels=classes,
         center=center,
-        xticklabels=True
-        if pat_seqs is None
-        else False,  # Disable default xticklabels if pat_seqs provided.  #xticklabels=xtick_labels,
+        xticklabels=not pat_seqs,
         method=method,
         dendrogram_ratio=(0.1, 0.1),
         cbar_pos=(1.05, 0.4, 0.01, 0.3),
@@ -345,10 +359,7 @@ def clustermap(
 
         g.fig.canvas.draw()
 
-    if fig_path is not None:
-        plt.savefig(fig_path)
-
-    plt.show()
+    return render_plot(g.fig, **kwargs)
 
 
 def selected_instances(pattern_dict: dict, idcs: list[int]) -> None:
