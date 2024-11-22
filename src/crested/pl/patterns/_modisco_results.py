@@ -362,7 +362,7 @@ def clustermap(
     return render_plot(g.fig, **kwargs)
 
 
-def selected_instances(pattern_dict: dict, idcs: list[int]) -> None:
+def selected_instances(pattern_dict: dict, idcs: list[int], **kwargs) -> None:
     """
     Plot the patterns specified by the indices in `idcs` from the `pattern_dict`.
 
@@ -373,10 +373,15 @@ def selected_instances(pattern_dict: dict, idcs: list[int]) -> None:
         contribution scores and metadata for the pattern. Refer to the output of `crested.tl.modisco.process_patterns`.
     idcs
         A list of indices specifying which patterns to plot. The indices correspond to keys in the `pattern_dict`.
+    kwargs
+        Additional arguments passed to :func:`~crested.pl.render_plot` to
+        control the final plot output. Please see :func:`~crested.pl.render_plot`
+        for details.
 
     See Also
     --------
     crested.tl.modisco.process_patterns
+    crested.pl.render_plot
 
     Examples
     --------
@@ -385,7 +390,7 @@ def selected_instances(pattern_dict: dict, idcs: list[int]) -> None:
 
     .. image:: ../../../../docs/_static/img/examples/pattern_selected_instances.png
     """
-    figure, axes = plt.subplots(nrows=len(idcs), ncols=1, figsize=(8, 2 * len(idcs)))
+    fig, axes = plt.subplots(nrows=len(idcs), ncols=1)
     if len(idcs) == 1:
         axes = [axes]
 
@@ -398,8 +403,15 @@ def selected_instances(pattern_dict: dict, idcs: list[int]) -> None:
         )
         ax.set_title(pattern_dict[str(idx)]["pattern"]["id"])
 
-    plt.tight_layout()
-    plt.show()
+    default_height = 2 * len(idcs)
+    default_width = 18
+
+    if "width" not in kwargs:
+        kwargs["width"] = default_width
+    if "height" not in kwargs:
+        kwargs["height"] = default_height
+
+    return render_plot(fig, **kwargs)
 
 
 def class_instances(

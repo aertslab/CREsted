@@ -135,7 +135,10 @@ def test_patterns_clustermap(all_patterns, all_classes, pattern_matrix, save_dir
 
 def test_patterns_selected_instances(all_patterns, save_dir):
     pattern_indices = [0, 1]
-    crested.pl.patterns.selected_instances(all_patterns, pattern_indices)
+    save_path = os.path.join(save_dir, "patterns_selected_instances.png")
+    crested.pl.patterns.selected_instances(
+        all_patterns, pattern_indices, save_path=save_path
+    )
 
 
 if __name__ == "__main__":
