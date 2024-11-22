@@ -207,7 +207,7 @@ def enformer(
             name_prefix="final_pointwise"
         )
     current = keras.layers.Dropout(pointwise_dropout, name = 'final_pointwise_dropout')(current)
-    current = activate(current, conv_activation)
+    current = activate(current, conv_activation, name = 'final_activation')
 
     # Build heads
     if isinstance(num_classes, int):

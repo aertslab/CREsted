@@ -191,7 +191,7 @@ def conv_block(
 
 
 def activate(
-    current: keras.KerasTensor, activation: str, verbose: bool = False
+    current: keras.KerasTensor, activation: str, verbose: bool = False, name = None
 ) -> keras.KerasTensor:
     """
     Apply activation function to a tensor.
@@ -204,6 +204,8 @@ def activate(
         Activation function to apply.
     verbose
         Print verbose information (default is False).
+    name
+        Name to use in the activation layer. Default is None (no name).
 
     Returns
     -------
@@ -213,27 +215,33 @@ def activate(
         print("activate:", activation)
 
     if activation == "relu":
-        current = keras.layers.Activation("relu")(current)
+        current = keras.layers.Activation("relu", name = name)(current)
     elif activation == "swish":
-        current = keras.layers.Activation("swish")(current)
+        current = keras.layers.Activation("swish", name = name)(current)
     elif activation == "gelu":
-        current = keras.layers.Activation("gelu")(current)
+        current = keras.layers.Activation("gelu", name = name)(current)
     elif activation == "gelu_approx":
-        current = keras.activations.gelu(current, approximate=True) # using layers.Activation doesn't pass approximate arg? Could make custom callable
+        # layers.Activation('gelu') uses unapproximated (default in activations.gelu), we want approximated
+        current = keras.layers.Activation(gelu_approx, name = name)(current)
     elif activation == "sigmoid":
-        current = keras.layers.Activation("sigmoid")(current)
+        current = keras.layers.Activation("sigmoid", name = name)(current)
     elif activation == "tanh":
-        current = keras.layers.Activation("tanh")(current)
+        current = keras.layers.Activation("tanh", name = name)(current)
     elif activation == "exponential":
-        current = keras.layers.Activation("exponential")(current)
+        current = keras.layers.Activation("exponential", name = name)(current)
     elif activation == "softplus":
-        current = keras.layers.Activation("softplus")(current)
+        current = keras.layers.Activation("softplus", name = name)(current)
     elif activation == "gelu_enf":
-        current = keras.layers.Activation(gelu_enf)(current)
+        current = keras.layers.Activation(gelu_enf, name = name)(current)
     else:
-        print(f'Unrecognized activation "{activation}"')
+        raise ValueError(f'Unrecognized activation "{activation}"')
 
     return current
+
+@keras.saving.register_keras_serializable(package="crested", name="gelu_approx")
+def gelu_approx(x):
+    """Wrapper around keras.activations.gelu with approximate = True"""
+    return keras.activations.gelu(x, approximate=True)
 
 @keras.saving.register_keras_serializable(package="crested", name="gelu_enf")
 def gelu_enf(x):
@@ -367,7 +375,7 @@ def conv_block_bs(
         )(current)
 
     # activation
-    current = activate(current, activation)
+    current = activate(current, activation, name = name_prefix + '_activation' if name_prefix else None)
 
     # convolution
     current = conv_layer(
@@ -397,7 +405,7 @@ def conv_block_bs(
 
     # end activation
     if activation_end is not None:
-        current = activate(current, activation_end)
+        current = activate(current, activation_end, name = name_prefix + '_activation_end' if name_prefix else None)
 
     # Pool
     if pool_size > 1:
@@ -565,7 +573,7 @@ def ffn_block_enf(
     current = keras.layers.Dropout(rate=dropout, name=f"{name_prefix}_dropout_1")(current)
 
     # Second half
-    current = activate(current, activation)
+    current = activate(current, activation, name = name_prefix + '_activation' if name_prefix else None)
     current = keras.layers.Conv1D(filters=filters, kernel_size=1, name=f'{name_prefix}_pointwise_2')(current)
     current = keras.layers.Dropout(rate=dropout, name=f"{name_prefix}_dropout_2")(current)
 
