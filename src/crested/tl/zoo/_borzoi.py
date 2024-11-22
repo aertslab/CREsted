@@ -5,7 +5,7 @@ import collections.abc as cabc
 import keras
 import numpy as np
 
-from crested.tl.zoo.utils import conv_block_bs, ffn_block_enf, mha_block_enf
+from crested.tl.zoo.utils import conv_block_bs, ffn_block_enf, mha_block_enf, pool
 
 
 def borzoi(
@@ -23,6 +23,7 @@ def borzoi(
     conv_activation: str = "gelu_approx",
     transformer_activation: str = "relu",
     output_activation: str = "softplus",
+    pool_type: str = "max",
     first_kernel_size: int = 15,
     kernel_size: int = 5,
     transformer_dropout = 0.2,
@@ -68,6 +69,8 @@ def borzoi(
         Activation function to use in the feedforward section of the transformer blocks.
     output_activation
         Final activation to use on the output heads, just before predicting the tracks.
+    pool_type
+        What kind of pooling type to use, one of 'max' or 'attention'.
     first_kernel_size
         Kernel size of the first conv layer, directly interfacing the sequence.
     kernel_size
@@ -96,11 +99,13 @@ def borzoi(
         padding='same',
         name='stem_conv'
         )(sequence)
-    current = keras.layers.MaxPool1D(
+    current = pool(
+        current,
+        pool_type=pool_type,
         pool_size=2,
         padding="same",
-        name = "stem_maxpool"
-        )(current)
+        name = "stem_pool"
+    )
 
 
     # Build convolution tower
@@ -144,11 +149,13 @@ def borzoi(
             ))
 
         # Separate pool layer so that we can save unet skip after conv but before pool where needed
-        current = keras.layers.MaxPool1D(
+        current = pool(
+            current,
+            pool_type=pool_type,
             pool_size=2,
             padding="same",
-            name = f"tower_conv_{cidx+1}_maxpool"
-        )(current)
+            name = f"tower_conv_{cidx+1}_pool"
+        )
 
     # Build transformer tower
      # Each block Residual(LayerNorm+MHA+Dropout) + Residual(LayerNorm+Conv+Dropout+ReLU+Conv+Dropout)

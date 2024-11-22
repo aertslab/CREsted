@@ -11,6 +11,7 @@ __all__ = [
     "dense_block",
     "conv_block",
     "activate",
+    "pool",
     "get_output",
     "conv_block_bs",
     "mha_block_enf",
@@ -248,6 +249,40 @@ def gelu_enf(x):
     """Very simple gelu approximation, used in Enformer, so needed to get equivalent results."""
     return keras.ops.sigmoid(1.702 * x) * x
 
+def pool(
+    current: keras.KerasTensor, pool_type: str, pool_size = 2, padding = "same", verbose: bool = False, name = None
+) -> keras.KerasTensor:
+    """
+    Apply activation function to a tensor.
+
+    Parameters
+    ----------
+    current
+        Input tensor.
+    pool_type
+        Pooling function to apply.
+    verbose
+        Print verbose information (default is False).
+    name
+        Name to use in the activation layer. Default is None (no name).
+
+    Returns
+    -------
+    Output tensor after applying activation.
+    """
+    if verbose:
+        print("pool:", pool_type)
+
+    if pool_type == "max":
+        current = keras.layers.MaxPooling1D(pool_size = pool_size, padding = padding, name = name)(current)
+    elif pool_type == "attention":
+        current = AttentionPool1D(pool_size = 2, padding = padding, name = name)(current)
+    elif pool_type == "average":
+        current = keras.layers.AveragePooling1D(pool_size = 2, padding = padding, name = name)(current)
+    else:
+        raise ValueError(f'Unrecognized pooling type "{pool_type}"')
+    return current
+
 def get_output(input_layer, hidden_layers):
     """
     Pass input layer through hidden layers.
@@ -409,17 +444,13 @@ def conv_block_bs(
 
     # Pool
     if pool_size > 1:
-        if pool_type == "max":
-            current = keras.layers.MaxPool1D(pool_size=pool_size, padding=padding, name = name_prefix + "_maxpool")(
-                current
-            )
-        elif pool_type == "attention":
-            current = AttentionPool1D(pool_size=pool_size, padding=padding, name = name_prefix + "_attpool")(
-                current
-            )
-        else:
-            raise ValueError(f"Unrecognised pooling function {pool_type}. Use 'max' or 'attention'.")
-
+        current = pool(
+            current,
+            pool_type=pool_type,
+            pool_size=pool_size,
+            padding=padding,
+            name_prefix = name_prefix + "_pool" if name_prefix else None
+        )
     return current
 
 def mha_block_enf(

@@ -21,6 +21,7 @@ def enformer(
     conv_activation: str = "gelu_enf",
     transformer_activation: str = "relu",
     output_activation: str = "softplus",
+    pool_type: str = "attention",
     first_kernel_size: int = 15,
     kernel_size: int = 5,
     transformer_dropout = 0.4,
@@ -62,6 +63,8 @@ def enformer(
         Activation function to use in the feedforward section of the transformer blocks.
     output_activation
         Final activation to use on the output heads, just before predicting the tracks.
+    pool_type
+        Pooling type to use, one of 'max' or 'attention'.
     first_kernel_size
         Kernel size of the first conv layer, directly interfacing the sequence.
     kernel_size
@@ -104,7 +107,7 @@ def enformer(
         activation=conv_activation,
         residual=True,
         l2_scale=0,
-        pool_type="attention",
+        pool_type=pool_type,
         bn_momentum=0.9,
         bn_gamma=None,
         bn_sync=True,
@@ -143,7 +146,7 @@ def enformer(
             activation=conv_activation,
             residual=True,
             l2_scale=0,
-            pool_type="attention",
+            pool_type=pool_type,
             bn_momentum=0.9,
             bn_gamma=None,
             bn_sync=True,
