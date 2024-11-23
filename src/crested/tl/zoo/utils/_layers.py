@@ -82,9 +82,7 @@ def dense_block(
             name=name_prefix + "_layernorm" if name_prefix else None
         )(x)
 
-    x = keras.layers.Activation(
-        activation, name=name_prefix + "_activation" if name_prefix else None
-    )(x)
+    x = activate(x, activation, name = name_prefix + "_activation" if name_prefix else None)
     x = keras.layers.Dropout(
         dropout, name=name_prefix + "_dropout" if name_prefix else None
     )(x)
@@ -162,10 +160,7 @@ def conv_block(
         x = keras.layers.LayerNormalization(
             name=name_prefix + "_layernorm" if name_prefix else None
         )(x)
-    x = keras.layers.Activation(
-        activation,
-        name=name_prefix + "_activation" if name_prefix else None
-    )(x)
+    x = activate(x, activation, name = name_prefix + "_activation" if name_prefix else None)
     if res:
         if filters != residual.shape[2]:
             residual = keras.layers.Convolution1D(
