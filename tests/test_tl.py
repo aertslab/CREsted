@@ -106,6 +106,15 @@ def test_get_embeddings(keras_model, genome):
     assert embeddings.shape == (1, 8)
     input = ["ATCGA" * 100, "ATCGA" * 100]
     embeddings = crested.tl.get_embeddings(
-        input, keras_model, genome=genome, layer_name="denseblock_dense"
+        input, keras_model, layer_name="denseblock_dense"
     )
     assert embeddings.shape == (2, 8)
+
+
+def test_predict(keras_model, adata, genome):
+    input = "ATCGA" * 100
+    predictions = crested.tl.predict(input, keras_model)
+    assert predictions.shape == (1, 10)
+
+    predictions = crested.tl.predict(input=adata, model=keras_model, genome=genome)
+    assert predictions.shape == (10, 10)

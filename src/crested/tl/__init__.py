@@ -7,7 +7,7 @@ from loguru import logger
 from . import data, losses, metrics, zoo
 from ._configs import TaskConfig, default_configs
 from ._crested import Crested
-from ._tools import get_embeddings
+from ._tools import get_embeddings, predict
 
 if find_spec("modiscolite") is not None:
     MODISCOLITE_AVAILABLE = True
@@ -37,6 +37,7 @@ __all__ = [
     "default_configs",
     "Crested",
     "get_embeddings",
+    "predict",
 ]
 
 if MODISCOLITE_AVAILABLE:

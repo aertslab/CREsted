@@ -108,7 +108,7 @@ def get_embeddings(
     input: str | list[str] | np.array | AnnData,
     model: keras.Model,
     layer_name: str,
-    genome: str | None = None,
+    genome: os.PathLike | None = None,
     **kwargs,
 ) -> np.ndarray:
     """
@@ -123,7 +123,7 @@ def get_embeddings(
     layer_name
         The name of the layer from which to extract the embeddings.
     genome
-        Path to the genome file. Required if input is an anndata object or a list of regions.
+        Path to the genome file. Required if input is an anndata object or region names.
     **kwargs
         Additional keyword arguments to pass to the keras.Model.predict method.
 
@@ -146,3 +146,38 @@ def get_embeddings(
     embeddings = embedding_model.predict(input, steps=n_predict_steps, **kwargs)
 
     return embeddings
+
+
+def predict(
+    input: str | list[str] | np.array | AnnData,
+    model: keras.Model,
+    genome: os.PathLike | None = None,
+) -> None | np.ndarray:
+    """
+    Make predictions using the model on the full dataset.
+
+    If anndata and model_name are provided, will add the predictions to anndata as a .layers[model_name] attribute.
+    Else, will return the predictions as a numpy array.
+
+    Parameters
+    ----------
+    input
+        Input data to make predictions on. Can be a (list of) sequence(s), a (list of) region name(s), a matrix of one hot encodings (N, L, 4), or an AnnData object with region names as its var_names.
+    model
+        A trained keras model to make predictions with.
+    genome
+        Path to the genome file. Required if input is an anndata object or region names.
+
+    Returns
+    -------
+    Predictions of shape (N, C)
+    """
+    input = _transform_input(input, genome)
+
+    n_predict_steps = (
+        input.shape[0] if os.environ["KERAS_BACKEND"] == "tensorflow" else None
+    )
+
+    predictions = model.predict(input, steps=n_predict_steps)
+
+    return predictions
