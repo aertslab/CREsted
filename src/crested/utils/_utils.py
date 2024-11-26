@@ -52,7 +52,7 @@ def one_hot_encode_sequence(sequence: str, expand_dim: bool = True) -> np.ndarra
     """
     One hot encode a DNA sequence.
 
-    Will return a numpy array with shape (len(sequence), 4) if expand_dim is True, otherwise (4,).
+    Will return a numpy array with shape (1, len(sequence), 4) if expand_dim is True, otherwise (len(sequence),4).
     Alphabet is ACGT.
 
     Parameters
