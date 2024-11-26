@@ -103,10 +103,10 @@ def test_peak_regression():
     )
 
     scores, seqs = trainer.calculate_contribution_scores_enhancer_design(
-        intermediate, class_names=["cell_1"], method="integrated_grad"
+        intermediate, class_names=["cell_1"], method="expected_integrated_grad"
     )
     crested.pl.patterns.enhancer_design_steps_contribution_scores(
-        intermediate, scores, seqs
+        intermediate, scores, seqs, show=False
     )
     # test continue training
     trainer_2 = crested.tl.Crested(

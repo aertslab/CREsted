@@ -96,7 +96,7 @@ class Explainer:
         if baseline == "random":
             baseline = random_shuffle(x, num_samples)
         else:
-            baseline = np.zeros(x.shape)
+            baseline = np.zeros(x.shape, dtype=np.float32)
         return baseline
 
 
@@ -174,7 +174,7 @@ def expected_integrated_grad(
                 func=func,
             )
         )
-    return np.mean(np.array(grads), axis=0)
+    return np.mean(np.array(grads, dtype=np.float32), axis=0)
 
 
 def mutagenesis(x, model, class_index=None):
@@ -252,4 +252,4 @@ def random_shuffle(x, num_samples=1):
     for _ in range(num_samples):
         shuffle = np.random.permutation(x.shape[1])
         x_shuffle.append(x[0, shuffle, :])
-    return np.array(x_shuffle)
+    return np.array(x_shuffle, dtype=np.float32)
