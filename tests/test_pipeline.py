@@ -38,6 +38,11 @@ def test_peak_regression():
     print(adata.var)
     print(adata.var_names)
 
+    if os.path.exists("tests/data/test_pipeline"):
+        import shutil
+
+        shutil.rmtree("tests/data/test_pipeline")
+
     datamodule = crested.tl.data.AnnDataModule(
         adata,
         genome_file="tests/data/genomes/hg38/hg38.fa",
@@ -102,4 +107,17 @@ def test_peak_regression():
     )
     crested.pl.patterns.enhancer_design_steps_contribution_scores(
         intermediate, scores, seqs
+    )
+    # test continue training
+    trainer_2 = crested.tl.Crested(
+        data=datamodule,
+        model=model_architecture,
+        config=config,
+        project_name="tests/data/test_pipeline",
+        run_name="test_peak_regression",
+        logger=None,
+    )
+    trainer_2.fit(epochs=2)
+    assert os.path.exists(
+        "tests/data/test_pipeline/test_peak_regression/checkpoints/02.keras"
     )

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import re
+import shutil
 from datetime import datetime
 from typing import Any
 
@@ -121,7 +123,7 @@ class Crested:
 
         self.seed = seed
         self.save_dir = os.path.join(self.project_name, self.run_name)
-
+        self._check_continued_training()  # check if continuing training from a previous run
         if self.seed:
             keras.utils.set_random_seed(self.seed)
         self.devices = self._check_gpu_availability()
@@ -319,11 +321,17 @@ class Crested:
             )
             keras.mixed_precision.set_global_policy("mixed_float16")
 
-        self.model.compile(
-            optimizer=self.config.optimizer,
-            loss=self.config.loss,
-            metrics=self.config.metrics,
-        )
+        if self.model and (
+            not hasattr(self.model, "optimizer") or self.model.optimizer is None
+        ):
+            logger.warning(
+                "Model does not have an optimizer. Please compile the model before training."
+            )
+            self.model.compile(
+                optimizer=self.config.optimizer,
+                loss=self.config.loss,
+                metrics=self.config.metrics,
+            )
 
         print(self.model.summary())
 
@@ -374,6 +382,7 @@ class Crested:
                     validation_steps=n_val_steps_per_epoch,
                     callbacks=callbacks,
                     shuffle=False,
+                    initial_epoch=self.max_epoch,
                 )
             # torch.Dataloader throws "repeat" warnings when using steps_per_epoch
             elif os.environ["KERAS_BACKEND"] == "torch":
@@ -383,6 +392,7 @@ class Crested:
                     epochs=epochs,
                     callbacks=callbacks,
                     shuffle=False,
+                    initial_epoch=self.max_epoch,
                 )
         except KeyboardInterrupt:
             logger.warning("Training interrupted by user.")
@@ -1907,6 +1917,35 @@ class Crested:
                 raise ValueError(
                     f"Class name {class_name} not found in anndata.obs_names."
                 )
+
+    def _check_continued_training(self):
+        """Check if the model is already trained and load existing model if so."""
+        self.max_epoch = 0
+        checkpoint_dir = os.path.join(self.save_dir, "checkpoints")
+        if os.path.exists(checkpoint_dir):
+            # continue training or start from scratch
+            pattern = re.compile(r".*\.keras")
+            latest_checkpoint = None
+            for file in os.listdir(checkpoint_dir):
+                match = pattern.match(file)
+                if match:
+                    epoch = int(file.split(".")[0])
+                    if epoch > self.max_epoch:
+                        self.max_epoch = epoch
+                        latest_checkpoint = file
+            if latest_checkpoint:
+                logger.warning(
+                    f"Output directory {checkpoint_dir} already exists. Will continue training from epoch {self.max_epoch}."
+                )
+                latest_checkpoint_path = os.path.join(checkpoint_dir, latest_checkpoint)
+                self.load_model(latest_checkpoint_path, compile=True)
+            else:
+                logger.warning(
+                    f"Output directory {checkpoint_dir}, already exists but no trained models found. Overwriting..."
+                )
+                shutil.rmtree(checkpoint_dir)
+        else:
+            logger.info(f"Creating output directory {checkpoint_dir}")
 
     def __repr__(self):
         """Return the string representation of the object."""
