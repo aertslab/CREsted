@@ -15,7 +15,7 @@ from crested.utils import (
 )
 
 
-def detect_input_type(input):
+def _detect_input_type(input):
     """
     Detect the type of input provided.
 
@@ -78,7 +78,7 @@ def _transform_input(input, genome: os.PathLike | None = None) -> np.ndarray:
     -------
     One-hot encoded matrix of shape (N, L, 4), where N is the number of sequences/regions and L is the sequence length.
     """
-    input_type = detect_input_type(input)
+    input_type = _detect_input_type(input)
 
     if input_type == "anndata":
         if genome is None:
@@ -139,34 +139,32 @@ def get_embeddings(
     embedding_model = keras.models.Model(
         inputs=model.input, outputs=model.get_layer(layer_name).output
     )
-    input = _transform_input(input, genome)
-    n_predict_steps = (
-        input.shape[0] if os.environ["KERAS_BACKEND"] == "tensorflow" else None
-    )
-    embeddings = embedding_model.predict(input, steps=n_predict_steps, **kwargs)
+    embeddings = predict(input, embedding_model, genome, **kwargs)
 
     return embeddings
 
 
 def predict(
     input: str | list[str] | np.array | AnnData,
-    model: keras.Model,
+    model: keras.Model | list[keras.Model],
     genome: os.PathLike | None = None,
+    **kwargs,
 ) -> None | np.ndarray:
     """
-    Make predictions using the model on the full dataset.
+    Make predictions using the model(s) on the full dataset.
 
-    If anndata and model_name are provided, will add the predictions to anndata as a .layers[model_name] attribute.
-    Else, will return the predictions as a numpy array.
+    If a list of models is provided, the predictions will be averaged across all models.
 
     Parameters
     ----------
     input
         Input data to make predictions on. Can be a (list of) sequence(s), a (list of) region name(s), a matrix of one hot encodings (N, L, 4), or an AnnData object with region names as its var_names.
     model
-        A trained keras model to make predictions with.
+        A (list of) trained keras models to make predictions with.
     genome
         Path to the genome file. Required if input is an anndata object or region names.
+    **kwargs
+        Additional keyword arguments to pass to the keras.Model.predict method.
 
     Returns
     -------
@@ -178,6 +176,20 @@ def predict(
         input.shape[0] if os.environ["KERAS_BACKEND"] == "tensorflow" else None
     )
 
-    predictions = model.predict(input, steps=n_predict_steps)
+    if isinstance(model, list):
+        if not all(isinstance(m, keras.Model) for m in model):
+            raise ValueError("All items in the model list must be Keras models.")
 
-    return predictions
+        all_predictions = []
+        for m in model:
+            predictions = m.predict(input, steps=n_predict_steps, **kwargs)
+            all_predictions.append(predictions)
+
+        averaged_predictions = np.mean(all_predictions, axis=0)
+        return averaged_predictions
+    else:
+        if not isinstance(model, keras.Model):
+            raise ValueError("Model must be a Keras model or a list of Keras models.")
+
+        predictions = model.predict(input, steps=n_predict_steps, **kwargs)
+        return predictions

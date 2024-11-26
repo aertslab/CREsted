@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 import crested
-from crested.tl._tools import _transform_input, detect_input_type
+from crested.tl._tools import _detect_input_type, _transform_input
 
 from ._utils import create_anndata_with_regions
 
@@ -19,7 +19,7 @@ def keras_model():
 
     model = simple_convnet(
         seq_len=500,
-        num_classes=10,
+        num_classes=5,
     )
     model.compile(
         optimizer=keras.optimizers.Adam(0.001),
@@ -56,25 +56,25 @@ def genome():
 
 
 def test_input_type(adata):
-    assert detect_input_type(adata) == "anndata"
-    assert detect_input_type("chr1:1-100") == "region"
-    assert detect_input_type("ACGT") == "sequence"
-    assert detect_input_type(["chr1:1-100", "chr1:101-200"]) == "region"
-    assert detect_input_type(["ACGT", "ACGT"]) == "sequence"
+    assert _detect_input_type(adata) == "anndata"
+    assert _detect_input_type("chr1:1-100") == "region"
+    assert _detect_input_type("ACGT") == "sequence"
+    assert _detect_input_type(["chr1:1-100", "chr1:101-200"]) == "region"
+    assert _detect_input_type(["ACGT", "ACGT"]) == "sequence"
     with pytest.raises(ValueError):
-        detect_input_type(["chr1:1-100", "ACGT"])
+        _detect_input_type(["chr1:1-100", "ACGT"])
     with pytest.raises(ValueError):
-        detect_input_type(["chr1:1-100", 1])
+        _detect_input_type(["chr1:1-100", 1])
     with pytest.raises(ValueError):
-        detect_input_type([1, 2])
+        _detect_input_type([1, 2])
     with pytest.raises(ValueError):
-        detect_input_type([1, "ACGT"])
+        _detect_input_type([1, "ACGT"])
     with pytest.raises(ValueError):
-        detect_input_type(1)
+        _detect_input_type(1)
     with pytest.raises(ValueError):
-        detect_input_type(1.0)
+        _detect_input_type(1.0)
     with pytest.raises(ValueError):
-        detect_input_type(None)
+        _detect_input_type(None)
 
 
 def test_input_transform(genome):
@@ -114,7 +114,11 @@ def test_get_embeddings(keras_model, genome):
 def test_predict(keras_model, adata, genome):
     input = "ATCGA" * 100
     predictions = crested.tl.predict(input, keras_model)
-    assert predictions.shape == (1, 10)
+    assert predictions.shape == (1, 5)
 
     predictions = crested.tl.predict(input=adata, model=keras_model, genome=genome)
-    assert predictions.shape == (10, 10)
+    assert predictions.shape == (10, 5)
+
+    models = [keras_model, keras_model]
+    predictions = crested.tl.predict(input=adata, model=models, genome=genome)
+    assert predictions.shape == (10, 5)
