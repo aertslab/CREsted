@@ -93,3 +93,42 @@ def test_score_gene_locus(keras_model, adata, genome):
     assert min_loc == 199000
     assert max_loc == 201500
     assert tss_pos == 200000
+
+
+def test_contribution_scores(keras_model, adata, genome):
+    sequence = "ATCGA" * 100
+    scores, one_hot_encoded_sequences = crested.tl.contribution_scores(
+        sequence,
+        model=keras_model,
+        genome=genome,
+        class_names=list(adata.obs_names)[0:2],
+        all_class_names=list(adata.obs_names),
+        method="integrated_grad",
+    )
+    assert scores.shape == (1, 2, 500, 4)
+    assert one_hot_encoded_sequences.shape == (1, 500, 4)
+
+    sequences = ["ATCGA" * 100, "ATCGA" * 100]
+    scores, one_hot_encoded_sequences = crested.tl.contribution_scores(
+        sequences,
+        model=keras_model,
+        genome=genome,
+        class_names=list(adata.obs_names)[0:2],
+        all_class_names=list(adata.obs_names),
+        method="integrated_grad",
+    )
+    assert scores.shape == (2, 2, 500, 4)
+    assert one_hot_encoded_sequences.shape == (2, 500, 4)
+
+    # multiple models
+    models = [keras_model, keras_model]
+    scores, one_hot_encoded_sequences = crested.tl.contribution_scores(
+        sequence,
+        model=models,
+        genome=genome,
+        class_names=list(adata.obs_names)[0:2],
+        all_class_names=list(adata.obs_names),
+        method="integrated_grad",
+    )
+    assert scores.shape == (1, 2, 500, 4)
+    assert one_hot_encoded_sequences.shape == (1, 500, 4)

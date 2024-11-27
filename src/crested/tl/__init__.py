@@ -7,7 +7,7 @@ from loguru import logger
 from . import data, losses, metrics, zoo
 from ._configs import TaskConfig, default_configs
 from ._crested import Crested
-from ._tools import get_embeddings, predict, score_gene_locus
+from ._tools import contribution_scores, get_embeddings, predict, score_gene_locus
 
 if find_spec("modiscolite") is not None:
     MODISCOLITE_AVAILABLE = True
@@ -38,6 +38,7 @@ __all__ = [
     "Crested",
     "get_embeddings",
     "predict",
+    "contribution_scores",
     "score_gene_locus",
 ]
 

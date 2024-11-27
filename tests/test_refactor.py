@@ -4,7 +4,13 @@ import keras
 import numpy as np
 import pytest
 
-from crested.tl import Crested, get_embeddings, predict, score_gene_locus
+from crested.tl import (
+    Crested,
+    contribution_scores,
+    get_embeddings,
+    predict,
+    score_gene_locus,
+)
 from crested.tl.data import AnnDataModule
 
 np.random.seed(42)
@@ -116,3 +122,84 @@ def test_score_gene_locus(crested_object, adata, keras_model, genome):
     assert min_loc == ref_min_loc, "Minimum location is not equal."
     assert max_loc == ref_max_loc, "Maximum location is not equal."
     assert tss_pos == ref_tss_pos, "TSS position is not equal."
+
+
+def test_contribution_scores_region(crested_object, adata, keras_model, genome):
+    region = ["chr1:1-501", "chr1:101-601"]
+    (
+        scores,
+        one_hot_encoded_sequences,
+    ) = crested_object.calculate_contribution_scores_regions(
+        region_idx=region,
+        class_names=list(adata.obs_names)[0:2],
+        method="integrated_grad",
+    )
+    scores_refactored, one_hot_encoded_sequences_refactored = contribution_scores(
+        input=region,
+        model=keras_model,
+        genome=genome,
+        class_names=list(adata.obs_names)[0:2],
+        all_class_names=list(adata.obs_names),
+        method="integrated_grad",
+    )
+    assert np.allclose(
+        scores,
+        scores_refactored,
+        atol=1e-5,
+    ), "Scores are not equal."
+    assert np.array_equal(
+        one_hot_encoded_sequences,
+        one_hot_encoded_sequences_refactored,
+    ), "One-hot encoded sequences are not equal"
+
+
+def test_contribution_scores_sequence(crested_object, keras_model, adata):
+    sequence = "ATCGA" * 100
+    (
+        scores,
+        one_hot_encoded_sequences,
+    ) = crested_object.calculate_contribution_scores_sequence(
+        sequence,
+        class_names=list(adata.obs_names)[0:2],
+        method="integrated_grad",
+    )
+    scores_refactored, one_hot_encoded_sequences_refactored = contribution_scores(
+        input=sequence,
+        model=keras_model,
+        class_names=list(adata.obs_names)[0:2],
+        all_class_names=list(adata.obs_names),
+        method="integrated_grad",
+    )
+    assert np.allclose(
+        scores,
+        scores_refactored,
+        atol=1e-5,
+    ), "Scores are not equal."
+    assert np.array_equal(
+        one_hot_encoded_sequences,
+        one_hot_encoded_sequences_refactored,
+    ), "One-hot encoded sequences are not equal"
+
+
+def test_contribution_scores_adata(crested_object, adata, keras_model, genome):
+    scores, one_hot_encoded_sequences = crested_object.calculate_contribution_scores(
+        class_names=list(adata.obs_names)[0:2],
+        method="integrated_grad",
+    )
+    scores_refactored, one_hot_encoded_sequences_refactored = contribution_scores(
+        input=adata,
+        model=keras_model,
+        class_names=list(adata.obs_names)[0:2],
+        all_class_names=list(adata.obs_names),
+        method="integrated_grad",
+        genome=genome,
+    )
+    assert np.allclose(
+        scores,
+        scores_refactored,
+        atol=1e-5,
+    ), "Scores are not equal."
+    assert np.array_equal(
+        one_hot_encoded_sequences,
+        one_hot_encoded_sequences_refactored,
+    ), "One-hot encoded sequences are not equal"

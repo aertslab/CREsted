@@ -8,11 +8,18 @@ import re
 import keras
 import numpy as np
 from anndata import AnnData
+from loguru import logger
+from tqdm import tqdm
 
 from crested.utils import (
     fetch_sequences,
     one_hot_encode_sequence,
 )
+
+if os.environ["KERAS_BACKEND"] == "tensorflow":
+    from crested.tl._explainer_tf import Explainer
+elif os.environ["KERAS_BACKEND"] == "torch":
+    from crested.tl._explainer_torch import Explainer
 
 
 def _detect_input_type(input):
@@ -326,3 +333,116 @@ def score_gene_locus(
         end_position,
         tss_position,
     )
+
+
+def contribution_scores(
+    input: str | list[str] | np.array | AnnData,
+    model: keras.Model | list[keras.Model],
+    class_names: str | list[str],
+    all_class_names: list[str],
+    method: str = "expected_integrated_grad",
+    genome: os.PathLike | None = None,
+    disable_tqdm: bool = True,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Calculate contribution scores based on given method for the specified inputs.
+
+    If mutliple models are provided, the contribution scores will be averaged across all models.
+
+    These scores can then be plotted to visualize the importance of each base in the sequence
+    using :func:`~crested.pl.patterns.contribution_scores`.
+
+    Parameters
+    ----------
+    input
+        Input data to calculate the contribution scores for. Can be a (list of) sequence(s), a (list of) region name(s), a matrix of one hot encodings (N, L, 4), or an AnnData object with region names as its var_names.
+    model
+        A (list of) trained keras model(s) to calculate the contribution scores for.
+    class_names
+        List of class names to calculate the contribution scores for (should match anndata.obs_names)
+        If the list is empty, the contribution scores for the 'combined' class will be calculated.
+    all_class_names
+        List of all class names in the model. Usually obtained with `list(anndata.obs_names)`.
+    method
+        Method to use for calculating the contribution scores.
+        Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
+    genome
+        Path to the genome file. Required if input is an anndata object or region names.
+    disable_tqdm
+        Boolean for disabling the plotting progress of calculations using tqdm.
+
+    Returns
+    -------
+    Contribution scores (N, C, L, 4) and one-hot encoded sequences (N, L, 4).
+
+    See Also
+    --------
+    crested.pl.patterns.contribution_scores
+    """
+    if isinstance(class_names, str):
+        class_names = [class_names]
+
+    if not set(class_names).issubset(all_class_names):
+        raise ValueError(
+            "class_names should be a subset of all_class_names. Use list(anndata.obs_names) to get all class names."
+        )
+
+    if len(class_names) > 0:
+        n_classes = len(class_names)
+        class_indices = [
+            all_class_names.index(class_name) for class_name in class_names
+        ]
+    else:
+        logger.warning(
+            "No class names provided. Calculating contribution scores for the 'combined' class."
+        )
+        n_classes = 1  # 'combined' class
+        class_indices = [None]
+
+    input_sequences = _transform_input(input, genome)
+
+    logger.info(
+        f"Calculating contribution scores for {n_classes} class(es) and {input_sequences.shape[0]} region(s)."
+    )
+    if not isinstance(model, list):
+        model = [model]
+    N, L, D = input_sequences.shape
+
+    # Initialize list to collect scores from each model
+    scores_per_model = []
+
+    # Iterate over models
+    for m in tqdm(model, desc="Model", disable=disable_tqdm):
+        # Initialize scores for this model
+        scores = np.zeros((N, n_classes, L, D))  # Shape: (N, C, L, 4)
+
+        for i, class_index in enumerate(class_indices):
+            # Initialize the explainer for the current model and class index
+            explainer = Explainer(m, class_index=class_index)
+
+            # Calculate contribution scores based on the selected method
+            if method == "integrated_grad":
+                scores[:, i, :, :] = explainer.integrated_grad(
+                    input_sequences,
+                    baseline_type="zeros",
+                )
+            elif method == "mutagenesis":
+                scores[:, i, :, :] = explainer.mutagenesis(
+                    input_sequences,
+                    class_index=class_index,
+                )
+            elif method == "expected_integrated_grad":
+                scores[:, i, :, :] = explainer.expected_integrated_grad(
+                    input_sequences,
+                    num_baseline=25,
+                )
+            else:
+                raise ValueError(f"Unsupported method: {method}")
+
+        # Collect scores from this model
+        scores_per_model.append(scores)
+
+    # Average the scores across models
+    averaged_scores = np.mean(scores_per_model, axis=0)  # Shape: (N, C, L, 4)
+
+    return averaged_scores, input_sequences
