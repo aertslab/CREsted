@@ -79,7 +79,9 @@ def test_peak_regression():
         "tests/data/test_pipeline/test_peak_regression/checkpoints/01.keras",
         compile=True,
     )
-    trainer.test()
+
+    test_metrics = trainer.test(return_metrics=True)
+    assert isinstance(test_metrics, dict)
     trainer.predict(adata, model_name="01")
 
     trainer.predict_regions(region_idx=["chr1:1000-1600", "chr2:2000-2600"])
