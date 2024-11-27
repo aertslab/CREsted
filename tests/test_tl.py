@@ -1,58 +1,10 @@
 """Test tl module."""
 
-import os
-
-import genomepy
-import keras
 import numpy as np
 import pytest
 
 import crested
 from crested.tl._tools import _detect_input_type, _transform_input
-
-from ._utils import create_anndata_with_regions
-
-
-@pytest.fixture(scope="module")
-def keras_model():
-    from crested.tl.zoo import simple_convnet
-
-    model = simple_convnet(
-        seq_len=500,
-        num_classes=5,
-    )
-    model.compile(
-        optimizer=keras.optimizers.Adam(0.001),
-        loss=keras.losses.MeanSquaredError(),
-        metrics=[keras.metrics.CategoricalAccuracy()],
-    )
-    return model
-
-
-@pytest.fixture(scope="module")
-def adata():
-    regions = [
-        "chr1:194208032-194208532",
-        "chr1:92202766-92203266",
-        "chr1:92298990-92299490",
-        "chr1:3406052-3406552",
-        "chr1:183669567-183670067",
-        "chr1:109912183-109912683",
-        "chr1:92210697-92211197",
-        "chr1:59100954-59101454",
-        "chr1:84634055-84634555",
-        "chr1:48792527-48793027",
-    ]
-    return create_anndata_with_regions(regions)
-
-
-@pytest.fixture(scope="module")
-def genome():
-    if not os.path.exists("tests/data/genomes/hg38.fa"):
-        genomepy.install_genome(
-            "hg38", annotation=False, provider="UCSC", genomes_dir="tests/data/genomes"
-        )
-    return "tests/data/genomes/hg38/hg38.fa"
 
 
 def test_input_type(adata):
@@ -122,3 +74,22 @@ def test_predict(keras_model, adata, genome):
     models = [keras_model, keras_model]
     predictions = crested.tl.predict(input=adata, model=models, genome=genome)
     assert predictions.shape == (10, 5)
+
+
+def test_score_gene_locus(keras_model, adata, genome):
+    gene_locus = "chr1:200000-200500"
+    scores, coordinates, min_loc, max_loc, tss_pos = crested.tl.score_gene_locus(
+        gene_locus=gene_locus,
+        all_class_names=list(adata.obs_names),
+        class_name=list(adata.obs_names)[0],
+        model=keras_model,
+        genome=genome,
+        upstream=1000,
+        downstream=1000,
+        step_size=500,
+    )
+    assert scores.shape == (2500,), scores.shape
+    assert coordinates.shape == (int(2500 / 500), 3), coordinates.shape
+    assert min_loc == 199000
+    assert max_loc == 201500
+    assert tss_pos == 200000

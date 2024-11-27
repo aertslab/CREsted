@@ -193,3 +193,136 @@ def predict(
 
         predictions = model.predict(input, steps=n_predict_steps, **kwargs)
         return predictions
+
+
+def score_gene_locus(
+    gene_locus: str,
+    all_class_names: list[str],
+    class_name: str,
+    model: keras.Model | list[keras.Model],
+    genome: os.PathLike,
+    strand: str = "+",
+    upstream: int = 50000,
+    downstream: int = 10000,
+    central_size: int = 1000,
+    step_size: int = 50,
+    **kwargs,
+) -> tuple[np.ndarray, np.ndarray, int, int, int]:
+    """
+    Score regions upstream and downstream of a gene locus using the model's prediction.
+
+    The model predicts a value for the {central_size} of each window.
+
+    Parameters
+    ----------
+    gene_locus
+        The gene locus to score in the format 'chr:start-end'.
+        Start is the TSS for + strand and TES for - strand.
+    all_class_names
+        List of all class names in the model. Usually obtained with `list(anndata.obs_names)`.
+    class_name
+        Output class name to be used for prediction. Required to index the predictions.
+    model
+        A (list of) trained keras model(s) to make predictions with.
+    genome
+        Path to the genome file.
+    strand
+        '+' for positive strand, '-' for negative strand. Default '+'.
+    upstream
+        Distance upstream of the gene to score.
+    downstream
+        Distance downstream of the gene to score.
+    central_size
+        Size of the central region that the model predicts for.
+    step_size
+        Distance between consecutive windows.
+    **kwargs
+        Additional keyword arguments to pass to the keras.Model.predict method.
+
+    Returns
+    -------
+    scores
+        An array of prediction scores across the entire genomic range.
+    coordinates
+        An array of tuples, each containing the chromosome name and the start and end positions of the sequence for each window.
+    min_loc
+        Start position of the entire scored region.
+    max_loc
+        End position of the entire scored region.
+    tss_position
+        The transcription start site (TSS) position.
+
+    See Also
+    --------
+    crested.tl.predict
+    """
+    chr_name, gene_locus = gene_locus.split(":")
+    gene_start, gene_end = map(int, gene_locus.split("-"))
+
+    # Detect window size from the model input shape
+    if isinstance(model, list):
+        input_shape = model[0].input_shape
+    else:
+        input_shape = model.input_shape
+    window_size = input_shape[1]
+
+    # Adjust upstream and downstream based on the strand
+    if strand == "+":
+        start_position = gene_start - upstream
+        end_position = gene_end + downstream
+        tss_position = gene_start  # TSS is at the gene_start for positive strand
+    elif strand == "-":
+        end_position = gene_end + upstream
+        start_position = gene_start - downstream
+        tss_position = gene_end  # TSS is at the gene_end for negative strand
+    else:
+        raise ValueError("Strand must be '+' or '-'.")
+
+    start_position = max(0, start_position)
+    total_length = abs(end_position - start_position)
+
+    # Ratio to normalize the score contributions
+    ratio = central_size / step_size
+
+    try:
+        idx = all_class_names.index(class_name)
+    except ValueError as e:
+        raise ValueError(
+            f"Class name '{class_name}' not found in all_class_names"
+        ) from e
+    positions = np.arange(start_position, end_position - window_size + 1, step_size)
+
+    all_regions = [
+        f"{chr_name}:{pos}-{pos + window_size}"
+        for pos in range(start_position, end_position, step_size)
+        if pos + window_size <= end_position
+    ]
+    predictions = predict(input=all_regions, model=model, genome=genome, **kwargs)
+    predictions_class = predictions[:, idx]
+
+    # Map predictions to the score array
+    scores = np.zeros(total_length)
+    for _, (pos, pred) in enumerate(zip(positions, predictions_class)):
+        central_start = pos + (window_size - central_size) // 2
+        central_end = central_start + central_size
+
+        # Compute indices relative to the scores array
+        relative_start = central_start - start_position
+        relative_end = central_end - start_position
+
+        # Add the prediction to the scores array
+        scores[relative_start:relative_end] += pred
+
+    window_starts = positions
+    window_ends = positions + window_size
+    coordinates = np.array(
+        list(zip([chr_name] * len(positions), window_starts, window_ends))
+    )
+    # Normalize the scores based on the number of times each position is included in the central window
+    return (
+        scores / ratio,
+        coordinates,
+        start_position,
+        end_position,
+        tss_position,
+    )
