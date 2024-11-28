@@ -342,7 +342,9 @@ def contribution_scores(
     all_class_names: list[str],
     method: str = "expected_integrated_grad",
     genome: os.PathLike | None = None,
-    disable_tqdm: bool = True,
+    transpose: bool = False,
+    output_dir: os.PathLike | None = None,
+    verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Calculate contribution scores based on given method for the specified inputs.
@@ -368,7 +370,12 @@ def contribution_scores(
         Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
     genome
         Path to the genome file. Required if input is an anndata object or region names.
-    disable_tqdm
+    transpose
+        Transpose the contribution scores to (N, C, 4, L) and one hots to (N, 4, L) (for compatibility with MoDISco).
+    output_dir
+        Path to the output directory to save the contribution scores and one hot seqs.
+        Will create a separate npz file per class.
+    verbose
         Boolean for disabling the plotting progress of calculations using tqdm.
 
     Returns
@@ -399,11 +406,13 @@ def contribution_scores(
         n_classes = 1  # 'combined' class
         class_indices = [None]
 
+    # Handle all other input types
     input_sequences = _transform_input(input, genome)
 
-    logger.info(
-        f"Calculating contribution scores for {n_classes} class(es) and {input_sequences.shape[0]} region(s)."
-    )
+    if verbose:
+        logger.info(
+            f"Calculating contribution scores for {n_classes} class(es) and {input_sequences.shape[0]} region(s)."
+        )
     if not isinstance(model, list):
         model = [model]
     N, L, D = input_sequences.shape
@@ -412,7 +421,7 @@ def contribution_scores(
     scores_per_model = []
 
     # Iterate over models
-    for m in tqdm(model, desc="Model", disable=disable_tqdm):
+    for m in tqdm(model, desc="Model", disable=not verbose):
         # Initialize scores for this model
         scores = np.zeros((N, n_classes, L, D))  # Shape: (N, C, L, 4)
 
@@ -445,4 +454,112 @@ def contribution_scores(
     # Average the scores across models
     averaged_scores = np.mean(scores_per_model, axis=0)  # Shape: (N, C, L, 4)
 
+    if transpose:
+        averaged_scores = np.transpose(averaged_scores, (0, 1, 3, 2))
+        input_sequences = np.transpose(input_sequences, (0, 2, 1))
+
+    if output_dir is not None:
+        os.makedirs(output_dir, exist_ok=True)
+        for i, class_name in enumerate(class_names):
+            np.savez_compressed(
+                os.path.join(output_dir, f"{class_name}_contrib.npz"),
+                averaged_scores[:, i, :, :],
+            )
+            np.savez_compressed(
+                os.path.join(output_dir, f"{class_name}_oh.npz"),
+                input_sequences,
+            )
+
     return averaged_scores, input_sequences
+
+
+def contribution_scores_specific(
+    input: AnnData,
+    model: keras.Model | list[keras.Model],
+    genome: os.PathLike,
+    class_names: str | list[str] | None = None,
+    method: str = "expected_integrated_grad",
+    transpose: bool = True,
+    output_dir: os.PathLike | None = None,
+    verbose: bool = True,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Calculate contribution scores based on given method only for the most specific regions per class.
+
+    Contrary to :func:`~crested.tl.contribution_scores`, this function will only calculate one set of contribution scores per region per class.
+    Expects the user to have ran `:func:~crested.pp.sort_and_filter_regions_on_specificity` beforehand.
+
+    If multiple models are provided, the contribution scores will be averaged across all models.
+
+    These scores can then be plotted to visualize the importance of each base in the sequence
+    using :func:`~crested.pl.patterns.contribution_scores`.
+
+    Parameters
+    ----------
+    input
+        Input anndata to calculate the contribution scores for. Should have a 'Class name' column in .var.
+    model
+        A (list of) trained keras model(s) to calculate the contribution scores for.
+    class_names
+        List of class names to calculate the contribution scores for (should match anndata.obs_names)
+        If None, the contribution scores for all classes will be calculated.
+    genome
+        Path to the genome file.
+    method
+        Method to use for calculating the contribution scores.
+        Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
+    transpose
+        Transpose the contribution scores to (N, C, 4, L) and one hots to (N, 4, L) (for compatibility with MoDISco).
+        Defaults to True here since that is what modisco expects.
+    output_dir
+        Path to the output directory to save the contribution scores and one hot seqs.
+        Will create a separate npz file per class.
+    verbose
+        Boolean for disabling the plotting progress of calculations using tqdm.
+
+    Returns
+    -------
+    Contribution scores (N, 1, L, 4) and one-hot encoded sequences (N, L, 4).
+    Since each region is specific to a class, the contribution scores are only calculated for that class.
+
+    See Also
+    --------
+    crested.pl.patterns.contribution_scores
+    crested.pp.sort_and_filter_regions_on_specificity
+    """
+    assert isinstance(input, AnnData), "Input should be an anndata object."
+    if "Class name" not in input.var.columns:
+        raise ValueError(
+            "Run 'crested.pp.sort_and_filter_regions_on_specificity' first"
+        )
+    all_class_names = list(input.obs_names)
+    if isinstance(class_names, str):
+        class_names = [class_names]
+    if class_names is None:
+        class_names = all_class_names
+    if class_names == []:
+        raise ValueError("Can't calculate 'combined' scores for specific regions.")
+    all_scores = []
+    all_one_hots = []
+
+    for class_name in class_names:
+        class_regions = input.var[input.var["Class name"] == class_name].index.tolist()
+        scores, one_hots = contribution_scores(
+            input=class_regions,
+            model=model,
+            class_names=[class_name],
+            all_class_names=all_class_names,
+            method=method,
+            genome=genome,
+            verbose=verbose,
+            output_dir=output_dir,
+            transpose=transpose,
+        )
+        all_scores.append(scores)
+        all_one_hots.append(one_hots)
+
+    # Concatenate results across all classes
+    return (
+        np.concatenate(all_scores, axis=0),
+        np.concatenate(all_one_hots, axis=0),
+    )

@@ -1,5 +1,7 @@
 """Test that ensures the outputs after the functional refactor are the same as before."""
 
+import os
+
 import keras
 import numpy as np
 import pytest
@@ -7,6 +9,7 @@ import pytest
 from crested.tl import (
     Crested,
     contribution_scores,
+    contribution_scores_specific,
     get_embeddings,
     predict,
     score_gene_locus,
@@ -16,11 +19,33 @@ from crested.tl.data import AnnDataModule
 np.random.seed(42)
 keras.utils.set_random_seed(42)
 
+if os.environ["KERAS_BACKEND"] == "tensorflow":
+    import tensorflow as tf
+
+    tf.config.experimental.enable_op_determinism()
+
 
 @pytest.fixture(scope="module")
 def crested_object(keras_model, adata, genome):
     anndatamodule = AnnDataModule(
         adata,
+        genome_file=genome,
+        batch_size=32,
+        always_reverse_complement=False,
+        deterministic_shift=False,
+        shuffle=False,
+    )
+    crested_object = Crested(
+        data=anndatamodule,
+    )
+    crested_object.model = keras_model
+    return crested_object
+
+
+@pytest.fixture(scope="module")
+def crested_object_specific(keras_model, adata_specific, genome):
+    anndatamodule = AnnDataModule(
+        adata_specific,
         genome_file=genome,
         batch_size=32,
         always_reverse_complement=False,
@@ -201,5 +226,48 @@ def test_contribution_scores_adata(crested_object, adata, keras_model, genome):
     ), "Scores are not equal."
     assert np.array_equal(
         one_hot_encoded_sequences,
+        one_hot_encoded_sequences_refactored,
+    ), "One-hot encoded sequences are not equal"
+
+
+def test_contribution_scores_modisco(
+    crested_object_specific, adata_specific, keras_model, genome
+):
+    class_names = list(adata_specific.obs_names)[0:2]
+    crested_object_specific.tfmodisco_calculate_and_save_contribution_scores(
+        adata_specific,
+        class_names=class_names,
+        method="integrated_grad",
+        output_dir="tests/data/test_contribution_scores",
+    )
+    # load scores and oh
+    scores = np.load(
+        f"tests/data/test_contribution_scores/{class_names[0]}_contrib.npz"
+    )["arr_0"]
+    one_hots = np.load(f"tests/data/test_contribution_scores/{class_names[0]}_oh.npz")[
+        "arr_0"
+    ]
+    _, _ = contribution_scores_specific(
+        input=adata_specific,
+        model=keras_model,
+        class_names=class_names,
+        method="integrated_grad",
+        genome=genome,
+        output_dir="tests/data/test_contribution_scores",
+        transpose=True,
+    )
+    scores_refactored = np.load(
+        f"tests/data/test_contribution_scores/{class_names[0]}_contrib.npz"
+    )["arr_0"]
+    one_hot_encoded_sequences_refactored = np.load(
+        f"tests/data/test_contribution_scores/{class_names[0]}_oh.npz"
+    )["arr_0"]
+    assert np.allclose(
+        scores,
+        scores_refactored,
+        atol=1e-5,
+    ), "Scores are not equal."
+    assert np.array_equal(
+        one_hots,
         one_hot_encoded_sequences_refactored,
     ), "One-hot encoded sequences are not equal"

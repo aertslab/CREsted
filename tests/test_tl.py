@@ -1,5 +1,7 @@
 """Test tl module."""
 
+import os
+
 import numpy as np
 import pytest
 
@@ -132,3 +134,65 @@ def test_contribution_scores(keras_model, adata, genome):
     )
     assert scores.shape == (1, 2, 500, 4)
     assert one_hot_encoded_sequences.shape == (1, 500, 4)
+
+
+def test_contribution_scores_specific(keras_model, adata, adata_specific, genome):
+    with pytest.raises(ValueError):
+        # class names can't be empty for specific
+        crested.tl.contribution_scores_specific(
+            input=adata_specific,
+            model=keras_model,
+            class_names=[],  # combined class
+            genome=genome,
+            method="integrated_grad",
+            transpose=True,
+            verbose=False,
+        )
+    with pytest.raises(ValueError):
+        # requires a specific anndata
+        crested.tl.contribution_scores_specific(
+            input=adata,
+            model=keras_model,
+            genome=genome,
+            method="integrated_grad",
+            transpose=True,
+            verbose=False,
+        )
+    scores, one_hots = crested.tl.contribution_scores_specific(
+        input=adata_specific,
+        model=keras_model,
+        genome=genome,
+        method="integrated_grad",
+        transpose=False,
+        verbose=False,
+    )
+    assert scores.shape == (6, 1, 500, 4)
+    assert one_hots.shape == (6, 500, 4)
+
+    # test multiple models and subsetting class names
+    scores, one_hots = crested.tl.contribution_scores_specific(
+        input=adata_specific,
+        model=[keras_model, keras_model],
+        genome=genome,
+        method="integrated_grad",
+        class_names=list(adata_specific.obs_names)[0],
+        transpose=True,
+        verbose=False,
+    )
+    assert scores.shape == (3, 1, 4, 500)
+    assert one_hots.shape == (3, 4, 500)
+
+    # test saving
+    class_names = list(adata_specific.obs_names)
+    scores, one_hots = crested.tl.contribution_scores_specific(
+        input=adata_specific,
+        model=keras_model,
+        genome=genome,
+        method="integrated_grad",
+        transpose=False,
+        verbose=False,
+        output_dir="tests/data/test_contribution_scores",
+    )
+    assert os.path.exists(
+        f"tests/data/test_contribution_scores/{class_names[0]}_contrib.npz"
+    )

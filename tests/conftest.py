@@ -4,9 +4,15 @@ import os
 
 import genomepy
 import keras
+import numpy as np
 import pytest
 
+import crested
+
 from ._utils import create_anndata_with_regions
+
+np.random.seed(42)
+keras.utils.set_random_seed(42)
 
 
 @pytest.fixture(scope="module")
@@ -52,3 +58,14 @@ def genome():
             "hg38", annotation=False, provider="UCSC", genomes_dir="tests/data/genomes"
         )
     return "tests/data/genomes/hg38/hg38.fa"
+
+
+@pytest.fixture(scope="module")
+def adata_specific():
+    """Specific anndata fixture."""
+    ann_data = crested.import_bigwigs(
+        bigwigs_folder="tests/data/test_bigwigs",
+        regions_file="tests/data/test_bigwigs/consensus_peaks_subset.bed",
+    )
+    crested.pp.sort_and_filter_regions_on_specificity(ann_data, top_k=3)
+    return ann_data
