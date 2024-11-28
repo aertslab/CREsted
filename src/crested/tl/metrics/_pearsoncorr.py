@@ -1,0 +1,59 @@
+"""Pearson correlation metric."""
+
+from __future__ import annotations
+
+import keras
+
+
+@keras.utils.register_keras_serializable(package="Metrics")
+class PearsonCorrelation(keras.metrics.Metric):
+    """Pearson correlation metric."""
+
+    def __init__(self, name: str = "pearson_correlation", **kwargs):
+        """Initialize the metric."""
+        super().__init__(name=name, **kwargs)
+        self.y_true_sum = self.add_weight(name="y_true_sum", initializer="zeros")
+        self.y_pred_sum = self.add_weight(name="y_pred_sum", initializer="zeros")
+        self.y_true_squared_sum = self.add_weight(
+            name="y_true_squared_sum", initializer="zeros"
+        )
+        self.y_pred_squared_sum = self.add_weight(
+            name="y_pred_squared_sum", initializer="zeros"
+        )
+        self.y_true_y_pred_sum = self.add_weight(
+            name="y_true_y_pred_sum", initializer="zeros"
+        )
+        self.count = self.add_weight(name="count", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        """Update the state of the metric."""
+        y_true = keras.ops.cast(y_true, dtype="float32")
+        y_pred = keras.ops.cast(y_pred, dtype="float32")
+
+        self.y_true_sum.assign_add(keras.ops.sum(y_true))
+        self.y_pred_sum.assign_add(keras.ops.sum(y_pred))
+        self.y_true_squared_sum.assign_add(keras.ops.sum(keras.ops.square(y_true)))
+        self.y_pred_squared_sum.assign_add(keras.ops.sum(keras.ops.square(y_pred)))
+        self.y_true_y_pred_sum.assign_add(keras.ops.sum(y_true * y_pred))
+        self.count.assign_add(keras.ops.cast(keras.ops.size(y_true), dtype="float32"))
+
+    def result(self):
+        """Calculate the result of the metric."""
+        numerator = (
+            self.count * self.y_true_y_pred_sum - self.y_true_sum * self.y_pred_sum
+        )
+        denominator = keras.ops.sqrt(
+            (self.count * self.y_true_squared_sum - keras.ops.square(self.y_true_sum))
+            * (self.count * self.y_pred_squared_sum - keras.ops.square(self.y_pred_sum))
+        )
+
+        return numerator / (denominator + keras.backend.epsilon())
+
+    def reset_state(self):
+        """Reset the state of the metric."""
+        self.y_true_sum.assign(0.0)
+        self.y_pred_sum.assign(0.0)
+        self.y_true_squared_sum.assign(0.0)
+        self.y_pred_squared_sum.assign(0.0)
+        self.y_true_y_pred_sum.assign(0.0)
+        self.count.assign(0.0)

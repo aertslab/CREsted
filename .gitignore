@@ -1,0 +1,15 @@
+*__pycache__*
+.vscode
+wandb/
+*slurm*
+tests/data/genomes
+tests/data/test_pipeline
+
+# Sphinx documentation
+_build
+_autosummary
+node_modules
+.DS_Store
+._.DS_Store
+docs/tutorials/mouse_biccn.ipynb
+docs/tutorials/.ipynb_checkpoints
