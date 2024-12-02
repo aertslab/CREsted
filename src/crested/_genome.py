@@ -83,7 +83,6 @@ class Genome:
 
             self._chrom_sizes = _read_chromsizes(self._chrom_sizes)
         elif not isinstance(self._chrom_sizes, dict):
-            print(self._chrom_sizes)
             raise ValueError("chrom_sizes must be a dictionary or a Path.")
         return self._chrom_sizes
 
