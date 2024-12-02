@@ -15,7 +15,7 @@ class Genome:
 
     Adapted from https://github.com/kaizhang/SnapATAC2/blob/main/snapatac2-python/python/snapatac2/genome.py.
 
-    Attributes
+    Parameters
     ----------
     fasta
         The path to the FASTA file.
@@ -24,6 +24,13 @@ class Genome:
         If not provided, the chromosome sizes will be inferred from the FASTA file.
     annotation
         The path to the annotation file.
+
+    Examples
+    --------
+    >>> genome = Genome(
+    ...     fasta="tests/data/test.fa",
+    ...     chrom_sizes="tests/data/test.chrom.sizes",
+    ... )
     """
 
     def __init__(
@@ -119,7 +126,39 @@ def register_genome(genome: Genome):
     ----------
     genome
         The Genome object to register.
+
+    Examples
+    --------
+    >>> genome = Genome(
+    ...     fasta="tests/data/test.fasta",
+    ...     chrom_sizes="tests/data/test.chrom.sizes",
+    ... )
+    >>> register_genome(genome)
     """
     if not isinstance(genome, Genome):
         raise TypeError("genome must be an instance of crested.Genome")
     conf.genome = genome
+
+
+def _resolve_genome(
+    genome: os.PathLike | Genome | None,
+    chromsizes_file: os.PathLike | None,
+    annotation: os.PathLike | None = None,
+) -> Genome:
+    """Resolve the input to a Genome object. Required to keep backwards compatibility with fasta and chromsizes paths as inputs."""
+    if isinstance(genome, Genome):
+        return genome
+    if genome is not None:
+        genome_path = Path(genome)
+        if not genome_path.exists():
+            raise FileNotFoundError(
+                errno.ENOENT, os.strerror(errno.ENOENT), str(genome_path)
+            )
+        return Genome(
+            fasta=genome_path, chrom_sizes=chromsizes_file, annotation=annotation
+        )
+    else:
+        if conf.genome is not None:
+            return conf.genome
+        else:
+            raise ValueError("No genome provided or registered.")
