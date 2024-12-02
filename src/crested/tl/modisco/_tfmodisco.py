@@ -13,14 +13,6 @@ from loguru import logger
 
 from crested.utils._logging import log_and_raise
 
-from ._modisco_utils import (
-    _pattern_to_ppm,
-    _trim_pattern_by_ic,
-    compute_ic,
-    match_score_patterns,
-    read_html_to_dataframe,
-)
-
 
 def _calculate_window_offsets(center: int, window_size: int) -> tuple:
     return (center - window_size // 2, center + window_size // 2)
@@ -263,7 +255,7 @@ def match_to_patterns(
     """
     p["id"] = pattern_id
     p["pos_pattern"] = pos_pattern
-    p['n_seqlets'] = p['seqlets']['n_seqlets'][0]
+    p["n_seqlets"] = p["seqlets"]["n_seqlets"][0]
     if not all_patterns:
         return add_pattern_to_dict(p, 0, cell_type, pos_pattern, all_patterns)
 
@@ -299,10 +291,18 @@ def match_to_patterns(
     all_patterns[str(match_idx)]["instances"][pattern_id] = p
 
     if cell_type in all_patterns[str(match_idx)]["classes"].keys():
-        ic_class_representative = all_patterns[str(match_idx)]["classes"][cell_type]["ic"]
-        n_seqlets_class_representative = all_patterns[str(match_idx)]["classes"][cell_type]['n_seqlets']
+        ic_class_representative = all_patterns[str(match_idx)]["classes"][cell_type][
+            "ic"
+        ]
+        n_seqlets_class_representative = all_patterns[str(match_idx)]["classes"][
+            cell_type
+        ]["n_seqlets"]
         if p_ic > ic_class_representative:
-            p['n_seqlets'] = n_seqlets_class_representative if n_seqlets_class_representative > p['n_seqlets'] else p['n_seqlets'] # if a class representative for a pattern gets replaced, we keep the max seqlet count between the two of them since they are the same pattern
+            p["n_seqlets"] = (
+                n_seqlets_class_representative
+                if n_seqlets_class_representative > p["n_seqlets"]
+                else p["n_seqlets"]
+            )  # if a class representative for a pattern gets replaced, we keep the max seqlet count between the two of them since they are the same pattern
             all_patterns[str(match_idx)]["classes"][cell_type] = p
     else:
         all_patterns[str(match_idx)]["classes"][cell_type] = p
@@ -454,15 +454,17 @@ def merge_patterns(pattern1: dict, pattern2: dict) -> dict:
     for cell_type in pattern1["classes"].keys():
         if cell_type in pattern2["classes"].keys():
             ic_a = pattern1["classes"][cell_type]["ic"]
-            n_seqlets_a = pattern1["classes"][cell_type]['n_seqlets']
+            n_seqlets_a = pattern1["classes"][cell_type]["n_seqlets"]
             ic_b = pattern2["classes"][cell_type]["ic"]
-            n_seqlets_b = pattern2["classes"][cell_type]['n_seqlets']
+            n_seqlets_b = pattern2["classes"][cell_type]["n_seqlets"]
             merged_classes[cell_type] = (
                 pattern1["classes"][cell_type]
                 if ic_a > ic_b
                 else pattern2["classes"][cell_type]
             )
-            merged_classes[cell_type]['n_seqlets'] = max(n_seqlets_a, n_seqlets_b) # if patterns from the same class get merged, we keep the max seqlet count between the two of them since they are the same pattern
+            merged_classes[cell_type]["n_seqlets"] = max(
+                n_seqlets_a, n_seqlets_b
+            )  # if patterns from the same class get merged, we keep the max seqlet count between the two of them since they are the same pattern
         else:
             merged_classes[cell_type] = pattern1["classes"][cell_type]
 
@@ -704,7 +706,7 @@ def create_pattern_matrix(
     classes: list[str],
     all_patterns: dict[str, dict[str, str | list[float]]],
     normalize: bool = False,
-    pattern_parameter : str = 'seqlet_count'
+    pattern_parameter: str = "seqlet_count",
 ) -> np.ndarray:
     """
     Create a pattern matrix from classes and patterns, with optional normalization.
@@ -729,11 +731,9 @@ def create_pattern_matrix(
     -------
     The resulting pattern matrix, optionally normalized.
     """
-    if pattern_parameter not in ['contrib', 'seqlet_count', 'seqlet_count_log']:
-        logger.info(
-            "Pattern parameter not valid. Setting to default ('seqlet_count')"
-        )
-        pattern_parameter = 'seqlet_count'
+    if pattern_parameter not in ["contrib", "seqlet_count", "seqlet_count_log"]:
+        logger.info("Pattern parameter not valid. Setting to default ('seqlet_count')")
+        pattern_parameter = "seqlet_count"
 
     pattern_matrix = np.zeros((len(classes), len(all_patterns.keys())))
 
@@ -741,22 +741,27 @@ def create_pattern_matrix(
         p_classes = list(all_patterns[p_idx]["classes"].keys())
         for ct in p_classes:
             idx = np.argwhere(np.array(classes) == ct)[0][0]
-            avg_contrib = np.mean(
-                    all_patterns[p_idx]["classes"][ct]["contrib_scores"]
-                )
-            if pattern_parameter == 'contrib':
+            avg_contrib = np.mean(all_patterns[p_idx]["classes"][ct]["contrib_scores"])
+            if pattern_parameter == "contrib":
                 pattern_matrix[idx, int(p_idx)] = avg_contrib
-            elif pattern_parameter == 'seqlet_count':
-                sign = 1 if avg_contrib > 0 else -1 # Negative patterns will have a 'negative' count to reflect the negative performance.
-                pattern_matrix[idx, int(p_idx)] = sign * all_patterns[p_idx]["classes"][ct]["n_seqlets"]
-            elif pattern_parameter == 'seqlet_count_log':
-                sign = 1 if avg_contrib > 0 else -1 # Negative patterns will have a 'negative' count to reflect the negative performance.
-                pattern_matrix[idx, int(p_idx)] = sign * np.log1p(all_patterns[p_idx]["classes"][ct]["n_seqlets"])
+            elif pattern_parameter == "seqlet_count":
+                sign = (
+                    1 if avg_contrib > 0 else -1
+                )  # Negative patterns will have a 'negative' count to reflect the negative performance.
+                pattern_matrix[idx, int(p_idx)] = (
+                    sign * all_patterns[p_idx]["classes"][ct]["n_seqlets"]
+                )
+            elif pattern_parameter == "seqlet_count_log":
+                sign = (
+                    1 if avg_contrib > 0 else -1
+                )  # Negative patterns will have a 'negative' count to reflect the negative performance.
+                pattern_matrix[idx, int(p_idx)] = sign * np.log1p(
+                    all_patterns[p_idx]["classes"][ct]["n_seqlets"]
+                )
             else:
                 raise ValueError(
                     "Invalid pattern_parameter. Set to either 'contrib' or 'seqlet_count'."
                 )
-
 
     # Filter out columns that are all zeros
     filtered_array = pattern_matrix[:, ~np.all(pattern_matrix == 0, axis=0)]
@@ -953,7 +958,9 @@ def find_pattern_matches(
                 + "_"
                 + pattern_id_parts[-1]
             )
-            matching_row = df_motif_database.loc[df_motif_database["pattern"] == pattern_id]
+            matching_row = df_motif_database.loc[
+                df_motif_database["pattern"] == pattern_id
+            ]
             matching_rows.append(matching_row)
             pattern_ids.append(pattern_id_whole)
 
@@ -985,7 +992,10 @@ def find_pattern_matches(
                         patterns.append(pattern_ids[i])
 
             if matches_filt:
-                pattern_match_dict[p_idx] = {"matches": matches_filt, "patterns": patterns}
+                pattern_match_dict[p_idx] = {
+                    "matches": matches_filt,
+                    "patterns": patterns,
+                }
         else:
             print(f"No matching row found for pattern_id '{pattern_id}'")
 
@@ -1079,11 +1089,11 @@ def create_tf_ct_matrix(
     normalize_gex: bool = False,
     min_tf_gex: float = 0,
     importance_threshold: float = 0,
-    pattern_parameter : str = "seqlet_count",
+    pattern_parameter: str = "seqlet_count",
     filter_correlation: bool = False,
     zscore_threshold: float = 2,
     correlation_threshold: float = 0.2,
-    verbose : bool = False,
+    verbose: bool = False,
 ) -> tuple[np.ndarray, list[str]]:
     """
     Create a tensor (matrix) of transcription factor (TF) expression and cell type contributions.
@@ -1131,11 +1141,9 @@ def create_tf_ct_matrix(
     tf_ct_matrix = np.zeros((len(classes), total_tf_patterns, 2))
     tf_pattern_annots = []
 
-    if pattern_parameter not in ['contrib', 'seqlet_count', 'seqlet_count_log']:
-        logger.info(
-            "Pattern parameter not valid. Setting to default ('seqlet_count')."
-        )
-        pattern_parameter = 'seqlet_count'
+    if pattern_parameter not in ["contrib", "seqlet_count", "seqlet_count_log"]:
+        logger.info("Pattern parameter not valid. Setting to default ('seqlet_count').")
+        pattern_parameter = "seqlet_count"
 
     counter = 0
     for p_idx in pattern_tf_dict:
@@ -1143,14 +1151,18 @@ def create_tf_ct_matrix(
         for ct in all_patterns[p_idx]["classes"]:
             idx = np.argwhere(np.array(classes) == ct)[0][0]
             contribs = np.mean(all_patterns[p_idx]["classes"][ct]["contrib_scores"])
-            if pattern_parameter == 'contrib':
+            if pattern_parameter == "contrib":
                 ct_contribs[idx] = contribs
-            elif pattern_parameter =='seqlet_count':
+            elif pattern_parameter == "seqlet_count":
                 sign = 1 if contribs > 0 else -1
-                ct_contribs[idx] = sign * all_patterns[p_idx]["classes"][ct]["n_seqlets"]
-            elif pattern_parameter =='seqlet_count_log':
+                ct_contribs[idx] = (
+                    sign * all_patterns[p_idx]["classes"][ct]["n_seqlets"]
+                )
+            elif pattern_parameter == "seqlet_count_log":
                 sign = 1 if contribs > 0 else -1
-                ct_contribs[idx] = sign * np.log1p(all_patterns[p_idx]["classes"][ct]["n_seqlets"])
+                ct_contribs[idx] = sign * np.log1p(
+                    all_patterns[p_idx]["classes"][ct]["n_seqlets"]
+                )
             else:
                 raise ValueError(
                     "Invalid pattern_parameter. Set to either 'contrib' or 'seqlet_count'."
@@ -1187,7 +1199,9 @@ def create_tf_ct_matrix(
         relevant_contribs = ct_contribs_col > importance_threshold
 
         # Check if there are valid ct_contribs and tf_gex above the threshold
-        if np.any(relevant_contribs) and np.any(tf_gex_col[relevant_contribs] > min_tf_gex):
+        if np.any(relevant_contribs) and np.any(
+            tf_gex_col[relevant_contribs] > min_tf_gex
+        ):
             columns_to_keep.append(col)
 
     # Convert columns_to_keep to a boolean mask
@@ -1216,11 +1230,13 @@ def create_tf_ct_matrix(
             tf_gex_col = tf_ct_matrix[:, col, 0]
             ct_contribs_col = np.abs(tf_ct_matrix[:, col, 1])
 
-            tf_gex_col_z = (tf_gex_col - np.mean(tf_gex_col))/ np.std(tf_gex_col)
+            tf_gex_col_z = (tf_gex_col - np.mean(tf_gex_col)) / np.std(tf_gex_col)
 
             correlation = np.corrcoef(tf_gex_col, ct_contribs_col)[0, 1]
-            #if correlation >= correlation_threshold:
-            if (np.max(tf_gex_col_z) > zscore_threshold) and (correlation >= correlation_threshold):
+            # if correlation >= correlation_threshold:
+            if (np.max(tf_gex_col_z) > zscore_threshold) and (
+                correlation >= correlation_threshold
+            ):
                 columns_to_keep.append(col)
 
         # Update matrix and annotations based on filtering
@@ -1238,6 +1254,7 @@ def create_tf_ct_matrix(
             print(f"Total columns removed: {removed_columns}")
 
     return tf_ct_matrix, tf_pattern_annots
+
 
 def calculate_mean_expression_per_cell_type(
     file_path: str,
@@ -1263,7 +1280,7 @@ def calculate_mean_expression_per_cell_type(
     # Read the AnnData object from the specified H5AD file
     adata: anndata.AnnData = anndata.read_h5ad(file_path)
 
-    #CPM normalize the counts if necessary
+    # CPM normalize the counts if necessary
     if cpm_normalize:
         sc.pp.normalize_total(adata)
 

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+
+import h5py
 import modiscolite as modisco
 import numpy as np
 import pandas as pd
@@ -479,3 +482,151 @@ def read_html_to_dataframe(source: str):
     except ValueError as e:
         # Handle the case where no tables are found
         return f"Error: {str(e)}"
+
+
+def read_modisco_results(path: os.PathLike) -> tuple(dict, dict):
+    """
+    Read results from tfmodiscolite.
+
+    Parameters
+    ----------
+    path: os.PathLike
+        path to tfmodiscolite result (hdf5 file).
+
+    Returns
+    -------
+    tuple( dict, dict )
+        positive_patterns, negative_patterns
+
+        positive_patterns[pattern_name] -> modisco.core.SeqletSet
+        negative_patterns[pattern_name] -> modisco.core.SeqletSet
+    """
+    pos_patterns = {}
+    neg_patterns = {}
+
+    with h5py.File(path) as m:
+        # loop over positive and negative patterns
+        for pos_neg in ["pos_patterns", "neg_patterns"]:
+            if pos_neg not in m.keys():
+                continue
+
+            for pattern in m[pos_neg]:
+                seqlets = []
+                _s = m[pos_neg][pattern]["seqlets"]
+
+                for (
+                    example_idx,
+                    start,
+                    end,
+                    is_revcomp,
+                    contrib,
+                    hypot_contrib,
+                    sequence,
+                ) in zip(
+                    _s["example_idx"][:],
+                    _s["start"][:],
+                    _s["end"][:],
+                    _s["is_revcomp"][:],
+                    _s["contrib_scores"][:],
+                    _s["hypothetical_contribs"][:],
+                    _s["sequence"],
+                ):
+                    s = modisco.core.Seqlet(
+                        example_idx=example_idx,
+                        start=start,
+                        end=end,
+                        is_revcomp=is_revcomp,
+                    )
+                    s.contrib_scores = contrib
+                    s.hypothetical_contribs = hypot_contrib
+                    s.sequence = sequence
+                    seqlets.append(s)
+                if pos_neg == "pos_patterns":
+                    pos_patterns[pattern] = modisco.core.SeqletSet(seqlets=seqlets)
+                else:
+                    neg_patterns[pattern] = modisco.core.SeqletSet(seqlets=seqlets)
+
+    return pos_patterns, neg_patterns
+
+
+def get_ic_modisco(
+    seqletSet: modisco.core.SeqletSet,
+    background_freqs: list[float] | None = None,
+    pseudocount=1e-8,
+) -> tuple[float, np.ndarray, np.ndarray]:
+    if background_freqs is None:
+        background_freqs = [0.28, 0.22, 0.22, 0.28]
+
+    pos_ic = modisco.util.compute_per_position_ic(
+        ppm=seqletSet.sequence, background=background_freqs, pseudocount=pseudocount
+    )
+
+    return pos_ic
+
+
+def trim_by_ic(
+    seqletSet: modisco.core.SeqletSet,
+    ic_threshold: float = 0.1,
+    background_freqs: list[float] | None = None,
+) -> modisco.core.SeqletSet:
+    ic_pos = get_ic_modisco(seqletSet, background_freqs=background_freqs)
+    ppm = seqletSet.sequence
+
+    np.nan_to_num(ic_pos, copy=False, nan=0.0)
+    v = (abs(ppm) * ic_pos[:, None]).max(1)
+    v = (v - v.min()) / (v.max() - v.min() + 1e-9)
+
+    try:
+        start_idx = min(np.where(np.diff((v > ic_threshold) * 1))[0])
+        end_idx = max(np.where(np.diff((v > ic_threshold) * 1))[0]) + 1
+    except ValueError as exc:
+        raise RuntimeError("No valid pattern found.") from exc
+
+    seqletSetTrimmed = seqletSet.trim_to_idx(start_idx=start_idx, end_idx=end_idx)
+
+    return seqletSetTrimmed
+
+
+def filter_patterns(
+    patterns: dict[modisco.core.SeqletSet],
+    thr_avg_ic: float = 0.5,
+    min_size: int = 5,
+) -> dict[modisco.core.SeqletSet]:
+    filtered_patterns = {}
+
+    for pattern in patterns.keys():
+        av_ic = np.mean(get_ic_modisco(patterns[pattern]))
+
+        if av_ic < thr_avg_ic:
+            continue
+        if patterns[pattern].sequence.shape[0] < min_size:
+            continue
+
+        filtered_patterns[pattern] = patterns[pattern].copy()
+
+    return filtered_patterns
+
+
+def convert_seqletSet_to_dict(seqletSet: modisco.core.SeqletSet) -> dict:
+    seqletSet_dict = {}
+
+    # simple copy entries: 'sequence', 'contrib_scores', 'hypothetical_contribs'
+    seqletSet_dict["sequence"] = seqletSet.sequence.copy()
+    seqletSet_dict["contrib_scores"] = seqletSet.contrib_scores.copy()
+    seqletSet_dict["hypothetical_contribs"] = seqletSet.hypothetical_contribs.copy()
+
+    # loop over seqlets
+    seqletSet_dict["seqlets"] = []
+    for seqlet in seqletSet.seqlets:
+        temp_dictseqlet = {}
+        temp_dictseqlet["example_idx"] = seqlet.example_idx
+        temp_dictseqlet["start"] = seqlet.start
+        temp_dictseqlet["end"] = seqlet.end
+        temp_dictseqlet["is_revcomp"] = seqlet.is_revcomp
+        temp_dictseqlet["sequence"] = seqlet.sequence.copy()
+        temp_dictseqlet["contrib_scores"] = seqlet.contrib_scores.copy()
+        temp_dictseqlet["hypothetical_contribs"] = seqlet.hypothetical_contribs.copy()
+
+        seqletSet_dict["seqlets"].append(temp_dictseqlet.copy())
+
+    return seqletSet_dict
