@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import errno
+import os
 from pathlib import Path
 
 from crested import _conf as conf
@@ -32,15 +34,35 @@ class Genome:
         annotation: Path | None = None,
     ):
         """Initialize the Genome object."""
-        if isinstance(fasta, Path) or isinstance(fasta, str):
-            self._fasta = Path(fasta)
+        if isinstance(fasta, (Path, str)):
+            fasta = Path(fasta)
+            if not os.path.exists(fasta):
+                raise FileNotFoundError(
+                    errno.ENOENT, os.strerror(errno.ENOENT), str(fasta)
+                )
+            self._fasta = fasta
         else:
             raise ValueError("fasta must be a Path.")
-        self._annotation = annotation
-        if isinstance(chrom_sizes, str) or isinstance(chrom_sizes, Path):
-            self._chrom_sizes = Path(chrom_sizes)
+
+        if isinstance(chrom_sizes, (Path, str)):
+            chrom_sizes = Path(chrom_sizes)
+            if not os.path.exists(chrom_sizes):
+                raise FileNotFoundError(
+                    errno.ENOENT, os.strerror(errno.ENOENT), str(chrom_sizes)
+                )
+            self._chrom_sizes = chrom_sizes
         else:
             self._chrom_sizes = chrom_sizes
+
+        if isinstance(annotation, (Path, str)):
+            annotation = Path(annotation)
+            if not os.path.exists(annotation):
+                raise FileNotFoundError(
+                    errno.ENOENT, os.strerror(errno.ENOENT), str(annotation)
+                )
+            self._annotation = annotation
+        else:
+            self._annotation = None
 
     @property
     def fasta(self) -> Path:
@@ -67,7 +89,7 @@ class Genome:
     @property
     def chrom_sizes(self) -> dict[str, int]:
         """
-        A dictionary with chromosome names as keys and their lengths as valeus.
+        A dictionary with chromosome names as keys and their lengths as values.
 
         Returns
         -------

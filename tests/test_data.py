@@ -16,17 +16,17 @@ def log_capture(level="WARNING"):
         logger.remove(handler_id)
 
 
-def test_genome_persistence():
+def test_genome_persistence(genome):
     """Test that the genome object is correctly stored."""
     import crested
 
+    fasta_file = genome
     # check that does not yet exist
     assert crested._conf.genome is None
 
     genome = crested.Genome(
-        fasta="tests/data/test.fasta",
+        fasta=fasta_file,
         chrom_sizes={"chr1": 1000, "chr2": 2000},
-        annotation="tests/data/test.gtf",
     )
     crested.register_genome(genome)
 
@@ -44,16 +44,16 @@ def test_no_genome_fasta():
         )
 
 
-def test_import_beds_with_genome():
+def test_import_beds_with_genome(genome):
     """Test that import_beds uses genome chromsizes."""
     import crested
 
+    fasta_file = genome
     # Scenario 1: Genome registered with chromsizes provided
     with log_capture(level="WARNING") as messages:
         genome = crested.Genome(
-            fasta="tests/data/test.fasta",
+            fasta=fasta_file,
             chrom_sizes="tests/data/test.chrom.sizes",
-            annotation="tests/data/test.gtf",
         )
         crested.register_genome(genome)
         crested.import_beds(
