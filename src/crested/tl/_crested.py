@@ -1944,8 +1944,6 @@ class Crested:
                     f"Output directory {checkpoint_dir}, already exists but no trained models found. Overwriting..."
                 )
                 shutil.rmtree(checkpoint_dir)
-        else:
-            logger.info(f"Creating output directory {checkpoint_dir}")
 
     def __repr__(self):
         """Return the string representation of the object."""
