@@ -5,9 +5,9 @@ from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
-import pysam
 from loguru import logger
 
+from crested._genome import Genome, _resolve_genome
 from crested._io import _extract_tracks_from_bigwig
 
 
@@ -317,7 +317,9 @@ def extract_bigwig_values_per_bp(
 
 
 def fetch_sequences(
-    regions: str | list[str], genome: os.PathLike, uppercase: bool = True
+    regions: str | list[str],
+    genome: os.PathLike | Genome | None = None,
+    uppercase: bool = True,
 ) -> list[str]:
     """
     Fetch sequences from a genome file for a list of regions using pysam.
@@ -329,7 +331,8 @@ def fetch_sequences(
     regions
         List of regions to fetch sequences for.
     genome
-        Path to the genome file.
+        Path to the genome fasta or Genome instance or None.
+        If None, will look for a registered genome object.
     uppercase
         If True, return sequences in uppercase.
 
@@ -344,12 +347,12 @@ def fetch_sequences(
     """
     if isinstance(regions, str):
         regions = [regions]
-    fasta = pysam.FastaFile(genome)
+    genome = _resolve_genome(genome)
     seqs = []
     for region in regions:
         chrom, start_end = region.split(":")
         start, end = start_end.split("-")
-        seq = fasta.fetch(chrom, int(start), int(end))
+        seq = genome.fasta.fetch(chrom, int(start), int(end))
         if uppercase:
             seq = seq.upper()
         seqs.append(seq)

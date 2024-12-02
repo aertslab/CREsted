@@ -6,7 +6,10 @@ import errno
 import os
 from pathlib import Path
 
-from crested import _conf as conf
+from loguru import logger
+from pysam import FastaFile
+
+import crested._conf as conf
 
 
 class Genome:
@@ -24,6 +27,8 @@ class Genome:
         If not provided, the chromosome sizes will be inferred from the FASTA file.
     annotation
         The path to the annotation file.
+    name
+        Optional name of the genome.
 
     Examples
     --------
@@ -31,14 +36,20 @@ class Genome:
     ...     fasta="tests/data/test.fa",
     ...     chrom_sizes="tests/data/test.chrom.sizes",
     ... )
+    >>> print(genome.fasta)
+    <pysam.libcfaidx.FastaFile at 0x7f4d8b4a8f40>
+    >>> print(genome.chrom_sizes)
+    {'chr1': 1000, 'chr2': 2000}
+    >>> print(genome.name)
+    test
     """
 
     def __init__(
         self,
-        *,
         fasta: Path,
         chrom_sizes: dict[str, int] | Path | None = None,
         annotation: Path | None = None,
+        name: str | None = None,
     ):
         """Initialize the Genome object."""
         if isinstance(fasta, (Path, str)):
@@ -71,21 +82,25 @@ class Genome:
         else:
             self._annotation = None
 
+        self._name = name
+
     @property
-    def fasta(self) -> Path:
+    def fasta(self) -> FastaFile:
         """
-        The Path to the FASTA file.
+        The pysam FastaFile object for the FASTA file.
 
         Returns
         -------
-        The path to the FASTA file.
+        The pysam FastaFile object.
         """
-        return self._fasta
+        return FastaFile(self._fasta)
 
     @property
     def annotation(self) -> Path | None:
         """
         The Path to the annotation file.
+
+        Currently not used in the package.
 
         Returns
         -------
@@ -103,10 +118,7 @@ class Genome:
         A dictionary of chromosome sizes.
         """
         if self._chrom_sizes is None:
-            from pysam import FastaFile
-
-            fasta = FastaFile(self.fasta)
-            self._chrom_sizes = dict(zip(fasta.references, fasta.lengths))
+            self._chrom_sizes = dict(zip(self.fasta.references, self.fasta.lengths))
         elif isinstance(self._chrom_sizes, Path):
             from crested._io import _read_chromsizes
 
@@ -114,6 +126,25 @@ class Genome:
         elif not isinstance(self._chrom_sizes, dict):
             raise ValueError("chrom_sizes must be a dictionary or a Path.")
         return self._chrom_sizes
+
+    @property
+    def name(self) -> str:
+        """
+        The name of the genome.
+
+        Returns
+        -------
+        The name of the genome.
+        """
+        if self._name is None:
+            filename = self.fasta.filename.decode("utf-8")
+            basename = os.path.basename(filename)
+
+            if basename.endswith(".fa") or basename.endswith(".fasta"):
+                return os.path.splitext(basename)[0]  # Remove the extension and return
+            else:
+                return basename
+        return self._name
 
 
 def register_genome(genome: Genome):
@@ -130,19 +161,21 @@ def register_genome(genome: Genome):
     Examples
     --------
     >>> genome = Genome(
-    ...     fasta="tests/data/test.fasta",
+    ...     fasta="tests/data/hg38.fa",
     ...     chrom_sizes="tests/data/test.chrom.sizes",
     ... )
     >>> register_genome(genome)
+    INFO Genome hg38 registered.
     """
     if not isinstance(genome, Genome):
         raise TypeError("genome must be an instance of crested.Genome")
     conf.genome = genome
+    logger.info(f"Genome {genome.name} registered.")
 
 
 def _resolve_genome(
     genome: os.PathLike | Genome | None,
-    chromsizes_file: os.PathLike | None,
+    chromsizes_file: os.PathLike | None = None,
     annotation: os.PathLike | None = None,
 ) -> Genome:
     """Resolve the input to a Genome object. Required to keep backwards compatibility with fasta and chromsizes paths as inputs."""

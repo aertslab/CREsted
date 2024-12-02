@@ -798,7 +798,7 @@ class Crested:
         idx = all_class_names.index(class_name)
 
         if genome is None:
-            genome = FastaFile(self.anndatamodule.genome.fasta)
+            genome = self.anndatamodule.genome.fasta
 
         # Generate all windows and one-hot encode the sequences in parallel
         all_sequences = []

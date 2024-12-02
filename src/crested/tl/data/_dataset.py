@@ -8,7 +8,6 @@ import re
 import numpy as np
 from anndata import AnnData
 from loguru import logger
-from pysam import FastaFile
 from scipy.sparse import spmatrix
 from tqdm import tqdm
 
@@ -84,7 +83,7 @@ class SequenceLoader:
         regions: list[str] | None = None,
     ):
         """Initialize the SequenceLoader with the provided genome file and options."""
-        self.genome = FastaFile(genome.fasta)
+        self.genome = genome.fasta
         self.chromsizes = genome.chrom_sizes
         self.in_memory = in_memory
         self.always_reverse_complement = always_reverse_complement

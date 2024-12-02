@@ -39,7 +39,7 @@ class AnnDataModule:
         Instance of Genome or Path to the fasta file.
         If None, will look for a registered genome object.
     chromsizes_file
-        Path to the chromsizes file.
+        Path to the chromsizes file. Not required if genome is a Genome object.
         If genome is a path and chromsizes is not provided, will deduce the chromsizes from the fasta file.
     in_memory
         If True, the train and val sequences will be loaded into memory. Default is True.
