@@ -19,6 +19,7 @@ class Genome:
         The path to the FASTA file.
     chrom_sizes
         A path to a tab delimited chromsizes file or a dictionary containing chromosome names and sizes.
+        If not provided, the chromosome sizes will be inferred from the FASTA file.
     annotation
         The path to the annotation file.
     """
@@ -99,5 +100,5 @@ def register_genome(genome: Genome):
         The Genome object to register.
     """
     if not isinstance(genome, Genome):
-        raise TypeError("genome must be an instance of Genome")
+        raise TypeError("genome must be an instance of crested.Genome")
     conf.genome = genome
