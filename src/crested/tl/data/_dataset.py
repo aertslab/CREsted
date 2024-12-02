@@ -4,31 +4,23 @@ from __future__ import annotations
 
 import os
 import re
-from os import PathLike
 
 import numpy as np
-import pandas as pd
 from anndata import AnnData
 from loguru import logger
 from pysam import FastaFile
 from scipy.sparse import spmatrix
 from tqdm import tqdm
 
+from crested._genome import Genome
 from crested.utils import one_hot_encode_sequence
 
 
-def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
-    """Read chromsizes file into a dictionary."""
-    chromsizes = pd.read_csv(
-        chromsizes_file, sep="\t", header=None, names=["chr", "size"]
-    )
-    chromsizes_dict = chromsizes.set_index("chr")["size"].to_dict()
-    return chromsizes_dict
-
 def _flip_region_strand(region: str) -> str:
     """Reverse the strand of a region."""
-    strand_reverser = {'+': '-', '-': '+'}
-    return region[:-1]+strand_reverser[region[-1]]
+    strand_reverser = {"+": "-", "-": "+"}
+    return region[:-1] + strand_reverser[region[-1]]
+
 
 def _check_strandedness(region: str) -> bool:
     """Check the strandedness of a region, raising an error if the formatting isn't recognised."""
@@ -39,7 +31,9 @@ def _check_strandedness(region: str) -> bool:
     else:
         raise ValueError(
             f"Region {region} was not recognised as a valid coordinate set (chr:start-end or chr:start-end:strand)."
-            "If provided, strand must be + or -.")
+            "If provided, strand must be + or -."
+        )
+
 
 def _deterministic_shift_region(
     region: str, stride: int = 50, n_shifts: int = 2
@@ -67,10 +61,8 @@ class SequenceLoader:
 
     Parameters
     ----------
-    genome_file
-        Path to the genome file.
-    chromsizes
-        Dictionary with chromosome sizes. Required if max_stochastic_shift > 0.
+    genome
+        Genome instance.
     in_memory
         If True, the sequences of supplied regions will be loaded into memory.
     always_reverse_complement
@@ -84,8 +76,7 @@ class SequenceLoader:
 
     def __init__(
         self,
-        genome_file: PathLike,
-        chromsizes: dict | None,
+        genome: Genome,
         in_memory: bool = False,
         always_reverse_complement: bool = False,
         deterministic_shift: bool = False,
@@ -93,8 +84,8 @@ class SequenceLoader:
         regions: list[str] | None = None,
     ):
         """Initialize the SequenceLoader with the provided genome file and options."""
-        self.genome = FastaFile(genome_file)
-        self.chromsizes = chromsizes
+        self.genome = FastaFile(genome.fasta)
+        self.chromsizes = genome.chrom_sizes
         self.in_memory = in_memory
         self.always_reverse_complement = always_reverse_complement
         self.deterministic_shift = deterministic_shift
@@ -117,7 +108,9 @@ class SequenceLoader:
                 strand = "+"
                 region = f"{region}:{strand}"
                 if region[-4] == ":":
-                    raise ValueError(f"You are double-adding strand ids to your region {region}. Check if all regions are stranded or unstranded.")
+                    raise ValueError(
+                        f"You are double-adding strand ids to your region {region}. Check if all regions are stranded or unstranded."
+                    )
 
             # Add deterministic shift regions
             if self.deterministic_shift:
@@ -131,16 +124,20 @@ class SequenceLoader:
                 start, end = map(int, start_end.split("-"))
 
                 # Add region to self.sequences
-                extended_sequence = self._get_extended_sequence(chrom, start, end, strand)
+                extended_sequence = self._get_extended_sequence(
+                    chrom, start, end, strand
+                )
                 self.sequences[region] = extended_sequence
 
                 # Add reverse-complemented region to self.sequences if always_reverse_complement
                 if self.always_reverse_complement:
-                    self.sequences[_flip_region_strand(region)] = self._reverse_complement(
-                        extended_sequence
-                    )
+                    self.sequences[
+                        _flip_region_strand(region)
+                    ] = self._reverse_complement(extended_sequence)
 
-    def _get_extended_sequence(self, chrom: str, start: int, end: int, strand: str) -> str:
+    def _get_extended_sequence(
+        self, chrom: str, start: int, end: int, strand: str
+    ) -> str:
         """Get sequence from genome file, extended for stochastic shifting."""
         extended_start = max(0, start - self.max_stochastic_shift)
         extended_end = extended_start + (end - start) + (self.max_stochastic_shift * 2)
@@ -162,7 +159,9 @@ class SequenceLoader:
         """Reverse complement a sequence."""
         return sequence.translate(self.complement)[::-1]
 
-    def get_sequence(self, region: str, stranded: bool | None = None, shift: int = 0) -> str:
+    def get_sequence(
+        self, region: str, stranded: bool | None = None, shift: int = 0
+    ) -> str:
         """
         Get sequence for a region, strand, and shift from memory or fasta.
 
@@ -250,7 +249,9 @@ class IndexManager:
         augmented_indices = []
         augmented_indices_map = {}
         for region in indices:
-            if not _check_strandedness(region): # If slow, can use AnnDataset stranded argument - but this validates every region's formatting as well
+            if not _check_strandedness(
+                region
+            ):  # If slow, can use AnnDataset stranded argument - but this validates every region's formatting as well
                 stranded_region = f"{region}:+"
             else:
                 stranded_region = region
@@ -262,7 +263,9 @@ class IndexManager:
                     augmented_indices_map[shifted_region] = region
                     if self.always_reverse_complement:
                         augmented_indices.append(_flip_region_strand(shifted_region))
-                        augmented_indices_map[_flip_region_strand(shifted_region)] = region
+                        augmented_indices_map[
+                            _flip_region_strand(shifted_region)
+                        ] = region
             else:
                 augmented_indices.append(stranded_region)
                 augmented_indices_map[stranded_region] = region
@@ -290,12 +293,10 @@ class AnnDataset(BaseClass):
     ----------
     anndata
         AnnData object containing the data.
-    genome_file
-        Path to the genome file.
+    genome
+        Genome instance
     split
         'train', 'val', or 'test' split column in anndata.var.
-    chromsizes_file
-        Path to the chromsizes file. Advised if max_stochastic_shift > 0.
     in_memory
         If True, the train and val sequences will be loaded into memory.
     random_reverse_complement
@@ -312,9 +313,8 @@ class AnnDataset(BaseClass):
     def __init__(
         self,
         anndata: AnnData,
-        genome_file: PathLike,
+        genome: Genome,
         split: str = None,
-        chromsizes_file: PathLike | None = None,
         in_memory: bool = True,
         random_reverse_complement: bool = False,
         always_reverse_complement: bool = False,
@@ -327,7 +327,6 @@ class AnnDataset(BaseClass):
         self.indices = list(self.anndata.var_names)
         self.in_memory = in_memory
         self.compressed = isinstance(self.anndata.X, spmatrix)
-        self.chromsizes = _read_chromsizes(chromsizes_file) if chromsizes_file else None
         self.index_map = {index: i for i, index in enumerate(self.indices)}
         self.num_outputs = self.anndata.X.shape[0]
         self.random_reverse_complement = random_reverse_complement
@@ -338,13 +337,12 @@ class AnnDataset(BaseClass):
         stranded = _check_strandedness(self.indices[0])
         if stranded and (always_reverse_complement or random_reverse_complement):
             logger.info(
-                    "Setting always_reverse_complement=True or random_reverse_complement=True with stranded data.",
-                    "This means both strands are used when training and the strand information is effectively disregarded."
-                )
+                "Setting always_reverse_complement=True or random_reverse_complement=True with stranded data.",
+                "This means both strands are used when training and the strand information is effectively disregarded.",
+            )
 
         self.sequence_loader = SequenceLoader(
-            genome_file,
-            chromsizes=self.chromsizes,
+            genome,
             in_memory=in_memory,
             always_reverse_complement=always_reverse_complement,
             deterministic_shift=deterministic_shift,
@@ -356,7 +354,9 @@ class AnnDataset(BaseClass):
             always_reverse_complement=always_reverse_complement,
             deterministic_shift=deterministic_shift,
         )
-        self.seq_len = len(self.sequence_loader.get_sequence(self.indices[0], stranded = stranded))
+        self.seq_len = len(
+            self.sequence_loader.get_sequence(self.indices[0], stranded=stranded)
+        )
 
     @staticmethod
     def _split_anndata(anndata: AnnData, split: str) -> AnnData:
@@ -399,7 +399,9 @@ class AnnDataset(BaseClass):
             shift = 0
 
         # Get sequence
-        x = self.sequence_loader.get_sequence(augmented_index, stranded = True, shift = shift)
+        x = self.sequence_loader.get_sequence(
+            augmented_index, stranded=True, shift=shift
+        )
 
         # random reverse complement (always_reverse_complement is done in the sequence loader)
         if self.random_reverse_complement and np.random.rand() < 0.5:

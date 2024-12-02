@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from os import PathLike
 
-from loguru import logger
+from crested._genome import Genome, _resolve_genome
 
 from ._dataloader import AnnDataLoader
 from ._dataset import AnnDataset
@@ -25,8 +25,7 @@ class AnnDataModule:
     -------
     >>> data_module = AnnDataModule(
     ...     adata,
-    ...     genome_file="path/to/genome.fa",
-    ...     chromsizes_file="path/to/chrom.sizes",
+    ...     genome=my_genome,
     ...     always_reverse_complement=True,
     ...     max_stochastic_shift=50,
     ...     batch_size=256,
@@ -36,10 +35,12 @@ class AnnDataModule:
     ----------
     adata
         An instance of AnnData containing the data to be loaded.
-    genome_file
-        Path to the genome file.
+    genome
+        Instance of Genome or Path to the fasta file.
+        If None, will look for a registered genome object.
     chromsizes_file
-        Path to the chromsizes file. Advised if max_stochastic_shift > 0.
+        Path to the chromsizes file.
+        If genome is a path and chromsizes is not provided, will deduce the chromsizes from the fasta file.
     in_memory
         If True, the train and val sequences will be loaded into memory. Default is True.
     always_reverse_complement
@@ -61,7 +62,7 @@ class AnnDataModule:
     def __init__(
         self,
         adata,
-        genome_file,
+        genome: PathLike | Genome | None = None,
         chromsizes_file: PathLike | None = None,
         in_memory: bool = True,
         always_reverse_complement=True,
@@ -73,8 +74,7 @@ class AnnDataModule:
     ):
         """Initialize the DataModule with the provided dataset and options."""
         self.adata = adata
-        self.genome_file = genome_file
-        self.chromsizes_file = chromsizes_file
+        self.genome = _resolve_genome(genome, chromsizes_file)  # backward compatibility
         self.always_reverse_complement = always_reverse_complement
         self.in_memory = in_memory
         self.random_reverse_complement = random_reverse_complement
@@ -84,8 +84,6 @@ class AnnDataModule:
         self.batch_size = batch_size
 
         self._validate_init_args(random_reverse_complement, always_reverse_complement)
-        if (chromsizes_file is None) and (max_stochastic_shift > 0):
-            self._warn_no_chromsizes_file()
 
         self.train_dataset = None
         self.val_dataset = None
@@ -100,12 +98,6 @@ class AnnDataModule:
             raise ValueError(
                 "Only one of `random_reverse_complement` and `always_reverse_complement` can be True."
             )
-
-    @staticmethod
-    def _warn_no_chromsizes_file():
-        logger.warning(
-            "Chromsizes file not provided when shifting. Will not check if shifted regions are within chromosomes",
-        )
 
     def setup(self, stage: str) -> None:
         """
@@ -123,9 +115,8 @@ class AnnDataModule:
         if stage == "fit":
             self.train_dataset = AnnDataset(
                 self.adata,
-                self.genome_file,
+                self.genome,
                 split="train",
-                chromsizes_file=self.chromsizes_file,
                 in_memory=self.in_memory,
                 always_reverse_complement=self.always_reverse_complement,
                 random_reverse_complement=self.random_reverse_complement,
@@ -134,7 +125,7 @@ class AnnDataModule:
             )
             self.val_dataset = AnnDataset(
                 self.adata,
-                self.genome_file,
+                self.genome,
                 split="val",
                 in_memory=self.in_memory,
                 always_reverse_complement=False,
@@ -144,7 +135,7 @@ class AnnDataModule:
         elif stage == "test":
             self.test_dataset = AnnDataset(
                 self.adata,
-                self.genome_file,
+                self.genome,
                 split="test",
                 in_memory=False,
                 always_reverse_complement=False,
@@ -154,7 +145,7 @@ class AnnDataModule:
         elif stage == "predict":
             self.predict_dataset = AnnDataset(
                 self.adata,
-                self.genome_file,
+                self.genome,
                 split=None,
                 in_memory=False,
                 always_reverse_complement=False,
@@ -215,8 +206,8 @@ class AnnDataModule:
     def __repr__(self):
         """Return a string representation of the AnndataModule."""
         return (
-            f"AnndataModule(adata={self.adata}, genome_file={self.genome_file}, "
-            f"chromsizes_file={self.chromsizes_file}, in_memory={self.in_memory}, "
+            f"AnndataModule(adata={self.adata}, genome={self.genome}, "
+            f"in_memory={self.in_memory}, "
             f"always_reverse_complement={self.always_reverse_complement}, "
             f"random_reverse_complement={self.random_reverse_complement}, "
             f"max_stochastic_shift={self.max_stochastic_shift}, shuffle={self.shuffle}, "
