@@ -185,8 +185,6 @@ def contribution_scores(
         if sequence_labels:
             axs[plot_idx - total_classes].set_title(sequence_labels[seq], fontsize=14)
 
-    plt.tight_layout()
-
     if "width" not in kwargs:
         kwargs["width"] = plot_width
     if "height" not in kwargs:
