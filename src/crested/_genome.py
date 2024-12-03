@@ -10,7 +10,7 @@ from loguru import logger
 from pysam import FastaFile
 
 import crested._conf as conf
-from crested.utils import reverse_complement
+from crested.utils._seq_utils import reverse_complement
 
 
 class Genome:
@@ -170,7 +170,7 @@ class Genome:
         -------
         The requested sequence, as a string.
         """
-        if region and any(chrom, start, end):
+        if region and (chrom or start or end):
             logger.warning("Both region and chrom/start/end supplied. Using chrom/start/end...")
         elif region:
             if region[-2] == ":":
@@ -178,6 +178,10 @@ class Genome:
             else:
                 chrom, start_end = region.split(":")
             start, end = map(int, start_end.split("-"))
+        
+        if not (chrom and start and end):
+            raise ValueError("chrom/start/end must all be supplied to extract a sequence.")
+        
         seq = self.fasta.fetch(reference=chrom, start=start, end=end)
         if strand == "-":
             return reverse_complement(seq)

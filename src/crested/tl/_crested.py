@@ -24,11 +24,11 @@ from crested.utils import (
     one_hot_encode_sequence,
 )
 from crested.utils._logging import log_and_raise
-from crested.utils._utils import (
-    _weighted_difference,
+from crested.utils._seq_utils import (
     generate_motif_insertions,
     generate_mutagenesis,
 )
+from crested.utils._utils import _weighted_difference
 
 if os.environ["KERAS_BACKEND"] == "tensorflow":
     from crested.tl._explainer_tf import Explainer
