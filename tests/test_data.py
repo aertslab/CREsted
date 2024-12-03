@@ -144,6 +144,34 @@ def test_genome_fetch_reverse(genome):
     seq_forward = genome.fetch('chr1', 10000, 10100)
     seq_rev = genome.fetch('chr1', 10000, 10100, "-")
     seq_rev_region = genome.fetch(region = 'chr1:10000-10100:-')
-    assert seq_rev == crested.utils.reverse_complement(seq_forward)
+    assert seq_rev == crested._utils.reverse_complement(seq_forward)
     assert seq_rev_region == seq_rev
+
+def test_genome_fetch_mismatch(genome):
+    """Test reading the genome when supplying both coordinates and a region."""
+    import crested
+
+    fasta_file = genome
+    genome = crested.Genome(
+        fasta=fasta_file,
+        chrom_sizes="tests/data/test.chrom.sizes",
+    )
+    seq = genome.fetch('chr1', 10000, 10100, region = 'chr1:10000-10200')
+    assert len(seq_rev) == 100
+
+def test_genome_fetch_missing(genome):
+    """Test reading the genome when not supplying all information"""
+    import crested
+
+    fasta_file = genome
+    genome = crested.Genome(
+        fasta=fasta_file,
+        chrom_sizes="tests/data/test.chrom.sizes",
+    )
+    with pytest.raises(ValueError):
+        seq = genome.fetch('chr1', 10000)
+    with pytest.raises(ValueError):
+        seq = genome.fetch('chr1', end = 10100)
+    with pytest.raises(ValueError):
+        seq = genome.fetch('chr1', 10000, region = 'chr1:10000-10200')
 
