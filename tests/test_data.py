@@ -105,3 +105,45 @@ def test_import_beds_with_genome(genome):
     assert all(
         warning_text_filtered not in msg for msg in warning_messages
     ), "Warning about filtered regions was unexpectedly raised."
+
+def test_genome_fetch(genome):
+    """Test reading the genome."""
+    import crested
+
+    fasta_file = genome
+    genome = crested.Genome(
+        fasta=fasta_file,
+        chrom_sizes="tests/data/test.chrom.sizes",
+    )
+    seq = genome.fetch('chr1', 10000, 10100)
+    assert len(seq) == 100
+
+
+def test_genome_fetch_region(genome):
+    """Test reading the genome with a region string."""
+    import crested
+
+    fasta_file = genome
+    genome = crested.Genome(
+        fasta=fasta_file,
+        chrom_sizes="tests/data/test.chrom.sizes",
+    )
+    seq1 = genome.fetch('chr1', 10000, 10100)
+    seq2 = genome.fetch(region = 'chr1:10000-10100')
+    assert seq1 == seq2
+
+def test_genome_fetch_reverse(genome):
+    """Test reading the genome on the negative strand."""
+    import crested
+
+    fasta_file = genome
+    genome = crested.Genome(
+        fasta=fasta_file,
+        chrom_sizes="tests/data/test.chrom.sizes",
+    )
+    seq_forward = genome.fetch('chr1', 10000, 10100)
+    seq_rev = genome.fetch('chr1', 10000, 10100, "-")
+    seq_rev_region = genome.fetch(region = 'chr1:10000-10100:-')
+    assert seq_rev == crested.utils.reverse_complement(seq_forward)
+    assert seq_rev_region == seq_rev
+

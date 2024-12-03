@@ -350,9 +350,7 @@ def fetch_sequences(
     genome = _resolve_genome(genome)
     seqs = []
     for region in regions:
-        chrom, start_end = region.split(":")
-        start, end = start_end.split("-")
-        seq = genome.fasta.fetch(chrom, int(start), int(end))
+        seq = genome.fetch(region = region)
         if uppercase:
             seq = seq.upper()
         seqs.append(seq)

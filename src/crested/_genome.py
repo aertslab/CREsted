@@ -10,6 +10,7 @@ from loguru import logger
 from pysam import FastaFile
 
 import crested._conf as conf
+from crested.utils import reverse_complement
 
 
 class Genome:
@@ -146,6 +147,42 @@ class Genome:
                 return basename
         return self._name
 
+    def fetch(self, chrom=None, start=None, end=None, strand = "+", region = None) -> str:
+        """
+        Fetch a sequence from a genomic region.
+
+        Start and end denote 0-based, half-open intervals, following the bed convention.
+
+        Parameters
+        ----------
+        chrom
+            The chromosome of the region to extract.
+        start
+            The start of the region to extract. Assumes 0-indexed positions.
+        end
+            The end of the region to extract, exclusive.
+        strand
+            The strand of the region. If '-', the sequence is reverse-complemented. Default is "+".
+        region
+            Alternatively, a region string to parse. If supplied together with chrom/start/end, explicit coordinates take priority.
+
+        Returns
+        -------
+        The requested sequence, as a string.
+        """
+        if region and any(chrom, start, end):
+            logger.warning("Both region and chrom/start/end supplied. Using chrom/start/end...")
+        elif region:
+            if region[-2] == ":":
+                chrom, start_end, strand = region.split(":")
+            else:
+                chrom, start_end = region.split(":")
+            start, end = map(int, start_end.split("-"))
+        seq = self.fasta.fetch(reference=chrom, start=start, end=end)
+        if strand == "-":
+            return reverse_complement(seq)
+        else:
+            return seq
 
 def register_genome(genome: Genome):
     """
