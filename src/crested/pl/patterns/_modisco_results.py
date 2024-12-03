@@ -63,7 +63,9 @@ def modisco_results(
     background
         Background probabilities for each nucleotide. Default is [0.27, 0.23, 0.23, 0.27].
     kwargs
-        Additional keyword arguments for the plot.
+        Additional arguments passed to :func:`~crested.pl.render_plot` to
+        control the final plot output. Please see :func:`~crested.pl.render_plot`
+        for details.
 
     See Also
     --------
@@ -196,17 +198,16 @@ def clustermap(
     pattern_matrix: np.ndarray,
     classes: list[str],
     subset: list[str] | None = None,  # Subset option
-    figsize: tuple[int, int] = (25, 8),
     grid: bool = False,
     cmap: str = "coolwarm",
     center: float = 0,
     method: str = "average",
     dy: float = 0.002,
-    fig_path: str | None = None,
-    pat_seqs: list[tuple[str, np.ndarray]] | None = None,
     dendrogram_ratio: tuple[float, float] = (0.05, 0.2),
-    importance_threshold : float = 0,
-) -> sns.matrix.ClusterGrid:
+    importance_threshold: float = 0,
+    pat_seqs: list[tuple[str, np.ndarray]] | None = None,
+    **kwargs,
+) -> plt.Figure:
     """
     Create a clustermap from the given pattern matrix and class labels with customizable options.
 
@@ -215,7 +216,7 @@ def clustermap(
     pattern_matrix
         2D NumPy array containing pattern data.
     classes
-        List of class labels, matching the rows of the pattern matrix.
+        List of all class labels, matching the rows of the pattern matrix.
     subset
         List of class labels to subset the matrix.
     figsize
@@ -238,11 +239,16 @@ def clustermap(
         Ratio of dendograms in x and y directions.
     importance_threshold
         Minimal pattern importance threshold over all classes to retain the pattern before clustering and plotting.
+    kwargs
+        Additional arguments passed to :func:`~crested.pl.render_plot` to
+        control the final plot output. Please see :func:`~crested.pl.render_plot`
+        for details.
 
     See Also
     --------
     crested.tl.modisco.create_pattern_matrix
     crested.tl.modisco.generate_nucleotide_sequences
+    crested.pl.render_plot
 
     Examples
     --------
@@ -251,12 +257,18 @@ def clustermap(
     ...     pattern_matrix,
     ...     classes=list(adata.obs_names)
     ...     subset=["Lamp5", "Pvalb", "Sst", "Sst-Chodl", "Vip"],
-    ...     figsize=(25, 8),
     ...     grid=True,
     ... )
 
     .. image:: ../../../../docs/_static/img/examples/pattern_clustermap.png
     """
+    default_width = 20
+    default_height = 4.2
+    if "width" not in kwargs:
+        kwargs["width"] = default_width
+    if "height" not in kwargs:
+        kwargs["height"] = default_height
+
     # Subset the pattern_matrix and classes if subset is provided
     if subset is not None:
         subset_indices = [
@@ -273,21 +285,21 @@ def clustermap(
     if pat_seqs is not None:
         pat_seqs = [pat_seqs[i] for i in np.where(above_threshold)[0]]
 
-    data = pd.DataFrame(pattern_matrix)
-
     if pat_seqs is not None:
         plt.rc("text", usetex=False)  # Turn off LaTeX to speed up rendering
 
+    width = kwargs.get("width")
+    height = kwargs.get("height")
+    figsize = (width, height)
+
     g = sns.clustermap(
-        data,
-        cmap=cmap,
+        pattern_matrix,
         figsize=figsize,
+        cmap=cmap,
         row_colors=None,
         yticklabels=classes,
         center=center,
-        xticklabels=True
-        if pat_seqs is None
-        else False,  # Disable default xticklabels if pat_seqs provided.  #xticklabels=xtick_labels,
+        xticklabels=not pat_seqs,
         method=method,
         dendrogram_ratio=dendrogram_ratio,
         cbar_pos=(1.05, 0.4, 0.01, 0.3),
@@ -353,13 +365,10 @@ def clustermap(
 
         g.fig.canvas.draw()
 
-    if fig_path is not None:
-        plt.savefig(fig_path, bbox_inches='tight')
-
-    plt.show()
+    return render_plot(g.fig, **kwargs)
 
 
-def selected_instances(pattern_dict: dict, idcs: list[int]) -> None:
+def selected_instances(pattern_dict: dict, idcs: list[int], **kwargs) -> None:
     """
     Plot the patterns specified by the indices in `idcs` from the `pattern_dict`.
 
@@ -370,10 +379,15 @@ def selected_instances(pattern_dict: dict, idcs: list[int]) -> None:
         contribution scores and metadata for the pattern. Refer to the output of `crested.tl.modisco.process_patterns`.
     idcs
         A list of indices specifying which patterns to plot. The indices correspond to keys in the `pattern_dict`.
+    kwargs
+        Additional arguments passed to :func:`~crested.pl.render_plot` to
+        control the final plot output. Please see :func:`~crested.pl.render_plot`
+        for details.
 
     See Also
     --------
     crested.tl.modisco.process_patterns
+    crested.pl.render_plot
 
     Examples
     --------
@@ -382,7 +396,7 @@ def selected_instances(pattern_dict: dict, idcs: list[int]) -> None:
 
     .. image:: ../../../../docs/_static/img/examples/pattern_selected_instances.png
     """
-    figure, axes = plt.subplots(nrows=len(idcs), ncols=1, figsize=(8, 2 * len(idcs)))
+    fig, axes = plt.subplots(nrows=len(idcs), ncols=1)
     if len(idcs) == 1:
         axes = [axes]
 
@@ -395,12 +409,19 @@ def selected_instances(pattern_dict: dict, idcs: list[int]) -> None:
         )
         ax.set_title(pattern_dict[str(idx)]["pattern"]["id"])
 
-    plt.tight_layout()
-    plt.show()
+    default_height = 2 * len(idcs)
+    default_width = 18
+
+    if "width" not in kwargs:
+        kwargs["width"] = default_width
+    if "height" not in kwargs:
+        kwargs["height"] = default_height
+
+    return render_plot(fig, **kwargs)
 
 
 def class_instances(
-    pattern_dict: dict, idx: int, class_representative: bool = False
+    pattern_dict: dict, idx: int, class_representative: bool = False, **kwargs
 ) -> None:
     """
     Plot instances of a specific pattern, either the representative pattern per class or all instances for a given pattern index.
@@ -415,10 +436,15 @@ def class_instances(
     class_representative
         If True, only the best representative instance of each class is plotted. If False (default), all instances of the pattern
         within each class are plotted.
+    kwargs
+        Additional arguments passed to :func:`~crested.pl.render_plot` to
+        control the final plot output. Please see :func:`~crested.pl.render_plot`
+        for details.
 
     See Also
     --------
     crested.tl.modisco.process_patterns
+    crested.pl.render_plot
 
     Examples
     --------
@@ -431,8 +457,9 @@ def class_instances(
     else:
         key = "instances"
     n_instances = len(pattern_dict[str(idx)][key])
-    figure, axes = plt.subplots(
-        nrows=n_instances, ncols=1, figsize=(8, 2 * n_instances)
+    fig, axes = plt.subplots(
+        nrows=n_instances,
+        ncols=1,
     )
     if n_instances == 1:
         axes = [axes]
@@ -448,15 +475,20 @@ def class_instances(
         )
         ax.set_title(pattern_dict[str(idx)][key][cl]["id"])
 
-    plt.tight_layout()
-    plt.show()
+    default_width = 8
+    default_height = 2 * n_instances
+    if "width" not in kwargs:
+        kwargs["width"] = default_width
+    if "height" not in kwargs:
+        kwargs["height"] = default_height
+
+    return render_plot(fig, **kwargs)
 
 
 def similarity_heatmap(
     similarity_matrix: np.ndarray,
     indices: list,
-    fig_size: tuple[int, int] = (30, 15),
-    fig_path: str | None = None,
+    **kwargs,
 ) -> None:
     """
     Plot a similarity heatmap of all pattern indices.
@@ -467,25 +499,26 @@ def similarity_heatmap(
         A 2D numpy array containing the similarity values.
     indices
         List of pattern indices.
-    fig_size
-        Size of the figure for the heatmap.
-    fig_path
-        Path to save the figure. If None, the figure will be shown but not saved.
+    kwargs
+        Additional arguments passed to :func:`~crested.pl.render_plot` to
+        control the final plot output. Please see :func:`~crested.pl.render_plot`
+        for details.
 
     See Also
     --------
     crested.tl.modisco.calculate_similarity_matrix
+    crested.pl.render_plot
 
     Examples
     --------
     >>> sim_matrix, indices = crested.tl.modisco.calculate_similarity_matrix(
     ...     all_patterns
     ... )
-    >>> crested.pl.patterns.similarity_heatmap(sim_matrix, indices, fig_size=(42, 17))
+    >>> crested.pl.patterns.similarity_heatmap(sim_matrix, indices, width=42, height=17))
 
     .. image:: ../../../../docs/_static/img/examples/pattern_similarity_heatmap.png
     """
-    fig, ax = plt.subplots(figsize=fig_size)
+    fig, ax = plt.subplots()
     heatmap = sns.heatmap(
         similarity_matrix,
         ax=ax,
@@ -502,13 +535,27 @@ def similarity_heatmap(
         spine.set_color("grey")
         spine.set_linewidth(0.5)
 
-    plt.title("Pattern Similarity Heatmap", fontsize=20)
-    plt.xlabel("Pattern Index", fontsize=15)
-    plt.ylabel("Pattern Index", fontsize=15)
+    default_width = 30
+    default_height = 15
 
-    if fig_path is not None:
-        plt.savefig(fig_path)
-    plt.show()
+    if "width" not in kwargs:
+        kwargs["width"] = default_width
+    if "height" not in kwargs:
+        kwargs["height"] = default_height
+    if "title" not in kwargs:
+        kwargs["title"] = "Pattern Similarity Heatmap"
+    if "xlabel" not in kwargs:
+        kwargs["xlabel"] = "Pattern Index"
+    if "ylabel" not in kwargs:
+        kwargs["ylabel"] = "Pattern Index"
+    if "title_fontsize" not in kwargs:
+        kwargs["title_fontsize"] = 20
+    if "x_label_fontsize" not in kwargs:
+        kwargs["x_label_fontsize"] = 15
+    if "y_label_fontsize" not in kwargs:
+        kwargs["y_label_fontsize"] = 15
+
+    return render_plot(fig, ax=ax, **kwargs)
 
 
 def tf_expression_per_cell_type(
@@ -616,7 +663,9 @@ def clustermap_tf_motif(
 
     # Subset classes if specified
     if subset_classes is not None:
-        subset_indices = [i for i, label in enumerate(class_labels) if label in subset_classes]
+        subset_indices = [
+            i for i, label in enumerate(class_labels) if label in subset_classes
+        ]
         if not subset_indices:
             raise ValueError("No matching classes found in class_labels.")
         data = data[subset_indices, :, :]
@@ -631,7 +680,9 @@ def clustermap_tf_motif(
 
     # Apply filtering to data and pattern labels
     data = data[:, valid_columns, :]
-    pattern_labels = [label for i, label in enumerate(pattern_labels) if valid_columns[i]]
+    pattern_labels = [
+        label for i, label in enumerate(pattern_labels) if valid_columns[i]
+    ]
 
     # Mapping for dimensions
     dim_mapping = {"gex": 0, "contrib": 1}
@@ -683,7 +734,7 @@ def clustermap_tf_motif(
     norm = mcolors.TwoSlopeNorm(
         vmin=-max(np.abs(heatmap_data.min()), np.abs(heatmap_data.max())),
         vcenter=0,
-        vmax=max(np.abs(heatmap_data.min()), np.abs(heatmap_data.max()))
+        vmax=max(np.abs(heatmap_data.min()), np.abs(heatmap_data.max())),
     )
 
     # Plot heatmap
@@ -697,9 +748,7 @@ def clustermap_tf_motif(
     # Overlay dots
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
-            ax_heatmap.scatter(
-                j, i, s=dot_size_data[i, j] * 100, c="black", alpha=0.6
-            )
+            ax_heatmap.scatter(j, i, s=dot_size_data[i, j] * 100, c="black", alpha=0.6)
 
     # Add colorbar
     cbar = plt.colorbar(heatmap, ax=ax_heatmap)

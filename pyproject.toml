@@ -65,6 +65,7 @@ test = [
     "coverage",
     "anndata",
     "genomepy",
+    "modisco-lite",
 ]
 
 [tool.coverage.run]
