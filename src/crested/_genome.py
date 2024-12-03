@@ -178,10 +178,10 @@ class Genome:
             else:
                 chrom, start_end = region.split(":")
             start, end = map(int, start_end.split("-"))
-        
+
         if not (chrom and start and end):
             raise ValueError("chrom/start/end must all be supplied to extract a sequence.")
-        
+
         seq = self.fasta.fetch(reference=chrom, start=start, end=end)
         if strand == "-":
             return reverse_complement(seq)

@@ -157,7 +157,7 @@ def test_genome_fetch_mismatch(genome):
         chrom_sizes="tests/data/test.chrom.sizes",
     )
     seq = genome.fetch('chr1', 10000, 10100, region = 'chr1:10000-10200')
-    assert len(seq_rev) == 100
+    assert len(seq) == 100
 
 def test_genome_fetch_missing(genome):
     """Test reading the genome when not supplying all information"""
@@ -169,9 +169,9 @@ def test_genome_fetch_missing(genome):
         chrom_sizes="tests/data/test.chrom.sizes",
     )
     with pytest.raises(ValueError):
-        seq = genome.fetch('chr1', 10000)
+        genome.fetch('chr1', 10000)
     with pytest.raises(ValueError):
-        seq = genome.fetch('chr1', end = 10100)
+        genome.fetch('chr1', end = 10100)
     with pytest.raises(ValueError):
-        seq = genome.fetch('chr1', 10000, region = 'chr1:10000-10200')
+        genome.fetch('chr1', 10000, region = 'chr1:10000-10200')
 
