@@ -144,7 +144,7 @@ def test_genome_fetch_reverse(genome):
     seq_forward = genome.fetch('chr1', 10000, 10100)
     seq_rev = genome.fetch('chr1', 10000, 10100, "-")
     seq_rev_region = genome.fetch(region = 'chr1:10000-10100:-')
-    assert seq_rev == crested._utils.reverse_complement(seq_forward)
+    assert seq_rev == crested.utils.reverse_complement(seq_forward)
     assert seq_rev_region == seq_rev
 
 def test_genome_fetch_mismatch(genome):
