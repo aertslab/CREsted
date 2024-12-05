@@ -598,8 +598,10 @@ def filter_patterns(
         av_ic = np.mean(get_ic_modisco(patterns[pattern]))
 
         if av_ic < thr_avg_ic:
+            print(pattern + ' is discarded due to IC threshold.')
             continue
         if patterns[pattern].sequence.shape[0] < min_size:
+            print(pattern + ' is discarded due to length threshold.')
             continue
 
         filtered_patterns[pattern] = patterns[pattern].copy()

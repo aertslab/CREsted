@@ -287,6 +287,11 @@ def create_pattern_cluster_dict(
                     pattern_clusters[name]["classes"][cl][key] = pattern_clusters[name][
                         "instances"
                     ][selected_pat][key]
+    total_clusters = len(pattern_clusters.keys())
+    pattern_clusters_reindexed = {}
+    for i in range(total_clusters):
+        pattern_clusters_reindexed[str(i)] = pattern_clusters[list(pattern_clusters.keys())[i]]
+    pattern_clusters=pattern_clusters_reindexed
 
     return pattern_clusters
 
