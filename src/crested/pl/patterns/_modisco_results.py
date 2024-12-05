@@ -558,144 +558,163 @@ def tf_expression_per_cell_type(
 
 def clustermap_tf_motif(
     data: np.ndarray,
-    cluster_on_dim: str = "gex",
-    class_labels: None | list[str] = None,
-    pattern_labels: None | list[str] = None,
-    color_idx: str = "gex",
-    size_idx: str = "contrib",
-    grid: bool = True,
+    heatmap_dim: str = "gex",
+    dot_dim: str = "contrib",
+    class_labels: list[str] | None = None,
+    subset_classes: list[str] | None = None,
+    pattern_labels: list[str] | None = None,
     fig_size: tuple[int, int] | None = None,
     save_path: str | None = None,
-    cluster: bool = True
+    cluster_rows: bool = True,
+    cluster_columns: bool = True,
 ) -> None:
     """
-    Plot a clustermap from a 3D matrix where one third dimension is indicated by dot sizen and the other by color.
+    Generate a heatmap where one modality is represented as color, and the other as dot size.
 
     Parameters
     ----------
-    data
-        3D numpy array with shape (len(classes), #patterns, 2)
-    cluster_on_dim
-        either 'gex' or 'contrib', indicating which third dimension to cluster on
-    class_labels
-        labels for the classes
-    pattern_labels
-        labels for the patterns
-    color_idx
-        either 'gex' or 'contrib', indicating the dimension to use for color
-    size_idx
-        either 'gex' or 'contrib', indicating the dimension to use for size
-    grid
-        whether to add a grid to the figure
-    fig_size
-        Size of figure. If set to None, will be auto configured.
-    save_path
+    data : numpy.ndarray
+        3D numpy array with shape (len(classes), #patterns, 2).
+    heatmap_dim : str
+        Either 'gex' or 'contrib', indicating which third dimension to use for heatmap colors.
+    dot_dim : str
+        Either 'gex' or 'contrib', indicating which third dimension to use for dot sizes.
+    class_labels : list[str] | None
+        Labels for the classes.
+    subset_classes : list[str] | None
+        Subset of classes to include in the heatmap. Rows in `data` are filtered accordingly.
+    pattern_labels : list[str] | None
+        Labels for the patterns.
+    fig_size : tuple[int, int] | None
+        Size of figure. If None, it will be auto-configured.
+    save_path : str | None
         File path to save figure to.
-    cluster
-        Boolean to cluster the cell types on the y axis. Default True.
-
-    See Also
-    --------
-    crested.tl.modisco.create_tf_ct_matrix
+    cluster_rows : bool
+        Whether to cluster the rows (classes). Default is True.
+    cluster_columns : bool
+        Whether to cluster the columns (patterns). Default is True.
 
     Examples
     --------
-    >>> crested.pl.patterns.clustermap_tf_motif(
-    ...     tf_ct_matrix,
-    ...     cluster_on_dim="gex",
+    >>> clustermap_tf_motif_v2(
+    ...     data,
+    ...     heatmap_dim="gex",
+    ...     dot_dim="contrib",
     ...     class_labels=classes,
-    ...     pattern_labels=tf_pattern_annots,
-    ...     color_idx="gex",
-    ...     size_idx="contrib",
+    ...     pattern_labels=patterns,
+    ...     cluster_rows=True,
+    ...     cluster_columns=True,
     ... )
-
-    .. image:: ../../../../docs/_static/img/examples/pattern_tf_motif_clustermap.png
     """
-    # Ensure data is a numpy array
-    data = np.array(data)
-    assert data.shape[2] == 2, "The third dimension of the data should be 2."
+    assert data.shape[2] == 2, "The third dimension of the data must be 2."
 
-    # Some additional data prep for more logical plotting
-    if color_idx == "gex":
-        for col_idx in range(data.shape[1]):
-            for ct_idx in range(data.shape[0]):
-                if data[ct_idx, col_idx, 1] < 0:
-                    data[ct_idx, col_idx, 0] = -data[ct_idx, col_idx, 0]
-                    data[ct_idx, col_idx, 1] = np.abs(data[ct_idx, col_idx, 1])
-
-    # Default labels if none provided
+    # Set default labels if not provided
     if class_labels is None:
         class_labels = [f"Class {i}" for i in range(data.shape[0])]
     if pattern_labels is None:
         pattern_labels = [f"Pattern {i}" for i in range(data.shape[1])]
 
-    # Mapping from string to index
+    # Subset classes if specified
+    if subset_classes is not None:
+        subset_indices = [i for i, label in enumerate(class_labels) if label in subset_classes]
+        if not subset_indices:
+            raise ValueError("No matching classes found in class_labels.")
+        data = data[subset_indices, :, :]
+        class_labels = [class_labels[i] for i in subset_indices]
+
+    # Remove empty columns (columns with all zeros in dot_dim)
+    non_empty_columns = np.any(data[:, :, 1] != 0, axis=0)
+
+    # Further filter: keep columns where max value of the 0th dimension exceeds 0.5
+    valid_columns = np.max(data[:, :, 0], axis=0) > 0.5
+    valid_columns = np.logical_and(non_empty_columns, valid_columns)
+
+    # Apply filtering to data and pattern labels
+    data = data[:, valid_columns, :]
+    pattern_labels = [label for i, label in enumerate(pattern_labels) if valid_columns[i]]
+
+    # Mapping for dimensions
     dim_mapping = {"gex": 0, "contrib": 1}
+    heatmap_idx = dim_mapping[heatmap_dim]
+    dot_idx = dim_mapping[dot_dim]
 
-   # Optional clustering
-    if cluster:
-        clustering_data = data[:, :, dim_mapping[cluster_on_dim]]
-        linkage_matrix = linkage(clustering_data, method="ward")
-        cluster_order = leaves_list(linkage_matrix)
-        data = data[cluster_order, :, :]
-        class_labels = [class_labels[i] for i in cluster_order]
+    # Optional clustering for rows
+    if cluster_rows:
+        row_clustering_data = data[:, :, dot_idx]
+        row_linkage = linkage(row_clustering_data, method="ward")
+        row_order = leaves_list(row_linkage)
+        data = data[row_order, :, :]
+        class_labels = [class_labels[i] for i in row_order]
     else:
-        linkage_matrix = None
+        row_order = None
 
-    # Extract the two dimensions
-    size_data = data[:, :, dim_mapping[size_idx]]
-    max_size = np.max(size_data)
-    size_data = size_data / max_size
-    color_data = data[:, :, dim_mapping[color_idx]]
+    # Optional clustering for columns
+    if cluster_columns:
+        col_clustering_data = data[:, :, dot_idx].T
+        col_linkage = linkage(col_clustering_data, method="ward")
+        col_order = leaves_list(col_linkage)
+        data = data[:, col_order, :]
+        pattern_labels = [pattern_labels[i] for i in col_order]
+    else:
+        col_order = None
 
-    # Figure layout
+    # Extract heatmap and dot size data
+    heatmap_data = data[:, :, heatmap_idx]
+    dot_size_data = data[:, :, dot_idx]
+    max_dot_size = np.max(dot_size_data)
+    dot_size_data = dot_size_data / max_dot_size  # Normalize dot size
+
+    # Define figure layout
     if fig_size is None:
-        # Adjust figure size dynamically
-        fig = plt.figure(figsize=(max(20, data.shape[1] // 4), data.shape[0]/2))
-    else:
-        fig = plt.figure(figsize=fig_size)
+        fig_size = (max(20, data.shape[1] // 4), data.shape[0] // 2)
+    fig = plt.figure(figsize=fig_size)
 
-    if cluster:
+    if cluster_rows:
         gs = fig.add_gridspec(1, 2, width_ratios=[0.2, 4], wspace=0.075)
         ax_dendro = fig.add_subplot(gs[0, 0])
-        dendrogram(linkage_matrix, orientation="left", no_labels=True, ax=ax_dendro)
+        dendrogram(row_linkage, orientation="left", no_labels=True, ax=ax_dendro)
         ax_dendro.invert_yaxis()
         ax_dendro.axis("off")
-        ax_scatter = fig.add_subplot(gs[0, 1])
+        ax_heatmap = fig.add_subplot(gs[0, 1])
     else:
-        ax_scatter = fig.add_subplot(111)
+        ax_heatmap = fig.add_subplot(111)
 
-    # Define color normalization
-    norm = mcolors.TwoSlopeNorm(vmin=-max(np.abs(color_data.min()), np.abs(color_data.max())), vcenter=0, vmax=max(np.abs(color_data.min()), np.abs(color_data.max())))
+    # Normalize colors for heatmap
+    norm = mcolors.TwoSlopeNorm(
+        vmin=-max(np.abs(heatmap_data.min()), np.abs(heatmap_data.max())),
+        vcenter=0,
+        vmax=max(np.abs(heatmap_data.min()), np.abs(heatmap_data.max()))
+    )
 
-    # Plot scatter matrix
-    sc = ax_scatter.scatter(
-        np.tile(np.arange(data.shape[1]), data.shape[0]),
-        np.repeat(np.arange(data.shape[0]), data.shape[1]),
-        s=size_data.flatten() * 500,
-        c=color_data.flatten(),
+    # Plot heatmap
+    heatmap = ax_heatmap.imshow(
+        heatmap_data,
+        aspect="auto",
         cmap="coolwarm",
-        alpha=0.6,
         norm=norm,
     )
 
-    # Add color bar
-    cbar = plt.colorbar(sc, ax=ax_scatter)
+    # Overlay dots
+    for i in range(data.shape[0]):
+        for j in range(data.shape[1]):
+            ax_heatmap.scatter(
+                j, i, s=dot_size_data[i, j] * 100, c="black", alpha=0.6
+            )
+
+    # Add colorbar
+    cbar = plt.colorbar(heatmap, ax=ax_heatmap)
     label = (
         "Average pattern contribution score"
-        if dim_mapping[color_idx] == 1
+        if heatmap_dim == "contrib"
         else "Average TF expression, signed by activation/repression"
     )
     cbar.set_label(label)
 
     # Set axis labels and ticks
-    ax_scatter.set_xticks(np.arange(data.shape[1]))
-    ax_scatter.set_xticklabels(pattern_labels, rotation=90)
-    ax_scatter.set_yticks(np.arange(data.shape[0]))
-    ax_scatter.set_yticklabels(class_labels)
-
-    # Add grid
-    ax_scatter.grid(grid)
+    ax_heatmap.set_xticks(np.arange(data.shape[1]))
+    ax_heatmap.set_xticklabels(pattern_labels, rotation=90)
+    ax_heatmap.set_yticks(np.arange(data.shape[0]))
+    ax_heatmap.set_yticklabels(class_labels)
 
     # Final layout adjustments
     plt.tight_layout()

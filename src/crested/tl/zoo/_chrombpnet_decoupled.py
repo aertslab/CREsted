@@ -134,13 +134,16 @@ def chrombpnet_decoupled(
         outputs.append(
             keras.layers.Dense(
                 units=1,
-                activation="softplus",  # Or your choice of activation
-                name=f"dense_out_class_{i}"
+                activation=output_activation,  # Or your choice of activation
+                name=f"dense_out_class_{i}",
+                use_bias=dense_bias,
             )(x)  # `x` is the shared feature vector from previous layers
         )
 
     # Concatenate to restore original output shape
-    final_output = keras.layers.Concatenate(axis=-1)(outputs)  # Shape: (batch_size, num_classes)
+    final_output = keras.layers.Concatenate(axis=-1)(
+        outputs
+    )  # Shape: (batch_size, num_classes)
 
     # Define the model
     model = keras.Model(inputs=inputs, outputs=final_output)

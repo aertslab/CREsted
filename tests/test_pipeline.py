@@ -38,9 +38,14 @@ def test_peak_regression():
     print(adata.var)
     print(adata.var_names)
 
+    if os.path.exists("tests/data/test_pipeline"):
+        import shutil
+
+        shutil.rmtree("tests/data/test_pipeline")
+
     datamodule = crested.tl.data.AnnDataModule(
         adata,
-        genome_file="tests/data/genomes/hg38/hg38.fa",
+        genome="tests/data/genomes/hg38/hg38.fa",
         batch_size=2,
         always_reverse_complement=True,
         deterministic_shift=True,
@@ -74,7 +79,9 @@ def test_peak_regression():
         "tests/data/test_pipeline/test_peak_regression/checkpoints/01.keras",
         compile=True,
     )
-    trainer.test()
+
+    test_metrics = trainer.test(return_metrics=True)
+    assert isinstance(test_metrics, dict)
     trainer.predict(adata, model_name="01")
 
     trainer.predict_regions(region_idx=["chr1:1000-1600", "chr2:2000-2600"])
@@ -98,8 +105,21 @@ def test_peak_regression():
     )
 
     scores, seqs = trainer.calculate_contribution_scores_enhancer_design(
-        intermediate, class_names=["cell_1"], method="integrated_grad"
+        intermediate, class_names=["cell_1"], method="expected_integrated_grad"
     )
     crested.pl.patterns.enhancer_design_steps_contribution_scores(
-        intermediate, scores, seqs
+        intermediate, scores, seqs, show=False
+    )
+    # test continue training
+    trainer_2 = crested.tl.Crested(
+        data=datamodule,
+        model=model_architecture,
+        config=config,
+        project_name="tests/data/test_pipeline",
+        run_name="test_peak_regression",
+        logger=None,
+    )
+    trainer_2.fit(epochs=2)
+    assert os.path.exists(
+        "tests/data/test_pipeline/test_peak_regression/checkpoints/02.keras"
     )
