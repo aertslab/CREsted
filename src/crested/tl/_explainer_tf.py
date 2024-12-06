@@ -7,7 +7,7 @@ Adapted from: https://github.com/p-koo/tfomics/blob/master/tfomics/
 import numpy as np
 import tensorflow as tf
 
-from crested.utils._utils import generate_mutagenesis
+from crested.utils._seq_utils import generate_mutagenesis
 
 
 class Explainer:

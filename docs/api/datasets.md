@@ -12,4 +12,6 @@ Downloading of use case datasets which ar explored in the example analyses.
 
     get_dataset
     get_motif_db
+    Genome
+    register_genome
 ```

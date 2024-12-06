@@ -45,7 +45,7 @@ def test_peak_regression():
 
     datamodule = crested.tl.data.AnnDataModule(
         adata,
-        genome_file="tests/data/genomes/hg38/hg38.fa",
+        genome="tests/data/genomes/hg38/hg38.fa",
         batch_size=2,
         always_reverse_complement=True,
         deterministic_shift=True,
