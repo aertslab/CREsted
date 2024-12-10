@@ -43,6 +43,10 @@ class Genome:
     {'chr1': 1000, 'chr2': 2000}
     >>> print(genome.name)
     test
+
+    See Also
+    --------
+    crested.register_genome
     """
 
     def __init__(
@@ -147,7 +151,7 @@ class Genome:
                 return basename
         return self._name
 
-    def fetch(self, chrom=None, start=None, end=None, strand = "+", region = None) -> str:
+    def fetch(self, chrom=None, start=None, end=None, strand="+", region=None) -> str:
         """
         Fetch a sequence from a genomic region.
 
@@ -171,7 +175,9 @@ class Genome:
         The requested sequence, as a string.
         """
         if region and (chrom or start or end):
-            logger.warning("Both region and chrom/start/end supplied. Using chrom/start/end...")
+            logger.warning(
+                "Both region and chrom/start/end supplied. Using chrom/start/end..."
+            )
         elif region:
             if region[-2] == ":":
                 chrom, start_end, strand = region.split(":")
@@ -180,13 +186,16 @@ class Genome:
             start, end = map(int, start_end.split("-"))
 
         if not (chrom and start and end):
-            raise ValueError("chrom/start/end must all be supplied to extract a sequence.")
+            raise ValueError(
+                "chrom/start/end must all be supplied to extract a sequence."
+            )
 
         seq = self.fasta.fetch(reference=chrom, start=start, end=end)
         if strand == "-":
             return reverse_complement(seq)
         else:
             return seq
+
 
 def register_genome(genome: Genome):
     """
