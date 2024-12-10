@@ -68,7 +68,7 @@ For questions and help requests, please use the [issue tracker][issue-tracker].
 
 ## Citation
 
-Kempynck, N., Mahieu, L., Ekşi, E. C., Konstantakos, V., Blaauw, C., De Winter, S., Hulselmans, G., Taskiran, I., & Aerts, S. (2024). CREsted: Cis Regulatory Element Sequence Training, Explanation, and Design (1.1.0). Zenodo. https://10.5281/zenodo.13918932
+Kempynck, N., Mahieu, L., Ekşi, E. C., Konstantakos, V., Blaauw, C., De Winter, S., Hulselmans, G., Taskiran, I., & Aerts, S. (2024). CREsted: Cis Regulatory Element Sequence Training, Explanation, and Design (1.2.0). Zenodo. https://10.5281/zenodo.13918932
 
 ## Choosing your backend
 
