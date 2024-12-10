@@ -10,7 +10,7 @@ from crested.tl import (
     Crested,
     contribution_scores,
     contribution_scores_specific,
-    get_embeddings,
+    extract_layer_embeddings,
     predict,
     score_gene_locus,
 )
@@ -91,11 +91,11 @@ def test_predict_regions(crested_object, keras_model, genome):
     ), "Region predictions are not equal"
 
 
-def test_get_embeddings(adata, crested_object, keras_model, genome):
+def test_extract_layer_embeddings(adata, crested_object, keras_model, genome):
     crested_object_embeddings = crested_object.get_embeddings(
         layer_name="denseblock_dense"
     )
-    refactored_embeddings = get_embeddings(
+    refactored_embeddings = extract_layer_embeddings(
         input=adata,
         model=keras_model,
         genome=genome,
@@ -129,8 +129,7 @@ def test_score_gene_locus(crested_object, adata, keras_model, genome):
         ref_tss_pos,
     ) = score_gene_locus(
         gene_locus=f"{chrom_name}:{gene_start}-{gene_end}",
-        all_class_names=list(adata.obs_names),
-        class_name=list(adata.obs_names)[0],
+        target_idx=0,
         model=keras_model,
         genome=genome,
         downstream=2000,
@@ -161,10 +160,9 @@ def test_contribution_scores_region(crested_object, adata, keras_model, genome):
     )
     scores_refactored, one_hot_encoded_sequences_refactored = contribution_scores(
         input=region,
+        target_idx=[0, 1],
         model=keras_model,
         genome=genome,
-        class_names=list(adata.obs_names)[0:2],
-        all_class_names=list(adata.obs_names),
         method="integrated_grad",
     )
     assert np.allclose(
@@ -191,8 +189,7 @@ def test_contribution_scores_sequence(crested_object, keras_model, adata):
     scores_refactored, one_hot_encoded_sequences_refactored = contribution_scores(
         input=sequence,
         model=keras_model,
-        class_names=list(adata.obs_names)[0:2],
-        all_class_names=list(adata.obs_names),
+        target_idx=[0, 1],
         method="integrated_grad",
     )
     assert np.allclose(
@@ -213,9 +210,8 @@ def test_contribution_scores_adata(crested_object, adata, keras_model, genome):
     )
     scores_refactored, one_hot_encoded_sequences_refactored = contribution_scores(
         input=adata,
+        target_idx=[0, 1],
         model=keras_model,
-        class_names=list(adata.obs_names)[0:2],
-        all_class_names=list(adata.obs_names),
         method="integrated_grad",
         genome=genome,
     )
@@ -233,6 +229,8 @@ def test_contribution_scores_adata(crested_object, adata, keras_model, genome):
 def test_contribution_scores_modisco(
     crested_object_specific, adata_specific, keras_model, genome
 ):
+    import shutil
+
     class_names = list(adata_specific.obs_names)[0:2]
     crested_object_specific.tfmodisco_calculate_and_save_contribution_scores(
         adata_specific,
@@ -247,10 +245,11 @@ def test_contribution_scores_modisco(
     one_hots = np.load(f"tests/data/test_contribution_scores/{class_names[0]}_oh.npz")[
         "arr_0"
     ]
-    _, _ = contribution_scores_specific(
+    shutil.rmtree("tests/data/test_contribution_scores")  # ensure different outputs
+    scores_ref_output, _ = contribution_scores_specific(
         input=adata_specific,
+        target_idx=[0, 1],
         model=keras_model,
-        class_names=class_names,
         method="integrated_grad",
         genome=genome,
         output_dir="tests/data/test_contribution_scores",
@@ -262,6 +261,8 @@ def test_contribution_scores_modisco(
     one_hot_encoded_sequences_refactored = np.load(
         f"tests/data/test_contribution_scores/{class_names[0]}_oh.npz"
     )["arr_0"]
+    print(scores.shape)
+    print(scores_refactored.shape)
     assert np.allclose(
         scores,
         scores_refactored,
@@ -271,3 +272,8 @@ def test_contribution_scores_modisco(
         one_hots,
         one_hot_encoded_sequences_refactored,
     ), "One-hot encoded sequences are not equal"
+    assert np.allclose(
+        scores_ref_output[:3, 0, :, :],
+        scores,
+        atol=1e-5,
+    ), "Scores are not equal."

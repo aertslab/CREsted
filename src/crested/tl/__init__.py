@@ -10,7 +10,7 @@ from ._crested import Crested
 from ._tools import (
     contribution_scores,
     contribution_scores_specific,
-    get_embeddings,
+    extract_layer_embeddings,
     predict,
     score_gene_locus,
 )
@@ -42,7 +42,7 @@ __all__ = [
     "TaskConfig",
     "default_configs",
     "Crested",
-    "get_embeddings",
+    "extract_layer_embeddings",
     "predict",
     "contribution_scores",
     "contribution_scores_specific",

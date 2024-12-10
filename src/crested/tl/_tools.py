@@ -11,10 +11,7 @@ from anndata import AnnData
 from loguru import logger
 from tqdm import tqdm
 
-from crested.utils import (
-    fetch_sequences,
-    one_hot_encode_sequence,
-)
+from crested.utils import fetch_sequences, one_hot_encode_sequence
 
 if os.environ["KERAS_BACKEND"] == "tensorflow":
     from crested.tl._explainer_tf import Explainer
@@ -111,8 +108,8 @@ def _transform_input(input, genome: os.PathLike | None = None) -> np.ndarray:
     return one_hot_data
 
 
-def get_embeddings(
-    input: str | list[str] | np.array | AnnData,
+def extract_layer_embeddings(
+    input: str | list[str] | np.ndarray | AnnData,
     model: keras.Model,
     layer_name: str,
     genome: os.PathLike | None = None,
@@ -204,8 +201,7 @@ def predict(
 
 def score_gene_locus(
     gene_locus: str,
-    all_class_names: list[str],
-    class_name: str,
+    target_idx: int,
     model: keras.Model | list[keras.Model],
     genome: os.PathLike,
     strand: str = "+",
@@ -225,10 +221,9 @@ def score_gene_locus(
     gene_locus
         The gene locus to score in the format 'chr:start-end'.
         Start is the TSS for + strand and TES for - strand.
-    all_class_names
-        List of all class names in the model. Usually obtained with `list(anndata.obs_names)`.
-    class_name
-        Output class name to be used for prediction. Required to index the predictions.
+    target_idx
+        Index of the target class to score.
+        You can usually get this from running `list(anndata.obs_names).index(class_name)`.
     model
         A (list of) trained keras model(s) to make predictions with.
     genome
@@ -267,6 +262,8 @@ def score_gene_locus(
     gene_start, gene_end = map(int, gene_locus.split("-"))
 
     # Detect window size from the model input shape
+    if not isinstance(target_idx, int):
+        raise ValueError("Target index must be an integer.")
     if isinstance(model, list):
         input_shape = model[0].input_shape
     else:
@@ -291,12 +288,6 @@ def score_gene_locus(
     # Ratio to normalize the score contributions
     ratio = central_size / step_size
 
-    try:
-        idx = all_class_names.index(class_name)
-    except ValueError as e:
-        raise ValueError(
-            f"Class name '{class_name}' not found in all_class_names"
-        ) from e
     positions = np.arange(start_position, end_position - window_size + 1, step_size)
 
     all_regions = [
@@ -305,7 +296,7 @@ def score_gene_locus(
         if pos + window_size <= end_position
     ]
     predictions = predict(input=all_regions, model=model, genome=genome, **kwargs)
-    predictions_class = predictions[:, idx]
+    predictions_class = predictions[:, target_idx]
 
     # Map predictions to the score array
     scores = np.zeros(total_length)
@@ -337,12 +328,12 @@ def score_gene_locus(
 
 def contribution_scores(
     input: str | list[str] | np.array | AnnData,
+    target_idx: int | list[int] | None,
     model: keras.Model | list[keras.Model],
-    class_names: str | list[str],
-    all_class_names: list[str],
     method: str = "expected_integrated_grad",
     genome: os.PathLike | None = None,
     transpose: bool = False,
+    all_class_names: list[str] | None = None,
     output_dir: os.PathLike | None = None,
     verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -358,13 +349,13 @@ def contribution_scores(
     ----------
     input
         Input data to calculate the contribution scores for. Can be a (list of) sequence(s), a (list of) region name(s), a matrix of one hot encodings (N, L, 4), or an AnnData object with region names as its var_names.
+    target_idx
+        Index/indices of the target class(es) to calculate the contribution scores for.
+        If this is an empty list, the contribution scores for the 'combined' class will be calculated.
+        If this is None, the contribution scores for all classes will be calculated.
+        You can get these for your classes of interest by running `list(anndata.obs_names).index(class_name)`.
     model
         A (list of) trained keras model(s) to calculate the contribution scores for.
-    class_names
-        List of class names to calculate the contribution scores for (should match anndata.obs_names)
-        If the list is empty, the contribution scores for the 'combined' class will be calculated.
-    all_class_names
-        List of all class names in the model. Usually obtained with `list(anndata.obs_names)`.
     method
         Method to use for calculating the contribution scores.
         Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
@@ -372,11 +363,13 @@ def contribution_scores(
         Path to the genome file. Required if input is an anndata object or region names.
     transpose
         Transpose the contribution scores to (N, C, 4, L) and one hots to (N, 4, L) (for compatibility with MoDISco).
+    all_class_names
+        Optional list of all class names in the dataset. If provided and output_dir is not None, will use these to name the output files.
     output_dir
         Path to the output directory to save the contribution scores and one hot seqs.
         Will create a separate npz file per class.
     verbose
-        Boolean for disabling the plotting progress of calculations using tqdm.
+        Boolean for disabling the logs and plotting progress of calculations using tqdm.
 
     Returns
     -------
@@ -386,35 +379,26 @@ def contribution_scores(
     --------
     crested.pl.patterns.contribution_scores
     """
-    if isinstance(class_names, str):
-        class_names = [class_names]
+    if not isinstance(model, list):
+        model = [model]
+    if isinstance(target_idx, int):
+        target_idx = [target_idx]
+    elif target_idx is None:
+        target_idx = list(range(0, model[0].output_shape[-1]))
+    elif target_idx == []:
+        if verbose:
+            logger.info(
+                "No class indices provided. Calculating contribution scores for the 'combined' class."
+            )
+        target_idx = [None]
+    n_classes = len(target_idx)
 
-    if not set(class_names).issubset(all_class_names):
-        raise ValueError(
-            "class_names should be a subset of all_class_names. Use list(anndata.obs_names) to get all class names."
-        )
-
-    if len(class_names) > 0:
-        n_classes = len(class_names)
-        class_indices = [
-            all_class_names.index(class_name) for class_name in class_names
-        ]
-    else:
-        logger.warning(
-            "No class names provided. Calculating contribution scores for the 'combined' class."
-        )
-        n_classes = 1  # 'combined' class
-        class_indices = [None]
-
-    # Handle all other input types
     input_sequences = _transform_input(input, genome)
 
     if verbose:
         logger.info(
             f"Calculating contribution scores for {n_classes} class(es) and {input_sequences.shape[0]} region(s)."
         )
-    if not isinstance(model, list):
-        model = [model]
     N, L, D = input_sequences.shape
 
     # Initialize list to collect scores from each model
@@ -425,7 +409,7 @@ def contribution_scores(
         # Initialize scores for this model
         scores = np.zeros((N, n_classes, L, D))  # Shape: (N, C, L, 4)
 
-        for i, class_index in enumerate(class_indices):
+        for i, class_index in enumerate(target_idx):
             # Initialize the explainer for the current model and class index
             explainer = Explainer(m, class_index=class_index)
 
@@ -460,10 +444,11 @@ def contribution_scores(
 
     if output_dir is not None:
         os.makedirs(output_dir, exist_ok=True)
-        for i, class_name in enumerate(class_names):
+        for target_id in target_idx:
+            class_name = all_class_names[target_id] if all_class_names else target_id
             np.savez_compressed(
                 os.path.join(output_dir, f"{class_name}_contrib.npz"),
-                averaged_scores[:, i, :, :],
+                averaged_scores[:, target_id, :, :],
             )
             np.savez_compressed(
                 os.path.join(output_dir, f"{class_name}_oh.npz"),
@@ -475,9 +460,9 @@ def contribution_scores(
 
 def contribution_scores_specific(
     input: AnnData,
+    target_idx: int | list[int] | None,
     model: keras.Model | list[keras.Model],
     genome: os.PathLike,
-    class_names: str | list[str] | None = None,
     method: str = "expected_integrated_grad",
     transpose: bool = True,
     output_dir: os.PathLike | None = None,
@@ -498,11 +483,13 @@ def contribution_scores_specific(
     ----------
     input
         Input anndata to calculate the contribution scores for. Should have a 'Class name' column in .var.
+    target_idx
+        Index/indices of the target class(es) to calculate the contribution scores for.
+        If this is an empty list, the contribution scores for the 'combined' class will be calculated.
+        If this is None, the contribution scores for all classes will be calculated.
+        You can get these for your classes of interest by running `list(anndata.obs_names).index(class_name)`.
     model
         A (list of) trained keras model(s) to calculate the contribution scores for.
-    class_names
-        List of class names to calculate the contribution scores for (should match anndata.obs_names)
-        If None, the contribution scores for all classes will be calculated.
     genome
         Path to the genome file.
     method
@@ -533,26 +520,27 @@ def contribution_scores_specific(
             "Run 'crested.pp.sort_and_filter_regions_on_specificity' first"
         )
     all_class_names = list(input.obs_names)
-    if isinstance(class_names, str):
-        class_names = [class_names]
-    if class_names is None:
-        class_names = all_class_names
-    if class_names == []:
+    if target_idx == []:
         raise ValueError("Can't calculate 'combined' scores for specific regions.")
+    if target_idx is None:
+        target_idx = list(range(0, len(all_class_names)))
+    if not isinstance(target_idx, list):
+        target_idx = [target_idx]
     all_scores = []
     all_one_hots = []
 
-    for class_name in class_names:
+    for target_id in target_idx:
+        class_name = all_class_names[target_id]
         class_regions = input.var[input.var["Class name"] == class_name].index.tolist()
         scores, one_hots = contribution_scores(
             input=class_regions,
+            target_idx=target_id,
             model=model,
-            class_names=[class_name],
-            all_class_names=all_class_names,
             method=method,
             genome=genome,
             verbose=verbose,
             output_dir=output_dir,
+            all_class_names=all_class_names,
             transpose=transpose,
         )
         all_scores.append(scores)

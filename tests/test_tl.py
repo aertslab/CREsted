@@ -52,14 +52,14 @@ def test_input_transform(genome):
     assert _transform_input(np.array([[[1, 0, 0, 0]]])).shape == (1, 1, 4)
 
 
-def test_get_embeddings(keras_model, genome):
+def test_extract_layer_embeddings(keras_model, genome):
     input = "ATCGA" * 100
-    embeddings = crested.tl.get_embeddings(
+    embeddings = crested.tl.extract_layer_embeddings(
         input, keras_model, genome=genome, layer_name="denseblock_dense"
     )
     assert embeddings.shape == (1, 8)
     input = ["ATCGA" * 100, "ATCGA" * 100]
-    embeddings = crested.tl.get_embeddings(
+    embeddings = crested.tl.extract_layer_embeddings(
         input, keras_model, layer_name="denseblock_dense"
     )
     assert embeddings.shape == (2, 8)
@@ -82,8 +82,7 @@ def test_score_gene_locus(keras_model, adata, genome):
     gene_locus = "chr1:200000-200500"
     scores, coordinates, min_loc, max_loc, tss_pos = crested.tl.score_gene_locus(
         gene_locus=gene_locus,
-        all_class_names=list(adata.obs_names),
-        class_name=list(adata.obs_names)[0],
+        target_idx=1,
         model=keras_model,
         genome=genome,
         upstream=1000,
@@ -97,14 +96,13 @@ def test_score_gene_locus(keras_model, adata, genome):
     assert tss_pos == 200000
 
 
-def test_contribution_scores(keras_model, adata, genome):
+def test_contribution_scores(keras_model, genome):
     sequence = "ATCGA" * 100
     scores, one_hot_encoded_sequences = crested.tl.contribution_scores(
         sequence,
+        target_idx=[0, 1],
         model=keras_model,
         genome=genome,
-        class_names=list(adata.obs_names)[0:2],
-        all_class_names=list(adata.obs_names),
         method="integrated_grad",
     )
     assert scores.shape == (1, 2, 500, 4)
@@ -113,23 +111,21 @@ def test_contribution_scores(keras_model, adata, genome):
     sequences = ["ATCGA" * 100, "ATCGA" * 100]
     scores, one_hot_encoded_sequences = crested.tl.contribution_scores(
         sequences,
+        target_idx=0,
         model=keras_model,
         genome=genome,
-        class_names=list(adata.obs_names)[0:2],
-        all_class_names=list(adata.obs_names),
         method="integrated_grad",
     )
-    assert scores.shape == (2, 2, 500, 4)
+    assert scores.shape == (2, 1, 500, 4)
     assert one_hot_encoded_sequences.shape == (2, 500, 4)
 
     # multiple models
     models = [keras_model, keras_model]
     scores, one_hot_encoded_sequences = crested.tl.contribution_scores(
         sequence,
+        target_idx=[0, 1],
         model=models,
         genome=genome,
-        class_names=list(adata.obs_names)[0:2],
-        all_class_names=list(adata.obs_names),
         method="integrated_grad",
     )
     assert scores.shape == (1, 2, 500, 4)
@@ -141,8 +137,8 @@ def test_contribution_scores_specific(keras_model, adata, adata_specific, genome
         # class names can't be empty for specific
         crested.tl.contribution_scores_specific(
             input=adata_specific,
+            target_idx=[],  # combined class
             model=keras_model,
-            class_names=[],  # combined class
             genome=genome,
             method="integrated_grad",
             transpose=True,
@@ -152,6 +148,7 @@ def test_contribution_scores_specific(keras_model, adata, adata_specific, genome
         # requires a specific anndata
         crested.tl.contribution_scores_specific(
             input=adata,
+            target_idx=None,
             model=keras_model,
             genome=genome,
             method="integrated_grad",
@@ -160,6 +157,7 @@ def test_contribution_scores_specific(keras_model, adata, adata_specific, genome
         )
     scores, one_hots = crested.tl.contribution_scores_specific(
         input=adata_specific,
+        target_idx=None,
         model=keras_model,
         genome=genome,
         method="integrated_grad",
@@ -172,10 +170,10 @@ def test_contribution_scores_specific(keras_model, adata, adata_specific, genome
     # test multiple models and subsetting class names
     scores, one_hots = crested.tl.contribution_scores_specific(
         input=adata_specific,
+        target_idx=1,
         model=[keras_model, keras_model],
         genome=genome,
         method="integrated_grad",
-        class_names=list(adata_specific.obs_names)[0],
         transpose=True,
         verbose=False,
     )
@@ -186,6 +184,7 @@ def test_contribution_scores_specific(keras_model, adata, adata_specific, genome
     class_names = list(adata_specific.obs_names)
     scores, one_hots = crested.tl.contribution_scores_specific(
         input=adata_specific,
+        target_idx=None,
         model=keras_model,
         genome=genome,
         method="integrated_grad",
