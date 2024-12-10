@@ -328,6 +328,9 @@ def conv_block_bs(
     """
     Construct a convolution block (for Basenji/Enformer).
 
+    Important note: while conv_block() follows the conv-norm-activate-pool order,
+    this follows Enformer/Borzoi's convention of norm-activate-conv-pool.
+
     Parameters
     ----------
     inputs
