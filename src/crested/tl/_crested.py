@@ -24,11 +24,11 @@ from crested.utils import (
     one_hot_encode_sequence,
 )
 from crested.utils._logging import log_and_raise
-from crested.utils._utils import (
-    _weighted_difference,
+from crested.utils._seq_utils import (
     generate_motif_insertions,
     generate_mutagenesis,
 )
+from crested.utils._utils import _weighted_difference
 
 if os.environ["KERAS_BACKEND"] == "tensorflow":
     from crested.tl._explainer_tf import Explainer
@@ -70,7 +70,7 @@ class Crested:
     >>> from crested.tl.zoo import deeptopic_cnn
 
     >>> # Load data
-    >>> anndatamodule = AnnDataModule(anndata, genome_file="path/to/genome.fa")
+    >>> anndatamodule = AnnDataModule(anndata, genome="path/to/genome.fa")
     >>> model_architecture = deeptopic_cnn(seq_len=1000, n_classes=10)
     >>> configs = default_configs("topic_classification")
 
@@ -798,7 +798,7 @@ class Crested:
         idx = all_class_names.index(class_name)
 
         if genome is None:
-            genome = FastaFile(self.anndatamodule.genome_file)
+            genome = self.anndatamodule.genome.fasta
 
         # Generate all windows and one-hot encode the sequences in parallel
         all_sequences = []
@@ -1792,8 +1792,7 @@ class Crested:
     def _calculate_location_gc_frequencies(self) -> np.ndarray:
         regions = self.anndatamodule.adata.var
         sequence_loader = SequenceLoader(
-            genome_file=self.anndatamodule.genome_file,
-            chromsizes=None,
+            genome=self.anndatamodule.genome,
             in_memory=True,
             always_reverse_complement=False,
             max_stochastic_shift=0,
@@ -1944,8 +1943,6 @@ class Crested:
                     f"Output directory {checkpoint_dir}, already exists but no trained models found. Overwriting..."
                 )
                 shutil.rmtree(checkpoint_dir)
-        else:
-            logger.info(f"Creating output directory {checkpoint_dir}")
 
     def __repr__(self):
         """Return the string representation of the object."""

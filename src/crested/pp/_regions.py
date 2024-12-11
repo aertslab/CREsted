@@ -9,6 +9,7 @@ import pandas as pd
 from anndata import AnnData
 from loguru import logger
 
+from crested import _conf as conf
 from crested.utils._logging import log_and_raise
 
 
@@ -58,7 +59,7 @@ def change_regions_width(
             chromsizes_file = Path(chromsizes_file)
             if not chromsizes_file.is_file():
                 raise FileNotFoundError(f"File '{chromsizes_file}' not found")
-        if chromsizes_file is None:
+        if chromsizes_file is None and not conf.genome:
             logger.warning(
                 "Chromsizes file not provided. Will not check if regions are within chromosomes",
                 stacklevel=1,
@@ -68,6 +69,8 @@ def change_regions_width(
 
     if chromsizes_file is not None:
         chromsizes = _read_chromsizes(chromsizes_file)
+    elif conf.genome:
+        chromsizes = conf.genome.chrom_sizes
 
     centers = (adata.var["start"] + adata.var["end"]) / 2
     half_width = width / 2
