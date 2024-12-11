@@ -164,7 +164,7 @@ def predict(
     input
         Input data to make predictions on. Can be a (list of) sequence(s), a (list of) region name(s), a matrix of one hot encodings (N, L, 4), or an AnnData object with region names as its var_names.
     model
-        A (list of) trained keras models to make predictions with.
+        A (list of) trained keras model(s) to make predictions with.
     genome
         Path to the genome file. Required if input is an anndata object or region names.
     **kwargs
