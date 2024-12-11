@@ -29,7 +29,7 @@ if os.environ["KERAS_BACKEND"] == "tensorflow":
 def crested_object(keras_model, adata, genome):
     anndatamodule = AnnDataModule(
         adata,
-        genome_file=genome,
+        genome=genome,
         batch_size=32,
         always_reverse_complement=False,
         deterministic_shift=False,
@@ -46,7 +46,7 @@ def crested_object(keras_model, adata, genome):
 def crested_object_specific(keras_model, adata_specific, genome):
     anndatamodule = AnnDataModule(
         adata_specific,
-        genome_file=genome,
+        genome=genome,
         batch_size=32,
         always_reverse_complement=False,
         deterministic_shift=False,

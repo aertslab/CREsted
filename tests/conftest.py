@@ -51,13 +51,23 @@ def adata():
 
 
 @pytest.fixture(scope="module")
-def genome():
-    """Genome fixture."""
+def genome_path():
+    """Genome path fixture."""
     if not os.path.exists("tests/data/genomes/hg38.fa"):
         genomepy.install_genome(
             "hg38", annotation=False, provider="UCSC", genomes_dir="tests/data/genomes"
         )
     return "tests/data/genomes/hg38/hg38.fa"
+
+
+@pytest.fixture(scope="module")
+def genome(genome_path):
+    """Genome fixture."""
+    genome = crested.Genome(
+        fasta=genome_path,
+        chrom_sizes="tests/data/genomes/hg38/hg38.fa.sizes",
+    )
+    return genome
 
 
 @pytest.fixture(scope="module")

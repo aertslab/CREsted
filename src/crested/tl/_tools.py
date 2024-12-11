@@ -11,7 +11,8 @@ from anndata import AnnData
 from loguru import logger
 from tqdm import tqdm
 
-from crested.utils import fetch_sequences, one_hot_encode_sequence
+from crested._genome import Genome, _resolve_genome
+from crested.utils import one_hot_encode_sequence
 
 if os.environ["KERAS_BACKEND"] == "tensorflow":
     from crested.tl._explainer_tf import Explainer
@@ -19,19 +20,18 @@ elif os.environ["KERAS_BACKEND"] == "torch":
     from crested.tl._explainer_torch import Explainer
 
 
-def _detect_input_type(input):
+def _detect_input_type(input: str | list[str] | np.array | AnnData) -> str:
     """
     Detect the type of input provided.
 
     Parameters
     ----------
-    input : str | list[str] | np.array | AnnData
+    input
         The input to detect the type of.
 
     Returns
     -------
-    str
-        One of ['sequence', 'region', 'anndata', 'array'], indicating the input type.
+    One of ['sequence', 'region', 'anndata', 'array'], indicating the input type.
     """
     dna_pattern = re.compile("^[ACGTNacgtn]+$")
     if isinstance(input, AnnData):
@@ -67,16 +67,16 @@ def _detect_input_type(input):
         )
 
 
-def _transform_input(input, genome: os.PathLike | None = None) -> np.ndarray:
+def _transform_input(input, genome: Genome | os.PathLike | None = None) -> np.ndarray:
     """
     Transform the input into a one-hot encoded matrix based on its type.
 
     Parameters
     ----------
-    input : str | list[str] | np.array | AnnData
+    input
         Input data to preprocess. Can be a sequence, list of sequences, region, list of regions, or an AnnData object.
-    genome : str | None
-        Path to the genome file. Required if input is a region or AnnData.
+    genome
+        Genome or Path to the genome file. Required if no genome is registered and input is a region or AnnData.
 
     Returns
     -------
@@ -85,16 +85,13 @@ def _transform_input(input, genome: os.PathLike | None = None) -> np.ndarray:
     input_type = _detect_input_type(input)
 
     if input_type == "anndata":
-        if genome is None:
-            raise ValueError(
-                "Genome file is required to fetch sequences for regions in AnnData."
-            )
+        genome = _resolve_genome(genome)
         regions = list(input.var_names)
-        sequences = fetch_sequences(regions, genome)
+        sequences = [genome.fetch(region=region) for region in regions]
     elif input_type == "region":
-        if genome is None:
-            raise ValueError("Genome file is required to fetch sequences for regions.")
-        sequences = fetch_sequences(input, genome)
+        genome = _resolve_genome(genome)
+        regions = input if isinstance(input, list) else [input]
+        sequences = [genome.fetch(region=region) for region in regions]
     elif input_type == "sequence":
         sequences = input if isinstance(input, list) else [input]
     elif input_type == "array":
@@ -112,7 +109,7 @@ def extract_layer_embeddings(
     input: str | list[str] | np.ndarray | AnnData,
     model: keras.Model,
     layer_name: str,
-    genome: os.PathLike | None = None,
+    genome: Genome | os.PathLike | None = None,
     **kwargs,
 ) -> np.ndarray:
     """
@@ -127,7 +124,7 @@ def extract_layer_embeddings(
     layer_name
         The name of the layer from which to extract the embeddings.
     genome
-        Path to the genome file. Required if input is an anndata object or region names.
+        Genome or path to the genome fasta. Required if no genome is registered and input is an anndata object or region names.
     **kwargs
         Additional keyword arguments to pass to the keras.Model.predict method.
 
@@ -151,7 +148,7 @@ def extract_layer_embeddings(
 def predict(
     input: str | list[str] | np.array | AnnData,
     model: keras.Model | list[keras.Model],
-    genome: os.PathLike | None = None,
+    genome: Genome | os.PathLike | None = None,
     **kwargs,
 ) -> None | np.ndarray:
     """
@@ -166,7 +163,7 @@ def predict(
     model
         A (list of) trained keras model(s) to make predictions with.
     genome
-        Path to the genome file. Required if input is an anndata object or region names.
+        Genome or path to the genome file. Required if no genome is registered and input is an anndata object or region names.
     **kwargs
         Additional keyword arguments to pass to the keras.Model.predict method.
 
@@ -203,7 +200,7 @@ def score_gene_locus(
     gene_locus: str,
     target_idx: int,
     model: keras.Model | list[keras.Model],
-    genome: os.PathLike,
+    genome: Genome | os.PathLike | None = None,
     strand: str = "+",
     upstream: int = 50000,
     downstream: int = 10000,
@@ -227,7 +224,7 @@ def score_gene_locus(
     model
         A (list of) trained keras model(s) to make predictions with.
     genome
-        Path to the genome file.
+        Genome or path to the genome file. Required if no genome is registered.
     strand
         '+' for positive strand, '-' for negative strand. Default '+'.
     upstream
@@ -331,7 +328,7 @@ def contribution_scores(
     target_idx: int | list[int] | None,
     model: keras.Model | list[keras.Model],
     method: str = "expected_integrated_grad",
-    genome: os.PathLike | None = None,
+    genome: Genome | os.PathLike | None = None,
     transpose: bool = False,
     all_class_names: list[str] | None = None,
     output_dir: os.PathLike | None = None,
@@ -360,7 +357,7 @@ def contribution_scores(
         Method to use for calculating the contribution scores.
         Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
     genome
-        Path to the genome file. Required if input is an anndata object or region names.
+        Genome or path to the genome fasta. Required if no genome is registered and input is an anndata object or region names.
     transpose
         Transpose the contribution scores to (N, C, 4, L) and one hots to (N, 4, L) (for compatibility with MoDISco).
     all_class_names
@@ -401,19 +398,13 @@ def contribution_scores(
         )
     N, L, D = input_sequences.shape
 
-    # Initialize list to collect scores from each model
     scores_per_model = []
-
-    # Iterate over models
     for m in tqdm(model, desc="Model", disable=not verbose):
-        # Initialize scores for this model
         scores = np.zeros((N, n_classes, L, D))  # Shape: (N, C, L, 4)
 
         for i, class_index in enumerate(target_idx):
-            # Initialize the explainer for the current model and class index
             explainer = Explainer(m, class_index=class_index)
 
-            # Calculate contribution scores based on the selected method
             if method == "integrated_grad":
                 scores[:, i, :, :] = explainer.integrated_grad(
                     input_sequences,
@@ -432,7 +423,6 @@ def contribution_scores(
             else:
                 raise ValueError(f"Unsupported method: {method}")
 
-        # Collect scores from this model
         scores_per_model.append(scores)
 
     # Average the scores across models
@@ -462,7 +452,7 @@ def contribution_scores_specific(
     input: AnnData,
     target_idx: int | list[int] | None,
     model: keras.Model | list[keras.Model],
-    genome: os.PathLike,
+    genome: Genome | os.PathLike | None = None,
     method: str = "expected_integrated_grad",
     transpose: bool = True,
     output_dir: os.PathLike | None = None,
@@ -491,7 +481,7 @@ def contribution_scores_specific(
     model
         A (list of) trained keras model(s) to calculate the contribution scores for.
     genome
-        Path to the genome file.
+        Genome or Path to the genome file. Required if no genome is registered.
     method
         Method to use for calculating the contribution scores.
         Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.

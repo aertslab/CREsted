@@ -78,7 +78,7 @@ def test_predict(keras_model, adata, genome):
     assert predictions.shape == (10, 5)
 
 
-def test_score_gene_locus(keras_model, adata, genome):
+def test_score_gene_locus(keras_model, genome):
     gene_locus = "chr1:200000-200500"
     scores, coordinates, min_loc, max_loc, tss_pos = crested.tl.score_gene_locus(
         gene_locus=gene_locus,
