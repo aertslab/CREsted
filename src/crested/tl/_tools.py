@@ -434,11 +434,16 @@ def contribution_scores(
 
     if output_dir is not None:
         os.makedirs(output_dir, exist_ok=True)
-        for target_id in target_idx:
-            class_name = all_class_names[target_id] if all_class_names else target_id
+        for i in range(n_classes):
+            target_id = target_idx[i]
+            class_name = (
+                all_class_names[target_id]
+                if all_class_names
+                else f"class_id_{target_id}"
+            )
             np.savez_compressed(
                 os.path.join(output_dir, f"{class_name}_contrib.npz"),
-                averaged_scores[:, target_id, :, :],
+                averaged_scores[:, i, :, :],
             )
             np.savez_compressed(
                 os.path.join(output_dir, f"{class_name}_oh.npz"),
