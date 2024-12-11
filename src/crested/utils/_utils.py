@@ -5,9 +5,9 @@ from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
-import pysam
 from loguru import logger
 
+from crested._genome import Genome, _resolve_genome
 from crested._io import _extract_tracks_from_bigwig
 
 
@@ -180,68 +180,6 @@ def _weighted_difference(
     return np.argmax(score)
 
 
-def build_one_hot_decoding_table() -> np.ndarray:
-    """Get hot decoding table to decode a one hot encoded sequence to a DNA sequence string."""
-    one_hot_decoding_table = np.full(
-        np.iinfo(np.uint8).max + 1, ord("N"), dtype=np.uint8
-    )
-    one_hot_decoding_table[1] = ord("A")
-    one_hot_decoding_table[2] = ord("C")
-    one_hot_decoding_table[4] = ord("G")
-    one_hot_decoding_table[8] = ord("T")
-
-    return one_hot_decoding_table
-
-
-HOT_DECODING_TABLE = build_one_hot_decoding_table()
-
-
-def hot_encoding_to_sequence(one_hot_encoded_sequence: np.ndarray) -> str:
-    """
-    Decode a one hot encoded sequence to a DNA sequence string.
-
-    Parameters
-    ----------
-    one_hot_encoded_sequence
-        A numpy array with shape (x, 4) with dtype=np.float32.
-
-    Returns
-    -------
-    The DNA sequence string of length x.
-    """
-    # Convert hot encoded seqeuence from:
-    #   (x, 4) with dtype=np.float32
-    # to:
-    #   (x, 4) with dtype=np.uint8
-    # and finally combine ACGT dimensions to:
-    #   (x, 1) with dtype=np.uint32
-    hes_u32 = one_hot_encoded_sequence.astype(np.uint8).view(np.uint32)
-
-    # Do some bitshifting magic to decode uint32 to DNA sequence string.
-    sequence = (
-        HOT_DECODING_TABLE[
-            (
-                (
-                    hes_u32 << 31 >> 31
-                )  # A: 2^0  : 1        -> 1 = A in HOT_DECODING_TABLE
-                | (
-                    hes_u32 << 23 >> 30
-                )  # C: 2^8  : 256      -> 2 = C in HOT_DECODING_TABLE
-                | (
-                    hes_u32 << 15 >> 29
-                )  # G: 2^16 : 65536    -> 4 = G in HOT_DECODING_TABLE
-                | (
-                    hes_u32 << 7 >> 28
-                )  # T: 2^24 : 16777216 -> 8 = T in HOT_DECODING_TABLE
-            ).astype(np.uint8)
-        ]
-        .tobytes()
-        .decode("ascii")
-    )
-
-    return sequence
-
-
 def get_value_from_dataframe(df: pd.DataFrame, row_name: str, column_name: str):
     """
     Retrieve a single value from a DataFrame based on the given row index and column name.
@@ -317,7 +255,9 @@ def extract_bigwig_values_per_bp(
 
 
 def fetch_sequences(
-    regions: str | list[str], genome: os.PathLike, uppercase: bool = True
+    regions: str | list[str],
+    genome: os.PathLike | Genome | None = None,
+    uppercase: bool = True,
 ) -> list[str]:
     """
     Fetch sequences from a genome file for a list of regions using pysam.
@@ -329,7 +269,8 @@ def fetch_sequences(
     regions
         List of regions to fetch sequences for.
     genome
-        Path to the genome file.
+        Path to the genome fasta or Genome instance or None.
+        If None, will look for a registered genome object.
     uppercase
         If True, return sequences in uppercase.
 
@@ -344,12 +285,10 @@ def fetch_sequences(
     """
     if isinstance(regions, str):
         regions = [regions]
-    fasta = pysam.FastaFile(genome)
+    genome = _resolve_genome(genome)
     seqs = []
     for region in regions:
-        chrom, start_end = region.split(":")
-        start, end = start_end.split("-")
-        seq = fasta.fetch(chrom, int(start), int(end))
+        seq = genome.fetch(region=region)
         if uppercase:
             seq = seq.upper()
         seqs.append(seq)
@@ -426,52 +365,3 @@ def read_bigwig_region(
     ).squeeze()
 
     return values, positions
-
-
-def reverse_complement(sequence: str | list[str] | np.ndarray) -> str | np.ndarray:
-    """
-    Perform reverse complement on either a one-hot encoded array or a (list of) DNA sequence string(s).
-
-    Parameters
-    ----------
-    sequence
-        The DNA sequence string(s) or one-hot encoded array to reverse complement.
-
-    Returns
-    -------
-    The reverse complemented DNA sequence string or one-hot encoded array.
-    """
-
-    def complement_str(seq: str) -> str:
-        complement = str.maketrans("ACGTacgt", "TGCAtgca")
-        return seq.translate(complement)[::-1]
-
-    if isinstance(sequence, str):
-        return complement_str(sequence)
-    elif isinstance(sequence, list):
-        return [complement_str(seq) for seq in sequence]
-    elif isinstance(sequence, np.ndarray):
-        if sequence.ndim == 2:
-            if sequence.shape[1] == 4:
-                return sequence[::-1, ::-1]
-            elif sequence.shape[0] == 4:
-                return sequence[:, ::-1][:, ::-1]
-            else:
-                raise ValueError(
-                    "One-hot encoded array must have shape (W, 4) or (4, W)"
-                )
-        elif sequence.ndim == 3:
-            if sequence.shape[1] == 4:
-                return sequence[:, ::-1, ::-1]
-            elif sequence.shape[2] == 4:
-                return sequence[:, ::-1, ::-1]
-            else:
-                raise ValueError(
-                    "One-hot encoded array must have shape (B, 4, W) or (B, W, 4)"
-                )
-        else:
-            raise ValueError("One-hot encoded array must have 2 or 3 dimensions")
-    else:
-        raise TypeError(
-            "Input must be either a DNA sequence string or a one-hot encoded array"
-        )

@@ -25,7 +25,7 @@ def test_peak_regression(adata):
 
     datamodule = crested.tl.data.AnnDataModule(
         adata,
-        genome_file="tests/data/genomes/hg38/hg38.fa",
+        genome="tests/data/genomes/hg38/hg38.fa",
         batch_size=2,
         always_reverse_complement=True,
         deterministic_shift=True,
@@ -59,7 +59,9 @@ def test_peak_regression(adata):
         "tests/data/test_pipeline/test_peak_regression/checkpoints/01.keras",
         compile=True,
     )
-    trainer.test()
+
+    test_metrics = trainer.test(return_metrics=True)
+    assert isinstance(test_metrics, dict)
     trainer.predict(adata, model_name="01")
 
     trainer.predict_regions(region_idx=["chr1:1000-1600", "chr2:2000-2600"])

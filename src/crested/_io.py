@@ -17,6 +17,8 @@ from anndata import AnnData
 from loguru import logger
 from scipy.sparse import csr_matrix
 
+from crested import _conf as conf
+
 
 def _sort_files(filename: PathLike):
     """Sorts files.
@@ -116,7 +118,9 @@ def _extract_values_from_bigwig(
         with pybigtools.open(bw_file, "r") as bw:
             values = np.log1p(
                 np.fromiter(
-                    bw.average_over_bed(bed=temp_bed_file.name, names=None, stats="sum"),
+                    bw.average_over_bed(
+                        bed=temp_bed_file.name, names=None, stats="sum"
+                    ),
                     dtype=np.float32,
                 )
             )
@@ -134,14 +138,15 @@ def _extract_values_from_bigwig(
     else:
         return values
 
+
 def _extract_tracks_from_bigwig(
     bw_file: PathLike,
     coordinates: list[tuple[str, int, int]],
     bin_size: int | None = None,
-    target: str = 'mean',
+    target: str = "mean",
     missing: float = 0.0,
     oob: float = 0.0,
-    exact: bool = True
+    exact: bool = True,
 ) -> np.ndarray:
     """
     Extract per-base or binned pair values of a list of genomic ranges from a bigWig file.
@@ -169,16 +174,20 @@ def _extract_tracks_from_bigwig(
     # Wrapper around pybigtools.BBIRead.values().
 
     # Check that all are same size by iterating and checking with predecessor
-    prev_region_length = coordinates[0][2]-coordinates[0][1]
+    prev_region_length = coordinates[0][2] - coordinates[0][1]
     for region in coordinates:
-        region_length = region[2]-region[1]
+        region_length = region[2] - region[1]
         if region_length != prev_region_length:
-            raise ValueError(f"All coordinate pairs should be the same length. Coordinate pair {region[0]}:{region[1]}-{region[2]} is not {prev_region_length}bp, but {region_length}bp.")
+            raise ValueError(
+                f"All coordinate pairs should be the same length. Coordinate pair {region[0]}:{region[1]}-{region[2]} is not {prev_region_length}bp, but {region_length}bp."
+            )
         prev_region_length = region_length
 
     # Check that length is divisible by bin size
     if bin_size and (region_length % bin_size != 0):
-        raise ValueError(f"All region lengths must be divisible by bin_size. Region length {region_length} is not divisible by bin size {bin_size}.")
+        raise ValueError(
+            f"All region lengths must be divisible by bin_size. Region length {region_length} is not divisible by bin size {bin_size}."
+        )
 
     # Calculate length (for array creation) and bins (for argument to bw.values)
     binned_length = region_length // bin_size if bin_size else region_length
@@ -188,7 +197,9 @@ def _extract_tracks_from_bigwig(
     with pybigtools.open(bw_file, "r") as bw:
         results = []
         for region in coordinates:
-            arr = np.empty(binned_length, dtype = 'float64') # pybigtools returns values in float64
+            arr = np.empty(
+                binned_length, dtype="float64"
+            )  # pybigtools returns values in float64
             chrom, start, end = region
 
             # Extract values
@@ -197,21 +208,31 @@ def _extract_tracks_from_bigwig(
                     chrom,
                     start,
                     end,
-                    bins = bins,
-                    summary = target,
-                    exact = exact,
-                    missing = missing,
-                    oob = oob,
-                    arr = arr
+                    bins=bins,
+                    summary=target,
+                    exact=exact,
+                    missing=missing,
+                    oob=oob,
+                    arr=arr,
                 )
             )
 
     return np.vstack(results)
 
+
 def _read_consensus_regions(
     regions_file: PathLike, chromsizes_file: PathLike | None = None
 ) -> pd.DataFrame:
     """Read consensus regions BED file and filter out regions not within chromosomes."""
+    if chromsizes_file is not None:
+        chromsizes_file = Path(chromsizes_file)
+        if not chromsizes_file.is_file():
+            raise FileNotFoundError(f"File '{chromsizes_file}' not found")
+    if chromsizes_file is None and not conf.genome:
+        logger.warning(
+            "Chromsizes file not provided. Will not check if regions are within chromosomes",
+            stacklevel=1,
+        )
     consensus_peaks = pd.read_csv(
         regions_file,
         sep="\t",
@@ -226,24 +247,26 @@ def _read_consensus_regions(
         + "-"
         + consensus_peaks[2].astype(str)
     )
-
     if chromsizes_file:
         chromsizes_dict = _read_chromsizes(chromsizes_file)
-        valid_mask = consensus_peaks.apply(
-            lambda row: row[0] in chromsizes_dict
-            and row[1] >= 0
-            and row[2] <= chromsizes_dict[row[0]],
-            axis=1,
+    elif conf.genome:
+        chromsizes_dict = conf.genome.chrom_sizes
+    else:
+        return consensus_peaks
+
+    valid_mask = consensus_peaks.apply(
+        lambda row: row[0] in chromsizes_dict
+        and row[1] >= 0
+        and row[2] <= chromsizes_dict[row[0]],
+        axis=1,
+    )
+    consensus_peaks_filtered = consensus_peaks[valid_mask]
+
+    if len(consensus_peaks) != len(consensus_peaks_filtered):
+        logger.warning(
+            f"Filtered {len(consensus_peaks) - len(consensus_peaks_filtered)} consensus regions (not within chromosomes)",
         )
-        consensus_peaks_filtered = consensus_peaks[valid_mask]
-
-        if len(consensus_peaks) != len(consensus_peaks_filtered):
-            logger.warning(
-                f"Filtered {len(consensus_peaks) - len(consensus_peaks_filtered)} consensus regions (not within chromosomes)",
-            )
-        return consensus_peaks_filtered
-
-    return consensus_peaks
+    return consensus_peaks_filtered
 
 
 def _create_temp_bed_file(
@@ -318,6 +341,7 @@ def import_beds(
         Classes should be named after the file name without the extension.
     chromsizes_file
         File path of the chromsizes file.  Used for checking if the new regions are within the chromosome boundaries.
+        If not provided, will look for a registered genome object.
     remove_empty_regions
         Remove regions that are not open in any class (only possible if regions_file is provided)
     compress
@@ -348,15 +372,6 @@ def import_beds(
         raise FileNotFoundError(f"Directory '{beds_folder}' not found")
     if (regions_file is not None) and (not regions_file.is_file()):
         raise FileNotFoundError(f"File '{regions_file}' not found")
-    if chromsizes_file is not None:
-        chromsizes_file = Path(chromsizes_file)
-        if not chromsizes_file.is_file():
-            raise FileNotFoundError(f"File '{chromsizes_file}' not found")
-    if chromsizes_file is None:
-        logger.warning(
-            "Chromsizes file not provided. Will not check if regions are within chromosomes",
-            stacklevel=1,
-        )
     if classes_subset is not None:
         for classname in classes_subset:
             if not any(beds_folder.glob(f"{classname}.bed")):
@@ -500,6 +515,7 @@ def import_bigwigs(
         File name of the consensus regions BED file.
     chromsizes_file
         File name of the chromsizes file. Used for checking if the new regions are within the chromosome boundaries.
+        If not provided, will look for a registered genome object.
     target
         Target value to extract from bigwigs. Can be 'mean', 'max', 'count', or 'logcount'
     target_region_width
@@ -531,15 +547,6 @@ def import_bigwigs(
         raise FileNotFoundError(f"Directory '{bigwigs_folder}' not found")
     if not regions_file.is_file():
         raise FileNotFoundError(f"File '{regions_file}' not found")
-    if chromsizes_file is not None:
-        chromsizes_file = Path(chromsizes_file)
-        if not chromsizes_file.is_file():
-            raise FileNotFoundError(f"File '{chromsizes_file}' not found")
-    if chromsizes_file is None:
-        logger.warning(
-            "Chromsizes file not provided. Will not check if regions are within chromosomes",
-            stacklevel=1,
-        )
 
     # Read consensus regions BED file and filter out regions not within chromosomes
     _check_bed_file_format(regions_file)
@@ -590,18 +597,27 @@ def import_bigwigs(
 
     # Prepare obs and var for AnnData
     obs_df = pd.DataFrame(
-        data = {'file_path': bw_files},
-        index = [os.path.basename(file).rpartition(".")[0].replace(".", "_") for file in bw_files]
+        data={"file_path": bw_files},
+        index=[
+            os.path.basename(file).rpartition(".")[0].replace(".", "_")
+            for file in bw_files
+        ],
     )
-    var_df = pd.DataFrame({
-        'region': consensus_peaks["region"],
-        'chr': consensus_peaks["region"].str.split(":").str[0],
-        'start': (consensus_peaks["region"].str.split(":").str[1].str.split("-").str[0]).astype(int),
-        'end': (consensus_peaks["region"].str.split(":").str[1].str.split("-").str[1]).astype(int)
-    }).set_index('region')
+    var_df = pd.DataFrame(
+        {
+            "region": consensus_peaks["region"],
+            "chr": consensus_peaks["region"].str.split(":").str[0],
+            "start": (
+                consensus_peaks["region"].str.split(":").str[1].str.split("-").str[0]
+            ).astype(int),
+            "end": (
+                consensus_peaks["region"].str.split(":").str[1].str.split("-").str[1]
+            ).astype(int),
+        }
+    ).set_index("region")
 
     # Create AnnData object
-    adata = ad.AnnData(data_matrix, obs = obs_df, var = var_df)
+    adata = ad.AnnData(data_matrix, obs=obs_df, var=var_df)
 
     if compress:
         adata.X = csr_matrix(adata.X)
