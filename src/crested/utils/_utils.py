@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import random
 from typing import Any, Callable
 
 import numpy as np
@@ -125,7 +126,7 @@ class EnhancerOptimizer:
     """
     Class to optimize the mutated sequence based on the original prediction.
 
-    Can be passed as the 'enhancer_optimizer' argument to :func:`crested.tl.Crested.enhancer_design_in_silico_evolution`
+    Can be passed as the 'enhancer_optimizer' argument to :func:`crested.tl.enhancer_design_in_silico_evolution`
 
     Parameters
     ----------
@@ -134,7 +135,7 @@ class EnhancerOptimizer:
 
     See Also
     --------
-    crested.tl.Crested.enhancer_design_in_silico_evolution
+    crested.tl.enhancer_design_in_silico_evolution
     """
 
     def __init__(self, optimize_func: Callable[..., int]) -> None:
@@ -365,3 +366,42 @@ def read_bigwig_region(
     ).squeeze()
 
     return values, positions
+
+
+def calculate_gc_distribution(
+    genome: Genome | os.PathLike,
+    regions: list[str],
+    n_regions: int | None = None,
+) -> list[float]:
+    """
+    Calculate the GC content distribution of a genome in a set of regions.
+
+    Parameters
+    ----------
+    genome
+        The genome object or path to the genome fasta file.
+    regions
+        A list of region names in the format "chr:start-end".
+    n_regions
+        Randomly sample n_regions from the regions. If None, all regions are used.
+
+    Returns
+    -------
+    The GC content distribution as a list of floats in order A, C, G, T.
+    """
+    genome = _resolve_genome(genome)
+
+    if n_regions is not None:
+        regions = random.sample(regions, n_regions)
+
+    acgt = [0, 0, 0, 0]
+
+    for region in regions:
+        seq = genome.fasta.fetch(region=region)
+        acgt[0] += seq.count("A")
+        acgt[1] += seq.count("C")
+        acgt[2] += seq.count("G")
+        acgt[3] += seq.count("T")
+
+    total = sum(acgt) or 1
+    return [round(a / total, 4) for a in acgt]
