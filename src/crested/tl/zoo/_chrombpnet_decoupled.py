@@ -1,4 +1,4 @@
-"""Chrombp net like model architecture for peak regression."""
+"""Chrombpnet like model architecture for peak regression."""
 
 import keras
 

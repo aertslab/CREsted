@@ -12,6 +12,7 @@ def locus_scoring(
     gene_start: int | None = None,
     gene_end: int | None = None,
     title: str = "Predictions across Genomic Regions",
+    ylim: tuple(float, float) | None = None,
     bigwig_values: np.ndarray | None = None,
     bigwig_midpoints: list[int] | None = None,
     filename: str | None = None,
@@ -35,6 +36,8 @@ def locus_scoring(
         The end position of the gene locus to highlight on the plot.
     title
         The title of the plot.
+    ylim
+        Manually set the y-range of the plot.
     bigwig_values
         A numpy array of values extracted from a bigWig file for the same coordinates.
     bigwig_midpoints
@@ -83,6 +86,8 @@ def locus_scoring(
     plt.xticks(rotation=90)
     plt.grid(True)
     plt.legend()
+    if ylim:
+        plt.ylim(ylim)
 
     # Bottom plot: bigWig values
     if bigwig_values is not None and bigwig_midpoints is not None:

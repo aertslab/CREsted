@@ -10,6 +10,7 @@ from ._tfmodisco import (
     find_pattern_matches,
     generate_html_paths,
     generate_nucleotide_sequences,
+    get_pwms_from_modisco_file,
     match_h5_files_to_classes,
     pattern_similarity,
     process_patterns,

@@ -19,6 +19,7 @@ from ._modisco_utils import (
     compute_ic,
     match_score_patterns,
     read_html_to_dataframe,
+    write_to_meme,
 )
 
 
@@ -174,6 +175,88 @@ def tfmodisco(
         except KeyError as e:
             logger.error(f"Missing data for class: {class_name}, error: {e}")
 
+def get_pwms_from_modisco_file(
+    modisco_file: str,
+    min_ic: float = 0.1,
+    output_meme_file: str | None = None,
+    metacluster_name: str | None = None,
+    pattern_indices: list[int] | None = None
+):
+    """
+    Extract PPMs (Position Probability Matrices) from a Modisco HDF5 results file.
+
+    Optionally, save the extracted PPMs in MEME format.
+
+    Parameters
+    ----------
+    modisco_file : str
+        Path to the Modisco HDF5 results file.
+    min_ic : float
+        Threshold to trim pattern. The higher, the more it gets trimmed.
+    output_meme_file : str | None
+        Path to save the extracted PPMs in MEME format. If None, PPMs are not saved.
+    metacluster_name : str | None
+        The name of the metacluster to process (e.g., 'pos_patterns' or 'neg_patterns').
+        If None, all metaclusters are processed.
+    pattern_indices : list[int] | None
+        List of pattern indices to include from the selected metacluster.
+        If None, all patterns are processed.
+
+    Returns
+    -------
+    dict[str, np.ndarray]
+        A dictionary where keys are pattern IDs (e.g., "pos_patterns_pattern_0")
+        and values are numpy arrays of PPMs.
+    """
+    ppms = {}
+
+    # Issue a warning if pattern_indices are provided without a metacluster_name
+    if pattern_indices and not metacluster_name:
+        logger.info(
+            "Pattern indices are specified, but no metacluster name is provided. "
+            "Pattern indices will be ignored."
+        )
+        pattern_indices = None
+
+    # Open the HDF5 file
+    with h5py.File(modisco_file, 'r') as hdf5_results:
+        # Select specific metacluster or iterate through all metaclusters
+        metaclusters_to_process = (
+            [metacluster_name] if metacluster_name else hdf5_results.keys()
+        )
+
+        for metacluster in metaclusters_to_process:
+            if metacluster not in hdf5_results:
+                raise ValueError(f"Metacluster '{metacluster}' not found in the HDF5 file.")
+
+            pos_pat = metacluster == 'pos_patterns'
+            metacluster_data = hdf5_results[metacluster]
+
+            # Select specific patterns or iterate through all patterns
+            patterns_to_process = (
+                pattern_indices if pattern_indices else range(len(metacluster_data))
+            )
+
+            for i in patterns_to_process:
+                pattern_name = f"pattern_{i}"
+                if pattern_name not in metacluster_data:
+                    raise ValueError(f"Pattern '{pattern_name}' not found in metacluster '{metacluster}'.")
+
+                pattern = metacluster_data[pattern_name]
+                pattern_trimmed = _trim_pattern_by_ic(pattern, pos_pat, min_ic)
+
+                # Extract the PPM as a numpy array
+                ppm = np.array(pattern_trimmed['sequence'])
+
+                # Save the PPM with a unique key
+                ppms[f"{metacluster}_{pattern_name}"] = ppm
+
+    # Optionally write PPMs to a MEME file
+    if output_meme_file:
+        write_to_meme(ppms, output_meme_file)
+
+    return ppms
+
 
 def add_pattern_to_dict(
     p: dict[str, np.ndarray],
@@ -302,8 +385,8 @@ def match_to_patterns(
         ic_class_representative = all_patterns[str(match_idx)]["classes"][cell_type]["ic"]
         n_seqlets_class_representative = all_patterns[str(match_idx)]["classes"][cell_type]['n_seqlets']
         if p_ic > ic_class_representative:
-            p['n_seqlets'] = n_seqlets_class_representative if n_seqlets_class_representative > p['n_seqlets'] else p['n_seqlets'] # if a class representative for a pattern gets replaced, we keep the max seqlet count between the two of them since they are the same pattern
             all_patterns[str(match_idx)]["classes"][cell_type] = p
+        all_patterns[str(match_idx)]["classes"][cell_type]['n_seqlets'] = n_seqlets_class_representative + p['n_seqlets'] # We add to the total number of seqlets for this class
     else:
         all_patterns[str(match_idx)]["classes"][cell_type] = p
 
