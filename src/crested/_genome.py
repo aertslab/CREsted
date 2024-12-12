@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import errno
 import os
-import random
 from pathlib import Path
 
 from loguru import logger
@@ -89,7 +88,6 @@ class Genome:
             self._annotation = None
 
         self._name = name
-        self._acgt = None
 
     @property
     def fasta(self) -> FastaFile:
@@ -153,43 +151,14 @@ class Genome:
                 return basename
         return self._name
 
-    @property
-    def acgt(self) -> list[float]:
-        """
-        The ACGT distribution of the genome.
-
-        Returns
-        -------
-        The ACGT distribution as a list of floats.
-        """
-        if self._acgt is None:
-            self._acgt = self._get_acgt()
-        return self._acgt
-
-    def _get_acgt(self, n: int = 10000, region_length: int = 1000) -> list[float]:
-        """Return the ACGT distribution of the genome based on n random regions."""
-        acgt = [0, 0, 0, 0]
-        chrom_sizes = self.chrom_sizes
-        # discard small chromosomes
-        chrom_sizes = {k: v for k, v in chrom_sizes.items() if v > region_length * 10}
-        chroms = list(chrom_sizes.keys())
-
-        for _ in range(n):
-            chrom = random.choice(chroms)
-            chrom_length = chrom_sizes[chrom]
-            start = random.randint(0, chrom_length - region_length)
-            end = start + region_length
-            seq = self.fasta.fetch(chrom, start, end)
-
-            acgt[0] += seq.count("A")
-            acgt[1] += seq.count("C")
-            acgt[2] += seq.count("G")
-            acgt[3] += seq.count("T")
-
-        total = sum(acgt)
-        return [x / total for x in acgt]
-
-    def fetch(self, chrom=None, start=None, end=None, strand="+", region=None) -> str:
+    def fetch(
+        self,
+        chrom: str | None = None,
+        start: int | None = None,
+        end: int | None = None,
+        strand: str = "+",
+        region: str | None = None,
+    ) -> str:
         """
         Fetch a sequence from a genomic region.
 
