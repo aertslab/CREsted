@@ -19,7 +19,7 @@ from ._modisco_utils import (
     compute_ic,
     match_score_patterns,
     read_html_to_dataframe,
-    write_to_meme
+    write_to_meme,
 )
 
 
@@ -184,26 +184,29 @@ def get_pwms_from_modisco_file(
 ):
     """
     Extract PPMs (Position Probability Matrices) from a Modisco HDF5 results file.
+
     Optionally, save the extracted PPMs in MEME format.
 
     Parameters
     ----------
-    modisco_file
+    modisco_file : str
         Path to the Modisco HDF5 results file.
-    min_ic
+    min_ic : float
         Threshold to trim pattern. The higher, the more it gets trimmed.
-    output_meme_file
+    output_meme_file : str | None
         Path to save the extracted PPMs in MEME format. If None, PPMs are not saved.
-    metacluster_name
+    metacluster_name : str | None
         The name of the metacluster to process (e.g., 'pos_patterns' or 'neg_patterns').
         If None, all metaclusters are processed.
-    pattern_indices
+    pattern_indices : list[int] | None
         List of pattern indices to include from the selected metacluster.
         If None, all patterns are processed.
 
     Returns
     -------
-    A dictionary where keys are pattern IDs (e.g., "pos_patterns_pattern_0") and values are numpy arrays of PPMs.
+    dict[str, np.ndarray]
+        A dictionary where keys are pattern IDs (e.g., "pos_patterns_pattern_0")
+        and values are numpy arrays of PPMs.
     """
     ppms = {}
 
