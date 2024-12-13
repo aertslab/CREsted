@@ -545,7 +545,7 @@ def merge_patterns(pattern1: dict, pattern2: dict) -> dict:
                 if ic_a > ic_b
                 else pattern2["classes"][cell_type]
             )
-            merged_classes[cell_type]['n_seqlets'] = max(n_seqlets_a, n_seqlets_b) # if patterns from the same class get merged, we keep the max seqlet count between the two of them since they are the same pattern
+            merged_classes[cell_type]['n_seqlets'] = n_seqlets_a + n_seqlets_b
         else:
             merged_classes[cell_type] = pattern1["classes"][cell_type]
 
