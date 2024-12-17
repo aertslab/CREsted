@@ -1,5 +1,39 @@
 # Release Notes
 
+## 1.2.0
+
+### Features
+
+-   {func}`crested.import_bigwigs` now allows BED files with entries for chromsomes which are not in the BigWig.
+-   Better handling of bigwigs track in the backend and new bigwig track reading function {func}`crested.utils.read_bigwig_region`
+-   Overall support for stranded datasets while preserving support for non stranded datasets.
+-   DVC logging now available with tf backend
+-   New option to choose the starting sequences for motif implementation and ISE in enhancer design.
+-   {func}`crested.tl.Crested.score_gene_locus` now accepts an optional genome as input.
+-   output_activation now parameter for all models in zoo.
+-   {func}`crested.utils.reverse_complement` and {func}`crested.utils.fetch_sequences` now available.
+-   Spearman correlation metric implementation
+-   Pattern plotting QOL updates
+-   poisson losses implemented at {class}`crested.tl.losses.PoissonLoss` and {class}`crested.tl.losses.PoissonMultinomialLoss`
+-   {class}`crested.Genome` and {func}`crested.register_genome` for better handling of genome files.
+-   MSECosine loss now uses a multiplier parameter instead of standard multiplication
+
+### Tutorials
+
+-   Introductory notebook now fully reproducible
+
+### Bug Fixes
+
+-   {func}`crested.tl.Crested.get_embeddings` now correcly updates .varm if anndata is passed instead of .obsm.
+-   Tangermeme moved out of optional dependencies for tf vs torch breaking mismatches.
+-   Fixed calculation of contribution scores with torch backend when using incompatible numpy version.
+-   Fix incorrect None return in `Crested.test()`
+
+### Breaking Changes
+
+-   If providing the same project_name and run_name, the Crested class will now assume that you want to continue training from existing checkpoints.
+-   'genome_file' argument name everywhere updated to 'genome'
+
 ## 1.1.0
 
 ### Features

@@ -11,17 +11,17 @@ class PoissonMultinomialLoss(keras.losses.Loss):
 
     Parameters
     ----------
-    total_weight : float
+    total_weight
         Weight of the Poisson term in the total loss.
-    eps : float
+    eps
         Small value to avoid log(0).
-    log_input : bool
+    log_input
         If True, applies exponential transformation to predictions to produce counts.
-    multinomial_axis : str
+    multinomial_axis
         Either "length" or "task", representing the axis along which multinomial proportions are calculated.
-    reduction : str
+    reduction
         Type of reduction to apply to the loss: "mean" or "none".
-    name : str
+    name
         Name of the loss function.
     """
 
@@ -34,25 +34,7 @@ class PoissonMultinomialLoss(keras.losses.Loss):
         reduction: str = "sum_over_batch_size",
         name: str = "PoissonMultinomialLoss",
     ):
-        """
-        Initialize the PoissonMultinomialLoss.
-
-        Parameters
-        ----------
-        total_weight : float, optional
-            Weight of the Poisson term in the total loss (default is 1.0).
-        eps : float, optional
-            Small value to avoid log(0) (default is 1e-7).
-        log_input : bool, optional
-            If True, applies exponential transformation to predictions to produce counts (default is True).
-        multinomial_axis : str, optional
-            Either "length" or "task", representing the axis along which multinomial proportions are calculated
-            (default is "task").
-        reduction : str, optional
-            Type of reduction to apply to the loss: "mean" or "none" (default is "sum_over_batch_size").
-        name : str, optional
-            Name of the loss function (default is "PoissonMultinomialLoss").
-        """
+        """Initialize the PoissonMultinomialLoss."""
         super().__init__(name=name, reduction=reduction)
         self.total_weight = total_weight
         self.eps = eps
@@ -65,15 +47,14 @@ class PoissonMultinomialLoss(keras.losses.Loss):
 
         Parameters
         ----------
-        y_true : Tensor
+        y_true
             True target values (aggregated counts).
-        y_pred : Tensor
+        y_pred
             Predicted values.
 
         Returns
         -------
-        Tensor
-            Combined loss value.
+        Combined loss value.
         """
         # Ensure predictions and targets are float32
         y_true = ops.cast(y_true, dtype="float32")
@@ -81,17 +62,15 @@ class PoissonMultinomialLoss(keras.losses.Loss):
 
         # Apply exp if log_input is True
         if self.log_input:
-            y_pred = ops.log(y_pred+1)
-            y_true = ops.log(y_true+1)
+            y_pred = ops.log(y_pred + 1)
+            y_true = ops.log(y_true + 1)
 
         # Total counts along the specified axis
         total_true = ops.sum(y_true, axis=self.axis, keepdims=True)
         total_pred = ops.sum(y_pred, axis=self.axis, keepdims=True)
 
         # Poisson term
-        poisson_term = (
-            total_pred - total_true * ops.log(total_pred + self.eps)
-        )
+        poisson_term = total_pred - total_true * ops.log(total_pred + self.eps)
 
         # Multinomial probabilities
         p_pred = y_pred / (total_pred + self.eps)
@@ -113,10 +92,12 @@ class PoissonMultinomialLoss(keras.losses.Loss):
     def get_config(self):
         """Return the configuration of the loss function."""
         config = super().get_config()
-        config.update({
-            "total_weight": self.total_weight,
-            "eps": self.eps,
-            "log_input": self.log_input,
-            "axis": self.axis,
-        })
+        config.update(
+            {
+                "total_weight": self.total_weight,
+                "eps": self.eps,
+                "log_input": self.log_input,
+                "axis": self.axis,
+            }
+        )
         return config
