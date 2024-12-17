@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import random
 from typing import Any, Callable
 
 import numpy as np
@@ -11,11 +12,121 @@ from crested._genome import Genome, _resolve_genome
 from crested._io import _extract_tracks_from_bigwig
 
 
+def get_hot_encoding_table(
+    alphabet: str = "ACGT",
+    neutral_alphabet: str = "N",
+    neutral_value: float = 0.0,
+    dtype=np.float32,
+) -> np.ndarray:
+    """Get hot encoding table to encode a DNA sequence to a numpy array with shape (len(sequence), len(alphabet)) using bytes."""
+
+    def str_to_uint8(string) -> np.ndarray:
+        """Convert string to byte representation."""
+        return np.frombuffer(string.encode("ascii"), dtype=np.uint8)
+
+    # 256 x 4
+    hot_encoding_table = np.zeros(
+        (np.iinfo(np.uint8).max + 1, len(alphabet)), dtype=dtype
+    )
+
+    # For each ASCII value of the nucleotides used in the alphabet
+    # (upper and lower case), set 1 in the correct column.
+    hot_encoding_table[str_to_uint8(alphabet.upper())] = np.eye(
+        len(alphabet), dtype=dtype
+    )
+    hot_encoding_table[str_to_uint8(alphabet.lower())] = np.eye(
+        len(alphabet), dtype=dtype
+    )
+
+    # For each ASCII value of the nucleotides used in the neutral alphabet
+    # (upper and lower case), set neutral_value in the correct column.
+    hot_encoding_table[str_to_uint8(neutral_alphabet.upper())] = neutral_value
+    hot_encoding_table[str_to_uint8(neutral_alphabet.lower())] = neutral_value
+
+    return hot_encoding_table
+
+
+HOT_ENCODING_TABLE = get_hot_encoding_table()
+
+
+def one_hot_encode_sequence(sequence: str, expand_dim: bool = True) -> np.ndarray:
+    """
+    One hot encode a DNA sequence.
+
+    Will return a numpy array with shape (1, len(sequence), 4) if expand_dim is True, otherwise (len(sequence),4).
+    Alphabet is ACGT.
+
+    Parameters
+    ----------
+    sequence
+        The DNA sequence to one hot encode.
+    expand_dim
+        Whether to expand the dimensions of the output array.
+
+    Returns
+    -------
+    The one hot encoded DNA sequence.
+    """
+    if expand_dim:
+        return np.expand_dims(
+            HOT_ENCODING_TABLE[np.frombuffer(sequence.encode("ascii"), dtype=np.uint8)],
+            axis=0,
+        )
+    else:
+        return HOT_ENCODING_TABLE[
+            np.frombuffer(sequence.encode("ascii"), dtype=np.uint8)
+        ]
+
+
+def generate_mutagenesis(x, include_original=True, flanks=(0, 0)):
+    """Generate all possible single point mutations in a sequence."""
+    _, L, A = x.shape
+    start, end = 0, L
+    x_mut = []
+    start = flanks[0]
+    end = L - flanks[1]
+    for length in range(start, end):
+        for a in range(A):
+            if not include_original:
+                if x[0, length, a] == 1:
+                    continue
+            x_new = np.copy(x)
+            x_new[0, length, :] = 0
+            x_new[0, length, a] = 1
+            x_mut.append(x_new)
+    return np.concatenate(x_mut, axis=0)
+
+
+def generate_motif_insertions(x, motif, flanks=(0, 0), masked_locations=None):
+    """Generate motif insertions in a sequence."""
+    _, L, A = x.shape
+    start, end = 0, L
+    x_mut = []
+    motif_length = motif.shape[1]
+    start = flanks[0]
+    end = L - flanks[1] - motif_length + 1
+    insertion_locations = []
+
+    for motif_start in range(start, end):
+        motif_end = motif_start + motif_length
+        if masked_locations is not None:
+            if np.any(
+                (motif_start <= masked_locations) & (masked_locations < motif_end)
+            ):
+                continue
+        x_new = np.copy(x)
+        x_new[0, motif_start:motif_end, :] = motif
+        x_mut.append(x_new)
+        insertion_locations.append(motif_start)
+
+    return np.concatenate(x_mut, axis=0), insertion_locations
+
+
 class EnhancerOptimizer:
     """
     Class to optimize the mutated sequence based on the original prediction.
 
-    Can be passed as the 'enhancer_optimizer' argument to :func:`crested.tl.Crested.enhancer_design_in_silico_evolution`
+    Can be passed as the 'enhancer_optimizer' argument to :func:`crested.tl.enhancer_design_in_silico_evolution`
 
     Parameters
     ----------
@@ -24,7 +135,7 @@ class EnhancerOptimizer:
 
     See Also
     --------
-    crested.tl.Crested.enhancer_design_in_silico_evolution
+    crested.tl.enhancer_design_in_silico_evolution
     """
 
     def __init__(self, optimize_func: Callable[..., int]) -> None:
@@ -178,7 +289,7 @@ def fetch_sequences(
     genome = _resolve_genome(genome)
     seqs = []
     for region in regions:
-        seq = genome.fetch(region = region)
+        seq = genome.fetch(region=region)
         if uppercase:
             seq = seq.upper()
         seqs.append(seq)
@@ -257,3 +368,40 @@ def read_bigwig_region(
     return values, positions
 
 
+def calculate_gc_distribution(
+    genome: Genome | os.PathLike,
+    regions: list[str],
+    n_regions: int | None = None,
+) -> list[float]:
+    """
+    Calculate the GC content distribution of a genome in a set of regions.
+
+    Parameters
+    ----------
+    genome
+        The genome object or path to the genome fasta file.
+    regions
+        A list of region names in the format "chr:start-end".
+    n_regions
+        Randomly sample n_regions from the regions. If None, all regions are used.
+
+    Returns
+    -------
+    The GC content distribution as a list of floats in order A, C, G, T.
+    """
+    genome = _resolve_genome(genome)
+
+    if n_regions is not None:
+        regions = random.sample(regions, n_regions)
+
+    acgt = [0, 0, 0, 0]
+
+    for region in regions:
+        seq = genome.fasta.fetch(region=region)
+        acgt[0] += seq.count("A")
+        acgt[1] += seq.count("C")
+        acgt[2] += seq.count("G")
+        acgt[3] += seq.count("T")
+
+    total = sum(acgt) or 1
+    return [round(a / total, 4) for a in acgt]

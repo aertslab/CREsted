@@ -324,9 +324,6 @@ class Crested:
         if self.model and (
             not hasattr(self.model, "optimizer") or self.model.optimizer is None
         ):
-            logger.warning(
-                "Model does not have an optimizer. Please compile the model before training."
-            )
             self.model.compile(
                 optimizer=self.config.optimizer,
                 loss=self.config.loss,
