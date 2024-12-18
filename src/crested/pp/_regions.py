@@ -71,6 +71,8 @@ def change_regions_width(
         chromsizes = _read_chromsizes(chromsizes_file)
     elif conf.genome:
         chromsizes = conf.genome.chrom_sizes
+    else:
+        chromsizes = None
 
     centers = (adata.var["start"] + adata.var["end"]) / 2
     half_width = width / 2
@@ -85,7 +87,7 @@ def change_regions_width(
     )
 
     # Check if regions are within the chromosome boundaries
-    if chromsizes_file is not None:
+    if chromsizes is not None:
         regions_to_keep = list(adata.var_names.copy())
         for idx, row in adata.var.iterrows():
             chr_name = row["chr"]
