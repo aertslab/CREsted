@@ -12,9 +12,13 @@ def locus_scoring(
     gene_start: int | None = None,
     gene_end: int | None = None,
     title: str = "Predictions across genomic regions",
+    ylim: tuple[float, float] | None = None,
     bigwig_values: np.ndarray | None = None,
     bigwig_midpoints: list[int] | None = None,
     filename: str | None = None,
+    grid: bool = True,
+    figsize: tuple[float, float] = (30,5),
+    highlight_positions: list[tuple[int, int]] | None = None,
 ):
     """
     Plot the predictions as a line chart over the entire genomic input and optionally indicate the gene locus.
@@ -35,12 +39,20 @@ def locus_scoring(
         The end position of the gene locus to highlight on the plot.
     title
         The title of the plot.
+    ylim
+        Manually set the y-range of the plot.
     bigwig_values
         A numpy array of values extracted from a bigWig file for the same coordinates.
     bigwig_midpoints
         A list of base pair positions corresponding to the bigwig_values.
     filename
         The filename to save the plot to.
+    grid
+        Add grid to plot.
+    figsize
+        Size of figure.
+    highlight_positions
+        A list of tuples specifying ranges to highlight on the plot.
 
     See Also
     --------
@@ -62,7 +74,7 @@ def locus_scoring(
     .. image:: ../../../../docs/_static/img/examples/hist_locus_scoring.png
     """
     # Plotting predictions
-    plt.figure(figsize=(30, 10))
+    plt.figure(figsize=figsize)
 
     # Top plot: Model predictions
     plt.subplot(2, 1, 1)
@@ -75,14 +87,19 @@ def locus_scoring(
         label="Prediction Score",
     )
     if gene_start is not None and gene_end is not None:
-        plt.axvspan(gene_start, gene_end, color="red", alpha=0.3, label="Gene Locus")
+        plt.axvspan(gene_start, gene_end, color="red", alpha=0.2, label="Gene Locus")
+    if highlight_positions:
+        for start, end in highlight_positions:
+            plt.axvspan(start, end, color="green", alpha=0.3)
     plt.title(title)
     plt.xlabel("Genomic Position")
     plt.ylabel("Prediction Score")
     plt.ylim(bottom=0)
     plt.xticks(rotation=90)
-    plt.grid(True)
+    plt.grid(grid)
     plt.legend()
+    if ylim:
+        plt.ylim(ylim)
 
     # Bottom plot: bigWig values
     if bigwig_values is not None and bigwig_midpoints is not None:
@@ -96,13 +113,13 @@ def locus_scoring(
         )
         if gene_start is not None and gene_end is not None:
             plt.axvspan(
-                gene_start, gene_end, color="red", alpha=0.3, label="Gene Locus"
+                gene_start, gene_end, color="red", alpha=0.2, label="Gene Locus"
             )
         plt.xlabel("Genomic Position")
         plt.ylabel("bigWig Values")
         plt.xticks(rotation=90)
         plt.ylim(bottom=0)
-        plt.grid(True)
+        plt.grid(grid)
         plt.legend()
 
     plt.tight_layout()
