@@ -28,6 +28,7 @@ def borzoi(
     kernel_size: int = 5,
     transformer_dropout = 0.2,
     pointwise_dropout: float = 0.1,
+    bn_sync: bool = False,
     name: str = 'Borzoi'
 ) -> keras.Model:
     """
@@ -79,6 +80,9 @@ def borzoi(
         Dropout rate used in the transformer blocks, both MHA and feed-forward.
     pointwise_dropout
         Dropout rate of the post-transformer final pointwise layer.
+    bn_sync
+        Whether to use synchronized cross-GPU BatchNormalisations.
+        Default is False to preserve TensorFlow-PyTorch compatibility.
 
     Returns
     -------
@@ -125,7 +129,7 @@ def borzoi(
             l2_scale=0,
             bn_momentum=0.9,
             bn_gamma=None,
-            bn_sync=True,
+            bn_sync=bn_sync,
             bn_epsilon=1e-3,
             kernel_initializer="he_normal",
             name_prefix=f"tower_conv_{cidx+1}"
@@ -142,7 +146,7 @@ def borzoi(
                 l2_scale=0,
                 bn_momentum=0.9,
                 bn_gamma=None,
-                bn_sync=True,
+                bn_sync=bn_sync,
                 bn_epsilon=1e-3,
                 kernel_initializer="he_normal",
                 name_prefix=f"unet_skip_{len(unet_skips)+1}"
@@ -201,7 +205,7 @@ def borzoi(
             l2_scale=0,
             bn_momentum=0.9,
             bn_gamma=None,
-            bn_sync=True,
+            bn_sync=bn_sync,
             bn_epsilon=1e-3,
             kernel_initializer="he_normal",
             name_prefix=f"upsampling_conv_{uidx+1}"
@@ -236,7 +240,7 @@ def borzoi(
             dropout=pointwise_dropout,
             bn_momentum=0.9,
             bn_gamma=None,
-            bn_sync=True,
+            bn_sync=bn_sync,
             bn_epsilon=1e-3,
             kernel_initializer="he_normal",
             name_prefix="final_conv"

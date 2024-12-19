@@ -26,6 +26,7 @@ def enformer(
     kernel_size: int = 5,
     transformer_dropout = 0.4,
     pointwise_dropout: float = 0.05,
+    bn_sync: bool = False,
     name: str = 'Enformer'
 ) -> keras.Model:
     """
@@ -73,6 +74,9 @@ def enformer(
         Dropout rate used in the transformer blocks, both MHA and feed-forward.
     pointwise_dropout
         Dropout rate of the post-transformer final pointwise layer.
+    bn_sync
+        Whether to use synchronized cross-GPU BatchNormalisations.
+        Default is False.
 
     Returns
     -------
@@ -110,7 +114,7 @@ def enformer(
         pool_type=pool_type,
         bn_momentum=0.9,
         bn_gamma=None,
-        bn_sync=True,
+        bn_sync=bn_sync,
         bn_epsilon=1e-5,
         kernel_initializer="he_normal",
         name_prefix="stem_pointwise"
@@ -131,7 +135,7 @@ def enformer(
             l2_scale=0,
             bn_momentum=0.9,
             bn_gamma=None,
-            bn_sync=True,
+            bn_sync=bn_sync,
             bn_epsilon=1e-5,
             kernel_initializer="he_normal",
             name_prefix=f"tower_conv_{cidx+1}"
@@ -149,7 +153,7 @@ def enformer(
             pool_type=pool_type,
             bn_momentum=0.9,
             bn_gamma=None,
-            bn_sync=True,
+            bn_sync=bn_sync,
             bn_epsilon=1e-5,
             kernel_initializer="he_normal",
             name_prefix=f"tower_pointwise_{cidx+1}"
@@ -204,7 +208,7 @@ def enformer(
             l2_scale=0,
             bn_momentum=0.9,
             bn_gamma=None,
-            bn_sync=True,
+            bn_sync=bn_sync,
             bn_epsilon=1e-5,
             kernel_initializer="he_normal",
             name_prefix="final_pointwise"
