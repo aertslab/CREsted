@@ -10,6 +10,7 @@ from ._crested import Crested
 from ._tools import (
     contribution_scores,
     contribution_scores_specific,
+    enhancer_design_in_silico_evolution,
     extract_layer_embeddings,
     predict,
     score_gene_locus,
@@ -46,6 +47,7 @@ __all__ = [
     "predict",
     "contribution_scores",
     "contribution_scores_specific",
+    "enhancer_design_in_silico_evolution",
     "score_gene_locus",
 ]
 

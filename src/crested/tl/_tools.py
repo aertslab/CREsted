@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-import re
+from typing import Any
 
 import keras
 import numpy as np
@@ -11,98 +11,23 @@ from anndata import AnnData
 from loguru import logger
 from tqdm import tqdm
 
-from crested._genome import Genome, _resolve_genome
-from crested.utils import one_hot_encode_sequence
+from crested._genome import Genome
+from crested.tl._utils import create_random_sequences, parse_starting_sequences
+from crested.utils._seq_utils import (
+    generate_mutagenesis,
+    hot_encoding_to_sequence,
+    one_hot_encode_sequence,
+)
+from crested.utils._utils import (
+    EnhancerOptimizer,
+    _transform_input,
+    _weighted_difference,
+)
 
 if os.environ["KERAS_BACKEND"] == "tensorflow":
     from crested.tl._explainer_tf import Explainer
 elif os.environ["KERAS_BACKEND"] == "torch":
     from crested.tl._explainer_torch import Explainer
-
-
-def _detect_input_type(input: str | list[str] | np.array | AnnData) -> str:
-    """
-    Detect the type of input provided.
-
-    Parameters
-    ----------
-    input
-        The input to detect the type of.
-
-    Returns
-    -------
-    One of ['sequence', 'region', 'anndata', 'array'], indicating the input type.
-    """
-    dna_pattern = re.compile("^[ACGTNacgtn]+$")
-    if isinstance(input, AnnData):
-        return "anndata"
-    elif isinstance(input, list):
-        if all(":" in str(item) for item in input):  # List of regions
-            return "region"
-        elif all(
-            isinstance(item, str) and dna_pattern.match(item) for item in input
-        ):  # List of sequences
-            return "sequence"
-        else:
-            raise ValueError(
-                "List input must contain only valid region strings (chrom:var-end) or DNA sequences."
-            )
-    elif isinstance(input, str):
-        if ":" in input:  # Single region
-            return "region"
-        elif dna_pattern.match(input):  # Single DNA sequence
-            return "sequence"
-        else:
-            raise ValueError(
-                "String input must be a valid region string (chrom:var-end) or DNA sequence."
-            )
-    elif isinstance(input, np.ndarray):
-        if input.ndim == 3:
-            return "array"
-        else:
-            raise ValueError("Input one hot array must have shape (N, L, 4).")
-    else:
-        raise ValueError(
-            "Unsupported input type. Must be AnnData, str, list, or np.ndarray."
-        )
-
-
-def _transform_input(input, genome: Genome | os.PathLike | None = None) -> np.ndarray:
-    """
-    Transform the input into a one-hot encoded matrix based on its type.
-
-    Parameters
-    ----------
-    input
-        Input data to preprocess. Can be a sequence, list of sequences, region, list of regions, or an AnnData object.
-    genome
-        Genome or Path to the genome file. Required if no genome is registered and input is a region or AnnData.
-
-    Returns
-    -------
-    One-hot encoded matrix of shape (N, L, 4), where N is the number of sequences/regions and L is the sequence length.
-    """
-    input_type = _detect_input_type(input)
-
-    if input_type == "anndata":
-        genome = _resolve_genome(genome)
-        regions = list(input.var_names)
-        sequences = [genome.fetch(region=region) for region in regions]
-    elif input_type == "region":
-        genome = _resolve_genome(genome)
-        regions = input if isinstance(input, list) else [input]
-        sequences = [genome.fetch(region=region) for region in regions]
-    elif input_type == "sequence":
-        sequences = input if isinstance(input, list) else [input]
-    elif input_type == "array":
-        assert input.ndim == 3, "Input one hot array must have shape (N, L, 4)."
-        return input
-
-    one_hot_data = np.array(
-        [one_hot_encode_sequence(seq, expand_dim=False) for seq in sequences]
-    )
-
-    return one_hot_data
 
 
 def extract_layer_embeddings(
@@ -546,3 +471,214 @@ def contribution_scores_specific(
         np.concatenate(all_scores, axis=0),
         np.concatenate(all_one_hots, axis=0),
     )
+
+
+def enhancer_design_in_silico_evolution(
+    n_mutations: int,
+    target_idx: int,
+    model: keras.Model | list[keras.Model],
+    n_sequences: int = 1,
+    return_intermediate: bool = False,
+    no_mutation_flanks: tuple[int, int] | None = None,
+    enhancer_optimizer: EnhancerOptimizer | None = None,
+    starting_sequences: str | list | None = None,
+    acgt_distribution: np.ndarray[float] | None = None,
+    **kwargs: dict[str, Any],
+) -> list | tuple[list[dict], list]:
+    """
+    Create synthetic enhancers for a specified class using in silico evolution (ISE).
+
+    Parameters
+    ----------
+    n_mutations
+        Number of mutations to make in each sequence.
+        20 is a good starting point for most cases.
+    target_idx
+        Index of the target class to design enhancers for.
+        You can usually get this from running `anndata.obs_names.index(class_name)`.
+    model
+        A (list of) trained keras model(s) to design enhancers with.
+        If a list of models is provided, the predictions will be averaged across all models.
+    n_sequences
+        Number of enhancers to design
+    return_intermediate
+        If True, returns a dictionary with predictions and changes made in intermediate steps for selected
+        sequences
+    no_mutation_flanks
+        A tuple of integers which determine the regions in each flank to not do implementations.
+    enhancer_optimizer
+        An instance of EnhancerOptimizer, defining how sequences should be optimized.
+        If None, a default EnhancerOptimizer will be initialized using `_weighted_difference`
+        as optimization function.
+    starting_sequences
+        An optional DNA sequence or a list of DNA sequences that will be used instead of randomly generated
+        sequences. If provided, n_sequences is ignored
+    acgt_distribution
+        An array of floats representing the distribution of A, C, G, and T in the genome (in that order).
+        If the array is of shape (L, 4), it will be assumed to be per position. If it is of shape (4,), it will be assumed to be overall.
+        If None, a uniform distribution will be used.
+        This will be used to generate random sequences if starting_sequences is not provided.
+        You can calculate these using `crested.utils.calculate_nucleotide_distribution`.
+    kwargs
+        Keyword arguments that will be passed to the `get_best` function of the EnhancerOptimizer
+
+    Returns
+    -------
+    A list of designed sequences. If return_intermediate is True, will also return a list of dictionaries of intermediate
+    mutations and predictions.
+
+    See Also
+    --------
+    crested.utils.EnhancerOptimizer
+    crested.utils.calculate_nucleotide_distribution
+
+    Examples
+    --------
+    >>> acgt_distribution = crested.utils.calculate_nucleotide_distribution(
+    ...     my_anndata, genome, per_position=True
+    ... )  # shape (L, 4)
+    >>> target_idx = my_anndata.obs_names.index("my_celltype")
+    >>> (
+    ...     intermediate_results,
+    ...     designed_sequences,
+    ... ) = crested.tl.enhancer_design_in_silico_evolution(
+    ...     n_mutations=20,
+    ...     target_idx=target_idx,
+    ...     model=my_trained_model,
+    ...     n_sequences=1,
+    ...     return_intermediate=True,
+    ...     acgt_distribution=acgt_distribution,
+    ... )
+    """
+    if enhancer_optimizer is None:
+        enhancer_optimizer = EnhancerOptimizer(optimize_func=_weighted_difference)
+    if not isinstance(model, list):
+        model = [model]
+    seq_len = model[0].input_shape[1]
+
+    if no_mutation_flanks is None:
+        no_mutation_flanks = (0, 0)
+
+    # create initial sequences
+    if starting_sequences is None:
+        if acgt_distribution is None:
+            logger.warning(
+                "No nucleotide distribution provided. Using uniform distribution."
+            )
+        initial_sequences = create_random_sequences(
+            n_sequences=n_sequences,
+            seq_len=seq_len,
+            acgt_distribution=acgt_distribution,
+        )
+    else:
+        initial_sequences = parse_starting_sequences(starting_sequences)
+        n_sequences = initial_sequences.shape[0]
+
+    # initialize
+    designed_sequences: list[str] = []
+    intermediate_info_list: list[dict] = []
+
+    sequence_onehot_prev_iter = np.zeros((n_sequences, seq_len, 4), dtype=np.uint8)
+
+    # calculate total number of mutations per sequence
+    _, L, A = sequence_onehot_prev_iter.shape
+    start, end = 0, L
+    start = no_mutation_flanks[0]
+    end = L - no_mutation_flanks[1]
+    TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ = (end - start) * (A - 1)
+
+    mutagenesis = np.zeros((n_sequences, TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ, seq_len, 4))
+
+    for i, sequence in enumerate(initial_sequences):
+        sequence_onehot_prev_iter[i] = one_hot_encode_sequence(sequence)
+
+    for _iter in tqdm(range(n_mutations)):
+        baseline_prediction = []
+        for m in model:
+            baseline_prediction.append(
+                m.predict(sequence_onehot_prev_iter, verbose=False)
+            )
+        baseline_prediction = np.mean(baseline_prediction, axis=0)
+        if _iter == 0:
+            for i in range(n_sequences):
+                # initialize info
+                intermediate_info_list.append(
+                    {
+                        "inital_sequence": hot_encoding_to_sequence(
+                            sequence_onehot_prev_iter[i]
+                        ),
+                        "changes": [(-1, "N")],
+                        "predictions": [baseline_prediction[i]],
+                        "designed_sequence": "",
+                    }
+                )
+
+        # do all possible mutations
+        for i in range(n_sequences):
+            mutagenesis[i] = generate_mutagenesis(
+                sequence_onehot_prev_iter[i : i + 1],
+                include_original=False,
+                flanks=no_mutation_flanks,
+            )
+        mutagenesis_predictions = []
+        for m in model:
+            mutagenesis_prediction = m.predict(
+                mutagenesis.reshape(
+                    (n_sequences * TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ, seq_len, 4)
+                ),
+                verbose=False,
+            )
+
+            mutagenesis_prediction = mutagenesis_prediction.reshape(
+                (
+                    n_sequences,
+                    TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ,
+                    mutagenesis_prediction.shape[1],
+                )
+            )
+            mutagenesis_predictions.append(mutagenesis_prediction)
+        mutagenesis_predictions = np.mean(mutagenesis_predictions, axis=0)
+        for i in range(n_sequences):
+            best_mutation = enhancer_optimizer.get_best(
+                mutated_predictions=mutagenesis_predictions[i],
+                original_prediction=baseline_prediction[i],
+                target=target_idx,
+                **kwargs,
+            )
+            sequence_onehot_prev_iter[i] = mutagenesis[
+                i, best_mutation : best_mutation + 1, :
+            ]
+            if return_intermediate:
+                mutation_index = best_mutation // 3 + no_mutation_flanks[0]
+                changed_to = hot_encoding_to_sequence(
+                    sequence_onehot_prev_iter[i, mutation_index, :]
+                )
+                intermediate_info_list[i]["changes"].append(
+                    (mutation_index, changed_to)
+                )
+                intermediate_info_list[i]["predictions"].append(
+                    mutagenesis_predictions[i][best_mutation]
+                )
+
+    # get final sequence
+    for i in range(n_sequences):
+        best_mutation = enhancer_optimizer.get_best(
+            mutated_predictions=mutagenesis_predictions[i],
+            original_prediction=baseline_prediction[i],
+            target=target_idx,
+            **kwargs,
+        )
+
+        designed_sequence = hot_encoding_to_sequence(
+            mutagenesis[i, best_mutation : best_mutation + 1, :]
+        )
+
+        designed_sequences.append(designed_sequence)
+
+        if return_intermediate:
+            intermediate_info_list[i]["designed_sequence"] = designed_sequence
+
+    if return_intermediate:
+        return intermediate_info_list, designed_sequences
+    else:
+        return designed_sequences

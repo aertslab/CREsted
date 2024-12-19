@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 import crested
-from crested.tl._tools import _detect_input_type, _transform_input
+from crested.utils._utils import _detect_input_type, _transform_input
 
 
 def test_input_type(adata):
@@ -32,11 +32,11 @@ def test_input_type(adata):
 
 
 def test_input_transform(genome):
-    assert _transform_input("AACGT").shape == (1, 5, 4)
+    assert _transform_input("AACGT").shape == (1, 5, 4), _transform_input("AACGT").shape
     assert np.array_equal(
         _transform_input("ACGT"),
         np.array([[[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]]),
-    )
+    ), _transform_input("ACGT")
     assert np.array_equal(
         _transform_input(["ACGT", "ACGT"]),
         np.array(
@@ -194,4 +194,39 @@ def test_contribution_scores_specific(keras_model, adata, adata_specific, genome
     )
     assert os.path.exists(
         f"tests/data/test_contribution_scores/{class_names[0]}_contrib.npz"
+    )
+
+
+def test_enhancer_design_in_silico_evolution(keras_model, adata, genome):
+    # one model
+    seqs = crested.tl.enhancer_design_in_silico_evolution(
+        n_mutations=2, target_idx=0, model=keras_model, n_sequences=1
+    )
+    assert len(seqs) == 1, len(seqs)
+    assert len(seqs[0]) == keras_model.input_shape[1], len(seqs[0])
+
+    # multiple models
+    seqs = crested.tl.enhancer_design_in_silico_evolution(
+        n_mutations=2, target_idx=1, model=[keras_model, keras_model], n_sequences=2
+    )
+    assert len(seqs) == 2, len(seqs)
+
+    # acgt distribution provided
+    acgt_disbtibution = crested.utils.calculate_nucleotide_distribution(
+        input=adata, genome=genome, per_position=True
+    )
+    seqs = crested.tl.enhancer_design_in_silico_evolution(
+        n_mutations=1,
+        target_idx=0,
+        model=keras_model,
+        acgt_distribution=acgt_disbtibution,
+    )
+
+    # starting sequences provided
+    starting_sequences = ["A" * keras_model.input_shape[1]]
+    seqs = crested.tl.enhancer_design_in_silico_evolution(
+        n_mutations=1,
+        target_idx=0,
+        model=keras_model,
+        starting_sequences=starting_sequences,
     )
