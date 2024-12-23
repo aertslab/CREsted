@@ -61,7 +61,7 @@ class Explainer:
                 func=self.func,
             )
             scores.append(intgrad_scores)
-        return np.concatenate(scores, axis=0)
+        return np.array(scores)
 
     def expected_integrated_grad(
         self, X, num_baseline=25, baseline_type="random", num_steps=25
@@ -80,7 +80,7 @@ class Explainer:
                 func=self.func,
             )
             scores.append(intgrad_scores)
-        return np.concatenate(scores, axis=0)
+        return np.array(scores)
 
     def mutagenesis(self, X, class_index=None):
         """In silico mutagenesis analysis for a given sequence."""
