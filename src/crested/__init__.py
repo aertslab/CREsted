@@ -23,7 +23,7 @@ import sys
 from importlib.metadata import version
 
 from . import pl, pp, tl, utils
-from ._datasets import get_dataset, get_motif_db
+from ._datasets import get_dataset, get_model, get_motif_db
 from ._genome import Genome, register_genome
 from ._io import import_beds, import_bigwigs
 
@@ -36,6 +36,7 @@ __all__ = [
     "import_bigwigs",
     "get_dataset",
     "get_motif_db",
+    "get_model",
     "Genome",
     "register_genome",
 ]
