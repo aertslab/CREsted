@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 
 import pooch
@@ -42,10 +44,12 @@ def _get_dataset_index():
                 "data/mouse_biccn/consensus_peaks_biccn.bed": "sha256:83ce5a58aee11c40d7a1e11b603ceb34012e0e4b91eea0953eb37a943707a1e5",
                 # Melanoma datasets
                 # Fly datasets
-                # Models
                 # Motif databases
                 "motif_db/motif_db.meme": "sha256:31d3fa1117e752b0d3076a73b278b59bb4a056d744401e9d5861310d03186cfd",
                 "motif_db/motif_tf_collection.tsv": "sha256:438933d41033b274035ec0bcf66bdafb1de2f22a1eb142800d1e76b6729e3438",
+                # Models
+                "models/model1.tar.gz": "sha256:examplehash1",
+                "models/model2.tar.gz": "sha256:examplehash2",
             },
         )
     return _datasets
@@ -129,3 +133,54 @@ def get_motif_db():
         "motif_db/motif_tf_collection.tsv", progressbar=True
     )
     return motif_db_path, motif_collection_path
+
+
+def get_model(model: str) -> tuple[str, list[str]]:
+    """
+    Fetch a model.
+
+    This function retrieves the model files, downloading if not already cached, and returns the paths to the model and a list of output classnames.
+    The model folder contains the model.keras file and the output classnames file (.tsv).
+
+    Provided examples:
+    - 'model1': Example model 1.
+    - 'model2': Example model 2.
+
+    Note
+    ----
+    The cache location can be changed by setting environment variable $CRESTED_DATA_DIR.
+
+    Parameters
+    ----------
+    model
+        The name of the model to fetch.
+        Options: 'model1', 'model2'
+
+    Returns
+    -------
+    A tuple consisting of the .keras model file path and a list of output classnames.
+
+    Example
+    -------
+    >>> model_file, output_names = crested.get_model("model1")
+    """
+    # Mapping: "user_facing_name": ("model_folder_in_registry.tar.gz")
+    model_mapping = {
+        "model1": ("models/model1.tar.gz"),
+        "model2": ("models/model2.tar.gz"),
+    }
+    assert (
+        model in model_mapping
+    ), f"Model {model} is not recognised. Available models: {tuple(model_mapping.keys())}"
+
+    model_folder = model_mapping[model]
+    model_folder = _get_dataset_index().fetch(
+        model_folder, processor=pooch.Untar(), progressbar=True
+    )
+    model_file = os.path.join(model_folder, model + ".keras")
+    model_output_names = os.path.join(
+        os.path.dirname(model_folder), model + "_output_classes.tsv"
+    )
+    with open(model_output_names) as f:
+        model_output_classes = f.read().splitlines()
+    return model_file, model_output_classes
