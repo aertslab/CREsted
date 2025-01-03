@@ -45,8 +45,8 @@ def _get_dataset_index():
                 # Melanoma datasets
                 # Fly datasets
                 # Motif databases
-                "motif_db/motif_db.meme": "sha256:31d3fa1117e752b0d3076a73b278b59bb4a056d744401e9d5861310d03186cfd",
-                "motif_db/motif_tf_collection.tsv": "sha256:438933d41033b274035ec0bcf66bdafb1de2f22a1eb142800d1e76b6729e3438",
+                "motif_db/motif_db.meme": "sha256:1667eaf9ca2abb37fa21b541faa9e1676690b58a1206078255a9d7e389731dbc",
+                "motif_db/motif_tf_collection.tsv": "sha256:b91c4d4483ff92cef394d109899fa6f6bc5f3c474629e65d83b042b58d212f91",
                 # Models
                 "models/model1.tar.gz": "sha256:examplehash1",
                 "models/model2.tar.gz": "sha256:examplehash2",
