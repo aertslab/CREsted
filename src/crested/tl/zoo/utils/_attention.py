@@ -526,7 +526,7 @@ def pos_feats_exponential(
     # calculate half lifes
     half_life = keras.ops.power(2.0, keras.ops.linspace(min_half_life, max_range, num_basis))
     # prepend 2 dimensions to the tensor half_life
-    half_life = _prepend_dims(half_life, positions.shape.rank)
+    half_life = _prepend_dims(half_life,  keras.ops.ndim(positions))
     positions = keras.ops.abs(positions)
     # calculate symmetric positional encodings
     outputs = keras.ops.exp(-keras.ops.log(2.0)/half_life*keras.ops.expand_dims(positions, axis=-1))
@@ -549,7 +549,7 @@ def pos_feats_central_mask_borzoi(
     pow_rate = np.exp(np.log(seq_length + 1) / num_basis).astype("float32")
     center_widths = keras.ops.power(pow_rate, keras.ops.arange(1, num_basis + 1, dtype="float32"))
     center_widths = center_widths - 1
-    center_widths = _prepend_dims(center_widths, positions.shape.rank)
+    center_widths = _prepend_dims(center_widths, keras.ops.ndim(positions))
     outputs = keras.ops.cast(
         center_widths > keras.ops.expand_dims(keras.ops.abs(positions), axis = -1),
         "float32")
@@ -571,7 +571,7 @@ def pos_feats_central_mask_enformer(
     """
     center_widths = keras.ops.power(2.0, keras.ops.arange(1, num_basis+1, dtype="float32"))
     center_widths = center_widths - 1
-    center_widths = _prepend_dims(center_widths, positions.shape.rank)
+    center_widths = _prepend_dims(center_widths, keras.ops.ndim(positions))
     outputs = keras.ops.cast(
         center_widths > keras.ops.expand_dims(keras.ops.abs(positions), axis = -1),
         "float32")
@@ -623,7 +623,7 @@ def pos_feats_gamma(
     if start_mean is None:
         start_mean = seq_length/num_basis
     mean = keras.ops.linspace(start_mean, seq_length, num=num_basis)
-    mean = _prepend_dims(mean, positions.shape.rank)
+    mean = _prepend_dims(mean,  keras.ops.ndim(positions))
     concentration = (mean/stddev)**2
     rate = mean/stddev**2
     probabilities = gamma_pdf_func(keras.ops.expand_dims(keras.ops.abs(keras.ops.cast(positions, dtype="float32")), axis=-1),
