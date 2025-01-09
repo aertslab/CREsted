@@ -3,6 +3,13 @@
 import keras
 import numpy as np
 
+backend = keras.src.backend.config.backend()
+if backend == 'tensorflow':
+    from tensorflow.math import lgamma
+elif backend == 'pytorch':
+    from torch import lgamma
+else:
+    raise NotImplementedError(f"Using gamma position functions (as part of relative_position_functions == 'enformer') currently only supports TensorFlow and PyTorch backends, not {backend}.")
 
 # Attention pooling layer
 class AttentionPool1D(keras.layers.Layer):
@@ -337,7 +344,8 @@ class MultiheadAttention(keras.layers.Layer):
             q *= self._key_size**-0.5
 
         # content_logits: [B, H, T', T] -> (1, 8, 1536, 1536)
-        content_logits = keras.ops.einsum('b h i d, b h j d -> b h i j', q + self._r_w_bias, k)
+        content_logits = q + self._r_w_bias
+        content_logits = keras.ops.einsum('b h i d, b h j d -> b h i j', content_logits, k)
 
         if self._num_position_features == 0:
             logits = content_logits
@@ -362,14 +370,14 @@ class MultiheadAttention(keras.layers.Layer):
             r_k = keras.ops.reshape(
                 r_k, [-1, self._num_heads, self._key_size] # [2T-1, H, K]
             )
-            # [H, 2T-1, K] -> (8, 3071, 64)
-            r_k =  keras.ops.transpose(r_k, [1, 0, 2])
+            # [H, K, 2T-1] -> (8, 64, 3071)
+            r_k = keras.ops.transpose(r_k, [1, 2, 0])
 
             # Add shifted relative logits to content logits.
             if self._content_position_bias:
+                relative_logits = q + self._r_r_bias
                 # relative_logits: [B, H, T', 2T-1] -> (1, 8, 1536, 3071)
-                relative_logits = keras.ops.einsum('b h i d, h j d -> b h i j', q + self._r_r_bias, r_k)
-
+                relative_logits = keras.ops.matmul(relative_logits, r_k)
             else:
                 # relative_logits: [1, H, 1, 2T-1] -> (1, 8, 1, 3071)
                 relative_logits = keras.ops.einsum('b h i d, h j d -> b h i j', self._r_r_bias, r_k)
@@ -440,9 +448,9 @@ def relative_shift(x):
     t1 = x.shape[2]
     t2 = x.shape[3]
     x = keras.ops.reshape(x, [-1, num_heads, t2, t1])
-    x = keras.ops.slice(x, [0, 0, 1, 0], [-1, -1, -1, -1])
+    x = x[:, :, 1:, :]
     x = keras.ops.reshape(x, [-1, num_heads, t1, t2-1])
-    x = keras.ops.slice(x, [0, 0, 0, 0], [-1, -1, -1, (t2+1)//2])
+    x = x[..., :((t2+1)//2)]
 
     return x
 
@@ -458,16 +466,6 @@ def get_position_features_func(relative_position_functions: str, absolute: bool)
         Whether to take the absolute of the values before calculating feature embeddings.
         Enformer uses this, Borzoi does not.
     """
-    if relative_position_functions == 'enformer':
-        # Using gamma position function, which uses functions currently not implemented in keras 3 (lgamma, xlogy)
-        # Solution: check backend on our own.
-        backend = keras.src.backend.config.backend()
-        if backend == 'tensorflow':
-            gamma_pdf = gamma_pdf_tf
-        elif backend == 'pytorch':
-            gamma_pdf = gamma_pdf_pt
-        else:
-            raise NotImplementedError(f"Using gamma position functions (as part of relative_position_functions == 'enformer') currently only supports TensorFlow and PyTorch backends, not {backend}.")
     def _position_features(
         positions: keras.KerasTensor,
         feature_size: int, # num_relative_position_features: total number of basis functions*n(int)
@@ -493,7 +491,7 @@ def get_position_features_func(relative_position_functions: str, absolute: bool)
             embeddings = keras.ops.concatenate(
                 [pos_feats_exponential(positions, num_basis_per_class, seq_length),
                  pos_feats_central_mask_enformer(positions, num_basis_per_class),
-                 pos_feats_gamma(positions, num_basis_per_class, seq_length, gamma_pdf_func = gamma_pdf)],
+                 pos_feats_gamma(positions, num_basis_per_class, seq_length)],
                 axis=-1)
         elif relative_position_functions == "borzoi":
             embeddings = pos_feats_central_mask_borzoi(positions, num_basis_per_class, seq_length)
@@ -505,8 +503,6 @@ def get_position_features_func(relative_position_functions: str, absolute: bool)
             embeddings = keras.ops.concatenate(
                 [embeddings, keras.ops.expand_dims(positions_sign, axis=-1)*embeddings],
                 axis=-1)
-        # TODO: port check to keras 3 -> not sure if possible
-        # tf.TensorShape(embeddings.shape).assert_is_compatible_with(positions.shape + [feature_size])
 
         # tensor of shape: `positions.shape+(feature_size, )`
         return embeddings
@@ -526,12 +522,10 @@ def pos_feats_exponential(
     # calculate half lifes
     half_life = keras.ops.power(2.0, keras.ops.linspace(min_half_life, max_range, num_basis))
     # prepend 2 dimensions to the tensor half_life
-    half_life = _prepend_dims(half_life,  keras.ops.ndim(positions))
+    half_life = keras.ops.reshape(half_life, (1, 1, -1))
     positions = keras.ops.abs(positions)
     # calculate symmetric positional encodings
     outputs = keras.ops.exp(-keras.ops.log(2.0)/half_life*keras.ops.expand_dims(positions, axis=-1))
-    # TODO: convert to Keras 3
-    # tf.TensorShape(outputs.shape).assert_is_compatible_with(positions.shape + [num_basis])
 
     # a tensor with shape [2*seq_length-1, num_basis]
     return outputs
@@ -549,14 +543,10 @@ def pos_feats_central_mask_borzoi(
     pow_rate = np.exp(np.log(seq_length + 1) / num_basis).astype("float32")
     center_widths = keras.ops.power(pow_rate, keras.ops.arange(1, num_basis + 1, dtype="float32"))
     center_widths = center_widths - 1
-    center_widths = _prepend_dims(center_widths, keras.ops.ndim(positions))
+    center_widths = keras.ops.reshape(center_widths, (1, 1, -1))
     outputs = keras.ops.cast(
         center_widths > keras.ops.expand_dims(keras.ops.abs(positions), axis = -1),
         "float32")
-    # TODO: convert to Keras 3
-    # tf.TensorShape(outputs.shape).assert_is_compatible_with(
-    #     positions.shape + [num_basis]
-    # )
     return outputs
 
 # positional features using a central mask (allow only central features)
@@ -571,32 +561,18 @@ def pos_feats_central_mask_enformer(
     """
     center_widths = keras.ops.power(2.0, keras.ops.arange(1, num_basis+1, dtype="float32"))
     center_widths = center_widths - 1
-    center_widths = _prepend_dims(center_widths, keras.ops.ndim(positions))
+    center_widths = keras.ops.reshape(center_widths, (1, 1, -1))
     outputs = keras.ops.cast(
         center_widths > keras.ops.expand_dims(keras.ops.abs(positions), axis = -1),
         "float32")
-    # TODO: convert to Keras 3
-    # tf.TensorShape(outputs.shape).assert_is_compatible_with(positions.shape+[num_basis])
     return outputs
 
-def gamma_pdf_tf(x, concentration, rate):
-    """Gamma probability distribution function: p(x|concentration, rate) in tensorflow."""
-    import tensorflow as tf
-    log_unnormalized_prob = tf.math.xlogy(concentration - 1., x) - rate * x
-    log_normalization = (tf.math.lgamma(concentration) -
-                        concentration * tf.math.log(rate))
-    return tf.exp(log_unnormalized_prob - log_normalization)
-
-def gamma_pdf_pt(x, concentration, rate):
-    """
-    Gamma probability distribution function: p(x|concentration, rate) in pytorch.
-
-    Taken from lucidrains/enformer-pytorch.
-    """
-    import torch
-    log_unnormalized_prob = torch.xlogy(concentration - 1., x) - rate * x
-    log_normalization = (torch.lgamma(concentration) - concentration * torch.log(rate))
-    return torch.exp(log_unnormalized_prob - log_normalization)
+def gamma_pdf(x, concentration, rate):
+    """Gamma probability distribution function: p(x|concentration, rate)"""
+    log_unnormalized_prob = (concentration - 1.) * keras.ops.log(x) - rate * x
+    log_normalization = (lgamma(concentration) -
+                        concentration * keras.ops.log(rate))
+    return keras.ops.exp(log_unnormalized_prob - log_normalization)
 
 # positional features computed using the gamma distributions
 def pos_feats_gamma(
@@ -607,14 +583,6 @@ def pos_feats_gamma(
     start_mean=None,
     gamma_pdf_func = None
 ):
-    if gamma_pdf_func is None:
-        backend = keras.src.backend.config.backend()
-        if backend == 'tensorflow':
-            gamma_pdf_func = gamma_pdf_tf
-        elif backend == 'pytorch':
-            gamma_pdf_func = gamma_pdf_pt
-        else:
-            raise NotImplementedError(f"Using gamma position functions (as part of relative_position_functions == 'enformer') currently only supports TensorFlow and PyTorch backends, not {backend}.")
 
     if seq_length is None:
         seq_length = keras.ops.max(keras.ops.abs(positions))+1
@@ -623,20 +591,18 @@ def pos_feats_gamma(
     if start_mean is None:
         start_mean = seq_length/num_basis
     mean = keras.ops.linspace(start_mean, seq_length, num=num_basis)
-    mean = _prepend_dims(mean,  keras.ops.ndim(positions))
+    mean = keras.ops.reshape(mean, (1, 1, -1))
     concentration = (mean/stddev)**2
     rate = mean/stddev**2
-    probabilities = gamma_pdf_func(keras.ops.expand_dims(keras.ops.abs(keras.ops.cast(positions, dtype="float32")), axis=-1),
-                                   concentration,
-                                   rate)
+    positions = keras.ops.cast(positions, dtype="float32")
+    abs_positions = keras.ops.abs(positions)
+    abs_positions = keras.ops.expand_dims(abs_positions, axis=-1)
+    probabilities = gamma_pdf(abs_positions,
+                              concentration,
+                              rate)
     probabilities += 1e-8 # to ensure numerical stability
-    outputs = probabilities/keras.ops.max(probabilities,
-                                          axis=1,
-                                          keepdims=True)
-    # TODO: convert to Keras 3
-    # tf.TensorShape(outputs.shape).assert_is_compatible_with(positions.shape+[num_basis])
+    max_probabilities = keras.ops.max(probabilities, 
+                                      axis=1, 
+                                      keepdims=True)
+    outputs = probabilities/max_probabilities
     return outputs
-
-def _prepend_dims(x, num_dims):
-    # Should be possible cleaner with keras.ops.expand_dims() but oh well
-    return keras.ops.reshape(x, [1]*num_dims+x.shape)
