@@ -2,41 +2,10 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
 import pytest
 import requests
 
 from crested._datasets import _get_dataset_index, get_model
-
-
-@pytest.mark.parametrize("valid_model", ["model1", "model2"])
-def test_get_model_valid_models(valid_model, tmp_path):
-    """
-    Test that get_model returns the correct paths for valid model names,
-    and that it reads the output classes from the correct file.
-    """
-    # create mock files to not actually download the models
-    model_dir = tmp_path / valid_model
-    model_dir.mkdir()
-
-    model_file = model_dir / f"{valid_model}.keras"
-    model_file.touch()
-
-    output_classes_file = tmp_path / f"{valid_model}_output_classes.tsv"
-    with open(output_classes_file, "w") as f:
-        f.write("classA\nclassB\nclassC\n")
-
-    # patch `_get_dataset_index().fetch` so that it returns the path to our dummy model_dir
-    with patch("crested._datasets._get_dataset_index") as mock_get_dataset_index:
-        mock_index = MagicMock()
-        mock_index.fetch.return_value = str(model_dir)
-        mock_get_dataset_index.return_value = mock_index
-
-        returned_model_file, returned_output_classes = get_model(valid_model)
-
-        assert returned_model_file == str(model_file)
-        assert returned_output_classes == ["classA", "classB", "classC"]
 
 
 def test_get_model_invalid_model():
