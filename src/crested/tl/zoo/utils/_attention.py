@@ -128,17 +128,12 @@ class MultiheadAttention(keras.layers.Layer):
         If None, `value_size * num_heads` is used.
     positional_dropout_rate: Dropout rate for the positional encodings if
         relative positions are used.
-    content_position_bias
-        Whether to add shifted relative logits to content logits.
-        Default in both Enformer and Borzoi.
     zero_initialize:
         if True, the final linear layer will be 0 initialized.
     initializer:
         Initializer for the projection layers. If unspecified,
         VarianceScaling is used with scale = 2.0.
 
-    Unused arguments in Enformer/Borzoi:
-    transpose_stride, gated, qkv_width.
     """
 
     def __init__(
@@ -153,13 +148,9 @@ class MultiheadAttention(keras.layers.Layer):
         relative_position_absolute: bool = False,
         num_position_features: int | None = None,
         positional_dropout_rate: float = 0.,
-        content_position_bias: bool = True,
         zero_initialize: bool = True,
         initializer: str = "he_normal",
         l2_scale: float = 0.,
-        transpose_stride: int = 0,
-        gated: bool = False,
-        qkv_width: int = 1,
         name: str = 'mhsa',
         **kwargs
         ):
@@ -187,13 +178,9 @@ class MultiheadAttention(keras.layers.Layer):
         else:
             self._num_position_features = num_position_features
         self._positional_dropout_rate = positional_dropout_rate
-        self._content_position_bias = content_position_bias
         self._zero_initialize = zero_initialize
         self._initializer = initializer
         self._l2_scale = l2_scale
-        self._transpose_stride = transpose_stride
-        self._gated = gated
-        self._qkv_width = qkv_width
 
         # Calculate/get derived parameters
         self._key_proj_size = self._key_size * self._num_heads
@@ -204,92 +191,36 @@ class MultiheadAttention(keras.layers.Layer):
             absolute=relative_position_absolute)
 
     def build(self, input_shape):
-        if self._qkv_width == 1:
-            # standard dense layers
-            self._q_layer = keras.layers.Dense(
-                self._key_proj_size,
-                name="q_layer",
-                use_bias=False,
-                kernel_regularizer=keras.regularizers.l2(self._l2_scale),
-                kernel_initializer=self._initializer,
-            )
-            self._k_layer = keras.layers.Dense(
-                self._key_proj_size,
-                name="k_layer",
-                use_bias=False,
-                kernel_regularizer=keras.regularizers.l2(self._l2_scale),
-                kernel_initializer=self._initializer,
-            )
-            self._v_layer = keras.layers.Dense(
-                self._embedding_size,
-                name="v_layer",
-                use_bias=False,
-                kernel_regularizer=keras.regularizers.l2(self._l2_scale),
-                kernel_initializer=self._initializer,
-            )
-        else:
-            # CvT separable convolutions
-            self._q_layer = keras.layers.SeparableConv1D(
-                self._key_proj_size,
-                kernel_size=self._qkv_width,
-                padding="same",
-                name="q_layer",
-                use_bias=False,
-                depthwise_regularizer=keras.regularizers.l2(self._l2_scale),
-                pointwise_regularizer=keras.regularizers.l2(self._l2_scale),
-                depthwise_initializer=self._initializer,
-                pointwise_initializer=self._initializer,
-            )
-            self._k_layer = keras.layers.SeparableConv1D(
-                self._key_proj_size,
-                kernel_size=self._qkv_width,
-                padding="same",
-                name="k_layer",
-                use_bias=False,
-                depthwise_regularizer=keras.regularizers.l2(self._l2_scale),
-                pointwise_regularizer=keras.regularizers.l2(self._l2_scale),
-                depthwise_initializer=self._initializer,
-                pointwise_initializer=self._initializer,
-            )
-            self._v_layer = keras.layers.SeparableConv1D(
-                self._embedding_size,
-                kernel_size=self._qkv_width,
-                padding="same",
-                name="v_layer",
-                use_bias=False,
-                depthwise_regularizer=keras.regularizers.l2(self._l2_scale),
-                pointwise_regularizer=keras.regularizers.l2(self._l2_scale),
-                depthwise_initializer=self._initializer,
-                pointwise_initializer=self._initializer,
-            )
-
-        if self._gated:
-            self._gate_layer = keras.layers.Dense(
-                self._embedding_size,
-                activation="activation",
-                name="gate",
-                use_bias=False,
-                kernel_regularizer=keras.regularizers.l2(self._l2_scale),
-                kernel_initializer=self._initializer,
-            )
+        # standard dense layers
+        self._q_layer = keras.layers.Dense(
+            self._key_proj_size,
+            name="q_layer",
+            use_bias=False,
+            kernel_regularizer=keras.regularizers.l2(self._l2_scale),
+            kernel_initializer=self._initializer,
+        )
+        self._k_layer = keras.layers.Dense(
+            self._key_proj_size,
+            name="k_layer",
+            use_bias=False,
+            kernel_regularizer=keras.regularizers.l2(self._l2_scale),
+            kernel_initializer=self._initializer,
+        )
+        self._v_layer = keras.layers.Dense(
+            self._embedding_size,
+            name="v_layer",
+            use_bias=False,
+            kernel_regularizer=keras.regularizers.l2(self._l2_scale),
+            kernel_initializer=self._initializer,
+        )
 
         w_init = keras.initializers.Zeros() if self._zero_initialize else self._initializer
-        if self._transpose_stride > 0:
-            self._embedding_layer = keras.layers.Conv1DTranspose(
-                filters=self._embedding_size,
-                kernel_size=3,
-                strides=self._transpose_stride,
-                padding="same",
-                kernel_regularizer=keras.regularizers.l2(self._l2_scale),
-                kernel_initializer=w_init,
-            )
-        else:
-            self._embedding_layer = keras.layers.Dense(
-                self._embedding_size,
-                name="embedding_layer",
-                kernel_regularizer=keras.regularizers.l2(self._l2_scale),
-                kernel_initializer=w_init,
-            )
+        self._embedding_layer = keras.layers.Dense(
+            self._embedding_size,
+            name="embedding_layer",
+            kernel_regularizer=keras.regularizers.l2(self._l2_scale),
+            kernel_initializer=w_init,
+        )
 
         # Create relative position layers
         self._r_k_layer = keras.layers.Dense(
@@ -373,22 +304,15 @@ class MultiheadAttention(keras.layers.Layer):
             # [H, K, 2T-1] -> (8, 64, 3071)
             r_k = keras.ops.transpose(r_k, [1, 2, 0])
 
-            # Add shifted relative logits to content logits.
-            if self._content_position_bias:
-                relative_logits = q + self._r_r_bias
-                # relative_logits: [B, H, T', 2T-1] -> (1, 8, 1536, 3071)
-                relative_logits = keras.ops.matmul(relative_logits, r_k)
-            else:
-                # relative_logits: [1, H, 1, 2T-1] -> (1, 8, 1, 3071)
-                relative_logits = keras.ops.einsum('b h i d, h j d -> b h i j', self._r_r_bias, r_k)
-                # relative_logits post-broadcast: [1, H, T', 2T-1] -> (1, 8, 1536, 3071)
-                relative_logits = keras.ops.broadcast_to(
-                    relative_logits,
-                    shape=(1, self._num_heads, seq_len, 2 * seq_len - 1),
-                )
+            # Relative position logits
+            relative_logits = q + self._r_r_bias
+            # relative_logits: [B, H, T', 2T-1] -> (1, 8, 1536, 3071)
+            relative_logits = keras.ops.matmul(relative_logits, r_k)
 
             # shifted relative_logits: [B, H, T', T] -> (1, 8, 1536, 1536)
             relative_logits = relative_shift(relative_logits)
+
+            # Add relative logits to content logits
             logits = content_logits + relative_logits
 
         # softmax across length
@@ -403,10 +327,6 @@ class MultiheadAttention(keras.layers.Layer):
         output = keras.ops.reshape(
             output, [-1, seq_len, embedding_size]
         ) # [B, T, H*V] -> (1, 1536, 1536)
-
-        # Gate
-        if self._gated:
-            output = self._gate_layer(output)
 
         # Final linear layer
         output = self._embedding_layer(output)
@@ -426,13 +346,9 @@ class MultiheadAttention(keras.layers.Layer):
             "relative_position_absolute": self._relative_position_absolute,
             "num_position_features": self._num_position_features,
             "positional_dropout_rate": self._positional_dropout_rate,
-            "content_position_bias": self._content_position_bias,
             "zero_initialize": self._zero_initialize,
             "initializer": self._initializer,
             "l2_scale": self._l2_scale,
-            "transpose_stride": self._transpose_stride,
-            "gated": self._gated,
-            "qkv_width": self._qkv_width
         })
         return config
 

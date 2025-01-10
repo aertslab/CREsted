@@ -534,13 +534,9 @@ def mha_block_enf(
         relative_position_absolute = pos_encoding_abs,
         num_position_features = num_pos_feats,
         positional_dropout_rate = pos_dropout,
-        content_position_bias = True,
         zero_initialize = zero_init,
         initializer = "he_normal", # Unsure in Enf, think this is fine.
         l2_scale = 1.0e-8, # Doesn't seem to be set in Enf, is set in Borzoi.
-        transpose_stride = 0,
-        gated = False,
-        qkv_width = 1,
         name = f"{name_prefix}_mhsa"
     )(current)
     current = keras.layers.Dropout(
