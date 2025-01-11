@@ -7,10 +7,31 @@ from torch.utils.data import Sampler
 import numpy as np
 
 from crested._genome import Genome, _resolve_genome
+from anndata import AnnData
 
 from ._dataloader import AnnDataLoader
 from ._dataset import AnnDataset
 
+
+def set_stage_sample_prob(adata: AnnData, stage: str):
+    """
+    Copy from 'train_prob', 'val_prob', or 'test_prob' into 'sample_prob'.
+    If stage is 'train', then sample_prob = train_prob, etc.
+    """
+    # Basic checks
+    if "train_prob" not in adata.var or "val_prob" not in adata.var or "test_prob" not in adata.var:
+        raise KeyError("adata.var must contain 'train_prob', 'val_prob', and 'test_prob' columns.")
+
+    if stage == "train":
+        adata.var["sample_prob"] = adata.var["train_prob"].fillna(0.0)
+    elif stage == "val":
+        adata.var["sample_prob"] = adata.var["val_prob"].fillna(0.0)
+    elif stage == "test":
+        adata.var["sample_prob"] = adata.var["test_prob"].fillna(0.0)
+    else:
+        # e.g. 'predict' or something else
+        # default to 0 or some fallback
+        adata.var["sample_prob"] = 0.0
 
 class AnnDataModule:
     """
@@ -73,6 +94,7 @@ class AnnDataModule:
         deterministic_shift: bool = False,
         shuffle: bool = True,
         batch_size: int = 256,
+        data_sources: dict[str, str] = {'y':'X'}, 
         obs_columns: list[str] | None = None,
         obsm_keys: list[str] | None = None,
         varp_keys: list[str] | None = None,
@@ -87,6 +109,7 @@ class AnnDataModule:
         self.deterministic_shift = deterministic_shift
         self.shuffle = shuffle
         self.batch_size = batch_size
+        self.data_sources = data_sources
         self.obs_columns = obs_columns
         self.obsm_keys = obsm_keys
         self.varp_keys = varp_keys
@@ -123,6 +146,7 @@ class AnnDataModule:
         args = {
             "anndata": self.adata,
             "genome": self.genome,
+            "data_sources": self.data_sources,
             "in_memory": self.in_memory,
             "always_reverse_complement": self.always_reverse_complement,
             "random_reverse_complement": self.random_reverse_complement,
@@ -132,18 +156,20 @@ class AnnDataModule:
             "obsm_keys": self.obsm_keys,
             "varp_keys": self.varp_keys,
         }
+        
         if stage == "fit":
             # Training dataset
             train_args = args.copy()
             train_args["split"] = "train"
-
+            set_stage_sample_prob(self.adata, "train")
+            self.train_dataset = AnnDataset(**train_args)
+            
             val_args = args.copy()
             val_args["split"] = "val"
             val_args["always_reverse_complement"] = False
             val_args["random_reverse_complement"] = False
-            val_args["max_stochastic_shift"] = 0
-
-            self.train_dataset = AnnDataset(**train_args)
+            set_stage_sample_prob(self.adata, "val")
+            val_args["max_stochastic_shift"] = 0  
             self.val_dataset = AnnDataset(**val_args)
 
         elif stage == "test":
@@ -153,7 +179,7 @@ class AnnDataModule:
             test_args["always_reverse_complement"] = False
             test_args["random_reverse_complement"] = False
             test_args["max_stochastic_shift"] = 0
-
+            set_stage_sample_prob(self.adata, "test")
             self.test_dataset = AnnDataset(**test_args)
 
         elif stage == "predict":
@@ -163,7 +189,7 @@ class AnnDataModule:
             predict_args["always_reverse_complement"] = False
             predict_args["random_reverse_complement"] = False
             predict_args["max_stochastic_shift"] = 0
-
+            set_stage_sample_prob(self.adata, stage="predict")
             self.predict_dataset = AnnDataset(**predict_args)
 
         else:
@@ -180,6 +206,7 @@ class AnnDataModule:
             batch_size=self.batch_size,
             shuffle=self.shuffle,
             drop_remainder=False,
+            stage='train'
         )
 
     @property
@@ -192,6 +219,7 @@ class AnnDataModule:
             batch_size=self.batch_size,
             shuffle=False,
             drop_remainder=False,
+            stage='val'
         )
 
     @property
@@ -204,6 +232,7 @@ class AnnDataModule:
             batch_size=self.batch_size,
             shuffle=False,
             drop_remainder=False,
+            stage='test'
         )
 
     @property
@@ -216,6 +245,7 @@ class AnnDataModule:
             batch_size=self.batch_size,
             shuffle=False,
             drop_remainder=False,
+            stage='predict'
         )
 
     def __repr__(self):
@@ -277,13 +307,17 @@ class MetaAnnDataModule:
     merging them into a single MetaAnnDataset for each stage. 
     Then we rely on the MetaSampler to do globally weighted sampling.
 
-    This replaces the old random-per-dataset approach in MultiAnnDataset.
+    We do NOT physically reindex the obs dimension. Instead, each AnnData
+    may have a different set of obs_names. The code which loads coverage or X
+    at the dataset level is expected to handle label-based indexing and fill
+    missing rows with NaN as needed.
     """
 
     def __init__(
         self,
         adatas: list[AnnData],
         genomes: list[Genome],
+        data_sources: dict[str, str] = {'y':'X'}, 
         in_memory: bool = True,
         always_reverse_complement: bool = True,
         random_reverse_complement: bool = False,
@@ -296,6 +330,36 @@ class MetaAnnDataModule:
         varp_keys: list[str] | None = None,
         epoch_size: int = 100_000,
     ):
+        """
+        Parameters
+        ----------
+        adatas : list[AnnData]
+            Each species or dataset is stored in its own AnnData.
+        genomes : list[Genome]
+            Matching list of genome references for each AnnData.
+        in_memory : bool
+            If True, sequences might be loaded into memory in each AnnDataset.
+        always_reverse_complement : bool
+            If True, the SequenceLoader will add reverse complements.
+        random_reverse_complement : bool
+            If True, we randomly reverse complement each region.
+        max_stochastic_shift : int
+            Maximum shift (±) to apply to each region for data augmentation.
+        deterministic_shift : bool
+            If True, do the older style shifting in fixed strides.
+        shuffle : bool
+            Whether to shuffle the dataset in the dataloader.
+        batch_size : int
+            How many samples per batch.
+        obs_columns : list[str]
+            Any obs columns from each AnnData to replicate in the dataset item.
+        obsm_keys : list[str]
+            Any obsm keys from each AnnData to replicate.
+        varp_keys : list[str]
+            Any varp keys from each AnnData to replicate.
+        epoch_size : int
+            How many samples per epoch for the DataLoader if using a custom sampler.
+        """
         if len(adatas) != len(genomes):
             raise ValueError("Must provide as many `adatas` as `genomes`.")
 
@@ -308,6 +372,7 @@ class MetaAnnDataModule:
         self.deterministic_shift = deterministic_shift
         self.shuffle = shuffle
         self.batch_size = batch_size
+        self.data_sources = data_sources
         self.obs_columns = obs_columns
         self.obsm_keys = obsm_keys
         self.varp_keys = varp_keys
@@ -317,15 +382,24 @@ class MetaAnnDataModule:
         self.val_dataset = None
         self.test_dataset = None
         self.predict_dataset = None
+        
+        self.meta_obs_names = np.array(set().union(*[adata.obs_names for adata in self.adatas]))
+        for adata in self.adatas:
+            adata.meta_obs_names = self.meta_obs_names
 
     def setup(self, stage: str) -> None:
         """
         Create the AnnDataset objects for each adata+genome, then unify them 
         into a MetaAnnDataset for the given stage.
+
+        Unlike older code, we do NOT reindex each AnnData's obs dimension.
+        Instead, each AnnDataset can handle label-based indexing or 
+        fill missing rows with NaN via lazy structures.
         """
         def dataset_args(split):
             return {
                 "in_memory": self.in_memory,
+                "data_sources": self.data_sources,
                 "always_reverse_complement": self.always_reverse_complement,
                 "random_reverse_complement": self.random_reverse_complement,
                 "max_stochastic_shift": self.max_stochastic_shift,
@@ -335,7 +409,7 @@ class MetaAnnDataModule:
                 "varp_keys": self.varp_keys,
                 "split": split,
             }
-
+        
         if stage == "fit":
             train_datasets = []
             val_datasets = []
@@ -398,6 +472,7 @@ class MetaAnnDataModule:
             shuffle=self.shuffle,
             drop_remainder=False,
             epoch_size=self.epoch_size,
+            stage='train'
         )
 
     @property
@@ -410,6 +485,7 @@ class MetaAnnDataModule:
             shuffle=False,
             drop_remainder=False,
             epoch_size=self.epoch_size,
+            stage='val'
         )
 
     @property
@@ -422,6 +498,7 @@ class MetaAnnDataModule:
             shuffle=False,
             drop_remainder=False,
             epoch_size=self.epoch_size,
+            stage='test'
         )
 
     @property
@@ -434,6 +511,7 @@ class MetaAnnDataModule:
             shuffle=False,
             drop_remainder=False,
             epoch_size=self.epoch_size,
+            stage='predict'
         )
 
     def __repr__(self):

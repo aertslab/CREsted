@@ -273,6 +273,12 @@ class IndexManager:
                     augmented_indices_map[_flip_region_strand(stranded_region)] = region
         return augmented_indices, augmented_indices_map
 
+if os.environ["KERAS_BACKEND"] == "pytorch":
+    import torch
+
+    BaseClass = torch.utils.data.Dataset
+else:
+    BaseClass = object
 
 
 class AnnDataset(BaseClass):
@@ -318,9 +324,11 @@ class AnnDataset(BaseClass):
         always_reverse_complement: bool = False,
         max_stochastic_shift: int = 0,
         deterministic_shift: bool = False,
+        data_sources: dict[str, str] = {'y':'X'}, #default to old approach
         obs_columns: list[str] | None = None,   # multiple obs columns
         obsm_keys: list[str] | None = None,     # multiple obsm keys
         varp_keys: list[str] | None = None,     # multiple varp keys
+        
     ):
 
         """Initialize the dataset with the provided AnnData object and options."""
@@ -333,11 +341,13 @@ class AnnDataset(BaseClass):
         self.num_outputs = self.anndata.X.shape[0]
         self.random_reverse_complement = random_reverse_complement
         self.max_stochastic_shift = max_stochastic_shift
+        self.meta_obs_names = np.array(self.anndata.obs_names)
         self.shuffle = False  # managed by wrapping class AnnDataLoader
         self.obs_columns = obs_columns if obs_columns is not None else []
         self.obsm_keys = obsm_keys if obsm_keys is not None else []
         self.varp_keys = varp_keys if varp_keys is not None else []
-    
+        self.data_sources = data_sources  
+
         # Validate and store obs data
         self.obs_data = {}
         for col in self.obs_columns:
@@ -416,66 +426,96 @@ class AnnDataset(BaseClass):
     
     @staticmethod
     def _split_anndata(anndata: AnnData, split: str) -> AnnData:
-        """Return subset of anndata based on a given split column."""
+        """
+        For backward compatibility. Skip physically subsetting for train/val/test.
+        """
         if split:
             if "split" not in anndata.var.columns:
                 raise KeyError(
                     "No split column found in anndata.var. Run `pp.train_val_test_split` first."
                 )
-        subset = (
-            anndata[:, anndata.var["split"] == split].copy()
-            if split
-            else anndata.copy()
-        )
-        return subset
+        return anndata
 
     def __len__(self) -> int:
         """Get number of (augmented) samples in the dataset."""
         return len(self.index_manager.augmented_indices)
 
-    def _get_target(self, index: str) -> np.ndarray:
-        """Get target for a given index."""
-        y_index = self.index_map[index]
-        return (
-            self.anndata.X[:, y_index].toarray().flatten()
-            if self.compressed
-            else self.anndata.X[:, y_index]
-        )
+    def _get_data_array(self, source_str: str, varname: str, shift: int = 0) -> np.ndarray:
+        """
+        Retrieve data from anndata, given a source string that can be:
+          - "X" => from self.anndata.X
+          - "layers/<key>" => from self.anndata.layers[<key>]
+          - "varp/<key>" => from self.anndata.varp[<key>]
+          - ... or other expansions
+    
+        varname: the name of the var, e.g. "chr1:100-200"
+        shift: an int to align coverage with the same offset used for DNA
+        """
+        var_i = self.index_map[varname]
+    
+        # 2) parse source_str
+        if source_str == "X":
+            if self.compressed:
+                arr = self.anndata.X[:, var_i].toarray().flatten()
+            else:
+                arr = self.anndata.X[:, var_i]
+            return arr
+    
+        elif source_str.startswith("layers/"):
+            key = source_str.split("/",1)[1]  # e.g. "tracks"
+            coverage_3d = self.anndata.layers[key]
+            start_idx = self.max_stochastic_shift + shift
+            end_idx   = start_idx + region_len
+            arr = coverage_3d[self.meta_obs_names, var_i, start_idx:end_idx]
+            return np.asarray(arr)
+        elif source_str.startswith("varp/"):
+            key = source_str.split("/",1)[1]
+            mat = self.varp_data[key]
+            row = mat[var_i]
+            return np.asarray(row)
+        else:
+            raise ValueError(f"Unknown data source {source_str}.")
+
 
     def __getitem__(self, idx: int) -> dict:
-        """Return sequence and target for a given index."""
+        """
+        Returns a dictionary that might contain:
+          - "sequence": the one-hot DNA
+          - plus any # of keys from self.data_sources
+        """
+        # 1) pick region
         augmented_index = self.index_manager.augmented_indices[idx]
         original_index = self.index_manager.augmented_indices_map[augmented_index]
     
-        # Get sequence and target as before
+        # 2) pick the random shift, so that DNA and track remain aligned
         shift = 0
         if self.max_stochastic_shift > 0:
             shift = np.random.randint(-self.max_stochastic_shift, self.max_stochastic_shift + 1)
     
-        x = self.sequence_loader.get_sequence(augmented_index, stranded=True, shift=shift)
-        x = one_hot_encode_sequence(x, expand_dim=False)
-        y = self._get_target(original_index)
-    
-        # Random reverse complement if needed
+        # 3) get DNA sequence
+        x_seq = self.sequence_loader.get_sequence(augmented_index, stranded=True, shift=shift)
         if self.random_reverse_complement and np.random.rand() < 0.5:
-            x = self.sequence_loader._reverse_complement(x)
-            x = one_hot_encode_sequence(x, expand_dim=False)
+            x_seq = self.sequence_loader._reverse_complement(x_seq)
+            x_seq = one_hot_encode_sequence(x_seq, expand_dim=False)
+        x_seq = one_hot_encode_sequence(x_seq, expand_dim=False)
+        
     
         item = {
-            "sequence": x,
-            "y": y,
+            "sequence": x_seq,
         }
     
-        # Add obsmp columns directly to the dictionary
+        original_varname = original_index  # e.g. "chr1:100-200"
+        for name, source_str in self.data_sources.items():
+            if name == "sequence":
+                continue
+            arr = self._get_data_array(source_str, original_varname, shift=shift)
+            item[name] = arr
+    
         for col in self.obs_columns:
             item[col] = self.obs_data[col]
-    
         for key in self.obsm_keys:
             item[key] = self.obsm_data[key]
-            
-        for key in self.varp_keys:
-            item[key] = self.varp_data[key][idx]#.todense()
-
+    
         return item
 
     def __call__(self):
@@ -565,4 +605,5 @@ class MetaAnnDataset:
     def __repr__(self):
         return (f"MetaAnnDataset(num_datasets={len(self.datasets)}, "
                 f"total_augmented_indices={len(self.global_indices)})")
+
 

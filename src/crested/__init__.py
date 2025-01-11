@@ -25,7 +25,7 @@ from importlib.metadata import version
 from . import pl, pp, tl, utils
 from ._datasets import get_dataset, get_motif_db
 from ._genome import Genome, register_genome
-from ._io import import_beds, import_bigwigs
+from ._io import import_beds, import_bigwigs, import_bigwigs_raw, read_lazy_h5ad
 
 __all__ = [
     "pl",
