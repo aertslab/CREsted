@@ -10,28 +10,47 @@ from crested._genome import Genome, _resolve_genome
 from anndata import AnnData
 
 from ._dataloader import AnnDataLoader
-from ._dataset import AnnDataset
+from ._dataset import AnnDataset, MetaAnnDataset
 
 
-def set_stage_sample_prob(adata: AnnData, stage: str):
+def set_stage_sample_probs(adata, stage: str):
     """
-    Copy from 'train_prob', 'val_prob', or 'test_prob' into 'sample_prob'.
-    If stage is 'train', then sample_prob = train_prob, etc.
-    """
-    # Basic checks
-    if "train_prob" not in adata.var or "val_prob" not in adata.var or "test_prob" not in adata.var:
-        raise KeyError("adata.var must contain 'train_prob', 'val_prob', and 'test_prob' columns.")
+    If stage == 'train', then all regions with adata.var['split'] == 'train'
+    get sample_probs = adata.var['train_probs'], else 0.
 
+    If stage == 'test', similarly do sample_probs = adata.var['test_probs'], else 0.
+
+    If stage == 'val', do sample_probs = adata.var['val_probs'], else 0.
+    """
+    # Validate we have columns
+    required_cols = ["split"]
+    for c in required_cols:
+        if c not in adata.var:
+            raise KeyError(f"Missing column {c} in adata.var")
+
+    sample_probs = np.zeros(adata.n_vars, dtype=float)
+    
     if stage == "train":
-        adata.var["sample_prob"] = adata.var["train_prob"].fillna(0.0)
-    elif stage == "val":
-        adata.var["sample_prob"] = adata.var["val_prob"].fillna(0.0)
+        mask = (adata.var["split"] == "train")
+        if "train_probs" not in adata.var:
+            adata.var["train_probs"] = 1.
+        adata.var["train_probs"] = adata.var["train_probs"]/adata.var["train_probs"].sum()
+        sample_probs[mask] = adata.var["train_probs"][mask].values
+        adata.var["sample_probs"] = sample_probs
+        adata.var["sample_probs"] = adata.var["sample_probs"]/adata.var["sample_probs"].sum()
+        mask = (adata.var["split"] == "val")
+        adata.var["val_probs"] = mask.astype(float)
+        adata.var["val_probs"] = adata.var["val_probs"]/adata.var["val_probs"].sum()
     elif stage == "test":
-        adata.var["sample_prob"] = adata.var["test_prob"].fillna(0.0)
+        mask = (adata.var["split"] == "test")
+        adata.var["test_probs"] = mask.astype(float)
+        adata.var["test_probs"] = adata.var["test_probs"]/adata.var["test_probs"].sum()
+    elif stage == "predict":
+        adata.var["predict_probs"] = 1.
+        adata.var["predict_probs"] = adata.var["predict_probs"]/adata.var["predict_probs"].sum()
     else:
-        # e.g. 'predict' or something else
-        # default to 0 or some fallback
-        adata.var["sample_prob"] = 0.0
+        print("Invalid stage, sample probabilites unchanged")
+
 
 class AnnDataModule:
     """
@@ -144,7 +163,7 @@ class AnnDataModule:
             Stage for which to setup the dataloader. Either 'fit', 'test' or 'predict'.
         """
         args = {
-            "anndata": self.adata,
+            "adata": self.adata,
             "genome": self.genome,
             "data_sources": self.data_sources,
             "in_memory": self.in_memory,
@@ -161,14 +180,12 @@ class AnnDataModule:
             # Training dataset
             train_args = args.copy()
             train_args["split"] = "train"
-            set_stage_sample_prob(self.adata, "train")
+            set_stage_sample_probs(self.adata, "train")
             self.train_dataset = AnnDataset(**train_args)
-            
             val_args = args.copy()
             val_args["split"] = "val"
             val_args["always_reverse_complement"] = False
             val_args["random_reverse_complement"] = False
-            set_stage_sample_prob(self.adata, "val")
             val_args["max_stochastic_shift"] = 0  
             self.val_dataset = AnnDataset(**val_args)
 
@@ -179,7 +196,7 @@ class AnnDataModule:
             test_args["always_reverse_complement"] = False
             test_args["random_reverse_complement"] = False
             test_args["max_stochastic_shift"] = 0
-            set_stage_sample_prob(self.adata, "test")
+            set_stage_sample_probs(self.adata, "test")
             self.test_dataset = AnnDataset(**test_args)
 
         elif stage == "predict":
@@ -189,7 +206,7 @@ class AnnDataModule:
             predict_args["always_reverse_complement"] = False
             predict_args["random_reverse_complement"] = False
             predict_args["max_stochastic_shift"] = 0
-            set_stage_sample_prob(self.adata, stage="predict")
+            set_stage_sample_probs(self.adata, stage="predict")
             self.predict_dataset = AnnDataset(**predict_args)
 
         else:
@@ -319,8 +336,8 @@ class MetaAnnDataModule:
         genomes: list[Genome],
         data_sources: dict[str, str] = {'y':'X'}, 
         in_memory: bool = True,
-        always_reverse_complement: bool = True,
-        random_reverse_complement: bool = False,
+
+        random_reverse_complement: bool = True,
         max_stochastic_shift: int = 0,
         deterministic_shift: bool = False,
         shuffle: bool = True,
@@ -339,10 +356,8 @@ class MetaAnnDataModule:
             Matching list of genome references for each AnnData.
         in_memory : bool
             If True, sequences might be loaded into memory in each AnnDataset.
-        always_reverse_complement : bool
-            If True, the SequenceLoader will add reverse complements.
         random_reverse_complement : bool
-            If True, we randomly reverse complement each region.
+            If True, we randomly reverse complement each region. (always_reverse complement not available for MetaAnnDataModule)
         max_stochastic_shift : int
             Maximum shift (±) to apply to each region for data augmentation.
         deterministic_shift : bool
@@ -366,7 +381,7 @@ class MetaAnnDataModule:
         self.adatas = adatas
         self.genomes = genomes
         self.in_memory = in_memory
-        self.always_reverse_complement = always_reverse_complement
+        self.always_reverse_complement = False
         self.random_reverse_complement = random_reverse_complement
         self.max_stochastic_shift = max_stochastic_shift
         self.deterministic_shift = deterministic_shift
@@ -416,7 +431,8 @@ class MetaAnnDataModule:
             for adata, genome in zip(self.adatas, self.genomes):
                 # Training
                 args = dataset_args("train")
-                ds_train = AnnDataset(anndata=adata, genome=genome, **args)
+                set_stage_sample_probs(adata, "train")
+                ds_train = AnnDataset(adata=adata, genome=genome, **args)
                 train_datasets.append(ds_train)
 
                 # Validation (no shifting, no RC)
@@ -424,7 +440,7 @@ class MetaAnnDataModule:
                 val_args["always_reverse_complement"] = False
                 val_args["random_reverse_complement"] = False
                 val_args["max_stochastic_shift"] = 0
-                ds_val = AnnDataset(anndata=adata, genome=genome, **val_args)
+                ds_val = AnnDataset(adata=adata, genome=genome, **val_args)
                 val_datasets.append(ds_val)
 
             # Merge them with MetaAnnDataset
@@ -435,12 +451,13 @@ class MetaAnnDataModule:
             test_datasets = []
             for adata, genome in zip(self.adatas, self.genomes):
                 args = dataset_args("test")
+                set_stage_sample_probs(adata, "test")
                 args["in_memory"] = False
                 args["always_reverse_complement"] = False
                 args["random_reverse_complement"] = False
                 args["max_stochastic_shift"] = 0
 
-                ds_test = AnnDataset(anndata=adata, genome=genome, **args)
+                ds_test = AnnDataset(adata=adata, genome=genome, **args)
                 test_datasets.append(ds_test)
 
             self.test_dataset = MetaAnnDataset(test_datasets)
@@ -449,12 +466,13 @@ class MetaAnnDataModule:
             predict_datasets = []
             for adata, genome in zip(self.adatas, self.genomes):
                 args = dataset_args(None)
+                set_stage_sample_probs(adata, "predict")
                 args["in_memory"] = False
                 args["always_reverse_complement"] = False
                 args["random_reverse_complement"] = False
                 args["max_stochastic_shift"] = 0
 
-                ds_pred = AnnDataset(anndata=adata, genome=genome, **args)
+                ds_pred = AnnDataset(adata=adata, genome=genome, **args)
                 predict_datasets.append(ds_pred)
 
             self.predict_dataset = MetaAnnDataset(predict_datasets)

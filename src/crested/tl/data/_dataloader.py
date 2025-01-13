@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from collections import defaultdict
+from ._dataset import AnnDataset, MetaAnnDataset
 
 if os.environ["KERAS_BACKEND"] == "torch":
     import torch
@@ -25,7 +26,7 @@ class WeightedRegionSampler(Sampler):
         p = dataset.augmented_probs
         s = p.sum()
         if s <= 0:
-            raise ValueError("All sample_prob are zero, cannot sample.")
+            raise ValueError("All sample_probs are zero, cannot sample.")
         self.probs = p / s
 
     def __iter__(self):
@@ -38,7 +39,7 @@ class WeightedRegionSampler(Sampler):
 
 class NonShuffleRegionSampler(Sampler):
     """
-    Enumerate each region with sample_prob>0 exactly once, in a deterministic order.
+    Enumerate each region with sample_probs>0 exactly once, in a deterministic order.
     """
 
     def __init__(self, dataset):
@@ -93,7 +94,7 @@ class MetaSampler(Sampler):
         """
         n = len(self.meta_dataset)
         p = self.meta_dataset.global_probs
-        for _ in qrange(self.epoch_size):
+        for _ in range(self.epoch_size):
             yield np.random.choice(n, p=p)
 
     def __len__(self):
@@ -137,6 +138,7 @@ class NonShuffleMetaSampler(Sampler):
     def __len__(self):
         return len(self.nonzero_global_indices)
 
+
 class AnnDataLoader:
     """
     Pytorch-like DataLoader class for AnnDataset with options for batching, shuffling, and one-hot encoding.
@@ -169,14 +171,15 @@ class AnnDataLoader:
         shuffle: bool = False,
         drop_remainder: bool = True,
         epoch_size: int = 100_000,
-        stage: str = "train",
+        stage: str = "train",  # if you want train/val/test logic
     ):
         self.dataset = dataset
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.drop_remainder = drop_remainder
         self.epoch_size = epoch_size
-        
+        self.stage = stage
+
         if os.environ.get("KERAS_BACKEND", "") == "torch":
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
@@ -184,27 +187,27 @@ class AnnDataLoader:
 
         self.sampler = None
 
+        # 1) If it's a MetaAnnDataset => use MetaSampler or NonShuffleMetaSampler
         if isinstance(dataset, MetaAnnDataset):
-            # If this is the training stage => random draws
-            if stage == "train":
+            if self.stage == "train":
                 self.sampler = MetaSampler(dataset, epoch_size=self.epoch_size)
             else:
-                # e.g. val or test => enumerates all nonzero-prob entries once
+                # For val/test => enumerates all nonzero-prob entries once
                 self.sampler = NonShuffleMetaSampler(dataset, sort=True)
+
+        # 2) If it's a single AnnDataset => check for augmented_probs
         else:
-            # Single AnnDataset => check stage
-            if dataset.augmented_probs is not None:
-                if stage == "train":
-                    # Weighted random draws
+            # Single AnnDataset => WeightedRegionSampler or NonShuffleRegionSampler
+            if getattr(dataset, "augmented_probs", None) is not None:
+                if self.stage == "train":
                     self.sampler = WeightedRegionSampler(dataset, epoch_size=self.epoch_size)
                 else:
-                    # val/test => enumerates nonzero-prob entries once
+                    # e.g. val/test => enumerates nonzero-prob entries once
                     self.sampler = NonShuffleRegionSampler(dataset)
             else:
-                # uniform approach
-                if shuffle and hasattr(self.dataset, "shuffle"):
+                # No probabilities => uniform or user logic
+                if self.shuffle and hasattr(self.dataset, "shuffle"):
                     self.dataset.shuffle = True
-
 
     def _collate_fn(self, batch):
         """

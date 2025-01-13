@@ -10,6 +10,7 @@ from anndata import AnnData
 from loguru import logger
 from scipy.sparse import spmatrix
 from tqdm import tqdm
+import pandas as pd
 
 from crested._genome import Genome
 from crested.utils import one_hot_encode_sequence
@@ -316,7 +317,7 @@ class AnnDataset(BaseClass):
 
     def __init__(
         self,
-        anndata: AnnData,
+        adata: AnnData,
         genome: Genome,
         split: str = None,
         in_memory: bool = True,
@@ -332,50 +333,51 @@ class AnnDataset(BaseClass):
     ):
 
         """Initialize the dataset with the provided AnnData object and options."""
-        self.anndata = self._split_anndata(anndata, split)
+        self.adata = self._split_anndata(adata, split)
         self.split = split
-        self.indices = list(self.anndata.var_names)
+        self.indices = list(self.adata.var_names)
         self.in_memory = in_memory
-        self.compressed = isinstance(self.anndata.X, spmatrix)
+        self.compressed = isinstance(self.adata.X, spmatrix)
         self.index_map = {index: i for i, index in enumerate(self.indices)}
-        self.num_outputs = self.anndata.X.shape[0]
+        self.num_outputs = self.adata.X.shape[0]
         self.random_reverse_complement = random_reverse_complement
         self.max_stochastic_shift = max_stochastic_shift
-        self.meta_obs_names = np.array(self.anndata.obs_names)
+        self.meta_obs_names = np.array(self.adata.obs_names)
         self.shuffle = False  # managed by wrapping class AnnDataLoader
         self.obs_columns = obs_columns if obs_columns is not None else []
         self.obsm_keys = obsm_keys if obsm_keys is not None else []
         self.varp_keys = varp_keys if varp_keys is not None else []
-        self.data_sources = data_sources  
+        self.data_sources = data_sources
+        self.region_width = adata.uns['params']['target_region_width'] if 'target_region_width' in adata.uns['params'].keys() else int(np.round(np.mean(adata.var['end'] - adata.var['start']))) - (2*self.max_stochastic_shift)
 
         # Validate and store obs data
         self.obs_data = {}
         for col in self.obs_columns:
-            if col not in anndata.obs:
+            if col not in adata.obs:
                 raise ValueError(f"obs column '{col}' not found.")
             # Convert categorical to integer codes if needed
-            if pd.api.types.is_categorical_dtype(anndata.obs[col]):
-                self.obs_data[col] = anndata.obs[col].cat.codes.values
+            if pd.api.types.is_categorical_dtype(adata.obs[col]):
+                self.obs_data[col] = adata.obs[col].cat.codes.values
             else:
-                self.obs_data[col] = anndata.obs[col].values
+                self.obs_data[col] = adata.obs[col].values
     
         # Validate and store obsm data
         self.obsm_data = {}
         for key in self.obsm_keys:
-            if key not in anndata.obsm:
+            if key not in adata.obsm:
                 raise ValueError(f"obsm key '{key}' not found.")
-            mat = anndata.obsm[key]
-            if mat.shape[0] != anndata.n_obs:
+            mat = adata.obsm[key]
+            if mat.shape[0] != adata.n_obs:
                 raise ValueError(f"Dimension mismatch for obsm key '{key}'.")
             self.obsm_data[key] = mat
             
         # Validate and store varp data
         self.varp_data = {}
         for key in self.varp_keys:
-            if key not in anndata.varp:
+            if key not in adata.varp:
                 raise ValueError(f"varp key '{key}' not found.")
-            mat = anndata.varp[key]
-            if mat.shape[0] != anndata.n_var:
+            mat = adata.varp[key]
+            if mat.shape[0] != adata.n_var:
                 raise ValueError(f"Dimension mismatch for varp key '{key}'.")
             self.varp_data[key] = mat
 
@@ -406,35 +408,41 @@ class AnnDataset(BaseClass):
         )
         
         self.augmented_probs = None
-        if "sample_prob" in anndata.var.columns:
-            # 1) Extract raw sample_prob from adata.var
-            probs = anndata.var["sample_prob"].values.astype(float)
-            # 2) Ensure no negative values
-            probs = np.clip(probs, 0, None)
-
-            # 3) For each augmented index, set unnormalized probability
-            self.augmented_probs = np.empty(len(self.index_manager.augmented_indices), dtype=float)
-            for i, aug_region in enumerate(self.index_manager.augmented_indices):
-                original_region = self.index_manager.augmented_indices_map[aug_region]
-                var_idx = self.index_map[original_region]
-                self.augmented_probs[i] = probs[var_idx]
+        if self.split == 'train':
+            probs = adata.var["train_probs"].values.astype(float)
+        elif self.split == 'val':
+            probs = adata.var["val_probs"].values.astype(float)
+        elif self.split == 'test':
+            probs = adata.var["test_probs"].values.astype(float)
+        elif self.split == 'predict':
+            probs = adata.var["predict_probs"].values.astype(float)
         else:
-            # If no sample_prob, we might default to 1.0 for each region
-            # or simply None to indicate uniform sampling
-            self.augmented_probs = None
+            self.augmented_probs = np.ones(adata.shape[1])
+            self.augmented_probs = self.augmented_probs/self.augmented_probs.sum()
+            return
+        probs = np.clip(probs, 0, None)
+
+        n_aug = len(self.index_manager.augmented_indices)
+        self.augmented_probs = np.ones(n_aug, dtype=float)
+        self.augmented_probs /= self.augmented_probs.sum()
+        
+        for i, aug_region in enumerate(self.index_manager.augmented_indices):
+            original_region = self.index_manager.augmented_indices_map[aug_region]
+            var_idx = self.index_map[original_region]
+            self.augmented_probs[i] = probs[var_idx]
 
     
     @staticmethod
-    def _split_anndata(anndata: AnnData, split: str) -> AnnData:
+    def _split_anndata(adata: AnnData, split: str) -> AnnData:
         """
         For backward compatibility. Skip physically subsetting for train/val/test.
         """
         if split:
-            if "split" not in anndata.var.columns:
+            if "split" not in adata.var.columns:
                 raise KeyError(
-                    "No split column found in anndata.var. Run `pp.train_val_test_split` first."
+                    "No split column found in adata.var. Run `pp.train_val_test_split` first."
                 )
-        return anndata
+        return adata
 
     def __len__(self) -> int:
         """Get number of (augmented) samples in the dataset."""
@@ -443,9 +451,9 @@ class AnnDataset(BaseClass):
     def _get_data_array(self, source_str: str, varname: str, shift: int = 0) -> np.ndarray:
         """
         Retrieve data from anndata, given a source string that can be:
-          - "X" => from self.anndata.X
-          - "layers/<key>" => from self.anndata.layers[<key>]
-          - "varp/<key>" => from self.anndata.varp[<key>]
+          - "X" => from self.adata.X
+          - "layers/<key>" => from self.adata.layers[<key>]
+          - "varp/<key>" => from self.adata.varp[<key>]
           - ... or other expansions
     
         varname: the name of the var, e.g. "chr1:100-200"
@@ -456,17 +464,17 @@ class AnnDataset(BaseClass):
         # 2) parse source_str
         if source_str == "X":
             if self.compressed:
-                arr = self.anndata.X[:, var_i].toarray().flatten()
+                arr = self.adata.X[:, var_i].toarray().flatten()
             else:
-                arr = self.anndata.X[:, var_i]
+                arr = self.adata.X[:, var_i]
             return arr
     
         elif source_str.startswith("layers/"):
             key = source_str.split("/",1)[1]  # e.g. "tracks"
-            coverage_3d = self.anndata.layers[key]
+            coverage_3d = self.adata.layers[key]
             start_idx = self.max_stochastic_shift + shift
-            end_idx   = start_idx + region_len
-            arr = coverage_3d[self.meta_obs_names, var_i, start_idx:end_idx]
+            end_idx   = start_idx + self.region_width
+            arr = coverage_3d[self.meta_obs_names, var_i][...,start_idx:end_idx]
             return np.asarray(arr)
         elif source_str.startswith("varp/"):
             key = source_str.split("/",1)[1]
@@ -496,7 +504,7 @@ class AnnDataset(BaseClass):
         x_seq = self.sequence_loader.get_sequence(augmented_index, stranded=True, shift=shift)
         if self.random_reverse_complement and np.random.rand() < 0.5:
             x_seq = self.sequence_loader._reverse_complement(x_seq)
-            x_seq = one_hot_encode_sequence(x_seq, expand_dim=False)
+            # x_seq = one_hot_encode_sequence(x_seq, expand_dim=False)
         x_seq = one_hot_encode_sequence(x_seq, expand_dim=False)
         
     
@@ -528,7 +536,7 @@ class AnnDataset(BaseClass):
 
     def __repr__(self) -> str:
         """Get string representation of the dataset."""
-        return f"AnnDataset(anndata_shape={self.anndata.shape}, n_samples={len(self)}, num_outputs={self.num_outputs}, split={self.split}, in_memory={self.in_memory})"
+        return f"AnnDataset(anndata_shape={self.adata.shape}, n_samples={len(self)}, num_outputs={self.num_outputs}, split={self.split}, in_memory={self.in_memory})"
 
 class MetaAnnDataset:
     """
@@ -550,7 +558,7 @@ class MetaAnnDataset:
             raise ValueError("No AnnDataset provided to MetaAnnDataset.")
 
         self.datasets = datasets
-
+        self.always_reverse_complement = False
         # global_indices will store tuples of (dataset_idx, local_idx)
         # global_probs will store the merged, unnormalized probabilities
         self.global_indices = []
@@ -572,7 +580,6 @@ class MetaAnnDataset:
                     self.global_indices.append((ds_idx, local_i))
                     self.global_probs.append(1.0)
 
-        # Convert to numpy arrays
         self.global_indices = np.array(self.global_indices, dtype=object)
         self.global_probs = np.array(self.global_probs, dtype=float)
 

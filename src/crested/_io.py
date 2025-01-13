@@ -61,9 +61,9 @@ def _custom_region_sort(region: str) -> tuple[int, int, int]:
 def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
     """Read chromsizes file into a dictionary."""
     chromsizes = pd.read_csv(
-        chromsizes_file, sep="\t", header=None, names=["chr", "size"]
+        chromsizes_file, sep="\t", header=None, names=["chrom", "size"]
     )
-    chromsizes_dict = chromsizes.set_index("chr")["size"].to_dict()
+    chromsizes_dict = chromsizes.set_index("chrom")["size"].to_dict()
     return chromsizes_dict
 
 
@@ -247,9 +247,9 @@ def _read_consensus_regions(
         usecols=[0, 1, 2],
         dtype={0: str, 1: "Int32", 2: "Int32"},
     )
-    consensus_peaks.columns = ["chr","start","end"]
+    consensus_peaks.columns = ["chrom","start","end"]
     consensus_peaks["region"] = (
-        consensus_peaks["chr"].astype(str)
+        consensus_peaks["chrom"].astype(str)
         + ":"
         + consensus_peaks["start"].astype(str)
         + "-"
@@ -263,7 +263,7 @@ def _read_consensus_regions(
         return consensus_peaks
 
     valid_mask = consensus_peaks.apply(
-        lambda row: row["chr"] in chromsizes_dict
+        lambda row: row["chrom"] in chromsizes_dict
         and row["start"] >= 0
         and row["end"] <= chromsizes_dict[row[0]],
         axis=1,
@@ -469,7 +469,7 @@ def import_beds(
     ann_data.obs["file_path"] = file_paths
     ann_data.obs["n_open_regions"] = ann_data.X.sum(axis=1)
     ann_data.var["n_classes"] = ann_data.X.sum(axis=0)
-    ann_data.var["chr"] = ann_data.var.index.str.split(":").str[0]
+    ann_data.var["chrom"] = ann_data.var.index.str.split(":").str[0]
     ann_data.var["start"] = (
         ann_data.var.index.str.split(":").str[1].str.split("-").str[0]
     ).astype(int)
@@ -618,7 +618,7 @@ def import_bigwigs(
     var_df = pd.DataFrame(
         {
             "region": consensus_peaks["region"],
-            "chr": consensus_peaks["region"].str.split(":").str[0],
+            "chrom": consensus_peaks["region"].str.split(":").str[0],
             "start": (
                 consensus_peaks["region"].str.split(":").str[1].str.split("-").str[0]
             ).astype(int),
@@ -1094,6 +1094,11 @@ def read_lazy_h5ad(
         for attr in attributes:
             if attr in f:
                 init_kwargs[attr] = read_elem(f[attr])
+        try:
+            init_kwargs['uns'] = {}
+            init_kwargs['uns']['params'] = read_elem(f['uns']['params'])
+        except:
+            pass
 
     # Now create the LazyAnnData, which calls _make_tracks_lazy and _make_varp_lazy
     adata = LazyAnnData(**init_kwargs)
@@ -1103,7 +1108,7 @@ def filter_and_adjust_chromosome_data(
     peaks: pd.DataFrame,
     chrom_sizes: dict,
     max_shift: int = 0,
-    chrom_col: str = "chr",
+    chrom_col: str = "chrom",
     start_col: str = "start",
     end_col: str = "end",
     MIN_POS: int = 0,
@@ -1181,11 +1186,11 @@ def import_bigwigs_raw(
     """
     Import bigWig files and consensus regions BED file into AnnData format.
 
-    This format is required to be able to train a peak prediction model.
+    This format is required to be able to train a basepair level prediction model.
     The bigWig files target values are calculated for each region and and imported into an AnnData object,
     with the bigWig file names as .obs and the consensus regions as .var.
-    Optionally, the target region width can be specified to extract values from a wider/narrower region around the consensus region,
-    where the original region will still be used as the index.
+    Target region width can is specified to ensure region widths are of equal size,
+    no ragged tensors allowed.
     This is often useful to extract sequence information around the actual peak region.
 
     Parameters
@@ -1233,6 +1238,8 @@ def import_bigwigs_raw(
     # Read consensus regions BED file and filter out regions not within chromosomes
     _check_bed_file_format(regions_file)
     consensus_peaks = _read_consensus_regions(regions_file, chromsizes_dict)
+    region_width = int(np.round(np.mean(consensus_peaks['end'] - consensus_peaks['start'])))
+    consensus_peaks = consensus_peaks.loc[(consensus_peaks['end']-consensus_peaks['start']) == region_width,:]
     consensus_peaks = filter_and_adjust_chromosome_data(consensus_peaks, chromsizes_dict, max_shift=max_stochastic_shift)
     shifted_width = (target_region_width+2*max_stochastic_shift)
     consensus_peaks = consensus_peaks.loc[(consensus_peaks['end']-consensus_peaks['start']) == shifted_width,:]
@@ -1253,7 +1260,7 @@ def import_bigwigs_raw(
             pass
 
 
-    consensus_peaks = consensus_peaks.loc[consensus_peaks['chr'].isin(chrom_set),:] 
+    consensus_peaks = consensus_peaks.loc[consensus_peaks["chrom"].isin(chrom_set),:] 
     
     bw_files = sorted(bw_files)
     if not bw_files:
@@ -1275,6 +1282,10 @@ def import_bigwigs_raw(
     
     # Create AnnData object
     adata = ad.AnnData(X = csr_matrix((obs_df.shape[0],var_df.shape[0])), obs=obs_df, var=var_df)
+    adata.uns['params'] = {}
+    adata.uns['params']['target_region_width'] = target_region_width
+    adata.uns['params']['shifted_region_width'] = shifted_width
+    adata.uns['params']['max_stochastic_shift'] = max_stochastic_shift
     adata.write_h5ad(h5ad_path)
 
     _write_raw_bigwigs_to_uns(
