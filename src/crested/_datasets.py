@@ -63,7 +63,7 @@ def _get_dataset_index():
                 "models/deepmel2_gabpa.tar.gz": "sha256:856176c7755e7e93aadb532504f5841422ee00f3b431e7bc136ea498b586b303",
                 "models/deepmousebrain1.tar.gz": "sha256:af2c2487aa7b49b0d487d199b5e4efddb147578dc075682dd2b4bd48ad6ffaa5",
                 "models/deepmousebrain2.tar.gz": "sha256:4c7dd4649f642b6ec120fb324f479093644d622826d4a3a7d3ee9e3c2bb8bde6",
-                "models/deepmousebrain3.tar.gz": "sha256:488708a8dd99d19c54d970d93ef2f00a7cc7b99860e58b60325cf5233acf80b2",
+                "models/deepmousebrain3.tar.gz": "sha256:a6160a87bb38eb64e7c39b0bda7f147b5c23bd41c82f72909f3372967aae7bdc",
             },
         )
     return _datasets
