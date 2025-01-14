@@ -164,22 +164,22 @@ def get_model(model: str) -> tuple[str, list[str]]:
     ----------
     model
         The name of the model to fetch. Available options:
-          - 'biccn'
-          - 'deepchickenbrain1'
-          - 'deepchickenbrain2'
-          - 'deepflybrain'
-          - 'deephumanbrain'
-          - 'deephumancortex1'
-          - 'deephumancortex2'
-          - 'deepliver_accessibility'
-          - 'deepliver_activity'
-          - 'deepliver_zonation'
-          - 'deepmel1'
-          - 'deepmel2'
-          - 'deepmel2_gabpa'
-          - 'deepmousebrain1'
-          - 'deepmousebrain2'
-          - 'deepmousebrain3'
+          - 'BICCN'
+          - 'DeepChickenBrain1'
+          - 'DeepChickenBrain2'
+          - 'DeepFlyBrain'
+          - 'DeepHumanBrain'
+          - 'DeepHumanCortex1'
+          - 'DeepHumanCortex2'
+          - 'DeepLiver_accessibility'
+          - 'DeepLiver_activity'
+          - 'DeepLiver_zonation'
+          - 'DeepMEL1'
+          - 'DeepMEL2'
+          - 'DeepMEL2_gabpa'
+          - 'DeepMouseBrain1'
+          - 'DeepMouseBrain2'
+          - 'DeepMouseBrain3'
 
     Returns
     -------
@@ -187,26 +187,26 @@ def get_model(model: str) -> tuple[str, list[str]]:
 
     Example
     -------
-    >>> model_file, output_names = crested.get_model("deepflybrain")
+    >>> model_file, output_names = crested.get_model("DeepFlyBrain")
     """
     # Mapping: "user_facing_name": ("model_folder_in_registry.tar.gz")
     model_mapping = {
-        "biccn": ("models/biccn.tar.gz"),
-        "deepchickenbrain1": ("models/deepchickenbrain1.tar.gz"),
-        "deepchickenbrain2": ("models/deepchickenbrain2.tar.gz"),
-        "deepflybrain": ("models/deepflybrain.tar.gz"),
-        "deephumanbrain": ("models/deephumanbrain.tar.gz"),
-        "deephumancortex1": ("models/deephumancortex1.tar.gz"),
-        "deephumancortex2": ("models/deephumancortex2.tar.gz"),
-        "deepliver_accessibility": ("models/deepliver_accessibility.tar.gz"),
-        "deepliver_activity": ("models/deepliver_activity.tar.gz"),
-        "deepliver_zonation": ("models/deepliver_zonation.tar.gz"),
-        "deepmel1": ("models/deepmel1.tar.gz"),
-        "deepmel2": ("models/deepmel2.tar.gz"),
-        "deepmel2_gabpa": ("models/deepmel2_gabpa.tar.gz"),
-        "deepmousebrain1": ("models/deepmousebrain1.tar.gz"),
-        "deepmousebrain2": ("models/deepmousebrain2.tar.gz"),
-        "deepmousebrain3": ("models/deepmousebrain3.tar.gz"),
+        "BICCN": ("models/biccn.tar.gz"),
+        "DeepChickenBrain1": ("models/deepchickenbrain1.tar.gz"),
+        "DeepChickenBrain2": ("models/deepchickenbrain2.tar.gz"),
+        "DeepFlyBrain": ("models/deepflybrain.tar.gz"),
+        "DeepHumanBrain": ("models/deephumanbrain.tar.gz"),
+        "DeepHumanCortex1": ("models/deephumancortex1.tar.gz"),
+        "DeepHumanCortex2": ("models/deephumancortex2.tar.gz"),
+        "DeepLiver_accessibility": ("models/deepliver_accessibility.tar.gz"),
+        "DeepLiver_activity": ("models/deepliver_activity.tar.gz"),
+        "DeepLiver_zonation": ("models/deepliver_zonation.tar.gz"),
+        "DeepMEL1": ("models/deepmel1.tar.gz"),
+        "DeepMEL2": ("models/deepmel2.tar.gz"),
+        "DeepMEL2_gabpa": ("models/deepmel2_gabpa.tar.gz"),
+        "DeepMouseBrain1": ("models/deepmousebrain1.tar.gz"),
+        "DeepMouseBrain2": ("models/deepmousebrain2.tar.gz"),
+        "DeepMouseBrain3": ("models/deepmousebrain3.tar.gz"),
     }
     assert (
         model in model_mapping
