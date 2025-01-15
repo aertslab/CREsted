@@ -39,7 +39,8 @@ def _get_dataset_index():
             ## For datasets at the CREsted resources, a relative URL as name is sufficient. For an external dataset, add the absolute URL to `urls = {'name': 'https://thefullurl.eu/yourfile.txt'}`.
             registry={
                 # BICCN datasets
-                "data/mouse_biccn/bigwigs.tar.gz": "sha256:738504d26b864de10804978b4b47196094996174349c1140e44824ce6d0349ba",
+                "data/mouse_biccn/bigwigs_coverage.tar.gz": "sha256:738504d26b864de10804978b4b47196094996174349c1140e44824ce6d0349ba",
+                "data/mouse_biccn/bigwigs_cut_sites.tar.gz": "sha256:0a9871d75a1c03fdfe353171d6cebec307cd96d054594d28b95ee451f948e7f0",
                 "data/mouse_biccn/beds.tar.gz": "sha256:0a2c42505eaced286a731c15a10ec63b680a90333a47de4a3c86a112e4e0f8df",
                 "data/mouse_biccn/consensus_peaks_biccn.bed": "sha256:83ce5a58aee11c40d7a1e11b603ceb34012e0e4b91eea0953eb37a943707a1e5",
                 # Melanoma datasets
@@ -75,7 +76,8 @@ def get_dataset(dataset: str):
 
     Provided examples:
     - 'mouse_cortex_bed': the BICCN mouse cortex snATAC-seq dataset, processed as BED files per topic. For use in topic classification.
-    - 'mouse_cortex_bigwig': the BICCN mouse cortex snATAC-seq dataset, processed as pseudobulked bigWig tracks per cell type. For use in peak regression.
+    - 'mouse_cortex_bigwig_coverage': the BICCN mouse cortex snATAC-seq dataset, processed as pseudobulked bigWig coverage tracks per cell type. For use in peak regression.
+    - 'mouse_cortex_bigwig_cut_sites': the BICCN mouse cortex snATAC-seq dataset, processed as pseudobulked bigWig cut site tracks per cell type. For use in peak regression.
 
     These two paths can be passed to :func:`crested.import_bigwigs()` / :func:`crested.import_beds()`.
 
@@ -87,7 +89,11 @@ def get_dataset(dataset: str):
     ----------
     dataset
         The name of the dataset to fetch.
-        Options: 'mouse_cortex_bed', 'mouse_cortex_bigwig'
+        Options:
+            - 'mouse_cortex_bed'
+            - 'mouse_cortex_bigwig_cut_sites'
+            - 'mouse_cortex_bigwig_coverage'
+            - 'mouse_cortex_bigwig' (deprecated, same as 'mouse_cortex_bigwig_coverage')
 
     Returns
     -------
@@ -104,10 +110,18 @@ def get_dataset(dataset: str):
             "data/mouse_biccn/beds.tar.gz",
             "data/mouse_biccn/consensus_peaks_biccn.bed",
         ),
-        "mouse_cortex_bigwig": (
-            "data/mouse_biccn/bigwigs.tar.gz",
+        "mouse_cortex_bigwig_coverage": (
+            "data/mouse_biccn/bigwigs_coverage.tar.gz",
             "data/mouse_biccn/consensus_peaks_biccn.bed",
         ),
+        "mouse_cortex_bigwig_cut_sites": (
+            "data/mouse_biccn/bigwigs_cut_sites.tar.gz",
+            "data/mouse_biccn/consensus_peaks_biccn.bed",
+        ),
+        "mouse_cortex_bigwig": (
+            "data/mouse_biccn/bigwigs_coverage.tar.gz",
+            "data/mouse_biccn/consensus_peaks_biccn.bed",
+        ),  # Deprecated
     }
     assert (
         dataset in dataset_mapping
