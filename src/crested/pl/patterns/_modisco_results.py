@@ -170,6 +170,7 @@ def modisco_results(
                     ic, ic_pos, ic_mat = compute_ic(ppm)
                     pwm = np.array(ic_mat)
                     rounded_mean = np.around(np.mean(pwm), 2)
+                    pwm = pwm.astype(float)
                     ax = _plot_attribution_map(
                         ax=ax, saliency_df=pwm, return_ax=True, figsize=None
                     )
