@@ -19,6 +19,8 @@ def locus_scoring(
     grid: bool = True,
     figsize: tuple[float, float] = (30,5),
     highlight_positions: list[tuple[int, int]] | None = None,
+    marker_size: float = 5.0,
+    line_width: float = 2.0,
 ):
     """
     Plot the predictions as a line chart over the entire genomic input and optionally indicate the gene locus.
@@ -53,6 +55,10 @@ def locus_scoring(
         Size of figure.
     highlight_positions
         A list of tuples specifying ranges to highlight on the plot.
+    marker_size
+        Size of the markers in the plot. Default is 5.0.
+    line_width
+        Width of the lines in the plot. Default is 2.0.
 
     See Also
     --------
@@ -82,9 +88,12 @@ def locus_scoring(
         np.arange(range[0], range[1]),
         scores,
         marker="o",
+        markersize=marker_size,
         linestyle="-",
+        linewidth=line_width,
         color="b",
         label="Prediction Score",
+        rasterized=True
     )
     if gene_start is not None and gene_end is not None:
         plt.axvspan(gene_start, gene_end, color="red", alpha=0.2, label="Gene Locus")
@@ -110,6 +119,7 @@ def locus_scoring(
             linestyle="-",
             color="g",
             label="bigWig Values",
+            rasterized='True'
         )
         if gene_start is not None and gene_end is not None:
             plt.axvspan(
