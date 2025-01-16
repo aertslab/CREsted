@@ -1,4 +1,4 @@
-"""Locus scoring plots."""
+"""Distribution plots."""
 
 from __future__ import annotations
 
@@ -11,8 +11,7 @@ def locus_scoring(
     range: tuple[int, int],
     gene_start: int | None = None,
     gene_end: int | None = None,
-    title: str = "Predictions across genomic regions",
-    ylim: tuple[float, float] | None = None,
+    title: str = "Predictions across Genomic Regions",
     bigwig_values: np.ndarray | None = None,
     bigwig_midpoints: list[int] | None = None,
     filename: str | None = None,
