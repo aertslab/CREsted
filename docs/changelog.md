@@ -1,5 +1,11 @@
 # Release Notes
 
+## 1.2.1
+
+### Bug Fixes
+
+-   Fixed an issue where {func}`crested.pp.change_regions_width` would not actually check for the chromsizes if a Genome was registered.
+
 ## 1.2.0
 
 ### Features

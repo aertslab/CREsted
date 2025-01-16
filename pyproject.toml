@@ -4,7 +4,7 @@ requires = ["hatchling"]
 
 [project]
 name = "crested"
-version = "1.2.0"
+version = "1.2.1"
 description = "CREsted: Cis-Regulatory Element Sequence Training, Explanation, and Design"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -33,7 +33,8 @@ dependencies = [
     "pybigtools>=0.2.0",
     "seaborn",
     "pooch",
-    "scanpy"
+    "scanpy",
+    "biothings_client<0.4.0",
 ]
 
 [project.optional-dependencies]
