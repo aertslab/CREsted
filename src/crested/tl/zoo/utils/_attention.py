@@ -8,7 +8,7 @@ import numpy as np
 backend = keras.src.backend.config.backend()
 if backend == 'tensorflow':
     from tensorflow.math import lgamma
-elif backend == 'pytorch':
+elif backend == 'torch':
     from torch import lgamma
 else:
     raise NotImplementedError(f"Using gamma position functions (as part of relative_position_functions == 'enformer') currently only supports TensorFlow and PyTorch backends, not {backend}.")
