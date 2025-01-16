@@ -3,11 +3,13 @@
 
 # Load modules and paths
 import os
-import numpy as np
+
 import h5py
+import numpy as np
+
 import crested
 
-print("CREsted version {}".format(crested.__version__))
+print(f"CREsted version {crested.__version__}")
 
 # Dir to save your new models
 output_dir = "xxx"
@@ -108,6 +110,7 @@ mouse_lookup = {"dense_21": "head_1"}
 # Build model porting functions
 # copy convolutional/dense layers weights
 def copy_convdense(mod, layers, name):
+    """Copy convolution or dense layers."""
     if len(mod.weights) == 1:
         # Assuming a 1-weight conv/dense is biasless
         conv_w = layers[name][name]['kernel:0'][...]
@@ -123,7 +126,7 @@ def copy_convdense(mod, layers, name):
         conv_w_p = layers[name][name]['pointwise_kernel:0'][...] # Pointwise kernel
         conv_b = layers[name][name]['bias:0'][...]
         conv = [conv_w_d, conv_w_p, conv_b]
-    
+
     assert conv[0].shape == mod.weights[0].shape, f"shape {conv[0].shape} != {mod.weights[0].shape}"
     if len(mod.weights) >= 2:
         assert conv[1].shape == mod.weights[1].shape, f"shape {conv[1].shape} != {mod.weights[1].shape}"
@@ -132,8 +135,11 @@ def copy_convdense(mod, layers, name):
     mod.set_weights(conv)
 
 def copy_dense_to_pointwise(mod, layers, name):
-    """Adds a dimension at the start, for when you want to copy a dense layer used as pointwise conv (shape [input, filters])
-    to a true pointwise conv layer (shape [width, input, filters] = [1, input, filters])"""
+    """Copy a dense layer to a pointwise convolutional layer.
+
+    Adds a dimension at the start. Lets you copy a dense layer used as pointwise conv (shape [input, filters])
+    to a true pointwise conv layer (shape [width, input, filters] = [1, input, filters]).
+    """
     dense_w = np.expand_dims(layers[name][name]['kernel:0'][...], 0)
     dense_b = layers[name][name]['bias:0'][...]
     dense = [dense_w, dense_b]
@@ -143,6 +149,7 @@ def copy_dense_to_pointwise(mod, layers, name):
 
 # copy batch normalization layers weights
 def copy_bn(mod, layers, name):
+    """Copy batch normalisation layers."""
     bn_w = layers[name][name]['gamma:0'][...] # Scale = gamma
     bn_b = layers[name][name]['beta:0'][...] # Offset = Beta
     bn_mov_mean = layers[name][name]['moving_mean:0'][...]
@@ -160,6 +167,7 @@ def copy_bn(mod, layers, name):
 
 # copy layer normalization layers weights
 def copy_ln(mod, layers, name):
+    """Copy layer normalisation layers."""
     ln_w = layers[name][name]['gamma:0'][...] # Scale = gamma
     ln_b = layers[name][name]['beta:0'][...] # Offset = center = beta
     ln = [ln_w, ln_b]
@@ -169,6 +177,7 @@ def copy_ln(mod, layers, name):
 
 # copy multi-head attention layers weights
 def copy_mhsa(mod, layers, name):
+    """Copy multihead-self-attention layers."""
     Q_w = layers[name][name]['q_layer']['kernel:0'][...]
     K_w = layers[name][name]['k_layer']['kernel:0'][...]
     V_w = layers[name][name]['v_layer']['kernel:0'][...]
@@ -183,13 +192,13 @@ def copy_mhsa(mod, layers, name):
     mhsa = [r_w_b, r_r_b, Q_w, K_w, V_w, out_w, out_b, rel_K_w]
     for i in range(len(mhsa)):
         assert mhsa[i].shape == mod.weights[i].shape, f"shape {mhsa[i].shape} != {mod.weights[i].shape} (index {i})"
-        
+
     # Specifically check two weird separate weights
     assert mod.weights[0].name.endswith('r_w_bias'), f"You might be putting the MHSA weights in the wrong order. This weight should be put at r_w_bias, but it's called {mod.weights[6].name}"
     assert mod.weights[1].name.endswith('r_r_bias'), f"You might be putting the MHSA weights in the wrong order. This weight should be put at r_r_bias, but it's called {mod.weights[7].name}"
-    
+
     mod.set_weights(mhsa)
-        
+
 
 # Transfer weights to CREsted Borzoi models
 for i, (human_tf_path, mouse_tf_path) in enumerate(weights_paths):
@@ -216,7 +225,7 @@ for i, (human_tf_path, mouse_tf_path) in enumerate(weights_paths):
     print(f"Model weights not set by porting: {model_layers - layers_ported}")
     if len(layers_ported - model_layers) > 0:
         print(f"Layers to port not found in model: {layers_ported - model_layers}")
-    # Save model/weights to file 
+    # Save model/weights to file
     model.save(os.path.join(output_dir, f"borzoi_crested_fold{i}.keras"))
     model.save_weights(os.path.join(output_dir, f"borzoi_crested_fold{i}.weights.h5"))
     print(f"Keras model saved to disk!\nModel: {os.path.join(output_dir, f'borzoi_crested_fold{i}.keras')}\nWeights: {os.path.join(output_dir, f'borzoi_crested_fold{i}.weights.h5')}")

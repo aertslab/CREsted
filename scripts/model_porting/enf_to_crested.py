@@ -1,20 +1,19 @@
 # Port weights from the official Sonnet Enformer model to the CREsted-based model.
 # Requires the Enformer checkpoint - download from https://console.cloud.google.com/storage/browser/dm-enformer/models/enformer/sonnet_weights
-# Problem： Don't have environment with both working Sonnet and working CREsted -> Sonnet seems to be broken with modern TF versions? 
-# Solution: read checkpoint directly without Sonnet. 
+# Problem： Don't have environment with both working Sonnet and working CREsted -> Sonnet seems to be broken with modern TF versions?
+# Solution: read checkpoint directly without Sonnet.
 
 
-import sys
 import os
-import numpy as np
-import matplotlib.pyplot as plt
 
+import numpy as np
 import tensorflow as tf
 from tensorflow.python.training import py_checkpoint_reader
-import crested 
 
-print("TensorFlow version {}".format(tf.__version__))
-print("CREsted version {}".format(crested.__version__))
+import crested
+
+print(f"TensorFlow version {tf.__version__}")
+print(f"CREsted version {crested.__version__}")
 
 # Set directories and paths
 output_dir = os.getcwd()
@@ -38,8 +37,9 @@ keras_model = crested.tl.zoo.enformer(seq_len = 196608, num_classes = [5313, 164
 # define functions
 # make a dictionary with model variable names and values
 def get_vars(reader):
+    """Get variables from the Sonnet model."""
     var_to_shape_map = reader.get_variable_to_shape_map()
-    model_vars = dict()
+    model_vars = {}
     for var_name in var_to_shape_map:
         if var_name.startswith('module'):
             model_vars[var_name] = reader.get_tensor(var_name)
@@ -47,6 +47,7 @@ def get_vars(reader):
 
 # copy convolutional or dense layers weights
 def copy_convdense(mod, model_vars, name):
+    """Copy convolutional or dense weights."""
     # Assuming a 1-weight conv/dense is biasless
     conv_w = model_vars.pop(f"{name}w/.ATTRIBUTES/VARIABLE_VALUE")
     conv = [conv_w]
@@ -60,8 +61,11 @@ def copy_convdense(mod, model_vars, name):
 
 # Copy dense layers used as pointwise convs to actual pointwise convs
 def copy_dense_to_pointwise(mod, model_vars, name):
-    """Adds a dimension at the start, for when you want to copy a dense layer used as pointwise conv (shape [input, filters])
-    to a true pointwise conv layer (shape [width, input, filters] = [1, input, filters])"""
+    """Copy a dense layer to a pointwise convolutional layer.
+
+    Adds a dimension at the start, for when you want to copy a dense layer used as pointwise conv (shape [input, filters])
+    to a true pointwise conv layer (shape [width, input, filters] = [1, input, filters])
+    """
     dense_w = np.expand_dims(model_vars.pop(f'{name}w/.ATTRIBUTES/VARIABLE_VALUE'), 0)
     dense_b = model_vars.pop(f'{name}b/.ATTRIBUTES/VARIABLE_VALUE')
     dense = [dense_w, dense_b]
@@ -71,6 +75,7 @@ def copy_dense_to_pointwise(mod, model_vars, name):
 
 # copy batch normalization layers weights
 def copy_bn(mod, model_vars, name):
+    """Copy batch normalisation weights."""
     bn_gamma = model_vars.pop(f"{name}scale/.ATTRIBUTES/VARIABLE_VALUE") # Scale = gamma
     bn_beta = model_vars.pop(f"{name}offset/.ATTRIBUTES/VARIABLE_VALUE") # Offset = beta
     bn_mov_mean = model_vars.pop(f"{name}moving_mean/average/.ATTRIBUTES/VARIABLE_VALUE")
@@ -92,14 +97,14 @@ def copy_bn(mod, model_vars, name):
 
 # copy attention pooling layers weights
 def copy_attn_pool(mod, model_vars, name):
+    """Copy attention pooling weights."""
     attn_pool = [model_vars.pop(f"{name}w/.ATTRIBUTES/VARIABLE_VALUE")]
     assert attn_pool[0].shape == mod.weights[0].shape, f"shape {attn_pool[0].shape} != {mod.weights[0].shape}"
     mod.set_weights(attn_pool)
 
-
-
 # copy layer normalization layers weights
 def copy_ln(mod, model_vars, name):
+    """Copy layer normalisation weights."""
     ln_w = model_vars.pop(f'{name}scale/.ATTRIBUTES/VARIABLE_VALUE') # Scale = gamma
     ln_b = model_vars.pop(f'{name}offset/.ATTRIBUTES/VARIABLE_VALUE') # Offset = center = beta
     ln = [ln_w, ln_b]
@@ -109,6 +114,7 @@ def copy_ln(mod, model_vars, name):
 
 # copy multi-head attention layers weights
 def copy_mhsa(mod, model_vars, name):
+    """Copy multi-head self-attention weights."""
     Q_w = model_vars.pop(f'{name}_q_layer/w/.ATTRIBUTES/VARIABLE_VALUE')
     K_w = model_vars.pop(f'{name}_k_layer/w/.ATTRIBUTES/VARIABLE_VALUE')
     V_w = model_vars.pop(f'{name}_v_layer/w/.ATTRIBUTES/VARIABLE_VALUE')
@@ -134,6 +140,7 @@ def copy_mhsa(mod, model_vars, name):
 
 # copy weights from sonnet to keras
 def copy_snt_to_keras(ckpt_reader, keras_model):
+    """Copy the entire sonnet model to the keras model."""
     n_tower_layers = 6
     n_transformer_layers = 11
 
@@ -244,8 +251,8 @@ print(f"Keras model saved to disk!\nModel: {os.path.join(output_dir, 'enformer_c
 
 # print("""
 # To load the model, use tf.keras.models.load_model() with custom_objects like this:
-# keras_model = tf.keras.models.load_model('enformer_keras_model.keras', 
-#     custom_objects=\{"GeLU": enformer.GeLU, 
+# keras_model = tf.keras.models.load_model('enformer_keras_model.keras',
+#     custom_objects=\{"GeLU": enformer.GeLU,
 #     "PointwiseConv1D": enformer.PointwiseConv1D,
 #     "AttentionPooling1D": enformer.AttentionPooling1D,
 #     "MHSelfAttention": enformer.MHSelfAttention,
