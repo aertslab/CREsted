@@ -90,10 +90,10 @@ def get_dataset(dataset: str):
     dataset
         The name of the dataset to fetch.
         Options:
-            - 'mouse_cortex_bed'
-            - 'mouse_cortex_bigwig_cut_sites'
-            - 'mouse_cortex_bigwig_coverage'
-            - 'mouse_cortex_bigwig' (deprecated, same as 'mouse_cortex_bigwig_coverage')
+        - 'mouse_cortex_bed'
+        - 'mouse_cortex_bigwig_cut_sites'
+        - 'mouse_cortex_bigwig_coverage'
+        - 'mouse_cortex_bigwig' (deprecated, same as 'mouse_cortex_bigwig_coverage')
 
     Returns
     -------
