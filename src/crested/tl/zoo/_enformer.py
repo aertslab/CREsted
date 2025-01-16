@@ -233,6 +233,7 @@ def enformer(
     return m
 
 def exp_linspace_int(start, end, num_modules, divisible_by=1):
+    """Get an exponentially rising set of values, guaranteed to be integers."""
     def _round(x):
         return int(np.round(x/divisible_by)*divisible_by)
     base = np.exp(np.log(end/start)/(num_modules-1))

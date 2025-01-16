@@ -1,4 +1,4 @@
-"""Helper functions for the Enformer/Borzoi attention layers"""
+"""Helper functions for the Enformer/Borzoi attention layers."""
 
 from __future__ import annotations
 
@@ -60,8 +60,11 @@ class AttentionPool1D(keras.layers.Layer):
         self._data_format = "channels_last"
 
     def build(self, inputs_shape):
-        # Construct learnable layer part
-        # Put in build to have access to inputs_shape automatically
+        """
+        Construct the learnable layer part of the module.
+
+        Put in build to have access to input_shape when initializing layer.
+        """
         num_features = inputs_shape[-1]
         output_size = num_features if self._per_channel else 1
         self.w = self.add_weight(
@@ -72,6 +75,7 @@ class AttentionPool1D(keras.layers.Layer):
         )
 
     def get_config(self):
+        """Get the config for this layer."""
         config = super().get_config()
         config.update({
             "pool_size": self._pool_size,
@@ -84,6 +88,7 @@ class AttentionPool1D(keras.layers.Layer):
         return config
 
     def call(self, inputs, training = False):
+        """Calculate the AttentionPool result."""
         _, length, num_features = inputs.shape
 
         if length is None: # this can happen at when creating fast_ism_model
@@ -250,7 +255,7 @@ class MultiheadAttention(keras.layers.Layer):
         self.attn_dropout = keras.layers.Dropout(rate=self._attention_dropout_rate)
 
     def _multihead_output(self, linear_layer, inputs):
-        """Applies a standard linear to inputs and returns multihead output."""
+        """Apply a standard linear to inputs and returns multihead output."""
         output = linear_layer(inputs)  # [B, T, H * KV]
         _, seq_len, num_channels = output.shape
 
@@ -263,6 +268,7 @@ class MultiheadAttention(keras.layers.Layer):
         return keras.ops.transpose(output, [0, 2, 1, 3])
 
     def call(self, inputs, training=False):
+        """Calculate the multihead attention for a given input."""
         # Initialise the projection layers.
         embedding_size = self._value_size * self._num_heads
         seq_len = inputs.shape[1]
@@ -336,6 +342,7 @@ class MultiheadAttention(keras.layers.Layer):
         return output
 
     def get_config(self):
+        """Get the config for the multiheadattention layer."""
         config = super().get_config().copy()
         config.update({
             "value_size": self._value_size,
@@ -356,6 +363,10 @@ class MultiheadAttention(keras.layers.Layer):
 
 
 def relative_shift(x):
+    """Extract relative positional encodings for each position.
+
+    See https://johahi.github.io/blog/2024/fast-relative-shift/ for more information.
+    """
     # we prepend zeros on the final timescale dimension
     to_pad = keras.ops.zeros_like(x[..., :1])
     x = keras.ops.concatenate([to_pad, x], -1)
@@ -432,6 +443,7 @@ def pos_feats_exponential(
     seq_length: int | None = None, # length of the transformer input sequence (default 1536)
     min_half_life: float = 3.0 # smallest exponential half life in the grid of half lives
 ):
+    """Calculate exponential positional features for Enformer."""
     if seq_length is None:
         seq_length = keras.ops.max(keras.ops.abs(positions))+1
     # grid of half lifes from [3, seq_length/2] with feature_size distributed on the log scale
@@ -454,7 +466,7 @@ def pos_feats_central_mask_borzoi(
     seq_length: int
 ):
     """
-    Positional features using a central mask (allow only central features).
+    Calculate positional features using a central mask (allow only central features).
 
     Uses the Borzoi implementation, which calculates pow_rate based on seq_len (default).
     """
@@ -473,7 +485,7 @@ def pos_feats_central_mask_enformer(
     num_basis: int,
 ):
     """
-    Positional features using a central mask (allow only central features).
+    Calculate positional features using a central mask (allow only central features).
 
     Uses the Enformer implementation, which has a fixed power rate of 2.
     """
@@ -486,7 +498,7 @@ def pos_feats_central_mask_enformer(
     return outputs
 
 def gamma_pdf(x, concentration, rate):
-    """Gamma probability distribution function: p(x|concentration, rate)"""
+    """Gamma probability distribution function: p(x|concentration, rate)."""
     log_unnormalized_prob = (concentration - 1.) * keras.ops.log(x) - rate * x
     log_normalization = (lgamma(concentration) -
                         concentration * keras.ops.log(rate))
@@ -501,7 +513,7 @@ def pos_feats_gamma(
     start_mean=None,
     gamma_pdf_func = None
 ):
-
+    """Calculate gamma positional encoding features for Enformer."""
     if seq_length is None:
         seq_length = keras.ops.max(keras.ops.abs(positions))+1
     if stddev is None:
