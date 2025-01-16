@@ -1,5 +1,7 @@
 """Enformer model architecture. Adapted from github.com/casblaauw/enformer_keras."""
 
+from __future__ import annotations
+
 import collections.abc as cabc
 
 import keras

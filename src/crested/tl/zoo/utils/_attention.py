@@ -1,5 +1,7 @@
 """Helper functions for the Enformer/Borzoi attention layers"""
 
+from __future__ import annotations
+
 import keras
 import numpy as np
 
@@ -517,8 +519,8 @@ def pos_feats_gamma(
                               concentration,
                               rate)
     probabilities += 1e-8 # to ensure numerical stability
-    max_probabilities = keras.ops.max(probabilities, 
-                                      axis=1, 
+    max_probabilities = keras.ops.max(probabilities,
+                                      axis=1,
                                       keepdims=True)
     outputs = probabilities/max_probabilities
     return outputs
