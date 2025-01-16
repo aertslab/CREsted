@@ -220,8 +220,8 @@ def enformer(
         outputs = keras.layers.Conv1D(num_classes, kernel_size = 1, activation=output_activation, name = "head")(current)
     elif isinstance(num_classes, cabc.Sequence):
         outputs = []
-        for head, n_tracks in num_classes:
-            outputs.append(keras.layers.Conv1D(n_tracks, kernel_size = 1, activation=output_activation, name = head)(current))
+        for i, n_tracks in enumerate(num_classes):
+            outputs.append(keras.layers.Conv1D(n_tracks, kernel_size = 1, activation=output_activation, name = f"head_{i}")(current))
     else:
         raise ValueError(f"Could not recognise num_classes argument ({num_classes}) as integer or list/tuple/sequence of integers.")
 
