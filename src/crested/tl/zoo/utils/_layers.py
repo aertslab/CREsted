@@ -236,7 +236,7 @@ def activate(
 
 @keras.saving.register_keras_serializable(package="crested", name="gelu_approx")
 def gelu_approx(x):
-    """Wraps around keras.activations.gelu with approximate = True."""
+    """Wrap around keras.activations.gelu with approximate = True."""
     return keras.activations.gelu(x, approximate=True)
 
 @keras.saving.register_keras_serializable(package="crested", name="gelu_enf")

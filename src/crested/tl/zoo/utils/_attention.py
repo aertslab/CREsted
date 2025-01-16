@@ -198,6 +198,7 @@ class MultiheadAttention(keras.layers.Layer):
             absolute=relative_position_absolute)
 
     def build(self, input_shape):
+        """Build layer weights."""
         # standard dense layers
         self._q_layer = keras.layers.Dense(
             self._key_proj_size,
