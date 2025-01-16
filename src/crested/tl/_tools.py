@@ -122,7 +122,9 @@ def predict(
 
 
 def score_gene_locus(
-    gene_locus: str,
+    chr_name: str,
+    gene_start: int,
+    gene_end: int,
     target_idx: int,
     model: keras.Model | list[keras.Model],
     genome: Genome | os.PathLike | None = None,
@@ -140,9 +142,13 @@ def score_gene_locus(
 
     Parameters
     ----------
-    gene_locus
-        The gene locus to score in the format 'chr:start-end'.
-        Start is the TSS for + strand and TES for - strand.
+    chrom
+        The chromosome name.
+    gene_start
+        The start position of the gene locus (TSS for + strand).
+    gene_end
+        The end position of the gene locus (TSS for - strand).
+
     target_idx
         Index of the target class to score.
         You can usually get this from running `list(anndata.obs_names).index(class_name)`.
@@ -180,9 +186,6 @@ def score_gene_locus(
     --------
     crested.tl.predict
     """
-    chr_name, gene_locus = gene_locus.split(":")
-    gene_start, gene_end = map(int, gene_locus.split("-"))
-
     # Detect window size from the model input shape
     if not isinstance(target_idx, int):
         raise ValueError("Target index must be an integer.")
