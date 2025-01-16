@@ -9,6 +9,7 @@
 installation
 tutorials/index
 api/index
+models/index
 changelog
 contributing
 references
