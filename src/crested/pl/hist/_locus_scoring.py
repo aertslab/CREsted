@@ -12,6 +12,7 @@ def locus_scoring(
     gene_start: int | None = None,
     gene_end: int | None = None,
     title: str = "Predictions across Genomic Regions",
+    ylim: tuple(float, float) | None = None,
     bigwig_values: np.ndarray | None = None,
     bigwig_midpoints: list[int] | None = None,
     filename: str | None = None,
