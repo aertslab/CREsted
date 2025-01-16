@@ -99,10 +99,10 @@ pointwise_lookup = {
     "dense_17": "unet_skip_2_conv",
     "dense_18": "upsampling_conv_2_conv",
     "dense_19": "unet_skip_1_conv",
-    "dense_20": "human"
+    "dense_20": "head_0"
 }
 
-mouse_lookup = {"dense_21": "mouse"}
+mouse_lookup = {"dense_21": "head_1"}
 
 
 # Build model porting functions

@@ -201,8 +201,8 @@ def copy_snt_to_keras(ckpt_reader, keras_model):
     copy_convdense(final_conv, var_dict, 'module/_trunk/_layers/4/_layers/0/_layers/2/')
 
     # heads modules
-    human_head = keras_model.get_layer('human')
-    mouse_head = keras_model.get_layer('mouse')
+    human_head = keras_model.get_layer('head_0')
+    mouse_head = keras_model.get_layer('head_1')
 
     copy_dense_to_pointwise(human_head, var_dict, 'module/_heads/human/_layers/0/')
     copy_dense_to_pointwise(mouse_head, var_dict, 'module/_heads/mouse/_layers/0/')
