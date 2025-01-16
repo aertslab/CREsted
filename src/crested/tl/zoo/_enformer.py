@@ -10,7 +10,7 @@ from crested.tl.zoo.utils import activate, conv_block_bs, ffn_block_enf, mha_blo
 
 def enformer(
     seq_len: int,
-    num_classes: int | cabc.Sequence[int] | cabc.Mapping[str, int],
+    num_classes: int | cabc.Sequence[int],
     num_conv_blocks: int = 6,
     num_transformer_blocks: int = 11,
     num_transformer_heads: int = 8,
@@ -44,7 +44,6 @@ def enformer(
         Number of classes to predict.
         If an int, creates a single head with num_classes classes.
         If a list of integers, creates multiple heads in a list.
-        If a dictionary of names and integers, creates multiple named heads.
     num_conv_blocks
         Number of convolution blocks to include in the tower, after the stem block.
     num_transformer_blocks
@@ -219,14 +218,12 @@ def enformer(
     # Build heads
     if isinstance(num_classes, int):
         outputs = keras.layers.Conv1D(num_classes, kernel_size = 1, activation=output_activation, name = "head")(current)
-    elif isinstance(num_classes, cabc.Mapping):
-        outputs = {}
-        for head, n_tracks in num_classes.items():
-            outputs[head] = keras.layers.Conv1D(n_tracks, kernel_size = 1, activation=output_activation, name = head)(current)
     elif isinstance(num_classes, cabc.Sequence):
         outputs = []
         for head, n_tracks in num_classes:
             outputs.append(keras.layers.Conv1D(n_tracks, kernel_size = 1, activation=output_activation, name = head)(current))
+    else:
+        raise ValueError(f"Could not recognise num_classes argument ({num_classes}) as integer or list/tuple/sequence of integers.")
 
 
     # Construct model
