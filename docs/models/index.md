@@ -4,6 +4,7 @@
 :maxdepth: 1
 
 biccn
+borzoi
 deepchickenbrain1
 deepchickenbrain2
 deepflybrain
@@ -19,4 +20,5 @@ deepmel2_gabpa
 deepmousebrain1
 deepmousebrain2
 deepmousebrain3
+enformer
 ```
