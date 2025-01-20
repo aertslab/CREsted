@@ -5,6 +5,7 @@
 import os
 
 import h5py
+import keras
 import numpy as np
 
 import crested
@@ -229,3 +230,8 @@ for i, (human_tf_path, mouse_tf_path) in enumerate(weights_paths):
     model.save(os.path.join(output_dir, f"borzoi_crested_fold{i}.keras"))
     model.save_weights(os.path.join(output_dir, f"borzoi_crested_fold{i}.weights.h5"))
     print(f"Keras model saved to disk!\nModel: {os.path.join(output_dir, f'borzoi_crested_fold{i}.keras')}\nWeights: {os.path.join(output_dir, f'borzoi_crested_fold{i}.weights.h5')}")
+
+    model_human = keras.Model(model.inputs, model.outputs[0])
+    model_human.save(os.path.join(output_dir, f"borzoi_crested_human_fold{i}.keras"))
+    model_mouse = keras.Model(model.inputs, model.outputs[1])
+    model_mouse.save(os.path.join(output_dir, f"borzoi_crested_mouse_fold{i}.keras"))

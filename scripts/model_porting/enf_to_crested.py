@@ -6,6 +6,7 @@
 
 import os
 
+import keras
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.training import py_checkpoint_reader
@@ -230,31 +231,10 @@ keras_model.save(os.path.join(output_dir, 'enformer_crested.keras'))
 # Manually save weights
 keras_model.save_weights(os.path.join(output_dir, 'enformer_crested.weights.h5'))
 
+# Save one-head versions of the model
+model_human = keras.Model(keras_model.inputs, keras_model.outputs[0])
+model_human.save(os.path.join(output_dir, "enformer_crested_human.keras"))
+model_mouse = keras.Model(keras_model.inputs, keras_model.outputs[1])
+model_mouse.save(os.path.join(output_dir, "enformer_crested_mouse.keras"))
 
-# compare predictions of the CREsted model with the Sonnet version
-# snt_preds = snt_model(tf.constant(random_seq, dtype=tf.float32), is_training=False)
-#TODO: load in saved preds + seq
-# comparison_seq = np.load("cblaauw/small_projects/enformer_crested/enformer_test_seq.npy")
-# snt_preds = np.load("cblaauw/small_projects/enformer_crested/enformer_test_preds.npy")
-# new_preds = keras_model(comparison_seq, training=False)
-# assert np.allclose(snt_preds, new_preds['human'], atol=1e-5), "Your sonnet and transferred CREsted predictions do not match."
-
-# Plot overlap of values
-# fig, ax = plt.subplots(figsize = (30, 5))
-# ax.plot(np.arange(snt_preds['human'].shape[1]), snt_preds['human'][0, :, 0].numpy().squeeze(), alpha = 0.5, label = 'sonnet')
-# ax.plot(np.arange(new_preds['human'].shape[1]), new_preds['human'][0, :, 0].numpy().squeeze(), alpha = 0.5, label = 'keras')
-# ax.set_title('Sonnet vs transferred Keras predictions, human track 0, all 896 bins')
-# fig.legend()
-# fig.savefig(os.path.join(output_dir, "weight_transfer_equivalence.png"))
-
-print(f"Keras model saved to disk!\nModel: {os.path.join(output_dir, 'enformer_crested.keras')}\nWeights: {os.path.join(output_dir, 'enformer_crested.weights.h5')}")
-
-# print("""
-# To load the model, use tf.keras.models.load_model() with custom_objects like this:
-# keras_model = tf.keras.models.load_model('enformer_keras_model.keras',
-#     custom_objects=\{"GeLU": enformer.GeLU,
-#     "PointwiseConv1D": enformer.PointwiseConv1D,
-#     "AttentionPooling1D": enformer.AttentionPooling1D,
-#     "MHSelfAttention": enformer.MHSelfAttention,
-#     "VarianceScaling": tf.keras.initializers.VarianceScaling)\}
-# """)
+print(f"Keras model saved to disk!\nModel: {os.path.join(output_dir, 'enformer_crested[_human/mouse].keras')}\nWeights: {os.path.join(output_dir, 'enformer_crested.weights.h5')}")
