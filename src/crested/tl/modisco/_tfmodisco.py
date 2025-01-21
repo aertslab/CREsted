@@ -38,6 +38,9 @@ def tfmodisco(
     report: bool = False,
     meme_db: str = None,
     verbose: bool = True,
+    fdr: float = 0.05,
+    sliding_window_size: int = 20,
+    flank_size: int = 5,
 ):
     """
     Run tf-modisco on one-hot encoded sequences and contribution scores stored in .npz files.
@@ -62,6 +65,12 @@ def tfmodisco(
         Path to a MEME file (.meme) containing motifs. Required if report is True.
     verbose
         Print verbose output.
+    fdr
+        False discovery rate of seqlet finding.
+    sliding_window_size
+        Sliding window size for seqlet finding in tfmodiscolite.
+    flank_size
+        Flank size of seqlets.
 
     See Also
     --------
@@ -147,9 +156,9 @@ def tfmodisco(
                     hypothetical_contribs=attributions,
                     one_hot=sequences,
                     max_seqlets_per_metacluster=max_seqlets,
-                    sliding_window_size=20,
-                    flank_size=5,
-                    target_seqlet_fdr=0.05,
+                    sliding_window_size=sliding_window_size,
+                    flank_size=flank_size,
+                    target_seqlet_fdr=fdr,
                     n_leiden_runs=n_leiden,
                     verbose=verbose,
                 )
