@@ -41,6 +41,7 @@ def tfmodisco(
     fdr: float = 0.05,
     sliding_window_size: int = 20,
     flank_size: int = 5,
+    top_n_regions: int | None = None,
 ):
     """
     Run tf-modisco on one-hot encoded sequences and contribution scores stored in .npz files.
@@ -71,6 +72,8 @@ def tfmodisco(
         Sliding window size for seqlet finding in tfmodiscolite.
     flank_size
         Flank size of seqlets.
+    top_n_regions
+        The top n regions from the one hot encoded sequences and contribution scores to run modisco on.
 
     See Also
     --------
@@ -138,6 +141,12 @@ def tfmodisco(
 
             sequences = one_hot_seqs[:, :, start:end]
             attributions = contribution_scores[:, :, start:end]
+
+            if top_n_regions:
+                top_n = top_n_regions if top_n_regions < len(sequences) else len(sequences)
+                top_n = max(top_n,1) # avoid faulty inputs
+                sequences = sequences[:top_n]
+                attributions = attributions[:top_n]
 
             sequences = sequences.transpose(0, 2, 1)
             attributions = attributions.transpose(0, 2, 1)
