@@ -558,12 +558,9 @@ def import_bigwigs(
 
     # Read consensus regions BED file and filter out regions not within chromosomes
     _check_bed_file_format(regions_file)
-    consensus_peaks = _read_consensus_regions(regions_file, chromsizes_file)
-    
-    if target_region_width is not None:
-        bed_file = _create_temp_bed_file(consensus_peaks, target_region_width)
-    else:
-        bed_file = regions_file
+    consensus_peaks = _read_consensus_regions(regions_file, chromsizes_file)    
+
+    bed_file = _create_temp_bed_file(consensus_peaks, target_region_width)
 
     bw_files = []
     for file in os.listdir(bigwigs_folder):
@@ -602,8 +599,7 @@ def import_bigwigs(
         result = _extract_values_from_bigwig(bw_file, bed_file, target=target)
         all_results.append(result)
 
-    if target_region_width is not None:
-        os.remove(bed_file)
+    os.remove(bed_file)
 
     data_matrix = np.vstack(all_results)
 

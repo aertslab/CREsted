@@ -33,7 +33,8 @@ dependencies = [
     "pybigtools>=0.2.0",
     "seaborn",
     "pooch",
-    "scanpy"
+    "scanpy",
+    "biothings_client<0.4.0",
 ]
 
 [project.optional-dependencies]
