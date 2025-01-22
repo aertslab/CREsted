@@ -16,16 +16,15 @@ def log_capture(level="WARNING"):
         logger.remove(handler_id)
 
 
-def test_genome_persistence(genome):
+def test_genome_persistence(genome_path):
     """Test that the genome object is correctly stored."""
     import crested
 
-    fasta_file = genome
     # check that does not yet exist
     assert crested._conf.genome is None
 
     genome = crested.Genome(
-        fasta=fasta_file,
+        fasta=genome_path,
         chrom_sizes={"chr1": 1000, "chr2": 2000},
     )
     crested.register_genome(genome)
@@ -44,15 +43,14 @@ def test_no_genome_fasta():
         )
 
 
-def test_import_beds_with_genome(genome):
+def test_import_beds_with_genome(genome_path):
     """Test that import_beds uses genome chromsizes."""
     import crested
 
-    fasta_file = genome
     # Scenario 1: Genome registered with chromsizes provided
     with log_capture(level="WARNING") as messages:
         genome = crested.Genome(
-            fasta=fasta_file,
+            fasta=genome_path,
             chrom_sizes="tests/data/test.chrom.sizes",
         )
         crested.register_genome(genome)
@@ -106,72 +104,70 @@ def test_import_beds_with_genome(genome):
         warning_text_filtered not in msg for msg in warning_messages
     ), "Warning about filtered regions was unexpectedly raised."
 
-def test_genome_fetch(genome):
+
+def test_genome_fetch(genome_path):
     """Test reading the genome."""
     import crested
 
-    fasta_file = genome
     genome = crested.Genome(
-        fasta=fasta_file,
+        fasta=genome_path,
         chrom_sizes="tests/data/test.chrom.sizes",
     )
-    seq = genome.fetch('chr1', 10000, 10100)
+    seq = genome.fetch("chr1", 10000, 10100)
     assert len(seq) == 100
 
 
-def test_genome_fetch_region(genome):
+def test_genome_fetch_region(genome_path):
     """Test reading the genome with a region string."""
     import crested
 
-    fasta_file = genome
     genome = crested.Genome(
-        fasta=fasta_file,
+        fasta=genome_path,
         chrom_sizes="tests/data/test.chrom.sizes",
     )
-    seq1 = genome.fetch('chr1', 10000, 10100)
-    seq2 = genome.fetch(region = 'chr1:10000-10100')
+    seq1 = genome.fetch("chr1", 10000, 10100)
+    seq2 = genome.fetch(region="chr1:10000-10100")
     assert seq1 == seq2
 
-def test_genome_fetch_reverse(genome):
+
+def test_genome_fetch_reverse(genome_path):
     """Test reading the genome on the negative strand."""
     import crested
 
-    fasta_file = genome
     genome = crested.Genome(
-        fasta=fasta_file,
+        fasta=genome_path,
         chrom_sizes="tests/data/test.chrom.sizes",
     )
-    seq_forward = genome.fetch('chr1', 10000, 10100)
-    seq_rev = genome.fetch('chr1', 10000, 10100, "-")
-    seq_rev_region = genome.fetch(region = 'chr1:10000-10100:-')
+    seq_forward = genome.fetch("chr1", 10000, 10100)
+    seq_rev = genome.fetch("chr1", 10000, 10100, "-")
+    seq_rev_region = genome.fetch(region="chr1:10000-10100:-")
     assert seq_rev == crested.utils.reverse_complement(seq_forward)
     assert seq_rev_region == seq_rev
 
-def test_genome_fetch_mismatch(genome):
+
+def test_genome_fetch_mismatch(genome_path):
     """Test reading the genome when supplying both coordinates and a region."""
     import crested
 
-    fasta_file = genome
     genome = crested.Genome(
-        fasta=fasta_file,
+        fasta=genome_path,
         chrom_sizes="tests/data/test.chrom.sizes",
     )
-    seq = genome.fetch('chr1', 10000, 10100, region = 'chr1:10000-10200')
+    seq = genome.fetch("chr1", 10000, 10100, region="chr1:10000-10200")
     assert len(seq) == 100
 
-def test_genome_fetch_missing(genome):
+
+def test_genome_fetch_missing(genome_path):
     """Test reading the genome when not supplying all information"""
     import crested
 
-    fasta_file = genome
     genome = crested.Genome(
-        fasta=fasta_file,
+        fasta=genome_path,
         chrom_sizes="tests/data/test.chrom.sizes",
     )
     with pytest.raises(ValueError):
-        genome.fetch('chr1', 10000)
+        genome.fetch("chr1", 10000)
     with pytest.raises(ValueError):
-        genome.fetch('chr1', end = 10100)
+        genome.fetch("chr1", end=10100)
     with pytest.raises(ValueError):
-        genome.fetch('chr1', 10000, region = 'chr1:10000-10200')
-
+        genome.fetch("chr1", 10000, region="chr1:10000-10200")

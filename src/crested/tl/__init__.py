@@ -7,6 +7,14 @@ from loguru import logger
 from . import data, losses, metrics, zoo
 from ._configs import TaskConfig, default_configs
 from ._crested import Crested
+from ._tools import (
+    contribution_scores,
+    contribution_scores_specific,
+    enhancer_design_in_silico_evolution,
+    extract_layer_embeddings,
+    predict,
+    score_gene_locus,
+)
 
 if find_spec("modiscolite") is not None:
     MODISCOLITE_AVAILABLE = True
@@ -35,6 +43,12 @@ __all__ = [
     "TaskConfig",
     "default_configs",
     "Crested",
+    "extract_layer_embeddings",
+    "predict",
+    "contribution_scores",
+    "contribution_scores_specific",
+    "enhancer_design_in_silico_evolution",
+    "score_gene_locus",
 ]
 
 if MODISCOLITE_AVAILABLE:
