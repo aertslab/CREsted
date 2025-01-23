@@ -90,16 +90,14 @@ def render_plot(
             label.set_fontsize(y_tick_fontsize)
             label.set_rotation(y_label_rotation)
     if tight_rect:
-        plt.tight_layout(rect=tight_rect)
+        fig.tight_layout(rect=tight_rect)
     else:
-        plt.tight_layout()
+        fig.tight_layout()
     if save_path:
         plt.savefig(save_path)
 
     if show:
-        plt.show()
-    else:
-        plt.close(fig)
+        fig.show()
 
     if not show and not save_path:
         return fig
