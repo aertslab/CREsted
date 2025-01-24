@@ -97,7 +97,7 @@ def render_plot(
         plt.savefig(save_path)
 
     if show:
-        fig.show()
+        plt.show()
 
     if not show and not save_path:
         return fig
