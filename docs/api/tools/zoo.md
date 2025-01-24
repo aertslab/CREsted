@@ -12,8 +12,10 @@ Supply these (or your own) to `tl.Crested(...)` to use them in training.
     :toctree: _autosummary
 
     basenji
+    borzoi
     chrombpnet
     deeptopic_cnn
     deeptopic_lstm
+    enformer
     simple_convnet
 ```
