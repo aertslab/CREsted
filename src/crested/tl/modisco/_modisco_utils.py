@@ -95,13 +95,16 @@ def _trim_pattern_by_ic(
     try:
         if min_v>0:
             start_idx = min(np.where(v > min_v)[0])
-            end_idx = max(np.where(v > min_v)[0])
+            end_idx = max(np.where(v > min_v)[0])+1
         else:
             start_idx=0
             end_idx=len(ppm)
 
         if end_idx==start_idx:
             end_idx=start_idx+1
+            
+        if end_idx==len(v):
+            end_idx=len(v)-1
     except ValueError:
         logger.error("No valid pattern found. Aborting...")
 
