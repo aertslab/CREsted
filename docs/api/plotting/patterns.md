@@ -17,6 +17,7 @@ Plot contribution scores and analyze them using tfmodisco.
     selected_instances
     class_instances
     clustermap
+    clustermap_with_pwm_logos
     clustermap_tf_motif
     tf_expression_per_cell_type
     similarity_heatmap
