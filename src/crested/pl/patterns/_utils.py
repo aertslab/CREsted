@@ -60,7 +60,7 @@ def _plot_attribution_map(
     rotate: bool = False,
 ):
     """
-    Plots an attribution map (PWM logo) and optionally rotates it by 90 degrees.
+    Plot an attribution map (PWM logo) and optionally rotate it by 90 degrees.
 
     Parameters
     ----------
