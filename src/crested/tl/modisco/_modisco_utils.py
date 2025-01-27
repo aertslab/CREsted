@@ -102,7 +102,7 @@ def _trim_pattern_by_ic(
 
         if end_idx==start_idx:
             end_idx=start_idx+1
-            
+
         if end_idx==len(v):
             end_idx=len(v)-1
     except ValueError:
