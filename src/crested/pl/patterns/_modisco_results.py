@@ -433,6 +433,7 @@ def clustermap_with_pwm_logos(
 
     # Subset the pattern_dict to match filtered columns
     selected_patterns = [pattern_dict[str(i)] for i in np.where(above_threshold)[0]]
+    selected_indices = list(np.where(above_threshold)[0])
 
     data = pd.DataFrame(pattern_matrix)
 
@@ -456,6 +457,7 @@ def clustermap_with_pwm_logos(
 
     # Reorder selected_patterns based on clustering
     reordered_patterns = [selected_patterns[i] for i in col_order]
+    reordered_indices = [selected_indices[i] for i in col_order]
 
     # Compute space for x-tick images
     original_height = figsize[1]
@@ -508,7 +510,7 @@ def clustermap_with_pwm_logos(
     ax = g.ax_heatmap
     ax.xaxis.tick_bottom()
     ax.set_xticks(np.arange(pattern_matrix.shape[1]) + 0.5)
-    ax.set_xticklabels([f"{i}" for i in col_order], rotation=90)
+    ax.set_xticklabels([str(i) for i in reordered_indices], rotation=90)
     for tick in ax.get_xticklabels():
         tick.set_verticalalignment("top")
 
