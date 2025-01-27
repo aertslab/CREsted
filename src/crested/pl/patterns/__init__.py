@@ -31,6 +31,7 @@ if MODISCOLITE_AVAILABLE:
         from ._modisco_results import (
             class_instances,
             clustermap,
+            clustermap_with_pwm_logos,
             clustermap_tf_motif,
             modisco_results,
             selected_instances,
@@ -48,6 +49,7 @@ else:
     class_instances = _optional_function_warning
     clustermap_tf_motif = _optional_function_warning
     tf_expression_per_cell_type = _optional_function_warning
+    clustermap_with_pwm_logos= _optional_function_warning
 
 # Export these functions for public use
 __all__ = [
@@ -66,5 +68,6 @@ if MODISCOLITE_AVAILABLE:
             "selected_instances",
             "clustermap_tf_motif",
             "tf_expression_per_cell_type",
+            "clustermap_with_pwm_logos",
         ]
     )
