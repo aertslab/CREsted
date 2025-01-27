@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import logomaker
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-from PIL import Image
 import numpy as np
 import pandas as pd
+from PIL import Image
 
 
 def grad_times_input_to_df(x, grad, alphabet="ACGT"):
@@ -63,25 +62,21 @@ def _plot_attribution_map(
     """
     Plots an attribution map (PWM logo) and optionally rotates it by 90 degrees.
 
-    Parameters:
-        saliency_df (pd.DataFrame or np.ndarray): A DataFrame or array with attribution scores, 
+    Parameters
+    ----------
+        saliency_df (pd.DataFrame or np.ndarray): A DataFrame or array with attribution scores,
             where columns are nucleotide bases (A, C, G, T).
-        ax (matplotlib.axes.Axes, optional): Axes object to plot on. Default is None, 
+        ax (matplotlib.axes.Axes, optional): Axes object to plot on. Default is None,
             which creates a new Axes.
         return_ax (bool, optional): Whether to return the Axes object. Default is True.
         spines (bool, optional): Whether to display spines (axes borders). Default is True.
         figsize (tuple[int, int], optional): Figure size for temporary rendering. Default is (20, 1).
         rotate (bool, optional): Whether to rotate the resulting plot by 90 degrees. Default is False.
 
-    Returns:
+    Returns
+    -------
         matplotlib.axes.Axes: The Axes object with the plotted attribution map, if `return_ax` is True.
     """
-    import logomaker
-    import matplotlib.pyplot as plt
-    import pandas as pd
-    import numpy as np
-    from PIL import Image
-
     # Convert input to DataFrame if needed
     if not isinstance(saliency_df, pd.DataFrame):
         saliency_df = pd.DataFrame(saliency_df, columns=["A", "C", "G", "T"])

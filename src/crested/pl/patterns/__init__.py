@@ -31,8 +31,8 @@ if MODISCOLITE_AVAILABLE:
         from ._modisco_results import (
             class_instances,
             clustermap,
-            clustermap_with_pwm_logos,
             clustermap_tf_motif,
+            clustermap_with_pwm_logos,
             modisco_results,
             selected_instances,
             similarity_heatmap,

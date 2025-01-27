@@ -385,7 +385,7 @@ def clustermap_with_pwm_logos(
 
     Parameters
     ----------
-    pattern_matrix: 
+    pattern_matrix:
         A 2D array representing the data matrix for clustering.
     classes:
         The class labels for the rows of the matrix.
@@ -395,7 +395,7 @@ def clustermap_with_pwm_logos(
         List of class labels to subset the matrix.
     figsize:
         Size of the clustermap figure (width, height). Default is (25, 8).
-    grid: 
+    grid:
         Whether to overlay grid lines on the heatmap. Default is False.
     cmap:
         Colormap for the heatmap. Default is "coolwarm".
@@ -414,7 +414,8 @@ def clustermap_with_pwm_logos(
     logo_y_padding:
         Vertical padding for the PWM logos relative to the heatmap. Default is 0.3.
 
-    Returns:
+    Returns
+    -------
         sns.matrix.ClusterGrid: A seaborn ClusterGrid object containing the clustermap with the PWM logos.
     """
     # Subset the pattern_matrix and classes if subset is provided
