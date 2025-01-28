@@ -208,7 +208,7 @@ def clustermap(
     center: float = 0,
     method: str = "average",
     dy: float = 0.002,
-    fig_path: str | None = None,
+    save_path: str | None = None,
     pat_seqs: list[tuple[str, np.ndarray]] | None = None,
     dendrogram_ratio: tuple[float, float] = (0.05, 0.2),
     importance_threshold : float = 0,
@@ -236,7 +236,7 @@ def clustermap(
         Clustering method to use.
     dy
         Scaling parameter for vertical distance between nucleotides (if pat_seqs is not None) in xticklabels.
-    fig_path
+    save_path
         Path to save the figure.
     pat_seqs
         List of sequences to use as xticklabels.
@@ -359,8 +359,8 @@ def clustermap(
 
         g.fig.canvas.draw()
 
-    if fig_path is not None:
-        plt.savefig(fig_path, bbox_inches='tight')
+    if save_path is not None:
+        plt.savefig(save_path, bbox_inches='tight')
 
     plt.show()
 
@@ -374,7 +374,7 @@ def clustermap_with_pwm_logos(
     cmap: str = "coolwarm",
     center: float = 0,
     method: str = "average",
-    fig_path: str | None = None,
+    save_path: str | None = None,
     dendrogram_ratio: tuple[float, float] = (0.05, 0.2),
     importance_threshold: float = 0,
     logo_height_fraction: float = 0.35,
@@ -403,7 +403,7 @@ def clustermap_with_pwm_logos(
         The value at which to center the colormap. Default is 0.
     method:
         Linkage method for hierarchical clustering. Default is "average".
-    fig_path:
+    save_path:
         Path to save the final figure. If None, the figure is not saved. Default is None.
     dendrogram_ratio:
         Ratios for the size of row and column dendrograms. Default is (0.05, 0.2).
@@ -514,8 +514,8 @@ def clustermap_with_pwm_logos(
     for tick in ax.get_xticklabels():
         tick.set_verticalalignment("top")
 
-    if fig_path is not None:
-        plt.savefig(fig_path, bbox_inches="tight", dpi=600)
+    if save_path is not None:
+        plt.savefig(save_path, bbox_inches="tight", dpi=600)
 
     plt.show()
     return g
@@ -834,7 +834,7 @@ def clustermap_tf_motif(
     fig = plt.figure(figsize=fig_size)
 
     if cluster_rows:
-        gs = fig.add_gridspec(1, 2, width_ratios=[0.2, 4], wspace=0.075)
+        gs = fig.add_gridspec(1, 2, width_ratios=[0.1, 4], wspace=0.02)
         ax_dendro = fig.add_subplot(gs[0, 0])
         dendrogram(row_linkage, orientation="left", no_labels=True, ax=ax_dendro)
         ax_dendro.invert_yaxis()
@@ -862,7 +862,7 @@ def clustermap_tf_motif(
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
             ax_heatmap.scatter(
-                j, i, s=dot_size_data[i, j] * 100, c="black", alpha=0.6
+                j, i, s=dot_size_data[i, j] * 100, c="black", alpha=0.6, edgecolor="none"
             )
 
     # Add colorbar
@@ -879,6 +879,8 @@ def clustermap_tf_motif(
     ax_heatmap.set_xticklabels(pattern_labels, rotation=90)
     ax_heatmap.set_yticks(np.arange(data.shape[0]))
     ax_heatmap.set_yticklabels(class_labels)
+
+    ax_heatmap.yaxis.tick_right()
 
     # Final layout adjustments
     plt.tight_layout()
