@@ -33,6 +33,8 @@ def tfmodisco(
     class_names: list[str] | None = None,
     output_dir: os.PathLike = "modisco_results",
     max_seqlets: int = 5000,
+    min_metacluster_size: int = 100,
+    min_final_cluster_size: int = 20,
     window: int = 500,
     n_leiden: int = 2,
     report: bool = False,
@@ -56,6 +58,10 @@ def tfmodisco(
         Directory where output files will be saved.
     max_seqlets
         Maximum number of seqlets per metacluster.
+    min_metacluster_size
+        Minimum number of seqlets per metacluster.
+    min_final_cluster_size
+        Minimum size of final cluster.
     window
         The window surrounding the peak center that will be considered for motif discovery.
     n_leiden
@@ -170,6 +176,8 @@ def tfmodisco(
                     target_seqlet_fdr=fdr,
                     n_leiden_runs=n_leiden,
                     verbose=verbose,
+                    min_metacluster_size=min_metacluster_size,
+                    final_min_cluster_size=min_final_cluster_size
                 )
 
                 modisco.io.save_hdf5(

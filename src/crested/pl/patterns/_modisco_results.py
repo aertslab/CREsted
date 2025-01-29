@@ -379,6 +379,7 @@ def clustermap_with_pwm_logos(
     importance_threshold: float = 0,
     logo_height_fraction: float = 0.35,
     logo_y_padding: float = 0.3,
+    pwm_or_contrib: str = 'pwm',
 ) -> sns.matrix.ClusterGrid:
     """
     Create a clustermap with additional PWM logo plots below the heatmap.
@@ -413,6 +414,8 @@ def clustermap_with_pwm_logos(
         Fraction of clustermap height to allocate for PWM logos. Default is 0.35.
     logo_y_padding:
         Vertical padding for the PWM logos relative to the heatmap. Default is 0.3.
+    pwm_or_contrib:
+        Whether to use the pwm or contrib score representation of the pattern in the plotting.
 
     Returns
     -------
@@ -479,10 +482,18 @@ def clustermap_with_pwm_logos(
         pwm_ax = fig.add_axes([plot_start_x, plot_start_y, logo_width, logo_height])
         pwm_ax.clear()
 
-        # Plot the PWM logo with dynamic figsize
-        ppm = _pattern_to_ppm(pattern["pattern"])
-        ic, ic_pos, ic_mat = compute_ic(ppm)
-        pwm = np.array(ic_mat)
+        pwm=None
+        if pwm_or_contrib =='pwm':
+            ppm = _pattern_to_ppm(pattern["pattern"])
+            ic, ic_pos, ic_mat = compute_ic(ppm)
+            pwm = np.array(ic_mat)
+        elif pwm_or_contrib =='contrib':
+            pwm = np.array(pattern["pattern"]['contrib_scores'])
+        else:
+            raise ValueError(
+                        'Invalid visualization method. Choose either "contrib" or "pwm" in the pwm_or_contrib parameter. Aborting...'
+                    )
+
         pwm_ax = _plot_attribution_map(
             ax=pwm_ax,
             saliency_df=pwm,
