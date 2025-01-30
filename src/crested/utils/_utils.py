@@ -489,6 +489,9 @@ def calculate_nucleotide_distribution(
         one_hots = one_hots[random_sample]
 
     if per_position:
-        return np.mean(one_hots, axis=0)
+        distribution = np.mean(one_hots, axis=0).astype("float64")
     else:
-        return np.mean(one_hots, axis=(0, 1))
+        distribution = np.mean(one_hots, axis=(0, 1)).astype("float64")
+
+    # get rid of floating point errors by normalizing
+    return distribution / distribution.sum(axis=-1, keepdims=True)
