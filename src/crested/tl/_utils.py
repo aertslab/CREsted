@@ -1,5 +1,7 @@
 """Utility functions specific for the TL module."""
 
+from __future__ import annotations
+
 import numpy as np
 
 
