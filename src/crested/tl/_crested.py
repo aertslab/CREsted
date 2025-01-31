@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import warnings
 from datetime import datetime
 from typing import Any
 
@@ -87,16 +88,6 @@ class Crested:
 
     >>> # Evaluate the model
     >>> trainer.test()
-
-    >>> # Make predictions and add them to anndata as a .layers attribute
-    >>> trainer.predict(anndata, model_name="predictions")
-
-    >>> # Calculate contribution scores
-    >>> scores, seqs_one_hot = trainer.calculate_contribution_scores_regions(
-    ...     region_idx="chr1:1000-2000",
-    ...     class_names=["class1", "class2"],
-    ...     method="integrated_grad",
-    ... )
     """
 
     def __init__(
@@ -600,6 +591,12 @@ class Crested:
         -------
         Embeddings of shape (N, D), where N is the number of regions in the dataset and D is the size of the embedding layer.
         """
+        warnings.warn(
+            "The `get_embeddings` method is deprecated and will be removed from this class in a future version. "
+            "Use the standalone function `tl.extract_layer_embeddings()` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if layer_name not in [layer.name for layer in self.model.layers]:
             raise ValueError(f"Layer '{layer_name}' not found in model.")
         embedding_model = keras.models.Model(
@@ -639,6 +636,12 @@ class Crested:
         -------
         None or Predictions of shape (N, C)
         """
+        warnings.warn(
+            "The `predict` method is deprecated and will be removed from this class in a future version. "
+            "Use the standalone function `tl.predict()` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._check_predict_params(anndata, model_name)
 
         if self.anndatamodule.predict_dataset is None:
@@ -675,6 +678,12 @@ class Crested:
         -------
         Predictions for the specified region(s) of shape (N, C)
         """
+        warnings.warn(
+            "The `predict_regions` method is deprecated and will be removed from this class in a future version. "
+            "Use the standalone function `tl.predict()` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if self.anndatamodule.predict_dataset is None:
             self.anndatamodule.setup("predict")
         if isinstance(region_idx, str):
@@ -705,6 +714,12 @@ class Crested:
         -------
         Predictions for the provided sequence.
         """
+        warnings.warn(
+            "The `predict_sequence` method is deprecated and will be removed from this class in a future version. "
+            "Use the standalone function `tl.predict()` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         # One-hot encode the sequence
         x = one_hot_encode_sequence(sequence)
 
@@ -770,6 +785,12 @@ class Crested:
         tss_position
             The transcription start site (TSS) position.
         """
+        warnings.warn(
+            "The `score_gene_locus` method is deprecated and will be removed from this class in a future version. "
+            "Use the standalone function `tl.score_gene_locus()` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         # Adjust upstream and downstream based on the strand
         if strand == "+":
             start_position = gene_start - upstream
@@ -881,6 +902,12 @@ class Crested:
         --------
         crested.pl.patterns.contribution_scores
         """
+        warnings.warn(
+            "The `calculate_contribution_scores` method is deprecated and will be removed from this class in a future version. "
+            "Use the standalone function `tl.contribution_scores()` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if isinstance(class_names, str):
             class_names = [class_names]
         self._check_contribution_scores_params(class_names)
@@ -998,6 +1025,12 @@ class Crested:
         --------
         crested.pl.patterns.contribution_scores
         """
+        warnings.warn(
+            "The `calculate_contribution_scores_regions` method is deprecated and will be removed from this class in a future version. "
+            "Use the standalone function `tl.contribution_scores()` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if isinstance(region_idx, str):
             region_idx = [region_idx]
 
@@ -1053,6 +1086,12 @@ class Crested:
         --------
         crested.pl.patterns.contribution_scores
         """
+        warnings.warn(
+            "The `calculate_contribution_scores_sequence` method is deprecated and will be removed from this class in a future version. "
+            "Use the standalone function `tl.contribution_scores()` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if isinstance(sequences, str):
             sequences = [sequences]
 
@@ -1159,6 +1198,12 @@ class Crested:
         ...     method="expected_integrated_grad",
         ... )
         """
+        warnings.warn(
+            "The `calculate_contribution_scores_enhancer_design` method is deprecated and will be removed from this class in a future version. "
+            "Use the standalone function `tl.contribution_scores()` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         all_designed_list = self._derive_intermediate_sequences(
             enhancer_design_intermediate
         )
@@ -1205,6 +1250,12 @@ class Crested:
         class_names
             List of class names to process. If None, all class names in adata.obs_names will be processed.
         """
+        warnings.warn(
+            "The `tfmodisco_calculate_and_save_contribution_scores_sequences` method is deprecated and will be removed from this class in a future version. "
+            "Use the standalone function `tl.contribution_scores_specific()` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
@@ -1274,6 +1325,12 @@ class Crested:
         class_names
             List of class names to process. If None, all class names in adata.obs_names will be processed.
         """
+        warnings.warn(
+            "The `tfmodisco_calculate_and_save_contribution_scores` method is deprecated and will be removed from this class in a future version. "
+            "Use the standalone function `tl.contribution_scores()` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
@@ -1397,6 +1454,12 @@ class Crested:
         A list of designed sequences and if return_intermediate is True a list of dictionaries of intermediate
         mutations and predictions
         """
+        warnings.warn(
+            "The `enhancer_design_motif_implementation` method is deprecated and will be removed from this class in a future version. "
+            "Use the standalone function `tl.enhancer_design_motif_insertion()` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if target_class is not None:
             self._check_contribution_scores_params([target_class])
 
@@ -1600,6 +1663,12 @@ class Crested:
         ...     return_intermediate=True,
         ... )
         """
+        warnings.warn(
+            "The `enhancer_design_in_silico_evolution` method is deprecated and will be removed from this class in a future version. "
+            "Use the standalone function `tl.enhancer_design_in_silico_evolution()` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if self.model is None:
             raise ValueError("Model should be loaded first!")
 
