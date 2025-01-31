@@ -128,7 +128,9 @@ def test_score_gene_locus(crested_object, adata, keras_model, genome):
         ref_max_loc,
         ref_tss_pos,
     ) = score_gene_locus(
-        gene_locus=f"{chrom_name}:{gene_start}-{gene_end}",
+        chr_name=chrom_name,
+        gene_start=int(gene_start),
+        gene_end=int(gene_end),
         target_idx=0,
         model=keras_model,
         genome=genome,

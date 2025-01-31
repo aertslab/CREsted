@@ -79,9 +79,13 @@ def test_predict(keras_model, adata, genome):
 
 
 def test_score_gene_locus(keras_model, genome):
-    gene_locus = "chr1:200000-200500"
+    chrom = "chr1"
+    start = 200000
+    end = 200500
     scores, coordinates, min_loc, max_loc, tss_pos = crested.tl.score_gene_locus(
-        gene_locus=gene_locus,
+        chr_name=chrom,
+        gene_start=start,
+        gene_end=end,
         target_idx=1,
         model=keras_model,
         genome=genome,
@@ -200,14 +204,14 @@ def test_contribution_scores_specific(keras_model, adata, adata_specific, genome
 def test_enhancer_design_in_silico_evolution(keras_model, adata, genome):
     # one model
     seqs = crested.tl.enhancer_design_in_silico_evolution(
-        n_mutations=2, target_idx=0, model=keras_model, n_sequences=1
+        n_mutations=2, target=0, model=keras_model, n_sequences=1
     )
     assert len(seqs) == 1, len(seqs)
     assert len(seqs[0]) == keras_model.input_shape[1], len(seqs[0])
 
     # multiple models
     seqs = crested.tl.enhancer_design_in_silico_evolution(
-        n_mutations=2, target_idx=1, model=[keras_model, keras_model], n_sequences=2
+        n_mutations=2, target=1, model=[keras_model, keras_model], n_sequences=2
     )
     assert len(seqs) == 2, len(seqs)
 
@@ -217,7 +221,7 @@ def test_enhancer_design_in_silico_evolution(keras_model, adata, genome):
     )
     seqs = crested.tl.enhancer_design_in_silico_evolution(
         n_mutations=1,
-        target_idx=0,
+        target=0,
         model=keras_model,
         acgt_distribution=acgt_disbtibution,
     )
@@ -226,7 +230,7 @@ def test_enhancer_design_in_silico_evolution(keras_model, adata, genome):
     starting_sequences = ["A" * keras_model.input_shape[1]]
     seqs = crested.tl.enhancer_design_in_silico_evolution(
         n_mutations=1,
-        target_idx=0,
+        target=0,
         model=keras_model,
         starting_sequences=starting_sequences,
     )
