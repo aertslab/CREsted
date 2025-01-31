@@ -512,7 +512,7 @@ def enhancer_design_in_silico_evolution(
         If True, returns a dictionary with predictions and changes made in intermediate steps for selected
         sequences
     no_mutation_flanks
-        A tuple of integers which determine the regions in each flank to not do implementations.
+        A tuple of integers which determine the regions in each flank to not do insertions.
     target_len
         Length of the area in the center of the sequence to make mutations in.
         Ignored if no_mutation_flanks is provided.
@@ -711,7 +711,7 @@ def enhancer_design_in_silico_evolution(
         return designed_sequences
 
 
-def enhancer_design_motif_implementation(
+def enhancer_design_motif_insertion(
     patterns: dict,
     model: keras.Model | list[keras.Model],
     target: int | np.ndarray,
@@ -727,7 +727,7 @@ def enhancer_design_motif_implementation(
     **kwargs: dict[str, Any],
 ) -> list | tuple[list[dict], list]:
     """
-    Create synthetic enhancers using motif implementation.
+    Create synthetic enhancers using motif insertions.
 
     Parameters
     ----------
@@ -749,7 +749,7 @@ def enhancer_design_motif_implementation(
     no_mutation_flanks
         A tuple specifying regions in each flank where no modifications should occur.
     target_len
-        Length of the area in the center of the sequence to make implementations, ignored if `no_mutation_flanks` is set.
+        Length of the area in the center of the sequence to make insertions, ignored if `no_mutation_flanks` is set.
     preserve_inserted_motifs
         If True, prevents motifs from being inserted on top of previously inserted motifs.
     enhancer_optimizer
@@ -783,7 +783,7 @@ def enhancer_design_motif_implementation(
     >>> (
     ...     intermediate_results,
     ...     designed_sequences,
-    ... ) = crested.tl.enhancer_design_motif_implementation(
+    ... ) = crested.tl.enhancer_design_motif_insertion(
     ...     patterns=my_motifs,
     ...     n_mutations=20,
     ...     target=target_idx,

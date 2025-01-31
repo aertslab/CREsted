@@ -11,7 +11,7 @@ from ._tools import (
     contribution_scores,
     contribution_scores_specific,
     enhancer_design_in_silico_evolution,
-    enhancer_design_motif_implementation,
+    enhancer_design_motif_insertion,
     extract_layer_embeddings,
     predict,
     score_gene_locus,
@@ -49,7 +49,7 @@ __all__ = [
     "contribution_scores",
     "contribution_scores_specific",
     "enhancer_design_in_silico_evolution",
-    "enhancer_design_motif_implementation",
+    "enhancer_design_motif_insertion",
     "score_gene_locus",
 ]
 
