@@ -510,3 +510,41 @@ def calculate_nucleotide_distribution(
 
     # get rid of floating point errors by normalizing
     return distribution / distribution.sum(axis=-1, keepdims=True)
+
+
+def derive_intermediate_sequences(
+    enhancer_design_intermediate: dict,
+) -> list[list[str]]:
+    """
+    Derive the intermediate sequences from the enhancer design intermediate dictionary.
+
+    Parameters
+    ----------
+    enhancer_design_intermediate
+        The enhancer design intermediate dictionary.
+
+    Returns
+    -------
+    The intermediate sequences.
+
+    See Also
+    --------
+    crested.tl.enhancer_design_in_silico_evolution
+    crested.tl.enhancer_design_motif_insertion
+    """
+    all_designed_list = []
+    for intermediate_dict in enhancer_design_intermediate:
+        current_sequence = intermediate_dict["inital_sequence"]
+        sequence_list = [current_sequence]
+        for loc, change in intermediate_dict["changes"]:
+            if loc == -1:
+                continue
+            else:
+                current_sequence = (
+                    current_sequence[:loc]
+                    + change
+                    + current_sequence[loc + len(change) :]
+                )
+                sequence_list.append(current_sequence)
+        all_designed_list.append(sequence_list)
+    return all_designed_list
