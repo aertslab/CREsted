@@ -18,5 +18,6 @@ CREsted provides a few utility function to help with sequence encoding, function
     reverse_complement
     permute_model
     calculate_nucleotide_distribution
+    derive_intermediate_sequences
     setup_logging
 ```
