@@ -153,7 +153,22 @@ class EnhancerOptimizer:
         target: int | np.ndarray,
         **kwargs: dict[str, Any],
     ) -> int:
-        """Get the index of the best mutated sequence based on the original prediction."""
+        """
+        Get the index of the best mutated sequence based on the original prediction.
+
+        Parameters
+        ----------
+        mutated_predictions
+            The predictions of the mutated sequences.
+        original_prediction
+            The prediction of the original sequence.
+        target
+            An integer or array representing some target to optimize for.
+            For example, this can be the target class index, or an array of target values to maximize.
+            Depends on the optimization function used.
+        **kwargs
+            Additional keyword arguments to pass to the optimization function.
+        """
         return self.optimize_func(
             mutated_predictions, original_prediction, target, **kwargs
         )
