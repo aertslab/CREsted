@@ -4,7 +4,7 @@ import numpy as np
 
 
 def create_random_sequences(
-    n_sequences: int, seq_len: int, acgt_distribution: np.ndarray[float] | None
+    n_sequences: int, seq_len: int, acgt_distribution: np.ndarray | None
 ) -> np.ndarray:
     """Create random sequences based on the given ACGT distribution."""
     random_sequences = np.empty((n_sequences), dtype=object)
