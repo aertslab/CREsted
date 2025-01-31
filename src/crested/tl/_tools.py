@@ -81,7 +81,7 @@ def predict(
     **kwargs,
 ) -> None | np.ndarray:
     """
-    Make predictions using the model(s) on the full dataset.
+    Make predictions using the model(s) some input that represents sequences.
 
     If a list of models is provided, the predictions will be averaged across all models.
 
@@ -99,6 +99,14 @@ def predict(
     Returns
     -------
     Predictions of shape (N, C)
+
+    Example
+    -------
+    >>> my_sequences = ["ACGT", "CGTA", "GTAC"]
+    >>> predictions = predict(
+    ...     input=my_sequences,
+    ...     model=my_trained_model,
+    ... )
     """
     input = _transform_input(input, genome)
 
@@ -398,7 +406,7 @@ def contribution_scores_specific(
     Calculate contribution scores based on given method only for the most specific regions per class.
 
     Contrary to :func:`~crested.tl.contribution_scores`, this function will only calculate one set of contribution scores per region per class.
-    Expects the user to have ran `:func:~crested.pp.sort_and_filter_regions_on_specificity` beforehand.
+    Expects the user to have ran :func:`~crested.pp.sort_and_filter_regions_on_specificity` beforehand.
 
     If multiple models are provided, the contribution scores will be averaged across all models.
 
@@ -516,19 +524,12 @@ def enhancer_design_in_silico_evolution(
     target_len
         Length of the area in the center of the sequence to make mutations in.
         Ignored if no_mutation_flanks is provided.
-    enhancer_optimizer
-        An instance of EnhancerOptimizer, defining how sequences should be optimized.
-        If None, a default EnhancerOptimizer will be initialized using `_weighted_difference`
-        as optimization function.
-    starting_sequences
-        An optional DNA sequence or a list of DNA sequences that will be used instead of randomly generated
-        sequences. If provided, n_sequences is ignored
     acgt_distribution
         An array of floats representing the distribution of A, C, G, and T in the genome (in that order).
         If the array is of shape (L, 4), it will be assumed to be per position. If it is of shape (4,), it will be assumed to be overall.
         If None, a uniform distribution will be used.
         This will be used to generate random sequences if starting_sequences is not provided.
-        You can calculate these using `crested.utils.calculate_nucleotide_distribution`.
+        You can calculate these using :func:`~crested.utils.calculate_nucleotide_distribution`.
     kwargs
         Keyword arguments that will be passed to the `get_best` function of the EnhancerOptimizer
 
@@ -753,11 +754,18 @@ def enhancer_design_motif_insertion(
     preserve_inserted_motifs
         If True, prevents motifs from being inserted on top of previously inserted motifs.
     enhancer_optimizer
-        An instance of EnhancerOptimizer. If None, a default optimizer with `_weighted_difference` will be used.
+        An instance of EnhancerOptimizer, defining how sequences should be optimized.
+        If None, a default EnhancerOptimizer will be initialized using `_weighted_difference`
+        as optimization function.
     starting_sequences
-        Optional: A DNA sequence or list of DNA sequences to use instead of randomly generated sequences.
+        An optional DNA sequence or a list of DNA sequences that will be used instead of randomly generated
+        sequences. If provided, n_sequences is ignored
     acgt_distribution
-        Nucleotide distribution (A, C, G, T) for generating random sequences if `starting_sequences` is None.
+        An array of floats representing the distribution of A, C, G, and T in the genome (in that order).
+        If the array is of shape (L, 4), it will be assumed to be per position. If it is of shape (4,), it will be assumed to be overall.
+        If None, a uniform distribution will be used.
+        This will be used to generate random sequences if starting_sequences is not provided.
+        You can calculate these using :func:`~crested.utils.calculate_nucleotide_distribution`.
     kwargs
         Additional arguments passed to `get_best` function of EnhancerOptimizer.
 
