@@ -12,7 +12,11 @@ from loguru import logger
 from tqdm import tqdm
 
 from crested._genome import Genome
-from crested.tl._utils import create_random_sequences, parse_starting_sequences
+from crested.tl._utils import (
+    create_random_sequences,
+    generate_motif_insertions,
+    parse_starting_sequences,
+)
 from crested.utils._seq_utils import (
     generate_mutagenesis,
     hot_encoding_to_sequence,
@@ -148,7 +152,6 @@ def score_gene_locus(
         The start position of the gene locus (TSS for + strand).
     gene_end
         The end position of the gene locus (TSS for - strand).
-
     target_idx
         Index of the target class to score.
         You can usually get this from running `list(anndata.obs_names).index(class_name)`.
@@ -265,7 +268,7 @@ def contribution_scores(
     """
     Calculate contribution scores based on given method for the specified inputs.
 
-    If mutliple models are provided, the contribution scores will be averaged across all models.
+    If multiple models are provided, the contribution scores will be averaged across all models.
 
     These scores can then be plotted to visualize the importance of each base in the sequence
     using :func:`~crested.pl.patterns.contribution_scores`.
@@ -478,11 +481,12 @@ def contribution_scores_specific(
 
 def enhancer_design_in_silico_evolution(
     n_mutations: int,
-    target_idx: int,
+    target: int | np.ndarray,
     model: keras.Model | list[keras.Model],
     n_sequences: int = 1,
     return_intermediate: bool = False,
     no_mutation_flanks: tuple[int, int] | None = None,
+    target_len: int | None = None,
     enhancer_optimizer: EnhancerOptimizer | None = None,
     starting_sequences: str | list | None = None,
     acgt_distribution: np.ndarray[float] | None = None,
@@ -496,9 +500,9 @@ def enhancer_design_in_silico_evolution(
     n_mutations
         Number of mutations to make in each sequence.
         20 is a good starting point for most cases.
-    target_idx
-        Index of the target class to design enhancers for.
-        You can usually get this from running `anndata.obs_names.index(class_name)`.
+    target
+        Using the default weighted_difference optimization function this should be the index of the target class to design enhancers for.
+        This gets passed to the `get_best` function of the EnhancerOptimizer, so can represent other target values too.
     model
         A (list of) trained keras model(s) to design enhancers with.
         If a list of models is provided, the predictions will be averaged across all models.
@@ -509,6 +513,9 @@ def enhancer_design_in_silico_evolution(
         sequences
     no_mutation_flanks
         A tuple of integers which determine the regions in each flank to not do implementations.
+    target_len
+        Length of the area in the center of the sequence to make mutations in.
+        Ignored if no_mutation_flanks is provided.
     enhancer_optimizer
         An instance of EnhancerOptimizer, defining how sequences should be optimized.
         If None, a default EnhancerOptimizer will be initialized using `_weighted_difference`
@@ -546,7 +553,7 @@ def enhancer_design_in_silico_evolution(
     ...     designed_sequences,
     ... ) = crested.tl.enhancer_design_in_silico_evolution(
     ...     n_mutations=20,
-    ...     target_idx=target_idx,
+    ...     target=target_idx,
     ...     model=my_trained_model,
     ...     n_sequences=1,
     ...     return_intermediate=True,
@@ -559,7 +566,24 @@ def enhancer_design_in_silico_evolution(
         model = [model]
     seq_len = model[0].input_shape[1]
 
-    if no_mutation_flanks is None:
+    # determine the flanks without changes
+    if no_mutation_flanks is not None and target_len is not None:
+        logger.warning(
+            "Both no_mutation_flanks and target_len set, using no_mutation_flanks."
+        )
+    elif no_mutation_flanks is None and target_len is not None:
+        if (seq_len - target_len) % 2 == 0:
+            no_mutation_flanks = (
+                int((seq_len - target_len) // 2),
+                int((seq_len - target_len) // 2),
+            )
+        else:
+            no_mutation_flanks = (
+                int((seq_len - target_len) // 2),
+                int((seq_len - target_len) // 2) + 1,
+            )
+
+    elif no_mutation_flanks is None and target_len is None:
         no_mutation_flanks = (0, 0)
 
     # create initial sequences
@@ -645,7 +669,7 @@ def enhancer_design_in_silico_evolution(
             best_mutation = enhancer_optimizer.get_best(
                 mutated_predictions=mutagenesis_predictions[i],
                 original_prediction=baseline_prediction[i],
-                target=target_idx,
+                target=target,
                 **kwargs,
             )
             sequence_onehot_prev_iter[i] = mutagenesis[
@@ -668,7 +692,7 @@ def enhancer_design_in_silico_evolution(
         best_mutation = enhancer_optimizer.get_best(
             mutated_predictions=mutagenesis_predictions[i],
             original_prediction=baseline_prediction[i],
-            target=target_idx,
+            target=target,
             **kwargs,
         )
 
@@ -685,3 +709,211 @@ def enhancer_design_in_silico_evolution(
         return intermediate_info_list, designed_sequences
     else:
         return designed_sequences
+
+
+def enhancer_design_motif_implementation(
+    patterns: dict,
+    model: keras.Model | list[keras.Model],
+    target: int | np.ndarray,
+    n_sequences: int = 1,
+    insertions_per_pattern: dict | None = None,
+    return_intermediate: bool = False,
+    no_mutation_flanks: tuple[int, int] | None = None,
+    target_len: int | None = None,
+    preserve_inserted_motifs: bool = True,
+    enhancer_optimizer: EnhancerOptimizer | None = None,
+    starting_sequences: str | list | None = None,
+    acgt_distribution: np.ndarray[float] | None = None,
+    **kwargs: dict[str, Any],
+) -> list | tuple[list[dict], list]:
+    """
+    Create synthetic enhancers using motif implementation.
+
+    Parameters
+    ----------
+    patterns
+        Dictionary of patterns to be implemented in the form {'pattern_name': 'pattern_sequence'}
+    model
+        A (list of) trained keras model(s) to design enhancers with.
+        If a list of models is provided, the predictions will be averaged across all models.
+    target
+        Using the default weighted_difference optimization function this should be the index of the target class to design enhancers for.
+        This gets passed to the `get_best` function of the EnhancerOptimizer, so can represent other target values too.
+    n_sequences
+        Number of enhancers to design.
+    insertions_per_pattern
+        Dictionary of number of patterns to be implemented in the form {'pattern_name': number_of_insertions}.
+        If not provided, each pattern is inserted once.
+    return_intermediate
+        If True, returns a dictionary with predictions and changes made in intermediate steps.
+    no_mutation_flanks
+        A tuple specifying regions in each flank where no modifications should occur.
+    target_len
+        Length of the area in the center of the sequence to make implementations, ignored if `no_mutation_flanks` is set.
+    preserve_inserted_motifs
+        If True, prevents motifs from being inserted on top of previously inserted motifs.
+    enhancer_optimizer
+        An instance of EnhancerOptimizer. If None, a default optimizer with `_weighted_difference` will be used.
+    starting_sequences
+        Optional: A DNA sequence or list of DNA sequences to use instead of randomly generated sequences.
+    acgt_distribution
+        Nucleotide distribution (A, C, G, T) for generating random sequences if `starting_sequences` is None.
+    kwargs
+        Additional arguments passed to `get_best` function of EnhancerOptimizer.
+
+    Returns
+    -------
+    A list of designed sequences, and if `return_intermediate=True`, a list of intermediate results.
+
+    See Also
+    --------
+    crested.utils.EnhancerOptimizer
+    crested.utils.calculate_nucleotide_distribution
+
+    Examples
+    --------
+    >>> acgt_distribution = crested.utils.calculate_nucleotide_distribution(
+    ...     my_anndata, genome, per_position=True
+    ... )  # shape (L, 4)
+    >>> target_idx = my_anndata.obs_names.index("my_celltype")
+    >>> my_motifs = {
+    ...     "motif1": "ACGTTTGA",
+    ...     "motif2": "TGCA",
+    ... }
+    >>> (
+    ...     intermediate_results,
+    ...     designed_sequences,
+    ... ) = crested.tl.enhancer_design_motif_implementation(
+    ...     patterns=my_motifs,
+    ...     n_mutations=20,
+    ...     target=target_idx,
+    ...     model=my_trained_model,
+    ...     n_sequences=1,
+    ...     return_intermediate=True,
+    ...     acgt_distribution=acgt_distribution,
+    ... )
+    """
+    if enhancer_optimizer is None:
+        enhancer_optimizer = EnhancerOptimizer(optimize_func=_weighted_difference)
+
+    if not isinstance(model, list):
+        model = [model]
+
+    seq_len = model[0].input_shape[1]
+
+    # Determine mutation flanks
+    if no_mutation_flanks is not None and target_len is not None:
+        logger.warning(
+            "Both no_mutation_flanks and target_len set, using no_mutation_flanks."
+        )
+    elif no_mutation_flanks is None and target_len is not None:
+        if (seq_len - target_len) % 2 == 0:
+            no_mutation_flanks = ((seq_len - target_len) // 2,) * 2
+        else:
+            no_mutation_flanks = (
+                (seq_len - target_len) // 2,
+                (seq_len - target_len) // 2 + 1,
+            )
+    elif no_mutation_flanks is None and target_len is None:
+        no_mutation_flanks = (0, 0)
+
+    if insertions_per_pattern is None:
+        insertions_per_pattern = {pattern_name: 1 for pattern_name in patterns}
+
+    # Generate initial sequences
+    if starting_sequences is None:
+        if acgt_distribution is None:
+            logger.warning(
+                "No nucleotide distribution provided. Using uniform distribution."
+            )
+        initial_sequences = create_random_sequences(
+            n_sequences=n_sequences,
+            seq_len=seq_len,
+            acgt_distribution=acgt_distribution,
+        )
+    else:
+        initial_sequences = parse_starting_sequences(starting_sequences)
+        n_sequences = initial_sequences.shape[0]
+
+    designed_sequences = []
+    intermediate_info_list = []
+
+    for idx, sequence in enumerate(initial_sequences):
+        sequence_onehot = one_hot_encode_sequence(sequence)
+        inserted_motif_locations = np.array([]) if preserve_inserted_motifs else None
+
+        if return_intermediate:
+            baseline_prediction = np.mean(
+                [m.predict(sequence_onehot, verbose=False) for m in model], axis=0
+            )
+            intermediate_info_list.append(
+                {
+                    "initial_sequence": sequence,
+                    "changes": [(-1, "N")],
+                    "predictions": [baseline_prediction[0]],
+                    "designed_sequence": "",
+                }
+            )
+
+        # Insert motifs sequentially
+        for pattern_name, num_insertions in insertions_per_pattern.items():
+            motif_onehot = one_hot_encode_sequence(patterns[pattern_name])
+            motif_length = motif_onehot.shape[1]
+
+            for _ in range(num_insertions):
+                baseline_prediction = np.mean(
+                    [m.predict(sequence_onehot, verbose=False) for m in model], axis=0
+                )
+
+                # Generate all motif insertion possibilities
+                mutagenesis, insertion_locations = generate_motif_insertions(
+                    sequence_onehot,
+                    motif_onehot,
+                    flanks=no_mutation_flanks,
+                    masked_locations=inserted_motif_locations,
+                )
+
+                # Predict changes
+                mutagenesis_predictions = np.mean(
+                    [m.predict(mutagenesis, verbose=False) for m in model], axis=0
+                )
+
+                # Select best insertion site
+                best_mutation = enhancer_optimizer.get_best(
+                    mutated_predictions=mutagenesis_predictions,
+                    original_prediction=baseline_prediction,
+                    target=target,
+                    **kwargs,
+                )
+
+                sequence_onehot = mutagenesis[best_mutation : best_mutation + 1]
+
+                if preserve_inserted_motifs:
+                    inserted_motif_locations = np.append(
+                        inserted_motif_locations,
+                        [
+                            insertion_locations[best_mutation] + i
+                            for i in range(motif_length)
+                        ],
+                    )
+
+                if return_intermediate:
+                    insertion_index = insertion_locations[best_mutation]
+                    intermediate_info_list[idx]["changes"].append(
+                        (insertion_index, patterns[pattern_name])
+                    )
+                    intermediate_info_list[idx]["predictions"].append(
+                        mutagenesis_predictions[best_mutation]
+                    )
+
+        designed_sequence = hot_encoding_to_sequence(sequence_onehot)
+        designed_sequences.append(designed_sequence)
+
+        if return_intermediate:
+            intermediate_info_list[idx]["designed_sequence"] = designed_sequence
+
+    return (
+        (intermediate_info_list, designed_sequences)
+        if return_intermediate
+        else designed_sequences
+    )
