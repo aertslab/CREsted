@@ -10,6 +10,7 @@ from anndata import AnnData
 from loguru import logger
 from scipy.sparse import spmatrix
 from tqdm import tqdm
+import pandas as pd
 
 from crested._genome import Genome
 from crested.utils import one_hot_encode_sequence
@@ -273,7 +274,6 @@ class IndexManager:
                     augmented_indices_map[_flip_region_strand(stranded_region)] = region
         return augmented_indices, augmented_indices_map
 
-
 if os.environ["KERAS_BACKEND"] == "pytorch":
     import torch
 
@@ -307,11 +307,17 @@ class AnnDataset(BaseClass):
     deterministic_shift
         If true, each region will be shifted twice with stride 50bp to each side.
         This is our legacy shifting, we recommend using max_stochastic_shift instead.
+    obs_columns
+        Columns in obs that will be added to the dataset.
+    obsm_columns
+        Keys in obsm that will be added to the dataset.
+    varp_columns
+        Keys in varp that will be added to the dataset.
     """
 
     def __init__(
         self,
-        anndata: AnnData,
+        adata: AnnData,
         genome: Genome,
         split: str = None,
         in_memory: bool = True,
@@ -319,19 +325,63 @@ class AnnDataset(BaseClass):
         always_reverse_complement: bool = False,
         max_stochastic_shift: int = 0,
         deterministic_shift: bool = False,
+        data_sources: dict[str, str] = {'y':'X'}, #default to old approach
+        obs_columns: list[str] | None = None,   # multiple obs columns
+        obsm_keys: list[str] | None = None,     # multiple obsm keys
+        varp_keys: list[str] | None = None,     # multiple varp keys
+        
     ):
+
         """Initialize the dataset with the provided AnnData object and options."""
-        self.anndata = self._split_anndata(anndata, split)
+        self.adata = self._split_anndata(adata, split)
         self.split = split
-        self.indices = list(self.anndata.var_names)
+        self.indices = list(self.adata.var_names)
         self.in_memory = in_memory
-        self.compressed = isinstance(self.anndata.X, spmatrix)
+        self.compressed = isinstance(self.adata.X, spmatrix)
         self.index_map = {index: i for i, index in enumerate(self.indices)}
-        self.num_outputs = self.anndata.X.shape[0]
+        self.num_outputs = self.adata.X.shape[0]
         self.random_reverse_complement = random_reverse_complement
         self.max_stochastic_shift = max_stochastic_shift
+        self.meta_obs_names = np.array(self.adata.obs_names)
         self.shuffle = False  # managed by wrapping class AnnDataLoader
+        self.obs_columns = obs_columns if obs_columns is not None else []
+        self.obsm_keys = obsm_keys if obsm_keys is not None else []
+        self.varp_keys = varp_keys if varp_keys is not None else []
+        self.data_sources = data_sources
+        self.region_width = adata.uns['params']['target_region_width'] if 'target_region_width' in adata.uns['params'].keys() else int(np.round(np.mean(adata.var['end'] - adata.var['start']))) - (2*self.max_stochastic_shift)
 
+        # Validate and store obs data
+        self.obs_data = {}
+        for col in self.obs_columns:
+            if col not in adata.obs:
+                raise ValueError(f"obs column '{col}' not found.")
+            # Convert categorical to integer codes if needed
+            if pd.api.types.is_categorical_dtype(adata.obs[col]):
+                self.obs_data[col] = adata.obs[col].cat.codes.values
+            else:
+                self.obs_data[col] = adata.obs[col].values
+    
+        # Validate and store obsm data
+        self.obsm_data = {}
+        for key in self.obsm_keys:
+            if key not in adata.obsm:
+                raise ValueError(f"obsm key '{key}' not found.")
+            mat = adata.obsm[key]
+            if mat.shape[0] != adata.n_obs:
+                raise ValueError(f"Dimension mismatch for obsm key '{key}'.")
+            self.obsm_data[key] = mat
+            
+        # Validate and store varp data
+        self.varp_data = {}
+        for key in self.varp_keys:
+            if key not in adata.varp:
+                raise ValueError(f"varp key '{key}' not found.")
+            mat = adata.varp[key]
+            if mat.shape[0] != adata.n_var:
+                raise ValueError(f"Dimension mismatch for varp key '{key}'.")
+            self.varp_data[key] = mat
+
+        
         # Check region formatting
         stranded = _check_strandedness(self.indices[0])
         if stranded and (always_reverse_complement or random_reverse_complement):
@@ -356,61 +406,125 @@ class AnnDataset(BaseClass):
         self.seq_len = len(
             self.sequence_loader.get_sequence(self.indices[0], stranded=stranded)
         )
+        
+        self.augmented_probs = None
+        if self.split == 'train':
+            probs = adata.var["train_probs"].values.astype(float)
+        elif self.split == 'val':
+            probs = adata.var["val_probs"].values.astype(float)
+        elif self.split == 'test':
+            probs = adata.var["test_probs"].values.astype(float)
+        elif self.split == 'predict':
+            probs = adata.var["predict_probs"].values.astype(float)
+        else:
+            self.augmented_probs = np.ones(adata.shape[1])
+            self.augmented_probs = self.augmented_probs/self.augmented_probs.sum()
+            return
+        probs = np.clip(probs, 0, None)
 
+        n_aug = len(self.index_manager.augmented_indices)
+        self.augmented_probs = np.ones(n_aug, dtype=float)
+        self.augmented_probs /= self.augmented_probs.sum()
+        
+        for i, aug_region in enumerate(self.index_manager.augmented_indices):
+            original_region = self.index_manager.augmented_indices_map[aug_region]
+            var_idx = self.index_map[original_region]
+            self.augmented_probs[i] = probs[var_idx]
+
+    
     @staticmethod
-    def _split_anndata(anndata: AnnData, split: str) -> AnnData:
-        """Return subset of anndata based on a given split column."""
+    def _split_anndata(adata: AnnData, split: str) -> AnnData:
+        """
+        For backward compatibility. Skip physically subsetting for train/val/test.
+        """
         if split:
-            if "split" not in anndata.var.columns:
+            if "split" not in adata.var.columns:
                 raise KeyError(
-                    "No split column found in anndata.var. Run `pp.train_val_test_split` first."
+                    "No split column found in adata.var. Run `pp.train_val_test_split` first."
                 )
-        subset = (
-            anndata[:, anndata.var["split"] == split].copy()
-            if split
-            else anndata.copy()
-        )
-        return subset
+        return adata
 
     def __len__(self) -> int:
         """Get number of (augmented) samples in the dataset."""
         return len(self.index_manager.augmented_indices)
 
-    def _get_target(self, index: str) -> np.ndarray:
-        """Get target for a given index."""
-        y_index = self.index_map[index]
-        return (
-            self.anndata.X[:, y_index].toarray().flatten()
-            if self.compressed
-            else self.anndata.X[:, y_index]
-        )
+    def _get_data_array(self, source_str: str, varname: str, shift: int = 0) -> np.ndarray:
+        """
+        Retrieve data from anndata, given a source string that can be:
+          - "X" => from self.adata.X
+          - "layers/<key>" => from self.adata.layers[<key>]
+          - "varp/<key>" => from self.adata.varp[<key>]
+          - ... or other expansions
+    
+        varname: the name of the var, e.g. "chr1:100-200"
+        shift: an int to align coverage with the same offset used for DNA
+        """
+        var_i = self.index_map[varname]
+    
+        # 2) parse source_str
+        if source_str == "X":
+            if self.compressed:
+                arr = self.adata.X[:, var_i].toarray().flatten()
+            else:
+                arr = self.adata.X[:, var_i]
+            return arr
+    
+        elif source_str.startswith("layers/"):
+            key = source_str.split("/",1)[1]  # e.g. "tracks"
+            coverage_3d = self.adata.layers[key]
+            start_idx = self.max_stochastic_shift + shift
+            end_idx   = start_idx + self.region_width
+            arr = coverage_3d[self.meta_obs_names, var_i][...,start_idx:end_idx]
+            return np.asarray(arr)
+        elif source_str.startswith("varp/"):
+            key = source_str.split("/",1)[1]
+            mat = self.varp_data[key]
+            row = mat[var_i]
+            return np.asarray(row)
+        else:
+            raise ValueError(f"Unknown data source {source_str}.")
 
-    def __getitem__(self, idx: int) -> tuple[str, np.ndarray]:
-        """Return sequence and target for a given index."""
+
+    def __getitem__(self, idx: int) -> dict:
+        """
+        Returns a dictionary that might contain:
+          - "sequence": the one-hot DNA
+          - plus any # of keys from self.data_sources
+        """
+        # 1) pick region
         augmented_index = self.index_manager.augmented_indices[idx]
         original_index = self.index_manager.augmented_indices_map[augmented_index]
-        # stochastic shift
+    
+        # 2) pick the random shift, so that DNA and track remain aligned
+        shift = 0
         if self.max_stochastic_shift > 0:
-            shift = np.random.randint(
-                -self.max_stochastic_shift, self.max_stochastic_shift + 1
-            )
-        else:
-            shift = 0
-
-        # Get sequence
-        x = self.sequence_loader.get_sequence(
-            augmented_index, stranded=True, shift=shift
-        )
-
-        # random reverse complement (always_reverse_complement is done in the sequence loader)
+            shift = np.random.randint(-self.max_stochastic_shift, self.max_stochastic_shift + 1)
+    
+        # 3) get DNA sequence
+        x_seq = self.sequence_loader.get_sequence(augmented_index, stranded=True, shift=shift)
         if self.random_reverse_complement and np.random.rand() < 0.5:
-            x = self.sequence_loader._reverse_complement(x)
-
-        # one hot encode sequence and convert to numpy array
-        x = one_hot_encode_sequence(x, expand_dim=False)
-        y = self._get_target(original_index)
-
-        return x, y
+            x_seq = self.sequence_loader._reverse_complement(x_seq)
+            # x_seq = one_hot_encode_sequence(x_seq, expand_dim=False)
+        x_seq = one_hot_encode_sequence(x_seq, expand_dim=False)
+        
+    
+        item = {
+            "sequence": x_seq,
+        }
+    
+        original_varname = original_index  # e.g. "chr1:100-200"
+        for name, source_str in self.data_sources.items():
+            if name == "sequence":
+                continue
+            arr = self._get_data_array(source_str, original_varname, shift=shift)
+            item[name] = arr
+    
+        for col in self.obs_columns:
+            item[col] = self.obs_data[col]
+        for key in self.obsm_keys:
+            item[key] = self.obsm_data[key]
+    
+        return item
 
     def __call__(self):
         """Call generator for the dataset."""
@@ -422,4 +536,81 @@ class AnnDataset(BaseClass):
 
     def __repr__(self) -> str:
         """Get string representation of the dataset."""
-        return f"AnnDataset(anndata_shape={self.anndata.shape}, n_samples={len(self)}, num_outputs={self.num_outputs}, split={self.split}, in_memory={self.in_memory})"
+        return f"AnnDataset(anndata_shape={self.adata.shape}, n_samples={len(self)}, num_outputs={self.num_outputs}, split={self.split}, in_memory={self.in_memory})"
+
+class MetaAnnDataset:
+    """
+    Combines multiple AnnDataset objects into a single dataset,
+    merging all their (augmented_index, probability) pairs into one global list.
+
+    We do a final normalization across all sub-datasets so that
+    sample_prob from each dataset is treated as an unnormalized weight.
+    """
+
+    def __init__(self, datasets: list[AnnDataset]):
+        """
+        Parameters
+        ----------
+        datasets : list of AnnDataset
+            Each AnnDataset is for a different species or annotation set.
+        """
+        if not datasets:
+            raise ValueError("No AnnDataset provided to MetaAnnDataset.")
+
+        self.datasets = datasets
+        self.always_reverse_complement = False
+        # global_indices will store tuples of (dataset_idx, local_idx)
+        # global_probs will store the merged, unnormalized probabilities
+        self.global_indices = []
+        self.global_probs = []
+
+        for ds_idx, ds in enumerate(datasets):
+            ds_len = len(ds.index_manager.augmented_indices)
+            if ds_len == 0:
+                continue
+
+            # If the dataset has augmented_probs, we use them as unnormalized weights
+            # If not, fallback to 1.0 for each region
+            if ds.augmented_probs is not None:
+                for local_i in range(ds_len):
+                    self.global_indices.append((ds_idx, local_i))
+                    self.global_probs.append(ds.augmented_probs[local_i])
+            else:
+                for local_i in range(ds_len):
+                    self.global_indices.append((ds_idx, local_i))
+                    self.global_probs.append(1.0)
+
+        self.global_indices = np.array(self.global_indices, dtype=object)
+        self.global_probs = np.array(self.global_probs, dtype=float)
+
+        # Normalize across the entire set
+        total = self.global_probs.sum()
+        if total > 0:
+            self.global_probs /= total
+        else:
+            # fallback: uniform if everything is zero
+            n = len(self.global_probs)
+            if n > 0:
+                self.global_probs.fill(1.0 / n)
+
+    def __len__(self):
+        """
+        The total number of augmented indices across all sub-datasets.
+        """
+        return len(self.global_indices)
+
+    def __getitem__(self, global_idx: int):
+        """
+        A DataLoader or sampler will pass a global_idx in [0..len(self)-1].
+        We map that to (dataset_idx, local_i) and call the sub-dataset's __getitem__.
+        """
+        ds_idx, local_i = self.global_indices[global_idx]
+        ds_idx = int(ds_idx)
+        local_i = int(local_i)
+        return self.datasets[ds_idx][local_i]
+
+    def __repr__(self):
+        return (f"MetaAnnDataset(num_datasets={len(self.datasets)}, "
+                f"total_augmented_indices={len(self.global_indices)})")
+
+
