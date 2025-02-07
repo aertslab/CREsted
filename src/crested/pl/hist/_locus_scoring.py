@@ -21,6 +21,7 @@ def locus_scoring(
     highlight_positions: list[tuple[int, int]] | None = None,
     marker_size: float = 5.0,
     line_width: float = 2.0,
+    line_colors: tuple(str, str) = ("b", "g"),
 ):
     """
     Plot the predictions as a line chart over the entire genomic input and optionally indicate the gene locus.
@@ -59,6 +60,8 @@ def locus_scoring(
         Size of the markers in the plot. Default is 5.0.
     line_width
         Width of the lines in the plot. Default is 2.0.
+    line_colors
+        Tuple of colors for the prediction track (first) and BigWig track (second). Default blue and green.
 
     See Also
     --------
@@ -91,7 +94,7 @@ def locus_scoring(
         markersize=marker_size,
         linestyle="-",
         linewidth=line_width,
-        color="b",
+        color=line_colors[0],
         label="Prediction Score",
         rasterized=True
     )
@@ -117,7 +120,7 @@ def locus_scoring(
             bigwig_midpoints,
             bigwig_values,
             linestyle="-",
-            color="g",
+            color=line_colors[1],
             label="bigWig Values",
             rasterized='True'
         )
