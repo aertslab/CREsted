@@ -580,6 +580,10 @@ class Crested:
 
         If anndata is provided, it will add the embeddings to anndata.varm[layer_name].
 
+        Warning
+        -------
+        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.extract_layer_embeddings()`.
+
         Parameters
         ----------
         anndata
@@ -625,6 +629,10 @@ class Crested:
         If anndata and model_name are provided, will add the predictions to anndata as a .layers[model_name] attribute.
         Else, will return the predictions as a numpy array.
 
+        Warning
+        -------
+        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.predict()`.
+
         Parameters
         ----------
         anndata
@@ -669,6 +677,10 @@ class Crested:
         """
         Make predictions using the model on the specified region(s).
 
+        Warning
+        -------
+        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.predict()`.
+
         Parameters
         ----------
         region_idx
@@ -704,6 +716,10 @@ class Crested:
     def predict_sequence(self, sequence: str) -> np.ndarray:
         """
         Make predictions using the model on the provided DNA sequence.
+
+        Warning
+        -------
+        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.predict()`.
 
         Parameters
         ----------
@@ -746,6 +762,10 @@ class Crested:
         Score regions upstream and downstream of a gene locus using the model's prediction.
 
         The model predicts a value for the central 1000bp of each window.
+
+        Warning
+        -------
+        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.score_gene_locus()`.
 
         Parameters
         ----------
@@ -882,6 +902,10 @@ class Crested:
         These scores can then be plotted to visualize the importance of each base in the dataset
         using :func:`~crested.pl.patterns.contribution_scores`.
 
+        Warning
+        -------
+        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores()`.
+
         Parameters
         ----------
         class_names
@@ -1004,6 +1028,10 @@ class Crested:
         These scores can then be plotted to visualize the importance of each base in the region
         using :func:`~crested.pl.patterns.contribution_scores`.
 
+        Warning
+        -------
+        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores()`.
+
         Parameters
         ----------
         region_idx
@@ -1064,6 +1092,10 @@ class Crested:
 
         These scores can then be plotted to visualize the importance of each base in the sequence
         using :func:`~crested.pl.patterns.contribution_scores`.
+
+        Warning
+        -------
+        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores()`.
 
         Parameters
         ----------
@@ -1167,6 +1199,10 @@ class Crested:
         These scores can then be plotted to visualize the importance of each base in the region
         using :func:`~crested.pl.patterns.enhancer_design_steps_contribution_scores`.
 
+        Warning
+        -------
+        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores()`.
+
         Parameters
         ----------
         enhancer_design_intermediate
@@ -1235,6 +1271,10 @@ class Crested:
     ):
         """
         Calculate and save contribution scores for the sequence(s).
+
+        Warning
+        -------
+        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores_specific()`.
 
         Parameters
         ----------
@@ -1312,6 +1352,10 @@ class Crested:
     ):
         """
         Calculate and save contribution scores for all regions in adata.var.
+
+        Warning
+        -------
+        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores_specific()`.
 
         Parameters
         ----------
@@ -1414,6 +1458,10 @@ class Crested:
     ) -> tuple[list[dict], list] | list:
         """
         Create synthetic enhancers for a specified class using motif implementation.
+
+        Warning
+        -------
+        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.enhancer_design_motif_insertion()`.
 
         Parameters
         ----------
@@ -1611,6 +1659,10 @@ class Crested:
     ) -> tuple[list[dict], list] | list:
         """
         Create synthetic enhancers for a specified class using in silico evolution (ISE).
+
+        Warning
+        -------
+        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.enhancer_design_in_silico_evolution()`.
 
         Parameters
         ----------
