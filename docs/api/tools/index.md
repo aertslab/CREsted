@@ -11,6 +11,13 @@
     Crested
     TaskConfig
     default_configs
+    predict
+    score_gene_locus
+    contribution_scores
+    contribution_scores_specific
+    extract_layer_embeddings
+    enhancer_design_in_silico_evolution
+    enhancer_design_motif_insertion
 ```
 
 ```{toctree}

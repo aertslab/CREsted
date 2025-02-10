@@ -151,7 +151,14 @@ class Genome:
                 return basename
         return self._name
 
-    def fetch(self, chrom=None, start=None, end=None, strand="+", region=None) -> str:
+    def fetch(
+        self,
+        chrom: str | None = None,
+        start: int | None = None,
+        end: int | None = None,
+        strand: str = "+",
+        region: str | None = None,
+    ) -> str:
         """
         Fetch a sequence from a genomic region.
 
@@ -195,6 +202,13 @@ class Genome:
             return reverse_complement(seq)
         else:
             return seq
+
+    def __repr__(self) -> str:
+        """Return a string representation of the Genome object."""
+        fasta_exists = self.fasta is not None
+        chrom_sizes_exists = self.chrom_sizes is not None
+        annotations_exists = self.annotation is not None
+        return f"Genome({self.name}, fasta={fasta_exists}, chrom_sizes={chrom_sizes_exists}, annotation={annotations_exists})"
 
 
 def register_genome(genome: Genome):
