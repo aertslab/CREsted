@@ -15,7 +15,7 @@ def locus_scoring(
     ylim: tuple(float, float) | None = None,
     bigwig_values: np.ndarray | None = None,
     bigwig_midpoints: list[int] | None = None,
-    filename: str | None = None,
+    save_path: str | None = None,
     grid: bool = True,
     figsize: tuple[float, float] = (30,5),
     highlight_positions: list[tuple[int, int]] | None = None,
@@ -47,7 +47,7 @@ def locus_scoring(
         A numpy array of values extracted from a bigWig file for the same coordinates.
     bigwig_midpoints
         A list of base pair positions corresponding to the bigwig_values.
-    filename
+    save_path
         The filename to save the plot to.
     grid
         Add grid to plot.
@@ -133,6 +133,6 @@ def locus_scoring(
         plt.legend()
 
     plt.tight_layout()
-    if filename:
-        plt.savefig(filename)
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight')
     plt.show()

@@ -30,6 +30,8 @@ def modisco_results(
     y_min: float = -0.05,
     y_max: float = 0.25,
     background: list[float] = None,
+    trim_pattern: bool = True,
+    trim_ic_threshold: float = 0.1,
     **kwargs,
 ) -> None:
     """
@@ -62,6 +64,10 @@ def modisco_results(
         Maximum y-axis limit for the plot if viz is "contrib".
     background
         Background probabilities for each nucleotide. Default is [0.27, 0.23, 0.23, 0.27].
+    trim_pattern
+        Boolean for trimming modisco patterns.
+    trim_ic_threshold
+        If trimming patterns, indicate threshold.
     kwargs
         Additional keyword arguments for the plot.
 
@@ -152,7 +158,7 @@ def modisco_results(
                     logger.info("total seqlets:", num_seqlets)
                 if num_seqlets < min_seqlets:
                     break
-                pattern_trimmed = _trim_pattern_by_ic(pattern, pos_pat, 0.1)
+                pattern_trimmed = _trim_pattern_by_ic(pattern, pos_pat, trim_ic_threshold) if trim_pattern else pattern
                 if viz == "contrib":
                     ax = _plot_attribution_map(
                         ax=ax,
@@ -165,8 +171,7 @@ def modisco_results(
                         f"{cell_type}: {np.around(num_seqlets / num_seq * 100, 2)}% seqlet frequency"
                     )
                 elif viz == "pwm":
-                    pattern = _trim_pattern_by_ic(pattern, pos_pat, 0.1)
-                    ppm = _pattern_to_ppm(pattern)
+                    ppm = _pattern_to_ppm(pattern_trimmed)
                     ic, ic_pos, ic_mat = compute_ic(ppm)
                     pwm = np.array(ic_mat)
                     rounded_mean = np.around(np.mean(pwm), 2)
@@ -196,14 +201,14 @@ def modisco_results(
 def clustermap(
     pattern_matrix: np.ndarray,
     classes: list[str],
-    subset: list[str] | None = None,  # Subset option
+    subset: list[str] | None = None,
     figsize: tuple[int, int] = (25, 8),
     grid: bool = False,
     cmap: str = "coolwarm",
     center: float = 0,
     method: str = "average",
     dy: float = 0.002,
-    fig_path: str | None = None,
+    save_path: str | None = None,
     pat_seqs: list[tuple[str, np.ndarray]] | None = None,
     dendrogram_ratio: tuple[float, float] = (0.05, 0.2),
     importance_threshold : float = 0,
@@ -231,7 +236,7 @@ def clustermap(
         Clustering method to use.
     dy
         Scaling parameter for vertical distance between nucleotides (if pat_seqs is not None) in xticklabels.
-    fig_path
+    save_path
         Path to save the figure.
     pat_seqs
         List of sequences to use as xticklabels.
@@ -354,13 +359,182 @@ def clustermap(
 
         g.fig.canvas.draw()
 
-    if fig_path is not None:
-        plt.savefig(fig_path, bbox_inches='tight')
+    if save_path is not None:
+        plt.savefig(save_path, bbox_inches='tight')
 
     plt.show()
 
+def clustermap_with_pwm_logos(
+    pattern_matrix: np.ndarray,
+    classes: list[str],
+    pattern_dict: dict,
+    subset: list[str] | None = None,
+    figsize: tuple[int, int] = (25, 8),
+    grid: bool = False,
+    cmap: str = "coolwarm",
+    center: float = 0,
+    method: str = "average",
+    save_path: str | None = None,
+    dendrogram_ratio: tuple[float, float] = (0.05, 0.2),
+    importance_threshold: float = 0,
+    logo_height_fraction: float = 0.35,
+    logo_y_padding: float = 0.3,
+    pwm_or_contrib: str = 'pwm',
+) -> sns.matrix.ClusterGrid:
+    """
+    Create a clustermap with additional PWM logo plots below the heatmap.
 
-def selected_instances(pattern_dict: dict, idcs: list[int]) -> None:
+    Parameters
+    ----------
+    pattern_matrix:
+        A 2D array representing the data matrix for clustering.
+    classes:
+        The class labels for the rows of the matrix.
+    pattern_dict:
+        A dictionary containing PWM patterns for x-tick plots.
+    subset
+        List of class labels to subset the matrix.
+    figsize:
+        Size of the clustermap figure (width, height). Default is (25, 8).
+    grid:
+        Whether to overlay grid lines on the heatmap. Default is False.
+    cmap:
+        Colormap for the heatmap. Default is "coolwarm".
+    center:
+        The value at which to center the colormap. Default is 0.
+    method:
+        Linkage method for hierarchical clustering. Default is "average".
+    save_path:
+        Path to save the final figure. If None, the figure is not saved. Default is None.
+    dendrogram_ratio:
+        Ratios for the size of row and column dendrograms. Default is (0.05, 0.2).
+    importance_threshold:
+        Threshold for filtering columns based on maximum absolute importance. Default is 0.
+    logo_height_fraction:
+        Fraction of clustermap height to allocate for PWM logos. Default is 0.35.
+    logo_y_padding:
+        Vertical padding for the PWM logos relative to the heatmap. Default is 0.3.
+    pwm_or_contrib:
+        Whether to use the pwm or contrib score representation of the pattern in the plotting.
+
+    Returns
+    -------
+        sns.matrix.ClusterGrid: A seaborn ClusterGrid object containing the clustermap with the PWM logos.
+    """
+    # Subset the pattern_matrix and classes if subset is provided
+    if subset is not None:
+        subset_indices = [
+            i for i, class_label in enumerate(classes) if class_label in subset
+        ]
+        pattern_matrix = pattern_matrix[subset_indices, :]
+        classes = [classes[i] for i in subset_indices]
+
+    # Filter columns based on importance threshold
+    max_importance = np.max(np.abs(pattern_matrix), axis=0)
+    above_threshold = max_importance > importance_threshold
+    pattern_matrix = pattern_matrix[:, above_threshold]
+
+    # Subset the pattern_dict to match filtered columns
+    selected_patterns = [pattern_dict[str(i)] for i in np.where(above_threshold)[0]]
+    selected_indices = list(np.where(above_threshold)[0])
+
+    data = pd.DataFrame(pattern_matrix)
+
+    # Generate the clustermap with the specified figsize
+    g = sns.clustermap(
+        data,
+        cmap=cmap,
+        figsize=figsize,
+        row_colors=None,
+        yticklabels=classes,
+        center=center,
+        xticklabels=False,
+        method=method,
+        dendrogram_ratio=dendrogram_ratio,
+        cbar_pos=(1.05, 0.4, 0.01, 0.3),
+    )
+
+    col_order = g.dendrogram_col.reordered_ind
+    cbar = g.ax_heatmap.collections[0].colorbar
+    cbar.set_label("Motif importance", rotation=270, labelpad=20)
+
+    # Reorder selected_patterns based on clustering
+    reordered_patterns = [selected_patterns[i] for i in col_order]
+    reordered_indices = [selected_indices[i] for i in col_order]
+
+    # Compute space for x-tick images
+    original_height = figsize[1]
+    extra_height = logo_height_fraction * original_height
+    total_height = original_height + extra_height
+
+    # Update the figure size to accommodate the logos
+    fig = g.fig
+    fig.set_size_inches(figsize[0], total_height)
+
+    # Adjust width and height of logos
+    logo_width = g.ax_heatmap.get_position().width / len(reordered_patterns) * 2.5
+    logo_height = logo_height_fraction * g.ax_heatmap.get_position().height
+    ratio = logo_height / logo_width
+
+    for i, pattern in enumerate(reordered_patterns):
+        plot_start_x = g.ax_heatmap.get_position().x0 + ((i - 0.75) / len(reordered_patterns)) * g.ax_heatmap.get_position().width
+        plot_start_y = g.ax_heatmap.get_position().y0 - logo_height - logo_height * logo_y_padding
+        pwm_ax = fig.add_axes([plot_start_x, plot_start_y, logo_width, logo_height])
+        pwm_ax.clear()
+
+        pwm=None
+        if pwm_or_contrib =='pwm':
+            ppm = _pattern_to_ppm(pattern["pattern"])
+            ic, ic_pos, ic_mat = compute_ic(ppm)
+            pwm = np.array(ic_mat)
+        elif pwm_or_contrib =='contrib':
+            pwm = np.array(pattern["pattern"]['contrib_scores'])
+        else:
+            raise ValueError(
+                        'Invalid visualization method. Choose either "contrib" or "pwm" in the pwm_or_contrib parameter. Aborting...'
+                    )
+
+        pwm_ax = _plot_attribution_map(
+            ax=pwm_ax,
+            saliency_df=pwm,
+            return_ax=True,
+            figsize=(8 * ratio, 8),
+            rotate=True,
+        )
+        pwm_ax.axis("off")
+
+    if grid:
+        ax = g.ax_heatmap
+        x_positions = np.arange(pattern_matrix.shape[1] + 1)
+        y_positions = np.arange(len(pattern_matrix) + 1)
+
+        # Add horizontal grid lines
+        for y in y_positions:
+            ax.hlines(y, *ax.get_xlim(), color="grey", linewidth=0.25)
+
+        # Add vertical grid lines
+        for x in x_positions:
+            ax.vlines(x, *ax.get_ylim(), color="grey", linewidth=0.25)
+
+        g.fig.canvas.draw()
+
+    ax = g.ax_heatmap
+    ax.xaxis.tick_bottom()
+    ax.set_xticks(np.arange(pattern_matrix.shape[1]) + 0.5)
+    ax.set_xticklabels([str(i) for i in reordered_indices], rotation=90)
+    for tick in ax.get_xticklabels():
+        tick.set_verticalalignment("top")
+
+    if save_path is not None:
+        plt.savefig(save_path, bbox_inches="tight", dpi=600)
+
+    plt.show()
+    return g
+
+def selected_instances(
+    pattern_dict: dict,
+    idcs: list[int],
+)-> None:
     """
     Plot the patterns specified by the indices in `idcs` from the `pattern_dict`.
 
@@ -671,7 +845,7 @@ def clustermap_tf_motif(
     fig = plt.figure(figsize=fig_size)
 
     if cluster_rows:
-        gs = fig.add_gridspec(1, 2, width_ratios=[0.2, 4], wspace=0.075)
+        gs = fig.add_gridspec(1, 2, width_ratios=[0.1, 4], wspace=0.02)
         ax_dendro = fig.add_subplot(gs[0, 0])
         dendrogram(row_linkage, orientation="left", no_labels=True, ax=ax_dendro)
         ax_dendro.invert_yaxis()
@@ -699,7 +873,7 @@ def clustermap_tf_motif(
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
             ax_heatmap.scatter(
-                j, i, s=dot_size_data[i, j] * 100, c="black", alpha=0.6
+                j, i, s=dot_size_data[i, j] * 100, c="black", alpha=0.6, edgecolor="none"
             )
 
     # Add colorbar
@@ -716,6 +890,8 @@ def clustermap_tf_motif(
     ax_heatmap.set_xticklabels(pattern_labels, rotation=90)
     ax_heatmap.set_yticks(np.arange(data.shape[0]))
     ax_heatmap.set_yticklabels(class_labels)
+
+    ax_heatmap.yaxis.tick_right()
 
     # Final layout adjustments
     plt.tight_layout()

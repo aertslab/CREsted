@@ -9,6 +9,8 @@ from ._seq_utils import (
 )
 from ._utils import (
     EnhancerOptimizer,
+    calculate_nucleotide_distribution,
+    derive_intermediate_sequences,
     extract_bigwig_values_per_bp,
     fetch_sequences,
     read_bigwig_region,
