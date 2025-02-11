@@ -14,7 +14,7 @@ from loguru import logger
 
 from crested._genome import Genome, _resolve_genome
 from crested._io import _extract_tracks_from_bigwig
-from crested._utils._seq_utils import one_hot_encode_sequence
+from crested.utils._seq_utils import one_hot_encode_sequence
 
 
 class EnhancerOptimizer:
