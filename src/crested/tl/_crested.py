@@ -225,6 +225,8 @@ class Crested:
             the model weights (e.g. when finetuning a model). If False, you should
             provide a TaskConfig to the Crested object before calling fit.
         """
+        if compile and self.config is not None:
+            logger.warning("Loading a model with compile=True. The CREsted config object will be ignored.")
         self.model = keras.models.load_model(model_path, compile=compile)
 
     def fit(
