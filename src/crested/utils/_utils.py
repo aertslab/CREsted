@@ -35,7 +35,7 @@ class EnhancerOptimizer:
 
     def __init__(self, optimize_func: Callable[..., int]) -> None:
         """Initialize the EnhancerOptimizer class."""
-        self.optimize_func = optimize_func
+        self.optimize_func = optimize_func 
 
     def get_best(
         self,
