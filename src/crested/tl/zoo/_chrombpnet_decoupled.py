@@ -25,6 +25,8 @@ def chrombpnet_decoupled(
     """
     Construct a ChromBPNet like model.
 
+    This architecture is based on the ChromBPNet model described in :cite:`Pampari_Bias_factorized_base-resolution_2023`.
+
     Parameters
     ----------
     seq_len
