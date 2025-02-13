@@ -85,9 +85,9 @@ def get_dataset(dataset: str):
     Fetch an example dataset. This function retrieves the dataset of bigwig or bed files and associated region file, downloading if not already cached, and returns the paths to the dataset.
 
     Provided examples:
-    - 'mouse_cortex_bed': the BICCN mouse cortex snATAC-seq dataset, processed as BED files per topic. For use in topic classification.
-    - 'mouse_cortex_bigwig_coverage': the BICCN mouse cortex snATAC-seq dataset, processed as pseudobulked bigWig coverage tracks per cell type. For use in peak regression.
-    - 'mouse_cortex_bigwig_cut_sites': the BICCN mouse cortex snATAC-seq dataset, processed as pseudobulked bigWig cut site tracks per cell type. For use in peak regression.
+      - 'mouse_cortex_bed': the BICCN mouse cortex snATAC-seq dataset, processed as BED files per topic. For use in topic classification.
+      - 'mouse_cortex_bigwig_coverage': the BICCN mouse cortex snATAC-seq dataset, processed as pseudobulked bigWig coverage tracks per cell type. For use in peak regression.
+      - 'mouse_cortex_bigwig_cut_sites': the BICCN mouse cortex snATAC-seq dataset, processed as pseudobulked bigWig cut site tracks per cell type. For use in peak regression.
 
     These two paths can be passed to :func:`crested.import_bigwigs()` / :func:`crested.import_beds()`.
 
@@ -98,12 +98,11 @@ def get_dataset(dataset: str):
     Parameters
     ----------
     dataset
-        The name of the dataset to fetch.
-        Options:
-        - 'mouse_cortex_bed'
-        - 'mouse_cortex_bigwig_cut_sites'
-        - 'mouse_cortex_bigwig_coverage'
-        - 'mouse_cortex_bigwig' (deprecated, same as 'mouse_cortex_bigwig_coverage')
+        The name of the dataset to fetch. Available options:
+          - 'mouse_cortex_bed'
+          - 'mouse_cortex_bigwig_cut_sites'
+          - 'mouse_cortex_bigwig_coverage'
+          - 'mouse_cortex_bigwig' (deprecated, same as 'mouse_cortex_bigwig_coverage')
 
     Returns
     -------
