@@ -92,7 +92,7 @@ def tfmodisco(
     >>> evaluator.tfmodisco_calculate_and_save_contribution_scores(
     ...     adata, class_names=["Astro", "Vip"], method="expected_integrated_grad"
     ... )
-    >>> crested.tl.tfmodisco(
+    >>> crested.tl.modisco.tfmodisco(
     ...     contrib_dir="modisco_results",
     ...     class_names=["Astro", "Vip"],
     ...     output_dir="modisco_results",
