@@ -7,25 +7,8 @@ import keras
 
 import crested
 
-from ._utils import create_anndata_with_regions
 
-REGIONS = [
-    "chr1:194208032-194208532",
-    "chr1:92202766-92203266",
-    "chr1:92298990-92299490",
-    "chr1:3406052-3406552",
-    "chr1:183669567-183670067",
-    "chr1:109912183-109912683",
-    "chr1:92210697-92211197",
-    "chr1:59100954-59101454",
-    "chr1:84634055-84634555",
-    "chr1:48792527-48793027",
-]
-
-
-def test_peak_regression():
-    adata = create_anndata_with_regions(REGIONS)
-
+def test_peak_regression(adata):
     crested.pp.change_regions_width(adata, width=600)
     crested.pp.train_val_test_split(
         adata, strategy="region", val_size=0.1, test_size=0.1
@@ -34,9 +17,6 @@ def test_peak_regression():
         genomepy.install_genome(
             "hg38", annotation=False, provider="UCSC", genomes_dir="tests/data/genomes"
         )
-    print(adata)
-    print(adata.var)
-    print(adata.var_names)
 
     if os.path.exists("tests/data/test_pipeline"):
         import shutil
