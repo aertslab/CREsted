@@ -241,10 +241,10 @@ def get_model(model: str) -> tuple[str, list[str]]:
         "Borzoi_human_rep1": ("models/borzoi_human_rep1.tar.gz"),
         "Borzoi_human_rep2": ("models/borzoi_human_rep2.tar.gz"),
         "Borzoi_human_rep3": ("models/borzoi_human_rep3.tar.gz"),
-        "Borzoi_mouse_rep0": ("models/borzoi_human_rep0.tar.gz"),
-        "Borzoi_mouse_rep1": ("models/borzoi_human_rep1.tar.gz"),
-        "Borzoi_mouse_rep2": ("models/borzoi_human_rep2.tar.gz"),
-        "Borzoi_mouse_rep3": ("models/borzoi_human_rep3.tar.gz"),
+        "Borzoi_mouse_rep0": ("models/borzoi_mouse_rep0.tar.gz"),
+        "Borzoi_mouse_rep1": ("models/borzoi_mouse_rep1.tar.gz"),
+        "Borzoi_mouse_rep2": ("models/borzoi_mouse_rep2.tar.gz"),
+        "Borzoi_mouse_rep3": ("models/borzoi_mouse_rep3.tar.gz"),
     }
     assert (
         model in model_mapping
