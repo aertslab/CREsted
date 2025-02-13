@@ -1,6 +1,6 @@
 # Plotting: `pl`
 
-Plotting description
+Functions to visualize your model's predictions or contribution scores.
 
 ```{eval-rst}
 .. currentmodule:: crested.pl

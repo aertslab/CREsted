@@ -65,6 +65,16 @@ def _get_dataset_index():
                 "models/deepmousebrain1.tar.gz": "sha256:af2c2487aa7b49b0d487d199b5e4efddb147578dc075682dd2b4bd48ad6ffaa5",
                 "models/deepmousebrain2.tar.gz": "sha256:4c7dd4649f642b6ec120fb324f479093644d622826d4a3a7d3ee9e3c2bb8bde6",
                 "models/deepmousebrain3.tar.gz": "sha256:a6160a87bb38eb64e7c39b0bda7f147b5c23bd41c82f72909f3372967aae7bdc",
+                "models/enformer_human.tar.gz": "628f67f540304d4d0e143176dc824ed72b3413f78f2fa2efe5d4f0ab51ea1bcc",
+                "models/enformer_mouse.tar.gz": "77296be9f16bcf81b9c9d3ae2bba61d7ae99e01e77a05eefc1fa316ef5eb6e31",
+                "models/borzoi_human_rep0.tar.gz": "c78f0e15a4962a4ccb699c29eab71114fd92c6d08d435f28ea15c2f116ec8ff1",
+                "models/borzoi_human_rep1.tar.gz": "f5eefd9bddcdee02f00a3a0cd758174b58ea0b269f4d04b8d9e1e0e67ec6b9bd",
+                "models/borzoi_human_rep2.tar.gz": "48bc4dffc8e271eae7572fd63e8ce708744d8fe1f67a50c5422c1206e54d25db",
+                "models/borzoi_human_rep3.tar.gz": "a3241116ad78dd91e11d8093a08e9146242f0034d5bfc019bea7c16d633a7ba8",
+                "models/borzoi_mouse_rep0.tar.gz": "9ef37a00a5aaaab549c70e7d299a5a908f68121191fdec25893ee8416e40889a",
+                "models/borzoi_mouse_rep1.tar.gz": "b931b14ee0d5a340f7c39b317ab0be099b45e5f4075511dc5e56cd0e9af7f857",
+                "models/borzoi_mouse_rep2.tar.gz": "0b4183a2751975de8ee2070fbf9bad40cbbfb17fe6784299920f5a2723cc07b5",
+                "models/borzoi_mouse_rep3.tar.gz": "a18fd295ec356ada86c6681b173ffe25f320447884129f5d3c15be80755423e4",
             },
         )
     return _datasets
@@ -75,9 +85,9 @@ def get_dataset(dataset: str):
     Fetch an example dataset. This function retrieves the dataset of bigwig or bed files and associated region file, downloading if not already cached, and returns the paths to the dataset.
 
     Provided examples:
-    - 'mouse_cortex_bed': the BICCN mouse cortex snATAC-seq dataset, processed as BED files per topic. For use in topic classification.
-    - 'mouse_cortex_bigwig_coverage': the BICCN mouse cortex snATAC-seq dataset, processed as pseudobulked bigWig coverage tracks per cell type. For use in peak regression.
-    - 'mouse_cortex_bigwig_cut_sites': the BICCN mouse cortex snATAC-seq dataset, processed as pseudobulked bigWig cut site tracks per cell type. For use in peak regression.
+      - 'mouse_cortex_bed': the BICCN mouse cortex snATAC-seq dataset, processed as BED files per topic. For use in topic classification.
+      - 'mouse_cortex_bigwig_coverage': the BICCN mouse cortex snATAC-seq dataset, processed as pseudobulked bigWig coverage tracks per cell type. For use in peak regression.
+      - 'mouse_cortex_bigwig_cut_sites': the BICCN mouse cortex snATAC-seq dataset, processed as pseudobulked bigWig cut site tracks per cell type. For use in peak regression.
 
     These two paths can be passed to :func:`crested.import_bigwigs()` / :func:`crested.import_beds()`.
 
@@ -88,12 +98,11 @@ def get_dataset(dataset: str):
     Parameters
     ----------
     dataset
-        The name of the dataset to fetch.
-        Options:
-        - 'mouse_cortex_bed'
-        - 'mouse_cortex_bigwig_cut_sites'
-        - 'mouse_cortex_bigwig_coverage'
-        - 'mouse_cortex_bigwig' (deprecated, same as 'mouse_cortex_bigwig_coverage')
+        The name of the dataset to fetch. Available options:
+          - 'mouse_cortex_bed'
+          - 'mouse_cortex_bigwig_cut_sites'
+          - 'mouse_cortex_bigwig_coverage'
+          - 'mouse_cortex_bigwig' (deprecated, same as 'mouse_cortex_bigwig_coverage')
 
     Returns
     -------
@@ -194,6 +203,10 @@ def get_model(model: str) -> tuple[str, list[str]]:
           - 'DeepMouseBrain1'
           - 'DeepMouseBrain2'
           - 'DeepMouseBrain3'
+          - 'Enformer_human'
+          - 'Enformer_mouse'
+          - 'Borzoi_human_rep[0-3]'
+          - 'Borzoi_mouse_rep[0-3]'
 
     Returns
     -------
@@ -221,6 +234,16 @@ def get_model(model: str) -> tuple[str, list[str]]:
         "DeepMouseBrain1": ("models/deepmousebrain1.tar.gz"),
         "DeepMouseBrain2": ("models/deepmousebrain2.tar.gz"),
         "DeepMouseBrain3": ("models/deepmousebrain3.tar.gz"),
+        "Enformer_human": ("models/enformer_human.tar.gz"),
+        "Enformer_mouse": ("models/enformer_mouse.tar.gz"),
+        "Borzoi_human_rep0": ("models/borzoi_human_rep0.tar.gz"),
+        "Borzoi_human_rep1": ("models/borzoi_human_rep1.tar.gz"),
+        "Borzoi_human_rep2": ("models/borzoi_human_rep2.tar.gz"),
+        "Borzoi_human_rep3": ("models/borzoi_human_rep3.tar.gz"),
+        "Borzoi_mouse_rep0": ("models/borzoi_mouse_rep0.tar.gz"),
+        "Borzoi_mouse_rep1": ("models/borzoi_mouse_rep1.tar.gz"),
+        "Borzoi_mouse_rep2": ("models/borzoi_mouse_rep2.tar.gz"),
+        "Borzoi_mouse_rep3": ("models/borzoi_mouse_rep3.tar.gz"),
     }
     assert (
         model in model_mapping
