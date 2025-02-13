@@ -33,11 +33,17 @@ def tfmodisco(
     class_names: list[str] | None = None,
     output_dir: os.PathLike = "modisco_results",
     max_seqlets: int = 5000,
+    min_metacluster_size: int = 100,
+    min_final_cluster_size: int = 20,
     window: int = 500,
     n_leiden: int = 2,
     report: bool = False,
     meme_db: str = None,
     verbose: bool = True,
+    fdr: float = 0.05,
+    sliding_window_size: int = 20,
+    flank_size: int = 5,
+    top_n_regions: int | None = None,
 ):
     """
     Run tf-modisco on one-hot encoded sequences and contribution scores stored in .npz files.
@@ -52,6 +58,10 @@ def tfmodisco(
         Directory where output files will be saved.
     max_seqlets
         Maximum number of seqlets per metacluster.
+    min_metacluster_size
+        Minimum number of seqlets per metacluster.
+    min_final_cluster_size
+        Minimum size of final cluster.
     window
         The window surrounding the peak center that will be considered for motif discovery.
     n_leiden
@@ -62,6 +72,14 @@ def tfmodisco(
         Path to a MEME file (.meme) containing motifs. Required if report is True.
     verbose
         Print verbose output.
+    fdr
+        False discovery rate of seqlet finding.
+    sliding_window_size
+        Sliding window size for seqlet finding in tfmodiscolite.
+    flank_size
+        Flank size of seqlets.
+    top_n_regions
+        The top n regions from the one hot encoded sequences and contribution scores to run modisco on.
 
     See Also
     --------
@@ -130,6 +148,12 @@ def tfmodisco(
             sequences = one_hot_seqs[:, :, start:end]
             attributions = contribution_scores[:, :, start:end]
 
+            if top_n_regions:
+                top_n = top_n_regions if top_n_regions < len(sequences) else len(sequences)
+                top_n = max(top_n,1) # avoid faulty inputs
+                sequences = sequences[:top_n]
+                attributions = attributions[:top_n]
+
             sequences = sequences.transpose(0, 2, 1)
             attributions = attributions.transpose(0, 2, 1)
 
@@ -147,11 +171,13 @@ def tfmodisco(
                     hypothetical_contribs=attributions,
                     one_hot=sequences,
                     max_seqlets_per_metacluster=max_seqlets,
-                    sliding_window_size=20,
-                    flank_size=5,
-                    target_seqlet_fdr=0.05,
+                    sliding_window_size=sliding_window_size,
+                    flank_size=flank_size,
+                    target_seqlet_fdr=fdr,
                     n_leiden_runs=n_leiden,
                     verbose=verbose,
+                    min_metacluster_size=min_metacluster_size,
+                    final_min_cluster_size=min_final_cluster_size
                 )
 
                 modisco.io.save_hdf5(

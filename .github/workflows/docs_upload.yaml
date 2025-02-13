@@ -36,14 +36,14 @@ jobs:
 
       - name: Upload Documentation Artifacts (HTML Pages)
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sphinx-docs
           path: docs/_build/html
 
       - name: Upload Log if Build Failed
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sphinx-output-log
           path: docs/sphinx-output.log

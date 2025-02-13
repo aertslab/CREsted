@@ -270,15 +270,16 @@ def _read_consensus_regions(
 
 
 def _create_temp_bed_file(
-    consensus_peaks: pd.DataFrame, target_region_width: int
+    consensus_peaks: pd.DataFrame, target_region_width: int | None
 ) -> str:
     """Adjust consensus regions to a target width and create a temporary BED file."""
     adjusted_peaks = consensus_peaks.copy()
-    adjusted_peaks[1] = adjusted_peaks.apply(
-        lambda row: max(0, row[1] - (target_region_width - (row[2] - row[1])) // 2),
-        axis=1,
-    )
-    adjusted_peaks[2] = adjusted_peaks[1] + target_region_width
+    if target_region_width:
+        adjusted_peaks[1] = adjusted_peaks.apply(
+            lambda row: max(0, row[1] - (target_region_width - (row[2] - row[1])) // 2),
+            axis=1,
+        )
+        adjusted_peaks[2] = adjusted_peaks[1] + target_region_width
     adjusted_peaks[1] = adjusted_peaks[1].astype(int)
     adjusted_peaks[2] = adjusted_peaks[2].astype(int)
 
@@ -552,10 +553,7 @@ def import_bigwigs(
     _check_bed_file_format(regions_file)
     consensus_peaks = _read_consensus_regions(regions_file, chromsizes_file)
 
-    if target_region_width is not None:
-        bed_file = _create_temp_bed_file(consensus_peaks, target_region_width)
-    else:
-        bed_file = regions_file
+    bed_file = _create_temp_bed_file(consensus_peaks, target_region_width)
 
     bw_files = []
     for file in os.listdir(bigwigs_folder):
@@ -590,8 +588,7 @@ def import_bigwigs(
         for future in futures:
             all_results.append(future.result())
 
-    if target_region_width is not None:
-        os.remove(bed_file)
+    os.remove(bed_file)
 
     data_matrix = np.vstack(all_results)
 
