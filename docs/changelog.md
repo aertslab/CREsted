@@ -24,7 +24,6 @@ This is a big release wherein we introduce our model repository and do a functio
 
 -   Rewrote the tutorials to use the new functional API (WIP).
 -   Expanded on the enhancer design section
--   New tutorial on how to finetune borzoi on local regions.
 
 ## Functional Refactor of crested.tl.Crested(...) class
 
