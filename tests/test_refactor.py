@@ -1,6 +1,5 @@
 """Test that ensures the outputs after the functional refactor are the same as before."""
 
-import os
 
 import keras
 import numpy as np
@@ -18,11 +17,6 @@ from crested.tl.data import AnnDataModule
 
 np.random.seed(42)
 keras.utils.set_random_seed(42)
-
-if os.environ["KERAS_BACKEND"] == "tensorflow":
-    import tensorflow as tf
-
-    tf.config.experimental.enable_op_determinism()
 
 
 @pytest.fixture(scope="module")
