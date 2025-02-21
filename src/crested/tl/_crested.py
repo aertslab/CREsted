@@ -247,6 +247,7 @@ class Crested:
         learning_rate_reduce_patience: int = 5,
         learning_rate_reduce_metric: str = "val_loss",
         learning_rate_reduce_mode: str = "min",
+        save_dir: str | None = None,
         custom_callbacks: list | None = None,
     ) -> None:
         """
@@ -282,13 +283,18 @@ class Crested:
             Metric to monitor for reducing the learning rate.
         learning_rate_reduce_mode
             'max' if a high metric is better, 'min' if a low metric is better
+        save_dir
+            Directory for saving model to. Default to project name.
         custom_callbacks
             List of custom callbacks to use during training.
         """
         self._check_fit_params()
 
+        if save_dir is None:
+            save_dir = self.save_dir
+
         callbacks = self._initialize_callbacks(
-            self.save_dir,
+            save_dir,
             model_checkpointing,
             model_checkpointing_best_only,
             model_checkpointing_metric,
