@@ -13,4 +13,6 @@ Supply these (or your own) to a `tl.TaskConfig` to be able to use them for train
 
     CosineMSELoss
     CosineMSELogLoss
+    PoissonLoss
+    PoissonMultinomialLoss
 ```
