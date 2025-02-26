@@ -6,6 +6,7 @@ import logomaker
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from PIL import Image
 
 
 def grad_times_input_to_df(x, grad, alphabet="ACGT"):
@@ -55,23 +56,67 @@ def _plot_attribution_map(
     ax=None,
     return_ax: bool = True,
     spines: bool = True,
-    figsize: tuple | None = (20, 1),
+    figsize: tuple[int, int] = (20, 1),
+    rotate: bool = False,
 ):
-    """Plot an attribution map using logomaker."""
-    if type(saliency_df) is not pd.DataFrame:
+    """
+    Plot an attribution map (PWM logo) and optionally rotate it by 90 degrees.
+
+    Parameters
+    ----------
+        saliency_df (pd.DataFrame or np.ndarray): A DataFrame or array with attribution scores,
+            where columns are nucleotide bases (A, C, G, T).
+        ax (matplotlib.axes.Axes, optional): Axes object to plot on. Default is None,
+            which creates a new Axes.
+        return_ax (bool, optional): Whether to return the Axes object. Default is True.
+        spines (bool, optional): Whether to display spines (axes borders). Default is True.
+        figsize (tuple[int, int], optional): Figure size for temporary rendering. Default is (20, 1).
+        rotate (bool, optional): Whether to rotate the resulting plot by 90 degrees. Default is False.
+
+    Returns
+    -------
+        matplotlib.axes.Axes: The Axes object with the plotted attribution map, if `return_ax` is True.
+    """
+    # Convert input to DataFrame if needed
+    if not isinstance(saliency_df, pd.DataFrame):
         saliency_df = pd.DataFrame(saliency_df, columns=["A", "C", "G", "T"])
-    if figsize is not None:
-        logomaker.Logo(saliency_df, figsize=figsize, ax=ax)
-    else:
+
+    # Standard plotting (no rotation)
+    if not rotate:
+        if ax is None:
+            _, ax = plt.subplots(figsize=figsize)
         logomaker.Logo(saliency_df, ax=ax)
+        if not spines:
+            ax.spines["right"].set_visible(False)
+            ax.spines["top"].set_visible(False)
+        if return_ax:
+            return ax
+        return
+
+    # Rotation case: render plot to an image
+    temp_fig, temp_ax = plt.subplots(figsize=figsize)
+    logomaker.Logo(saliency_df, ax=temp_ax)
+    temp_ax.axis("off")  # Remove axes for clean rendering
+
+    # Render the plot as an image
+    temp_fig.canvas.draw()
+    width, height = map(int, temp_fig.get_size_inches() * temp_fig.get_dpi())
+    image = np.frombuffer(temp_fig.canvas.tostring_rgb(), dtype="uint8").reshape(height, width, 3)
+    plt.close(temp_fig)  # Close the temporary figure to avoid memory leaks
+
+    # Rotate the rendered image
+    rotated_image = np.rot90(image)
+    rotated_image_pil = Image.fromarray(rotated_image)
+
+    # Display the rotated image on the given Axes
     if ax is None:
-        ax = plt.gca()
-    if not spines:
-        ax.spines["right"].set_visible(False)
-        ax.spines["top"].set_visible(False)
+        _, ax = plt.subplots(figsize=figsize)
+    ax.clear()
+    ax.imshow(rotated_image_pil)
+    ax.axis("off")  # Hide axes for a clean look
+
     if return_ax:
         return ax
-
 
 def _plot_mutagenesis_map(mutagenesis_df, ax=None):
     """Plot an attribution map for mutagenesis using different colored dots, with adjusted x-axis limits."""

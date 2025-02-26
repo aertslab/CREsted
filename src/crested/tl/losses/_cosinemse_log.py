@@ -13,14 +13,6 @@ class CosineMSELogLoss(keras.losses.Loss):
     normalizes these values, and computes both MSE and cosine similarity. A dynamic weight
     based on the MSE is used to balance these two components.
 
-    Attributes
-    ----------
-    max_weight
-        The maximum weight applied to the cosine similarity loss component.
-        Lower values will emphasize the MSE component, while higher values will emphasize the cosine similarity component.
-    reduction
-        Type of reduction applied to loss.
-
     Parameters
     ----------
     max_weight
@@ -68,7 +60,9 @@ class CosineMSELogLoss(keras.losses.Loss):
         y_true1 = keras.utils.normalize(y_true, axis=-1)
         y_pred1 = keras.utils.normalize(y_pred, axis=-1)
 
-        log_y_pred_pos = keras.ops.log(1 + self.multiplier * keras.ops.maximum(y_pred, 0))
+        log_y_pred_pos = keras.ops.log(
+            1 + self.multiplier * keras.ops.maximum(y_pred, 0)
+        )
         log_y_pred_neg = -keras.ops.log(
             1 + keras.ops.abs(self.multiplier * keras.ops.minimum(y_pred, 0))
         )

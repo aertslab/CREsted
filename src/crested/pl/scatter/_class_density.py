@@ -14,12 +14,13 @@ from crested.utils._logging import log_and_raise
 
 def class_density(
     adata: AnnData,
-    class_name: str,
+    class_name: str | None = None,
     model_names: list[str] | None = None,
     split: str | None = "test",
     log_transform: bool = False,
     exclude_zeros: bool = True,
     density_indication: bool = False,
+    alpha: float = 0.25,
     **kwargs,
 ) -> plt.Figure:
     """
@@ -30,7 +31,7 @@ def class_density(
     adata
         AnnData object containing the data in `X` and predictions in `layers`.
     class_name
-        Name of the class in `adata.obs_names`.
+        Name of the class in `adata.obs_names`. If None, plot is made for all the classes.
     model_names
         List of model names in `adata.layers`. If None, will create a plot per model in `adata.layers`.
     split
@@ -38,9 +39,11 @@ def class_density(
     log_transform
         Whether to log-transform the data before plotting. Default is False.
     exclude_zeros
-        Whether to exclude zero values from the plot. Default is True.
+        Whether to exclude zero ground truth values from the plot. Default is True.
     density_indication
         Whether to indicate density in the scatter plot. Default is False.
+    alpha
+        Transparency of points in scatter plot. From 0 (transparent) to 1 (opaque).
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to
         control the final plot output. Please see :func:`~crested.pl.render_plot`
@@ -75,7 +78,7 @@ def class_density(
                 "No split column found in anndata.var. Run `pp.train_val_test_split` first if 'split' is not None."
             )
 
-        if class_name not in adata.obs_names:
+        if (class_name) and (class_name not in adata.obs_names):
             raise ValueError(f"Class {class_name} not found in adata.obs_names.")
         if split not in ["train", "val", "test", None]:
             raise ValueError("Split must be 'train', 'val', 'test', or None.")
@@ -83,7 +86,7 @@ def class_density(
     _check_input_params()
 
     classes = list(adata.obs_names)
-    column_index = classes.index(class_name)
+    column_index = classes.index(class_name) if class_name else np.arange(0, len(classes))
     if model_names is None:
         model_names = list(adata.layers.keys())
 
@@ -115,9 +118,14 @@ def class_density(
 
     n_models = len(predicted_values)
 
-    logger.info(
-        f"Plotting density scatter for class: {class_name}, models: {model_names}, split: {split}"
-    )
+    if class_name:
+        logger.info(
+            f"Plotting density scatter for class: {class_name}, models: {model_names}, split: {split}"
+        )
+    else:
+        logger.info(
+            f"Plotting density scatter for all targets and predictions, models: {model_names}, split: {split}"
+        )
 
     fig, axes = plt.subplots(1, n_models, figsize=(8 * n_models, 8), sharey=True)
     if n_models == 1:
@@ -130,10 +138,11 @@ def class_density(
         if density_indication:
             xy = np.vstack([x, y])
             z = gaussian_kde(xy)(xy)
-            scatter = ax.scatter(x, y, c=z, s=50, edgecolor="k", alpha=0.25)
+            scatter = ax.scatter(x, y, c=z, s=50, edgecolor="k", alpha=alpha)
+            scatter.set_rasterized(True)  # Rasterize only the scatter points
             plt.colorbar(scatter, ax=ax, label="Density")
         else:
-            scatter = ax.scatter(x, y, edgecolor="k", alpha=0.25)
+            scatter = ax.scatter(x, y, edgecolor="k", alpha=alpha)
 
         ax.annotate(
             f"Pearson: {pearson_corr:.2f}",
@@ -164,6 +173,6 @@ def class_density(
     if "ylabel" not in kwargs:
         kwargs["ylabel"] = "Predictions"
     if "title" not in kwargs:
-        kwargs["title"] = f"{class_name}"
+        kwargs["title"] = f"{class_name}" if class_name else "Targets vs Predictions"
 
     return render_plot(fig, **kwargs)

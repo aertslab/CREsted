@@ -1,0 +1,49 @@
+name: Upload Sphinx Docs
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  docs:
+    name: Build Sphinx Documentation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -eo pipefail {0} # Fail on error and enable pipefail
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+          cache: "pip"
+          cache-dependency-path: "**/pyproject.toml"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip wheel
+          pip install ".[doc]"
+
+      - name: Build Documentation and Check for Issues
+        working-directory: docs
+        run: |
+          make clean
+          # Build the docs and capture output, treat warnings as errors (-W)
+          sphinx-build -b html -W . _build/html 2>&1 | tee sphinx-output.log
+
+      - name: Upload Documentation Artifacts (HTML Pages)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sphinx-docs
+          path: docs/_build/html
+
+      - name: Upload Log if Build Failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sphinx-output-log
+          path: docs/sphinx-output.log

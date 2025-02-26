@@ -93,8 +93,18 @@ def _trim_pattern_by_ic(
     v = (v - v.min()) / (v.max() - v.min() + 1e-9)
 
     try:
-        start_idx = min(np.where(np.diff((v > min_v) * 1))[0])
-        end_idx = max(np.where(np.diff((v > min_v) * 1))[0]) + 1
+        if min_v>0:
+            start_idx = min(np.where(v > min_v)[0])
+            end_idx = max(np.where(v > min_v)[0])+1
+        else:
+            start_idx=0
+            end_idx=len(ppm)
+
+        if end_idx==start_idx:
+            end_idx=start_idx+1
+
+        if end_idx==len(v):
+            end_idx=len(v)-1
     except ValueError:
         logger.error("No valid pattern found. Aborting...")
 
@@ -479,3 +489,33 @@ def read_html_to_dataframe(source: str):
     except ValueError as e:
         # Handle the case where no tables are found
         return f"Error: {str(e)}"
+
+def write_to_meme(ppms: dict, output_file: str):
+    """
+    Write PPMs to a MEME-format file.
+
+    Parameters
+    ----------
+    ppms
+        Dictionary of PPMs where keys are pattern IDs and values are numpy arrays.
+    output_file
+        Path to the output MEME file.
+    """
+    with open(output_file, 'w') as f:
+        # Write the MEME header
+        f.write("MEME version 4\n\n")
+        f.write("ALPHABET= ACGT\n\n")
+        f.write("strands: + -\n\n")
+        f.write("Background letter frequencies:\n")
+        f.write("A 0.25 C 0.25 G 0.25 T 0.25\n\n")
+
+        # Write each pattern in MEME format
+        for pattern_id, ppm in ppms.items():
+            motif_length, _ = ppm.shape
+            f.write(f"MOTIF {pattern_id}\n")
+            f.write(f"letter-probability matrix: alength= 4 w= {motif_length}\n")
+            for row in ppm:
+                f.write(f"{' '.join(f'{x:.6f}' for x in row)}\n")
+            f.write("\n")
+
+    print(f"PPMs saved to {output_file} in MEME format.")

@@ -1,131 +1,27 @@
+"""General utility functions for the package."""
+
 from __future__ import annotations
 
 import os
+import random
+import re
 from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
-import pysam
+from anndata import AnnData
 from loguru import logger
 
+from crested._genome import Genome, _resolve_genome
 from crested._io import _extract_tracks_from_bigwig
-
-
-def get_hot_encoding_table(
-    alphabet: str = "ACGT",
-    neutral_alphabet: str = "N",
-    neutral_value: float = 0.0,
-    dtype=np.float32,
-) -> np.ndarray:
-    """Get hot encoding table to encode a DNA sequence to a numpy array with shape (len(sequence), len(alphabet)) using bytes."""
-
-    def str_to_uint8(string) -> np.ndarray:
-        """Convert string to byte representation."""
-        return np.frombuffer(string.encode("ascii"), dtype=np.uint8)
-
-    # 256 x 4
-    hot_encoding_table = np.zeros(
-        (np.iinfo(np.uint8).max + 1, len(alphabet)), dtype=dtype
-    )
-
-    # For each ASCII value of the nucleotides used in the alphabet
-    # (upper and lower case), set 1 in the correct column.
-    hot_encoding_table[str_to_uint8(alphabet.upper())] = np.eye(
-        len(alphabet), dtype=dtype
-    )
-    hot_encoding_table[str_to_uint8(alphabet.lower())] = np.eye(
-        len(alphabet), dtype=dtype
-    )
-
-    # For each ASCII value of the nucleotides used in the neutral alphabet
-    # (upper and lower case), set neutral_value in the correct column.
-    hot_encoding_table[str_to_uint8(neutral_alphabet.upper())] = neutral_value
-    hot_encoding_table[str_to_uint8(neutral_alphabet.lower())] = neutral_value
-
-    return hot_encoding_table
-
-
-HOT_ENCODING_TABLE = get_hot_encoding_table()
-
-
-def one_hot_encode_sequence(sequence: str, expand_dim: bool = True) -> np.ndarray:
-    """
-    One hot encode a DNA sequence.
-
-    Will return a numpy array with shape (len(sequence), 4) if expand_dim is True, otherwise (4,).
-    Alphabet is ACGT.
-
-    Parameters
-    ----------
-    sequence
-        The DNA sequence to one hot encode.
-    expand_dim
-        Whether to expand the dimensions of the output array.
-
-    Returns
-    -------
-    The one hot encoded DNA sequence.
-    """
-    if expand_dim:
-        return np.expand_dims(
-            HOT_ENCODING_TABLE[np.frombuffer(sequence.encode("ascii"), dtype=np.uint8)],
-            axis=0,
-        )
-    else:
-        return HOT_ENCODING_TABLE[
-            np.frombuffer(sequence.encode("ascii"), dtype=np.uint8)
-        ]
-
-
-def generate_mutagenesis(x, include_original=True, flanks=(0, 0)):
-    """Generate all possible single point mutations in a sequence."""
-    _, L, A = x.shape
-    start, end = 0, L
-    x_mut = []
-    start = flanks[0]
-    end = L - flanks[1]
-    for length in range(start, end):
-        for a in range(A):
-            if not include_original:
-                if x[0, length, a] == 1:
-                    continue
-            x_new = np.copy(x)
-            x_new[0, length, :] = 0
-            x_new[0, length, a] = 1
-            x_mut.append(x_new)
-    return np.concatenate(x_mut, axis=0)
-
-
-def generate_motif_insertions(x, motif, flanks=(0, 0), masked_locations=None):
-    """Generate motif insertions in a sequence."""
-    _, L, A = x.shape
-    start, end = 0, L
-    x_mut = []
-    motif_length = motif.shape[1]
-    start = flanks[0]
-    end = L - flanks[1] - motif_length + 1
-    insertion_locations = []
-
-    for motif_start in range(start, end):
-        motif_end = motif_start + motif_length
-        if masked_locations is not None:
-            if np.any(
-                (motif_start <= masked_locations) & (masked_locations < motif_end)
-            ):
-                continue
-        x_new = np.copy(x)
-        x_new[0, motif_start:motif_end, :] = motif
-        x_mut.append(x_new)
-        insertion_locations.append(motif_start)
-
-    return np.concatenate(x_mut, axis=0), insertion_locations
+from crested.utils._seq_utils import one_hot_encode_sequence
 
 
 class EnhancerOptimizer:
     """
     Class to optimize the mutated sequence based on the original prediction.
 
-    Can be passed as the 'enhancer_optimizer' argument to :func:`crested.tl.Crested.enhancer_design_in_silico_evolution`
+    Can be passed as the 'enhancer_optimizer' argument to :func:`crested.tl.enhancer_design_in_silico_evolution`
 
     Parameters
     ----------
@@ -134,7 +30,7 @@ class EnhancerOptimizer:
 
     See Also
     --------
-    crested.tl.Crested.enhancer_design_in_silico_evolution
+    crested.tl.enhancer_design_in_silico_evolution
     """
 
     def __init__(self, optimize_func: Callable[..., int]) -> None:
@@ -148,7 +44,22 @@ class EnhancerOptimizer:
         target: int | np.ndarray,
         **kwargs: dict[str, Any],
     ) -> int:
-        """Get the index of the best mutated sequence based on the original prediction."""
+        """
+        Get the index of the best mutated sequence based on the original prediction.
+
+        Parameters
+        ----------
+        mutated_predictions
+            The predictions of the mutated sequences.
+        original_prediction
+            The prediction of the original sequence.
+        target
+            An integer or array representing some target to optimize for.
+            For example, this can be the target class index, or an array of target values to maximize.
+            Depends on the optimization function used.
+        **kwargs
+            Additional keyword arguments to pass to the optimization function.
+        """
         return self.optimize_func(
             mutated_predictions, original_prediction, target, **kwargs
         )
@@ -180,66 +91,88 @@ def _weighted_difference(
     return np.argmax(score)
 
 
-def build_one_hot_decoding_table() -> np.ndarray:
-    """Get hot decoding table to decode a one hot encoded sequence to a DNA sequence string."""
-    one_hot_decoding_table = np.full(
-        np.iinfo(np.uint8).max + 1, ord("N"), dtype=np.uint8
-    )
-    one_hot_decoding_table[1] = ord("A")
-    one_hot_decoding_table[2] = ord("C")
-    one_hot_decoding_table[4] = ord("G")
-    one_hot_decoding_table[8] = ord("T")
-
-    return one_hot_decoding_table
-
-
-HOT_DECODING_TABLE = build_one_hot_decoding_table()
-
-
-def hot_encoding_to_sequence(one_hot_encoded_sequence: np.ndarray) -> str:
+def _detect_input_type(input: str | list[str] | np.array | AnnData) -> str:
     """
-    Decode a one hot encoded sequence to a DNA sequence string.
+    Detect the type of input provided.
 
     Parameters
     ----------
-    one_hot_encoded_sequence
-        A numpy array with shape (x, 4) with dtype=np.float32.
+    input
+        The input to detect the type of.
 
     Returns
     -------
-    The DNA sequence string of length x.
+    One of ['sequence', 'region', 'anndata', 'array'], indicating the input type.
     """
-    # Convert hot encoded seqeuence from:
-    #   (x, 4) with dtype=np.float32
-    # to:
-    #   (x, 4) with dtype=np.uint8
-    # and finally combine ACGT dimensions to:
-    #   (x, 1) with dtype=np.uint32
-    hes_u32 = one_hot_encoded_sequence.astype(np.uint8).view(np.uint32)
+    dna_pattern = re.compile("^[ACGTNacgtn]+$")
+    if isinstance(input, AnnData):
+        return "anndata"
+    elif isinstance(input, list):
+        if all(":" in str(item) for item in input):  # List of regions
+            return "region"
+        elif all(
+            isinstance(item, str) and dna_pattern.match(item) for item in input
+        ):  # List of sequences
+            return "sequence"
+        else:
+            raise ValueError(
+                "List input must contain only valid region strings (chrom:var-end) or DNA sequences."
+            )
+    elif isinstance(input, str):
+        if ":" in input:  # Single region
+            return "region"
+        elif dna_pattern.match(input):  # Single DNA sequence
+            return "sequence"
+        else:
+            raise ValueError(
+                "String input must be a valid region string (chrom:var-end) or DNA sequence."
+            )
+    elif isinstance(input, np.ndarray):
+        if input.ndim == 3:
+            return "array"
+        else:
+            raise ValueError("Input one hot array must have shape (N, L, 4).")
+    else:
+        raise ValueError(
+            "Unsupported input type. Must be AnnData, str, list, or np.ndarray."
+        )
 
-    # Do some bitshifting magic to decode uint32 to DNA sequence string.
-    sequence = (
-        HOT_DECODING_TABLE[
-            (
-                (
-                    hes_u32 << 31 >> 31
-                )  # A: 2^0  : 1        -> 1 = A in HOT_DECODING_TABLE
-                | (
-                    hes_u32 << 23 >> 30
-                )  # C: 2^8  : 256      -> 2 = C in HOT_DECODING_TABLE
-                | (
-                    hes_u32 << 15 >> 29
-                )  # G: 2^16 : 65536    -> 4 = G in HOT_DECODING_TABLE
-                | (
-                    hes_u32 << 7 >> 28
-                )  # T: 2^24 : 16777216 -> 8 = T in HOT_DECODING_TABLE
-            ).astype(np.uint8)
-        ]
-        .tobytes()
-        .decode("ascii")
+
+def _transform_input(input, genome: Genome | os.PathLike | None = None) -> np.ndarray:
+    """
+    Transform the input into a one-hot encoded matrix based on its type.
+
+    Parameters
+    ----------
+    input
+        Input data to preprocess. Can be a sequence, list of sequences, region, list of regions, or an AnnData object.
+    genome
+        Genome or Path to the genome file. Required if no genome is registered and input is a region or AnnData.
+
+    Returns
+    -------
+    One-hot encoded matrix of shape (N, L, 4), where N is the number of sequences/regions and L is the sequence length.
+    """
+    input_type = _detect_input_type(input)
+
+    if input_type == "anndata":
+        genome = _resolve_genome(genome)
+        regions = list(input.var_names)
+        sequences = [genome.fetch(region=region) for region in regions]
+    elif input_type == "region":
+        genome = _resolve_genome(genome)
+        regions = input if isinstance(input, list) else [input]
+        sequences = [genome.fetch(region=region) for region in regions]
+    elif input_type == "sequence":
+        sequences = input if isinstance(input, list) else [input]
+    elif input_type == "array":
+        assert input.ndim == 3, "Input one hot array must have shape (N, L, 4)."
+        return input
+
+    one_hot_data = np.array(
+        [one_hot_encode_sequence(seq, expand_dim=False) for seq in sequences]
     )
-
-    return sequence
+    return one_hot_data
 
 
 def get_value_from_dataframe(df: pd.DataFrame, row_name: str, column_name: str):
@@ -317,7 +250,9 @@ def extract_bigwig_values_per_bp(
 
 
 def fetch_sequences(
-    regions: str | list[str], genome: os.PathLike, uppercase: bool = True
+    regions: str | list[str],
+    genome: os.PathLike | Genome | None = None,
+    uppercase: bool = True,
 ) -> list[str]:
     """
     Fetch sequences from a genome file for a list of regions using pysam.
@@ -329,7 +264,8 @@ def fetch_sequences(
     regions
         List of regions to fetch sequences for.
     genome
-        Path to the genome file.
+        Path to the genome fasta or Genome instance or None.
+        If None, will look for a registered genome object.
     uppercase
         If True, return sequences in uppercase.
 
@@ -344,12 +280,10 @@ def fetch_sequences(
     """
     if isinstance(regions, str):
         regions = [regions]
-    fasta = pysam.FastaFile(genome)
+    genome = _resolve_genome(genome)
     seqs = []
     for region in regions:
-        chrom, start_end = region.split(":")
-        start, end = start_end.split("-")
-        seq = fasta.fetch(chrom, int(start), int(end))
+        seq = genome.fetch(region=region)
         if uppercase:
             seq = seq.upper()
         seqs.append(seq)
@@ -428,50 +362,80 @@ def read_bigwig_region(
     return values, positions
 
 
-def reverse_complement(sequence: str | list[str] | np.ndarray) -> str | np.ndarray:
+def calculate_nucleotide_distribution(
+    input: str | list[str] | np.ndarray | AnnData,
+    genome: Genome | os.PathLike | None = None,
+    per_position: bool = False,
+    n_regions: int | None = None,
+) -> np.ndarray:
     """
-    Perform reverse complement on either a one-hot encoded array or a (list of) DNA sequence string(s).
+    Calculate the nucleotide distribution of a genome in a set of regions or sequences.
 
     Parameters
     ----------
-    sequence
-        The DNA sequence string(s) or one-hot encoded array to reverse complement.
+    input
+        Input data to calculate the ACGT distribution of. Can be a (list of) sequence(s), a (list of) region name(s), a matrix of one hot encodings (N, L, 4), or an AnnData object with region names as its var_names.
+    genome
+        The genome object or path to the genome fasta file. Required if input is a region or AnnData.
+    per_position
+        If True, calculate the nucleotide distribution per position in the sequence instead of over the whole sequence.
+    n_regions
+        Randomly sample n_regions from the input. If None, all inputs are used.
+        This is useful for large datasets to speed up the calculation.
 
     Returns
     -------
-    The reverse complemented DNA sequence string or one-hot encoded array.
+    The nucleotide distribution as an array of floats (4,) in order A, C, G, T if per_position is False.
+    Else, it returns an array of shape (L, 4) with the nucleotide distribution per position.
     """
+    one_hots = _transform_input(input, genome)  # (N, L, 4)
 
-    def complement_str(seq: str) -> str:
-        complement = str.maketrans("ACGTacgt", "TGCAtgca")
-        return seq.translate(complement)[::-1]
+    if n_regions is not None:
+        random_sample = random.sample(range(one_hots.shape[0]), n_regions)
+        one_hots = one_hots[random_sample]
 
-    if isinstance(sequence, str):
-        return complement_str(sequence)
-    elif isinstance(sequence, list):
-        return [complement_str(seq) for seq in sequence]
-    elif isinstance(sequence, np.ndarray):
-        if sequence.ndim == 2:
-            if sequence.shape[1] == 4:
-                return sequence[::-1, ::-1]
-            elif sequence.shape[0] == 4:
-                return sequence[:, ::-1][:, ::-1]
-            else:
-                raise ValueError(
-                    "One-hot encoded array must have shape (W, 4) or (4, W)"
-                )
-        elif sequence.ndim == 3:
-            if sequence.shape[1] == 4:
-                return sequence[:, ::-1, ::-1]
-            elif sequence.shape[2] == 4:
-                return sequence[:, ::-1, ::-1]
-            else:
-                raise ValueError(
-                    "One-hot encoded array must have shape (B, 4, W) or (B, W, 4)"
-                )
-        else:
-            raise ValueError("One-hot encoded array must have 2 or 3 dimensions")
+    if per_position:
+        distribution = np.mean(one_hots, axis=0).astype("float64")
     else:
-        raise TypeError(
-            "Input must be either a DNA sequence string or a one-hot encoded array"
-        )
+        distribution = np.mean(one_hots, axis=(0, 1)).astype("float64")
+
+    # get rid of floating point errors by normalizing
+    return distribution / distribution.sum(axis=-1, keepdims=True)
+
+
+def derive_intermediate_sequences(
+    enhancer_design_intermediate: dict,
+) -> list[list[str]]:
+    """
+    Derive the intermediate sequences from the enhancer design intermediate dictionary.
+
+    Parameters
+    ----------
+    enhancer_design_intermediate
+        The enhancer design intermediate dictionary.
+
+    Returns
+    -------
+    The intermediate sequences.
+
+    See Also
+    --------
+    crested.tl.enhancer_design_in_silico_evolution
+    crested.tl.enhancer_design_motif_insertion
+    """
+    all_designed_list = []
+    for intermediate_dict in enhancer_design_intermediate:
+        current_sequence = intermediate_dict["inital_sequence"]
+        sequence_list = [current_sequence]
+        for loc, change in intermediate_dict["changes"]:
+            if loc == -1:
+                continue
+            else:
+                current_sequence = (
+                    current_sequence[:loc]
+                    + change
+                    + current_sequence[loc + len(change) :]
+                )
+                sequence_list.append(current_sequence)
+        all_designed_list.append(sequence_list)
+    return all_designed_list

@@ -13,11 +13,11 @@ class PoissonLoss(keras.losses.Loss):
 
     Parameters
     ----------
-    log_transform : bool
+    log_transform
         If True, applies log(x + 1) transformation to both predictions and targets.
-    eps : float
+    eps
         Small value to avoid log(0).
-    reduction : str
+    reduction
         Type of reduction to apply to the loss. Default: "sum_over_batch_size".
     """
 
@@ -26,23 +26,9 @@ class PoissonLoss(keras.losses.Loss):
         log_transform: bool = True,
         eps: float = 1e-7,
         reduction: str = "sum_over_batch_size",
-        name: str = "PoissonLoss"
+        name: str = "PoissonLoss",
     ):
-        """
-        Initialize the PoissonLoss class.
-
-        Parameters
-        ----------
-        log_transform : bool, optional
-            Whether to apply a log(x + 1) transformation to the inputs. Default is True.
-        eps : float, optional
-            A small epsilon value to avoid log(0). Default is 1e-7.
-        reduction : str, optional
-            The type of reduction to apply to the loss, e.g., "sum_over_batch_size".
-            Default is "sum_over_batch_size".
-        name : str, optional
-            Name of the loss function. Default is "PoissonLoss".
-        """
+        """Initialize the PoissonLoss class."""
         super().__init__(name=name, reduction=reduction)
         self.log_transform = log_transform
         self.eps = eps
@@ -53,15 +39,14 @@ class PoissonLoss(keras.losses.Loss):
 
         Parameters
         ----------
-        y_true : Tensor
+        y_true
             True target values (counts or log(x + 1)-transformed counts).
-        y_pred : Tensor
+        y_pred
             Predicted values (counts or log(x + 1)-transformed counts).
 
         Returns
         -------
-        Tensor
-            The Poisson loss value for each sample.
+        The Poisson loss value for each sample.
         """
         # Ensure predictions and targets are float32
         y_true = ops.cast(y_true, dtype="float32")
@@ -81,8 +66,5 @@ class PoissonLoss(keras.losses.Loss):
     def get_config(self):
         """Return the configuration of the loss function."""
         config = super().get_config()
-        config.update({
-            "log_transform": self.log_transform,
-            "eps": self.eps
-        })
+        config.update({"log_transform": self.log_transform, "eps": self.eps})
         return config

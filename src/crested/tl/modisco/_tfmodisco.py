@@ -19,6 +19,7 @@ from ._modisco_utils import (
     compute_ic,
     match_score_patterns,
     read_html_to_dataframe,
+    write_to_meme,
 )
 
 
@@ -32,11 +33,17 @@ def tfmodisco(
     class_names: list[str] | None = None,
     output_dir: os.PathLike = "modisco_results",
     max_seqlets: int = 5000,
+    min_metacluster_size: int = 100,
+    min_final_cluster_size: int = 20,
     window: int = 500,
     n_leiden: int = 2,
     report: bool = False,
     meme_db: str = None,
     verbose: bool = True,
+    fdr: float = 0.05,
+    sliding_window_size: int = 20,
+    flank_size: int = 5,
+    top_n_regions: int | None = None,
 ):
     """
     Run tf-modisco on one-hot encoded sequences and contribution scores stored in .npz files.
@@ -51,6 +58,10 @@ def tfmodisco(
         Directory where output files will be saved.
     max_seqlets
         Maximum number of seqlets per metacluster.
+    min_metacluster_size
+        Minimum number of seqlets per metacluster.
+    min_final_cluster_size
+        Minimum size of final cluster.
     window
         The window surrounding the peak center that will be considered for motif discovery.
     n_leiden
@@ -61,6 +72,14 @@ def tfmodisco(
         Path to a MEME file (.meme) containing motifs. Required if report is True.
     verbose
         Print verbose output.
+    fdr
+        False discovery rate of seqlet finding.
+    sliding_window_size
+        Sliding window size for seqlet finding in tfmodiscolite.
+    flank_size
+        Flank size of seqlets.
+    top_n_regions
+        The top n regions from the one hot encoded sequences and contribution scores to run modisco on.
 
     See Also
     --------
@@ -73,7 +92,7 @@ def tfmodisco(
     >>> evaluator.tfmodisco_calculate_and_save_contribution_scores(
     ...     adata, class_names=["Astro", "Vip"], method="expected_integrated_grad"
     ... )
-    >>> crested.tl.tfmodisco(
+    >>> crested.tl.modisco.tfmodisco(
     ...     contrib_dir="modisco_results",
     ...     class_names=["Astro", "Vip"],
     ...     output_dir="modisco_results",
@@ -129,6 +148,12 @@ def tfmodisco(
             sequences = one_hot_seqs[:, :, start:end]
             attributions = contribution_scores[:, :, start:end]
 
+            if top_n_regions:
+                top_n = top_n_regions if top_n_regions < len(sequences) else len(sequences)
+                top_n = max(top_n,1) # avoid faulty inputs
+                sequences = sequences[:top_n]
+                attributions = attributions[:top_n]
+
             sequences = sequences.transpose(0, 2, 1)
             attributions = attributions.transpose(0, 2, 1)
 
@@ -146,11 +171,13 @@ def tfmodisco(
                     hypothetical_contribs=attributions,
                     one_hot=sequences,
                     max_seqlets_per_metacluster=max_seqlets,
-                    sliding_window_size=20,
-                    flank_size=5,
-                    target_seqlet_fdr=0.05,
+                    sliding_window_size=sliding_window_size,
+                    flank_size=flank_size,
+                    target_seqlet_fdr=fdr,
                     n_leiden_runs=n_leiden,
                     verbose=verbose,
+                    min_metacluster_size=min_metacluster_size,
+                    final_min_cluster_size=min_final_cluster_size
                 )
 
                 modisco.io.save_hdf5(
@@ -173,6 +200,88 @@ def tfmodisco(
 
         except KeyError as e:
             logger.error(f"Missing data for class: {class_name}, error: {e}")
+
+def get_pwms_from_modisco_file(
+    modisco_file: str,
+    min_ic: float = 0.1,
+    output_meme_file: str | None = None,
+    metacluster_name: str | None = None,
+    pattern_indices: list[int] | None = None
+):
+    """
+    Extract PPMs (Position Probability Matrices) from a Modisco HDF5 results file.
+
+    Optionally, save the extracted PPMs in MEME format.
+
+    Parameters
+    ----------
+    modisco_file : str
+        Path to the Modisco HDF5 results file.
+    min_ic : float
+        Threshold to trim pattern. The higher, the more it gets trimmed.
+    output_meme_file : str | None
+        Path to save the extracted PPMs in MEME format. If None, PPMs are not saved.
+    metacluster_name : str | None
+        The name of the metacluster to process (e.g., 'pos_patterns' or 'neg_patterns').
+        If None, all metaclusters are processed.
+    pattern_indices : list[int] | None
+        List of pattern indices to include from the selected metacluster.
+        If None, all patterns are processed.
+
+    Returns
+    -------
+    dict[str, np.ndarray]
+        A dictionary where keys are pattern IDs (e.g., "pos_patterns_pattern_0")
+        and values are numpy arrays of PPMs.
+    """
+    ppms = {}
+
+    # Issue a warning if pattern_indices are provided without a metacluster_name
+    if pattern_indices and not metacluster_name:
+        logger.info(
+            "Pattern indices are specified, but no metacluster name is provided. "
+            "Pattern indices will be ignored."
+        )
+        pattern_indices = None
+
+    # Open the HDF5 file
+    with h5py.File(modisco_file, 'r') as hdf5_results:
+        # Select specific metacluster or iterate through all metaclusters
+        metaclusters_to_process = (
+            [metacluster_name] if metacluster_name else hdf5_results.keys()
+        )
+
+        for metacluster in metaclusters_to_process:
+            if metacluster not in hdf5_results:
+                raise ValueError(f"Metacluster '{metacluster}' not found in the HDF5 file.")
+
+            pos_pat = metacluster == 'pos_patterns'
+            metacluster_data = hdf5_results[metacluster]
+
+            # Select specific patterns or iterate through all patterns
+            patterns_to_process = (
+                pattern_indices if pattern_indices else range(len(metacluster_data))
+            )
+
+            for i in patterns_to_process:
+                pattern_name = f"pattern_{i}"
+                if pattern_name not in metacluster_data:
+                    raise ValueError(f"Pattern '{pattern_name}' not found in metacluster '{metacluster}'.")
+
+                pattern = metacluster_data[pattern_name]
+                pattern_trimmed = _trim_pattern_by_ic(pattern, pos_pat, min_ic)
+
+                # Extract the PPM as a numpy array
+                ppm = np.array(pattern_trimmed['sequence'])
+
+                # Save the PPM with a unique key
+                ppms[f"{metacluster}_{pattern_name}"] = ppm
+
+    # Optionally write PPMs to a MEME file
+    if output_meme_file:
+        write_to_meme(ppms, output_meme_file)
+
+    return ppms
 
 
 def add_pattern_to_dict(
@@ -302,8 +411,8 @@ def match_to_patterns(
         ic_class_representative = all_patterns[str(match_idx)]["classes"][cell_type]["ic"]
         n_seqlets_class_representative = all_patterns[str(match_idx)]["classes"][cell_type]['n_seqlets']
         if p_ic > ic_class_representative:
-            p['n_seqlets'] = n_seqlets_class_representative if n_seqlets_class_representative > p['n_seqlets'] else p['n_seqlets'] # if a class representative for a pattern gets replaced, we keep the max seqlet count between the two of them since they are the same pattern
             all_patterns[str(match_idx)]["classes"][cell_type] = p
+        all_patterns[str(match_idx)]["classes"][cell_type]['n_seqlets'] = n_seqlets_class_representative + p['n_seqlets'] # We add to the total number of seqlets for this class
     else:
         all_patterns[str(match_idx)]["classes"][cell_type] = p
 
@@ -462,7 +571,7 @@ def merge_patterns(pattern1: dict, pattern2: dict) -> dict:
                 if ic_a > ic_b
                 else pattern2["classes"][cell_type]
             )
-            merged_classes[cell_type]['n_seqlets'] = max(n_seqlets_a, n_seqlets_b) # if patterns from the same class get merged, we keep the max seqlet count between the two of them since they are the same pattern
+            merged_classes[cell_type]['n_seqlets'] = n_seqlets_a + n_seqlets_b
         else:
             merged_classes[cell_type] = pattern1["classes"][cell_type]
 
