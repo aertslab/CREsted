@@ -13,4 +13,6 @@ models/index
 changelog
 contributing
 references
+howtocite
+license
 ```

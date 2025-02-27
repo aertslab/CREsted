@@ -5,12 +5,17 @@ from __future__ import annotations
 import keras
 import numpy as np
 
+from ._attention import AttentionPool1D, MultiheadAttention
+
 __all__ = [
     "dense_block",
     "conv_block",
     "activate",
+    "pool",
     "get_output",
     "conv_block_bs",
+    "mha_block_enf",
+    "ffn_block_enf",
     "dilated_residual",
 ]
 
@@ -26,7 +31,7 @@ def dense_block(
     normalization: str = "batch",
     name_prefix: str | None = None,
     use_bias: bool = True,
-):
+) -> keras.KerasTensor:
     """
     Dense building block.
 
@@ -63,23 +68,21 @@ def dense_block(
         use_bias=use_bias,
         kernel_initializer="he_normal",
         kernel_regularizer=keras.regularizers.l2(l2),
-        name=name_prefix + "_dense" if name_prefix else None,
+        name=name_prefix + "_dense" if name_prefix else None
     )(inputs)
 
     if normalization == "batch":
         x = keras.layers.BatchNormalization(
             momentum=bn_momentum,
             gamma_initializer=bn_gamma,
-            name=name_prefix + "_batchnorm" if name_prefix else None,
+            name=name_prefix + "_batchnorm" if name_prefix else None
         )(x)
     elif normalization == "layer":
         x = keras.layers.LayerNormalization(
             name=name_prefix + "_layernorm" if name_prefix else None
         )(x)
 
-    x = keras.layers.Activation(
-        activation, name=name_prefix + "_activation" if name_prefix else None
-    )(x)
+    x = activate(x, activation, name = name_prefix + "_activation" if name_prefix else None)
     x = keras.layers.Dropout(
         dropout, name=name_prefix + "_dropout" if name_prefix else None
     )(x)
@@ -146,7 +149,7 @@ def conv_block(
         padding=padding,
         kernel_regularizer=keras.regularizers.L2(l2),
         use_bias=conv_bias,
-        name=name_prefix + "_conv" if name_prefix else None,
+        name=name_prefix + "_conv" if name_prefix else None
     )(inputs)
     if normalization == "batch":
         x = keras.layers.BatchNormalization(
@@ -155,19 +158,16 @@ def conv_block(
         )(x)
     elif normalization == "layer":
         x = keras.layers.LayerNormalization(
-            name=name_prefix + "_layernorm" if name_prefix else None,
+            name=name_prefix + "_layernorm" if name_prefix else None
         )(x)
-    x = keras.layers.Activation(
-        activation,
-        name=name_prefix + "_activation" if name_prefix else None,
-    )(x)
+    x = activate(x, activation, name = name_prefix + "_activation" if name_prefix else None)
     if res:
         if filters != residual.shape[2]:
             residual = keras.layers.Convolution1D(
                 filters=filters,
                 kernel_size=1,
                 strides=1,
-                name=name_prefix + "_resconv" if name_prefix else None,
+                name=name_prefix + "_resconv" if name_prefix else None
             )(residual)
         x = keras.layers.Add()([x, residual])
 
@@ -175,7 +175,7 @@ def conv_block(
         x = keras.layers.MaxPooling1D(
             pool_size=pool_size,
             padding=padding,
-            name=name_prefix + "_pool" if name_prefix else None,
+            name=name_prefix + "_pool" if name_prefix else None
         )(x)
     if dropout > 0:
         x = keras.layers.Dropout(
@@ -187,7 +187,7 @@ def conv_block(
 
 
 def activate(
-    current: keras.KerasTensor, activation: str, verbose: bool = False
+    current: keras.KerasTensor, activation: str, verbose: bool = False, name = None
 ) -> keras.KerasTensor:
     """
     Apply activation function to a tensor.
@@ -200,6 +200,8 @@ def activate(
         Activation function to apply.
     verbose
         Print verbose information (default is False).
+    name
+        Name to use in the activation layer. Default is None (no name).
 
     Returns
     -------
@@ -209,24 +211,72 @@ def activate(
         print("activate:", activation)
 
     if activation == "relu":
-        current = keras.layers.Activation("relu")(current)
+        current = keras.layers.Activation("relu", name = name)(current)
     elif activation == "swish":
-        current = keras.layers.Activation("swish")(current)
+        current = keras.layers.Activation("swish", name = name)(current)
     elif activation == "gelu":
-        current = keras.layers.Activation("gelu")(current)
+        current = keras.layers.Activation("gelu", name = name)(current)
+    elif activation == "gelu_approx":
+        # layers.Activation('gelu') uses unapproximated (default in activations.gelu), we want approximated
+        current = keras.layers.Activation(gelu_approx, name = name)(current)
     elif activation == "sigmoid":
-        current = keras.layers.Activation("sigmoid")(current)
+        current = keras.layers.Activation("sigmoid", name = name)(current)
     elif activation == "tanh":
-        current = keras.layers.Activation("tanh")(current)
+        current = keras.layers.Activation("tanh", name = name)(current)
     elif activation == "exponential":
-        current = keras.layers.Activation("exponential")(current)
+        current = keras.layers.Activation("exponential", name = name)(current)
     elif activation == "softplus":
-        current = keras.layers.Activation("softplus")(current)
+        current = keras.layers.Activation("softplus", name = name)(current)
+    elif activation == "gelu_enf":
+        current = keras.layers.Activation(gelu_enf, name = name)(current)
     else:
-        print(f'Unrecognized activation "{activation}"')
+        raise ValueError(f'Unrecognized activation "{activation}"')
 
     return current
 
+@keras.saving.register_keras_serializable(package="crested", name="gelu_approx")
+def gelu_approx(x):
+    """Wrap around keras.activations.gelu with approximate = True."""
+    return keras.activations.gelu(x, approximate=True)
+
+@keras.saving.register_keras_serializable(package="crested", name="gelu_enf")
+def gelu_enf(x):
+    """Very simple gelu approximation, used in Enformer, so needed to get equivalent results."""
+    return keras.ops.sigmoid(1.702 * x) * x
+
+def pool(
+    current: keras.KerasTensor, pool_type: str, pool_size = 2, padding = "same", verbose: bool = False, name = None
+) -> keras.KerasTensor:
+    """
+    Apply activation function to a tensor.
+
+    Parameters
+    ----------
+    current
+        Input tensor.
+    pool_type
+        Pooling function to apply.
+    verbose
+        Print verbose information (default is False).
+    name
+        Name to use in the activation layer. Default is None (no name).
+
+    Returns
+    -------
+    Output tensor after applying activation.
+    """
+    if verbose:
+        print("pool:", pool_type)
+
+    if pool_type == "max":
+        current = keras.layers.MaxPooling1D(pool_size = pool_size, padding = padding, name = name)(current)
+    elif pool_type == "attention":
+        current = AttentionPool1D(pool_size = 2, padding = padding, name = name)(current)
+    elif pool_type == "average":
+        current = keras.layers.AveragePooling1D(pool_size = 2, padding = padding, name = name)(current)
+    else:
+        raise ValueError(f'Unrecognized pooling type "{pool_type}"')
+    return current
 
 def get_output(input_layer, hidden_layers):
     """
@@ -241,7 +291,7 @@ def get_output(input_layer, hidden_layers):
 
     Returns
     -------
-    tf.Tensor
+    keras.KerasTensor
         Output tensor after passing through all hidden layers.
     """
     output = input_layer
@@ -265,16 +315,21 @@ def conv_block_bs(
     dilation_rate: int = 1,
     l2_scale: float = 0,
     conv_type: str = "standard",
-    w1: bool = False,
+    conv_bias: bool = True,
+    pool_type: str = "max",
     bn_momentum: float = 0.99,
     bn_gamma: keras.KerasTensor | None = None,
-    bn_type: str = "standard",
+    bn_sync: str = True,
+    bn_epsilon: float = 1e-5,
     kernel_initializer: str = "he_normal",
     padding: str = "same",
-    name_prefix: str | None = None,
-):
+    name_prefix: str | None = None
+) -> keras.KerasTensor:
     """
-    Construct a convolution block (for Basenji).
+    Construct a convolution block (for Basenji/Enformer).
+
+    Important note: while conv_block() follows the conv-norm-activate-pool order,
+    this follows Enformer/Borzoi's convention of norm-activate-conv-pool.
 
     Parameters
     ----------
@@ -284,28 +339,40 @@ def conv_block_bs(
         Conv1D filters.
     kernel_size
         Conv1D kernel_size.
+    pool_size
+        Max pool width.
+    batch_norm
+        Apply batch normalization.
     activation
         Activation function.
+    activation_end
+        Activation to add at end of block, after residual and before pooling.
+        Optional, can be None to disable.
+    dropout
+        Dropout rate probability.
+    residual
+        Residual connection boolean.
     strides
         Conv1D strides.
     dilation_rate
         Conv1D dilation rate.
     l2_scale
         L2 regularization weight.
-    dropout
-        Dropout rate probability.
     conv_type
         Conv1D layer type.
-    residual
-        Residual connection boolean.
-    pool_size
-        Max pool width.
-    batch_norm
-        Apply batch normalization.
+    conv_bias
+        Whether to use a bias in the convolution layer.
+        Should be True for Enformer/Borzoi and (maybe) False for Borzoi?
+    pool_type
+        Pooling type. Either 'max' or 'attention'.
     bn_momentum
         BatchNorm momentum.
     bn_gamma
         BatchNorm gamma (defaults according to residual).
+    bn_sync
+        Whether to synchronise the batchnorm when doing multi-GPU training.
+    bn_epsilon
+        Epsilon to use for the BatchNorm layer. Usual default is 1e-5, but Borzoi uses 1e-3.
     kernel_initializer
         Convolution kernel initializer.
     padding
@@ -322,16 +389,26 @@ def conv_block_bs(
     # choose convolution type
     if conv_type == "separable":
         conv_layer = keras.layers.SeparableConv1D
-    elif w1:
-        conv_layer = keras.layers.Conv2D
     else:
         conv_layer = keras.layers.Conv1D
 
     if filters is None:
         filters = inputs.shape[-1]
 
+    # batch norm
+    if batch_norm:
+        if bn_gamma is None:
+            bn_gamma = "zeros" if residual else "ones"
+        current = keras.layers.BatchNormalization(
+            momentum=bn_momentum,
+            epsilon=bn_epsilon,
+            gamma_initializer=bn_gamma,
+            synchronized=bn_sync,
+            name = name_prefix + "_batchnorm" if name_prefix else None
+        )(current)
+
     # activation
-    current = activate(current, activation)
+    current = activate(current, activation, name = name_prefix + '_activation' if name_prefix else None)
 
     # convolution
     current = conv_layer(
@@ -339,53 +416,195 @@ def conv_block_bs(
         kernel_size=kernel_size,
         strides=strides,
         padding=padding,
-        use_bias=False,
+        use_bias=conv_bias,
         dilation_rate=dilation_rate,
         kernel_initializer=kernel_initializer,
         kernel_regularizer=keras.regularizers.l2(l2_scale),
-        name=name_prefix + "_conv" if name_prefix else None,
+        name = name_prefix + "_conv" if name_prefix else None
     )(current)
-
-    # batch norm
-    if batch_norm:
-        if bn_gamma is None:
-            bn_gamma = "zeros" if residual else "ones"
-        if bn_type == "sync":
-            bn_layer = keras.layers.experimental.SyncBatchNormalization
-        else:
-            bn_layer = keras.layers.BatchNormalization
-        current = bn_layer(
-            momentum=bn_momentum,
-            gamma_initializer=bn_gamma,
-            name=name_prefix + "_bnorm" if name_prefix else None,
-        )(current)
 
     # dropout
     if dropout > 0:
         current = keras.layers.Dropout(
             rate=dropout,
-            name=name_prefix + "_dropout" if name_prefix else None,
+            name=name_prefix + "_dropout" if name_prefix else None
             )(current)
 
     # residual add
     if residual:
-        current = keras.layers.Add()([inputs, current])
+        current = keras.layers.Add(
+            name=name_prefix + "_add" if name_prefix else None
+        )([inputs, current])
 
     # end activation
     if activation_end is not None:
-        current = activate(current, activation_end)
+        current = activate(current, activation_end, name = name_prefix + '_activation_end' if name_prefix else None)
 
     # Pool
     if pool_size > 1:
-        if w1:
-            pool_layer = keras.layers.MaxPool2D
-        else:
-            pool_layer = keras.layers.MaxPool1D
-        current = pool_layer(
+        current = pool(
+            current,
+            pool_type=pool_type,
             pool_size=pool_size,
             padding=padding,
-            name=name_prefix + "_pool" if name_prefix else None,
-        )(current)
+            name = name_prefix + "_pool" if name_prefix else None
+        )
+    return current
+
+def mha_block_enf(
+    inputs,
+    num_heads: int,
+    key_query_dim: int,
+    value_dim: int,
+    scaling: bool = True,
+    attn_dropout: float = 0.05,
+    pos_dropout: float = 0.01,
+    final_dropout: float = 0.4,
+    symmetric_pos_encoding: bool = False,
+    pos_encoding_funs: str = 'borzoi',
+    pos_encoding_abs: bool = True,
+    num_pos_feats: int | None = None,
+    zero_init: bool = True,
+    residual: bool = True,
+    ln_epsilon: float = 1e-5,
+    name_prefix: str | None = None
+) -> keras.KerasTensor:
+    """
+    Construct a MHA block (for Enformer/Borzoi), consisting of Residual(LayerNorm+MHSelfAttention+Dropout).
+
+    Parameters
+    ----------
+    inputs
+        Input tensor.
+    num_heads
+        Number of attention heads to use.
+    key_query_dim
+        Number of k (key) and q (query) dimensions in the attention mechanism.
+    value_dim
+        Number of v (value) dimensions in the attention mechanism.
+    scaling
+        Whether to use scaling.
+    attn_dropout
+        Attention dropout rate.
+    pos_dropout
+        Positional embedding dropout rate.
+    final_dropout
+        Block-included post-MHA dropout rate.
+    symmetric_pos_encoding
+        Whether to make positional encodings symmetric. Only relevant if pos_encoding = True.
+    pos_encoding_funs
+        Can be 'enformer' or 'borzoi'.
+        Enformer default uses all, using exponential+central_mask_enf+gamma.,
+        Borzoi default only uses its version of central_mask.
+    pos_encoding_abs
+        Whether to use the absolute of values before calculating the relative position encoding.
+    num_pos_feats
+        Number of positional features. If not supplied, calculated from value_dim and number of position encoding functions.
+        Min 6 for default relative_position_functions, min 12 for positional_features_sin_cos.
+    zero_init
+        Whether to initialize MHA from zero.
+    residual
+        Whether to wrap the entire block in residual structure.
+    ln_epsilon
+        Epsilon to use in the layer normalisation layer.
+    name_prefix
+        Prefix for layer names.
+
+    Returns
+    -------
+    Output tensor after applying the MHA block.
+    """
+    # MHA block
+    current = keras.layers.LayerNormalization(
+        epsilon = ln_epsilon,
+        center = True,
+        scale = True,
+        beta_initializer = "zeros",
+        gamma_initializer = "ones",
+        name=f'{name_prefix}_layernorm'
+    )(inputs)
+    current = MultiheadAttention(
+        value_size = value_dim,
+        key_size = key_query_dim,
+        heads = num_heads,
+        scaling = scaling,
+        attention_dropout_rate = attn_dropout,
+        relative_position_symmetric = symmetric_pos_encoding,
+        relative_position_functions = pos_encoding_funs,
+        relative_position_absolute = pos_encoding_abs,
+        num_position_features = num_pos_feats,
+        positional_dropout_rate = pos_dropout,
+        zero_initialize = zero_init,
+        initializer = "he_normal", # Unsure in Enf, think this is fine.
+        l2_scale = 1.0e-8, # Doesn't seem to be set in Enf, is set in Borzoi.
+        name = f"{name_prefix}_mhsa"
+    )(current)
+    current = keras.layers.Dropout(
+        rate = final_dropout,
+        name = f"{name_prefix}_dropout"
+    )(current)
+    if residual:
+        current = keras.layers.Add()([inputs, current])
+    return current
+
+def ffn_block_enf(
+    inputs,
+    filters: int,
+    expansion_rate: int = 2,
+    dropout: int = 0.4,
+    activation: str = 'relu',
+    residual: bool = True,
+    ln_epsilon: float = 1e-5,
+    name_prefix: str | None = None
+) -> keras.KerasTensor:
+    """
+    Construct a feedforward block (for Enformer), consisting of Residual(LayerNorm+PointwiseConv+Dropout+ReLU+PointwiseConv+Dropout).
+
+    Parameters
+    ----------
+    inputs
+        Input tensor.
+    filters
+        Pointwise convolution filters.
+    expansion_rate
+        Scaling factor of base filters inside the FFN.
+    dropout
+        Dropout rate.
+    activation
+        Which activation function to use.
+    residual
+        Whether to wrap the entire block in residual structure.
+    ln_epsilon
+        Epsilon to use in the layer normalisation layer.
+    name_prefix
+        Prefix for layer names.
+
+    Returns
+    -------
+    Output tensor after applying the feedforward block.
+    """
+    expansion_filters = int(expansion_rate * filters)
+
+    # First half
+    current = keras.layers.LayerNormalization(
+        epsilon=ln_epsilon,
+        center=True,
+        scale=True,
+        beta_initializer="zeros",
+        gamma_initializer="ones",
+        name=f'{name_prefix}_layernorm'
+    )(inputs)
+    current = keras.layers.Conv1D(filters=expansion_filters, kernel_size=1, name=f'{name_prefix}_pointwise_1')(current)
+    current = keras.layers.Dropout(rate=dropout, name=f"{name_prefix}_dropout_1")(current)
+
+    # Second half
+    current = activate(current, activation, name = name_prefix + '_activation' if name_prefix else None)
+    current = keras.layers.Conv1D(filters=filters, kernel_size=1, name=f'{name_prefix}_pointwise_2')(current)
+    current = keras.layers.Dropout(rate=dropout, name=f"{name_prefix}_dropout_2")(current)
+
+    # Residual
+    if residual:
+        current = keras.layers.Add()([inputs, current])
     return current
 
 
@@ -465,3 +684,4 @@ def dilated_residual(
             dilation_rate = np.round(dilation_rate)
 
     return current
+

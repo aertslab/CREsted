@@ -226,7 +226,9 @@ class Crested:
             provide a TaskConfig to the Crested object before calling fit.
         """
         if compile and self.config is not None:
-            logger.warning("Loading a model with compile=True. The CREsted config object will be ignored.")
+            logger.warning(
+                "Loading a model with compile=True. The CREsted config object will be ignored."
+            )
         self.model = keras.models.load_model(model_path, compile=compile)
 
     def fit(
@@ -590,7 +592,7 @@ class Crested:
 
         Warning
         -------
-        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.extract_layer_embeddings()`.
+        This method is deprecated since version 1.3.0 and has been replaced by the standalone function :func:`~crested.tl.extract_layer_embeddings()`.
 
         Parameters
         ----------
@@ -639,7 +641,7 @@ class Crested:
 
         Warning
         -------
-        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.predict()`.
+        This method is deprecated since version 1.3.0 and has been replaced by the standalone function :func:`~crested.tl.predict()`.
 
         Parameters
         ----------
@@ -687,7 +689,7 @@ class Crested:
 
         Warning
         -------
-        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.predict()`.
+        This method is deprecated since version 1.3.0 and has been replaced by the standalone function :func:`~crested.tl.predict()`.
 
         Parameters
         ----------
@@ -727,7 +729,7 @@ class Crested:
 
         Warning
         -------
-        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.predict()`.
+        This method is deprecated since version 1.3.0 and has been replaced by the standalone function :func:`~crested.tl.predict()`.
 
         Parameters
         ----------
@@ -773,7 +775,7 @@ class Crested:
 
         Warning
         -------
-        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.score_gene_locus()`.
+        This method is deprecated since version 1.3.0 and has been replaced by the standalone function :func:`~crested.tl.score_gene_locus()`.
 
         Parameters
         ----------
@@ -912,7 +914,7 @@ class Crested:
 
         Warning
         -------
-        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores()`.
+        This method is deprecated since version 1.3.0 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores()`.
 
         Parameters
         ----------
@@ -1038,7 +1040,7 @@ class Crested:
 
         Warning
         -------
-        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores()`.
+        This method is deprecated since version 1.3.0 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores()`.
 
         Parameters
         ----------
@@ -1103,7 +1105,7 @@ class Crested:
 
         Warning
         -------
-        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores()`.
+        This method is deprecated since version 1.3.0 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores()`.
 
         Parameters
         ----------
@@ -1209,7 +1211,7 @@ class Crested:
 
         Warning
         -------
-        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores()`.
+        This method is deprecated since version 1.3.0 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores()`.
 
         Parameters
         ----------
@@ -1282,7 +1284,7 @@ class Crested:
 
         Warning
         -------
-        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores_specific()`.
+        This method is deprecated since version 1.3.0 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores_specific()`.
 
         Parameters
         ----------
@@ -1363,7 +1365,7 @@ class Crested:
 
         Warning
         -------
-        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores_specific()`.
+        This method is deprecated since version 1.3.0 and has been replaced by the standalone function :func:`~crested.tl.contribution_scores_specific()`.
 
         Parameters
         ----------
@@ -1469,7 +1471,7 @@ class Crested:
 
         Warning
         -------
-        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.enhancer_design_motif_insertion()`.
+        This method is deprecated since version 1.3.0 and has been replaced by the standalone function :func:`~crested.tl.enhancer_design_motif_insertion()`.
 
         Parameters
         ----------
@@ -1670,7 +1672,7 @@ class Crested:
 
         Warning
         -------
-        This method is deprecated since version 1.3.1 and has been replaced by the standalone function :func:`~crested.tl.enhancer_design_in_silico_evolution()`.
+        This method is deprecated since version 1.3.0 and has been replaced by the standalone function :func:`~crested.tl.enhancer_design_in_silico_evolution()`.
 
         Parameters
         ----------
