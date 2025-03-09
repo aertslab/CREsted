@@ -202,7 +202,7 @@ def expected_integrated_grad(
     return np.mean(np.array(grads), axis=0)
 
 
-def mutagenesis(x, model, class_index=None, batch_size=64):
+def mutagenesis(x, model, class_index=None, batch_size=None):
     """In silico mutagenesis analysis for a given sequence."""
 
     def reconstruct_map(predictions):
@@ -216,8 +216,8 @@ def mutagenesis(x, model, class_index=None, batch_size=64):
                 k += 1
         return mut_score
 
-    def get_score(x, model, class_index):
-        score = model.predict(x, verbose=0)
+    def get_score(x, model, class_index, batch_size=None):
+        score = model.predict(x, verbose=0, batch_size=batch_size)
         if class_index is None:
             score = np.sqrt(np.sum(score**2, axis=-1, keepdims=True))
         else:
@@ -228,8 +228,8 @@ def mutagenesis(x, model, class_index=None, batch_size=64):
     x_mut = generate_mutagenesis(x)
 
     # get baseline wildtype score
-    wt_score = function_batch(x, get_score, batch_size=batch_size, model=model, class_index=class_index)
-    predictions = function_batch(x_mut, get_score, batch_size=batch_size, model=model, class_index=class_index)
+    wt_score = get_score(x, model, class_index, batch_size=batch_size)
+    predictions = get_score(x_mut, model, class_index, batch_size=batch_size)
 
     # reshape mutagenesis predictions
     mut_score = reconstruct_map(predictions)
