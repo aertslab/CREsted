@@ -138,14 +138,13 @@ def test_contribution_scores(keras_model, genome):
     assert one_hot_encoded_sequences.shape == (1, 500, 4)
 
     # test batching sequences
-    sequences = ["ATCGA" * 100, "ATCGA" * 100, "ATCGA" * 100]
     scores, one_hot_encoded_sequences = crested.tl.contribution_scores(
-        sequences,
+        sequence,
         target_idx=1,
-        model=models,
+        model=keras_model,
         genome=genome,
         method="integrated_grad",
-        batch_size=2
+        batch_size=15
     )
     assert scores.shape == (3, 1, 500, 4)
     assert one_hot_encoded_sequences.shape == (3, 500, 4)
