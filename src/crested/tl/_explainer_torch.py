@@ -144,7 +144,7 @@ def integrated_grad(
     def integral_approximation(gradients):
         # riemann_trapezoidal
         grads = (gradients[:-1] + gradients[1:]) / 2.0
-        integrated_gradients = torch.mean(grads, dim=0)
+        integrated_gradients = np.mean(grads, axis=0)
         return integrated_gradients
 
     def interpolate_data(baseline, x, steps):
@@ -164,7 +164,7 @@ def integrated_grad(
             batch_size=batch_size,
         )
     avg_grad = integral_approximation(grad)
-    avg_grad = np.expand_dims(avg_grad.numpy(), axis=0)
+    avg_grad = np.expand_dims(avg_grad, axis=0)
     return avg_grad
 
 
@@ -250,7 +250,7 @@ def l2_norm(scores):
 def function_batch(X, fun, batch_size=64, **kwargs):
     data_size = X.shape[0]
     if data_size < batch_size:
-        return fun(X, **kwargs)
+        return fun(X, **kwargs).detach().cpu().numpy()
     else:
         outputs = []
         n_batches = data_size // batch_size
@@ -258,9 +258,9 @@ def function_batch(X, fun, batch_size=64, **kwargs):
         for batch_i in range(n_batches):
             batch_start = (batch_i-1)*batch_size
             batch_end = batch_i*batch_size
-            outputs.append(fun(X[batch_start:batch_end, ...], **kwargs).numpy())
+            outputs.append(fun(X[batch_start:batch_end, ...], **kwargs).detach().cpu().numpy())
         if (n_batches % X.shape[0]) > 0:
-            outputs.append(fun(X[batch_end: , ...], **kwargs).numpy())
+            outputs.append(fun(X[batch_end: , ...], **kwargs).detach().cpu().numpy())
         return np.concatenate(outputs, axis=0)
 
 

@@ -157,8 +157,8 @@ def integrated_grad(
 
     def integral_approximation(gradients):
         # riemann_trapezoidal
-        grads = (gradients[:-1] + gradients[1:]) / tf.constant(2.0)
-        integrated_gradients = tf.math.reduce_mean(grads, axis=0)
+        grads = (gradients[:-1] + gradients[1:]) / 2.0
+        integrated_gradients = np.mean(grads, axis=0)
         return integrated_gradients
 
     def interpolate_data(baseline, x, steps):
@@ -254,7 +254,7 @@ def function_batch(X, fun, batch_size=64, **kwargs):
     """Run a function in batches."""
     data_size = X.shape[0]
     if data_size < batch_size:
-        return fun(X, **kwargs)
+        return fun(X, **kwargs).numpy()
     else:
         outputs = []
         n_batches = data_size // batch_size
