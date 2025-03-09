@@ -248,6 +248,7 @@ def l2_norm(scores):
 
 
 def function_batch(X, fun, batch_size=64, **kwargs):
+    """Run a function in batches."""
     data_size = X.shape[0]
     if data_size < batch_size:
         return fun(X, **kwargs).detach().cpu().numpy()
