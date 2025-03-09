@@ -13,18 +13,19 @@ from crested.utils._seq_utils import generate_mutagenesis
 class Explainer:
     """wrapper class for attribution maps."""
 
-    def __init__(self, model, class_index=None, func=tf.math.reduce_mean):
+    def __init__(self, model, class_index=None, func=tf.math.reduce_mean, batch_size=64):
         """Initialize the explainer."""
         self.model = model
         self.class_index = class_index
         self.func = func
+        self.batch_size=batch_size
 
-    def saliency_maps(self, X, batch_size=128):
+    def saliency_maps(self, X):
         """Calculate saliency maps for a given sequence."""
         return function_batch(
             X,
             saliency_map,
-            batch_size,
+            batch_size=self.batch_size,
             model=self.model,
             class_index=self.class_index,
             func=self.func,
@@ -57,6 +58,7 @@ class Explainer:
                 num_steps=num_steps,
                 class_index=self.class_index,
                 func=self.func,
+                batch_size=self.batch_size
             )
             scores.append(intgrad_scores)
         return np.concatenate(scores, axis=0)
@@ -76,16 +78,17 @@ class Explainer:
                 num_steps=num_steps,
                 class_index=self.class_index,
                 func=self.func,
+                batch_size=self.batch_size,
             )
             scores.append(intgrad_scores)
         return np.concatenate(scores, axis=0)
 
-    def mutagenesis(self, X, class_index=None):
+    def mutagenesis(self, X):
         """In silico mutagenesis analysis for a given sequence."""
         scores = []
         for x in X:
             x = np.expand_dims(x, axis=0)
-            scores.append(mutagenesis(x, self.model, class_index))
+            scores.append(mutagenesis(x, self.model, self.class_index, batch_size=self.batch_size))
         return np.concatenate(scores, axis=0)
 
     def set_baseline(self, x, baseline, num_samples):
@@ -148,7 +151,7 @@ def smoothgrad(
 
 
 def integrated_grad(
-    x, model, baseline, num_steps=25, class_index=None, func=tf.math.reduce_mean
+    x, model, baseline, num_steps=25, class_index=None, func=tf.math.reduce_mean, batch_size=64,
 ):
     """Calculate integrated gradients for a given sequence."""
 
@@ -166,14 +169,21 @@ def integrated_grad(
 
     steps = tf.linspace(start=0.0, stop=1.0, num=num_steps + 1)
     x_interp = interpolate_data(baseline, x, steps)
-    grad = saliency_map(x_interp, model, class_index=class_index, func=func)
+    grad = function_batch(
+            x_interp,
+            saliency_map,
+            model=model,
+            class_index=class_index,
+            func=func,
+            batch_size=batch_size,
+        )
     avg_grad = integral_approximation(grad)
     avg_grad = np.expand_dims(avg_grad, axis=0)
     return avg_grad
 
 
 def expected_integrated_grad(
-    x, model, baselines, num_steps=25, class_index=None, func=tf.math.reduce_mean
+    x, model, baselines, num_steps=25, class_index=None, func=tf.math.reduce_mean, batch_size=64,
 ):
     """Average integrated gradients across different backgrounds."""
     grads = []
@@ -186,12 +196,13 @@ def expected_integrated_grad(
                 num_steps=num_steps,
                 class_index=class_index,
                 func=func,
+                batch_size=batch_size
             )
         )
     return np.mean(np.array(grads), axis=0)
 
 
-def mutagenesis(x, model, class_index=None):
+def mutagenesis(x, model, class_index=None, batch_size=64):
     """In silico mutagenesis analysis for a given sequence."""
 
     def reconstruct_map(predictions):
@@ -217,8 +228,8 @@ def mutagenesis(x, model, class_index=None):
     x_mut = generate_mutagenesis(x)
 
     # get baseline wildtype score
-    wt_score = get_score(x, model, class_index)
-    predictions = get_score(x_mut, model, class_index)
+    wt_score = function_batch(x, get_score, batch_size=batch_size, model=model, class_index=class_index)
+    predictions = function_batch(x_mut, get_score, batch_size=batch_size, model=model, class_index=class_index)
 
     # reshape mutagenesis predictions
     mut_score = reconstruct_map(predictions)
@@ -239,14 +250,22 @@ def l2_norm(scores):
     return np.sum(np.sqrt(scores**2), axis=2)
 
 
-def function_batch(X, fun, batch_size=128, **kwargs):
+def function_batch(X, fun, batch_size=64, **kwargs):
     """Run a function in batches."""
-    dataset = tf.data.Dataset.from_tensor_slices(X)
-    outputs = []
-    for x in dataset.batch(batch_size):
-        outputs.append(fun(x, **kwargs))
-    return np.concatenate(outputs, axis=0)
+    data_size = X.shape[0]
+    if data_size < batch_size:
+        return fun(X, **kwargs)
+    else:
+        outputs = []
+        n_batches = data_size // batch_size
 
+        for batch_i in range(n_batches):
+            batch_start = (batch_i-1)*batch_size
+            batch_end = batch_i*batch_size
+            outputs.append(fun(X[batch_start:batch_end, ...], **kwargs))
+        if (n_batches % X.shape[0]) > 0:
+            outputs.append(fun(X[batch_end: , ...], **kwargs))
+        return np.concatenate(outputs, axis=0)
 
 def random_shuffle(x, num_samples=1):
     """Randomly shuffle sequences. Assumes x shape is (N,L,A)."""
