@@ -13,7 +13,7 @@ from crested.utils._seq_utils import generate_mutagenesis
 class Explainer:
     """wrapper class for attribution maps."""
 
-    def __init__(self, model, class_index=None, func=tf.math.reduce_mean, batch_size=64):
+    def __init__(self, model, class_index=None, func=tf.math.reduce_mean, batch_size=128):
         """Initialize the explainer."""
         self.model = model
         self.class_index = class_index
@@ -151,7 +151,7 @@ def smoothgrad(
 
 
 def integrated_grad(
-    x, model, baseline, num_steps=25, class_index=None, func=tf.math.reduce_mean, batch_size=64,
+    x, model, baseline, num_steps=25, class_index=None, func=tf.math.reduce_mean, batch_size=128,
 ):
     """Calculate integrated gradients for a given sequence."""
 
@@ -183,7 +183,7 @@ def integrated_grad(
 
 
 def expected_integrated_grad(
-    x, model, baselines, num_steps=25, class_index=None, func=tf.math.reduce_mean, batch_size=64,
+    x, model, baselines, num_steps=25, class_index=None, func=tf.math.reduce_mean, batch_size=128,
 ):
     """Average integrated gradients across different backgrounds."""
     grads = []
@@ -250,7 +250,7 @@ def l2_norm(scores):
     return np.sum(np.sqrt(scores**2), axis=2)
 
 
-def function_batch(X, fun, batch_size=64, **kwargs):
+def function_batch(X, fun, batch_size=128, **kwargs):
     """Run a function in batches."""
     data_size = X.shape[0]
     if data_size < batch_size:
