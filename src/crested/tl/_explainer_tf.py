@@ -101,7 +101,7 @@ class Explainer:
         return baseline
 
     def random_shuffle(self, x, num_samples):
-        """Randomly shuffle sequences. Assumes x shape is (1, L, A), returns (num_samples, L, A)"""
+        """Randomly shuffle sequences. Assumes x shape is (1, L, A), returns (num_samples, L, A)."""
         _, L, A = x.shape # Assumes x only has one entry (_ should be 1)
         x_shuffle = np.zeros((num_samples, L, A), dtype=x.dtype)
         for i in range(num_samples):
