@@ -13,12 +13,13 @@ from crested.utils._seq_utils import generate_mutagenesis
 class Explainer:
     """wrapper class for attribution maps."""
 
-    def __init__(self, model, class_index=None, func=tf.math.reduce_mean, batch_size=128):
+    def __init__(self, model, class_index=None, func=tf.math.reduce_mean, batch_size=128, seed = None):
         """Initialize the explainer."""
         self.model = model
         self.class_index = class_index
         self.func = func
         self.batch_size=batch_size
+        self.rng = np.random.default_rng(seed)
 
     def saliency_maps(self, X):
         """Calculate saliency maps for a given sequence."""
@@ -94,11 +95,17 @@ class Explainer:
     def set_baseline(self, x, baseline, num_samples):
         """Set the background for integrated gradients."""
         if baseline == "random":
-            baseline = random_shuffle(x, num_samples)
+            baseline = self.random_shuffle(x, num_samples)
         else:
             baseline = np.zeros(x.shape)
         return baseline
 
+    def random_shuffle(self, x, num_samples):
+        """Randomly shuffle sequences. Assumes x shape is (1, L, A), returns (num_samples, L, A)"""
+        x_shuffle = np.zeros((num_samples, x.shape[0], x.shape[1], x.shape[2]), dtype=x.dtype)
+        for i in range(num_samples):
+            x_shuffle[i, ...] = self.rng.permuted(x, axis = -2)
+        return x_shuffle
 
 def saliency_map(X, model, class_index=None, func=tf.math.reduce_mean):
     """Fast function to generate saliency maps."""
@@ -266,11 +273,3 @@ def function_batch(X, fun, batch_size=128, **kwargs):
         if (n_batches % X.shape[0]) > 0:
             outputs.append(fun(X[batch_end: , ...], **kwargs))
         return np.concatenate(outputs, axis=0)
-
-def random_shuffle(x, num_samples=1):
-    """Randomly shuffle sequences. Assumes x shape is (N,L,A)."""
-    x_shuffle = []
-    for _ in range(num_samples):
-        shuffle = np.random.permutation(x.shape[1])
-        x_shuffle.append(x[0, shuffle, :])
-    return np.array(x_shuffle)
