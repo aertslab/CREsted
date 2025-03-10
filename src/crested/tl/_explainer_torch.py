@@ -261,13 +261,12 @@ def function_batch(X, fun, batch_size=128, **kwargs):
     if data_size < batch_size:
         return fun(X, **kwargs).detach().cpu().numpy()
     else:
-        outputs = []
+        outputs = np.zeros_like(X)
         n_batches = data_size // batch_size
-
         for batch_i in range(n_batches):
             batch_start = (batch_i-1)*batch_size
             batch_end = batch_i*batch_size
-            outputs.append(fun(X[batch_start:batch_end, ...], **kwargs).detach().cpu().numpy())
+            outputs[batch_start:batch_end, ...] = fun(X[batch_start:batch_end, ...], **kwargs).detach().cpu().numpy()
         if (n_batches % X.shape[0]) > 0:
-            outputs.append(fun(X[batch_end: , ...], **kwargs).detach().cpu().numpy())
-        return np.concatenate(outputs, axis=0)
+            outputs[batch_end:, ...] = fun(X[batch_end: , ...], **kwargs).detach().cpu().numpy()
+        return outputs
