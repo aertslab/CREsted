@@ -13,18 +13,20 @@ from crested.utils._seq_utils import generate_mutagenesis
 class Explainer:
     """wrapper class for attribution maps."""
 
-    def __init__(self, model, class_index=None, func=tf.math.reduce_mean):
+    def __init__(self, model, class_index=None, func=tf.math.reduce_mean, batch_size=128, seed = None):
         """Initialize the explainer."""
         self.model = model
         self.class_index = class_index
         self.func = func
+        self.batch_size=batch_size
+        self.rng = np.random.default_rng(seed)
 
-    def saliency_maps(self, X, batch_size=128):
+    def saliency_maps(self, X):
         """Calculate saliency maps for a given sequence."""
         return function_batch(
             X,
             saliency_map,
-            batch_size,
+            batch_size=self.batch_size,
             model=self.model,
             class_index=self.class_index,
             func=self.func,
@@ -57,6 +59,7 @@ class Explainer:
                 num_steps=num_steps,
                 class_index=self.class_index,
                 func=self.func,
+                batch_size=self.batch_size
             )
             scores.append(intgrad_scores)
         return np.concatenate(scores, axis=0)
@@ -76,26 +79,33 @@ class Explainer:
                 num_steps=num_steps,
                 class_index=self.class_index,
                 func=self.func,
+                batch_size=self.batch_size,
             )
             scores.append(intgrad_scores)
         return np.concatenate(scores, axis=0)
 
-    def mutagenesis(self, X, class_index=None):
+    def mutagenesis(self, X):
         """In silico mutagenesis analysis for a given sequence."""
         scores = []
         for x in X:
             x = np.expand_dims(x, axis=0)
-            scores.append(mutagenesis(x, self.model, class_index))
+            scores.append(mutagenesis(x, self.model, self.class_index, batch_size=self.batch_size))
         return np.concatenate(scores, axis=0)
 
     def set_baseline(self, x, baseline, num_samples):
         """Set the background for integrated gradients."""
         if baseline == "random":
-            baseline = random_shuffle(x, num_samples)
+            baseline = self.random_shuffle(x, num_samples)
         else:
             baseline = np.zeros(x.shape)
         return baseline
 
+    def random_shuffle(self, x, num_samples):
+        """Randomly shuffle sequences. Assumes x shape is (1, L, A), returns (num_samples, L, A)"""
+        x_shuffle = np.zeros((num_samples, x.shape[0], x.shape[1], x.shape[2]), dtype=x.dtype)
+        for i in range(num_samples):
+            x_shuffle[i, ...] = self.rng.permuted(x, axis = -2)
+        return x_shuffle
 
 def saliency_map(X, model, class_index=None, func=tf.math.reduce_mean):
     """Fast function to generate saliency maps."""
@@ -148,14 +158,14 @@ def smoothgrad(
 
 
 def integrated_grad(
-    x, model, baseline, num_steps=25, class_index=None, func=tf.math.reduce_mean
+    x, model, baseline, num_steps=25, class_index=None, func=tf.math.reduce_mean, batch_size=128,
 ):
     """Calculate integrated gradients for a given sequence."""
 
     def integral_approximation(gradients):
         # riemann_trapezoidal
-        grads = (gradients[:-1] + gradients[1:]) / tf.constant(2.0)
-        integrated_gradients = tf.math.reduce_mean(grads, axis=0)
+        grads = (gradients[:-1] + gradients[1:]) / 2.0
+        integrated_gradients = np.mean(grads, axis=0)
         return integrated_gradients
 
     def interpolate_data(baseline, x, steps):
@@ -166,14 +176,21 @@ def integrated_grad(
 
     steps = tf.linspace(start=0.0, stop=1.0, num=num_steps + 1)
     x_interp = interpolate_data(baseline, x, steps)
-    grad = saliency_map(x_interp, model, class_index=class_index, func=func)
+    grad = function_batch(
+            x_interp,
+            saliency_map,
+            model=model,
+            class_index=class_index,
+            func=func,
+            batch_size=batch_size,
+        )
     avg_grad = integral_approximation(grad)
     avg_grad = np.expand_dims(avg_grad, axis=0)
     return avg_grad
 
 
 def expected_integrated_grad(
-    x, model, baselines, num_steps=25, class_index=None, func=tf.math.reduce_mean
+    x, model, baselines, num_steps=25, class_index=None, func=tf.math.reduce_mean, batch_size=128,
 ):
     """Average integrated gradients across different backgrounds."""
     grads = []
@@ -186,12 +203,13 @@ def expected_integrated_grad(
                 num_steps=num_steps,
                 class_index=class_index,
                 func=func,
+                batch_size=batch_size
             )
         )
     return np.mean(np.array(grads), axis=0)
 
 
-def mutagenesis(x, model, class_index=None):
+def mutagenesis(x, model, class_index=None, batch_size=None):
     """In silico mutagenesis analysis for a given sequence."""
 
     def reconstruct_map(predictions):
@@ -205,8 +223,8 @@ def mutagenesis(x, model, class_index=None):
                 k += 1
         return mut_score
 
-    def get_score(x, model, class_index):
-        score = model.predict(x, verbose=0)
+    def get_score(x, model, class_index, batch_size=None):
+        score = model.predict(x, verbose=0, batch_size=batch_size)
         if class_index is None:
             score = np.sqrt(np.sum(score**2, axis=-1, keepdims=True))
         else:
@@ -217,8 +235,8 @@ def mutagenesis(x, model, class_index=None):
     x_mut = generate_mutagenesis(x)
 
     # get baseline wildtype score
-    wt_score = get_score(x, model, class_index)
-    predictions = get_score(x_mut, model, class_index)
+    wt_score = get_score(x, model, class_index, batch_size=batch_size)
+    predictions = get_score(x_mut, model, class_index, batch_size=batch_size)
 
     # reshape mutagenesis predictions
     mut_score = reconstruct_map(predictions)
@@ -241,17 +259,16 @@ def l2_norm(scores):
 
 def function_batch(X, fun, batch_size=128, **kwargs):
     """Run a function in batches."""
-    dataset = tf.data.Dataset.from_tensor_slices(X)
-    outputs = []
-    for x in dataset.batch(batch_size):
-        outputs.append(fun(x, **kwargs))
-    return np.concatenate(outputs, axis=0)
-
-
-def random_shuffle(x, num_samples=1):
-    """Randomly shuffle sequences. Assumes x shape is (N,L,A)."""
-    x_shuffle = []
-    for _ in range(num_samples):
-        shuffle = np.random.permutation(x.shape[1])
-        x_shuffle.append(x[0, shuffle, :])
-    return np.array(x_shuffle)
+    data_size = X.shape[0]
+    if data_size < batch_size:
+        return fun(X, **kwargs).numpy()
+    else:
+        outputs = np.zeros_like(X)
+        n_batches = data_size // batch_size
+        for batch_i in range(n_batches):
+            batch_start = (batch_i-1)*batch_size
+            batch_end = batch_i*batch_size
+            outputs[batch_start:batch_end, ...] = fun(X[batch_start:batch_end, ...], **kwargs).numpy()
+        if (n_batches % X.shape[0]) > 0:
+            outputs[batch_end:, ...] = fun(X[batch_end: , ...], **kwargs).numpy()
+        return outputs
