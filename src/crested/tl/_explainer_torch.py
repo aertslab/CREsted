@@ -105,7 +105,8 @@ class Explainer:
 
     def random_shuffle(self, x, num_samples):
         """Randomly shuffle sequences. Assumes x shape is (1, L, A), returns (num_samples, L, A)"""
-        x_shuffle = np.zeros((num_samples, x.shape[0], x.shape[1], x.shape[2]), dtype=x.dtype)
+        _, L, A = x.shape
+        x_shuffle = np.zeros((num_samples, L, A), dtype=x.dtype)
         for i in range(num_samples):
             x_shuffle[i, ...] = self.rng.permuted(x, axis = -2)
         return x_shuffle
@@ -152,7 +153,7 @@ def integrated_grad(
     def integral_approximation(gradients):
         # riemann_trapezoidal
         grads = (gradients[:-1] + gradients[1:]) / 2.0
-        integrated_gradients = np.mean(grads, axis=0)
+        integrated_gradients = np.mean(grads, axis=0, keepdims=True)
         return integrated_gradients
 
     def interpolate_data(baseline, x, steps):
@@ -172,7 +173,6 @@ def integrated_grad(
             batch_size=batch_size,
         )
     avg_grad = integral_approximation(grad)
-    avg_grad = np.expand_dims(avg_grad, axis=0)
     return avg_grad
 
 
@@ -180,10 +180,10 @@ def expected_integrated_grad(
     x, model, baselines, num_steps=25, class_index=None, func=torch.mean, batch_size=128
 ):
     """Average integrated gradients across different backgrounds."""
-    grads = []
-    for baseline in baselines:
-        grads.append(
-            integrated_grad(
+    _, L, A = x.shape # Assumes x only has one entry (_ should be 1)
+    grads = np.zeros((len(baselines), L, A))
+    for i, baseline in enumerate(baselines):
+        grads[i, ...] = integrated_grad(
                 x,
                 model,
                 baseline,
@@ -192,8 +192,7 @@ def expected_integrated_grad(
                 func=func,
                 batch_size=batch_size
             )
-        )
-    return np.mean(np.array(grads, dtype=np.float32), axis=0)
+    return np.mean(grads, axis=0, keepdims=True)
 
 
 def mutagenesis(x, model, class_index=None, batch_size=None):
