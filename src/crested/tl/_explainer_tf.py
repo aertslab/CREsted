@@ -169,12 +169,6 @@ def integrated_grad(
         integrated_gradients = np.mean(grads, axis=0, keepdims=True)
         return integrated_gradients
 
-    def interpolate_data(baseline, x, steps):
-        steps_x = steps[:, tf.newaxis, tf.newaxis]
-        delta = x - baseline
-        x = baseline + steps_x * delta
-        return x
-
     steps = tf.linspace(start=0.0, stop=1.0, num=num_steps + 1)
     x_interp = interpolate_data(baseline, x, steps)
     grad = function_batch(
@@ -188,25 +182,46 @@ def integrated_grad(
     avg_grad = integral_approximation(grad)
     return avg_grad
 
-
 def expected_integrated_grad(
     x, model, baselines, num_steps=25, class_index=None, func=tf.math.reduce_mean, batch_size=128,
 ):
     """Average integrated gradients across different backgrounds."""
-    _, L, A = x.shape # Assumes x only has one entry (_ should be 1)
-    grads = np.zeros((len(baselines), L, A))
-    for i, baseline in enumerate(baselines):
-        grads[i, ...] = integrated_grad(
-                x,
-                model,
-                baseline,
-                num_steps=num_steps,
-                class_index=class_index,
-                func=func,
-                batch_size=batch_size
-            )
-    return np.mean(grads, axis=0, keepdims = True)
+    def integral_approximation(gradients):
+        grads = (gradients[:, :-1, ...] + gradients[:, 1:, ...]) / 2.0
+        integrated_gradients = np.mean(grads, axis=1)
+        return integrated_gradients
 
+    # Make x: for each baseline, shuffle
+    x_full = []
+    for baseline in baselines:
+        steps = tf.linspace(start=0.0, stop=1.0, num=num_steps + 1)
+        x_interp = interpolate_data(baseline, x, steps)
+        x_full.append(x_interp)
+    x_full = tf.concat(x_full, axis=0)
+    # Calculate grads
+    grad = function_batch(
+        x_full,
+        saliency_map,
+        model=model,
+        class_index=class_index,
+        func=func,
+        batch_size=batch_size,
+    )
+    # Reshape from n_seqs*n_baselines*n_steps, seq_len, 4 to n_baselines, n_steps, seq_len, 4
+    grad = grad.reshape([len(baselines), num_steps+1, x.shape[-2], x.shape[-1]])
+
+    # Apply integrated gradient transform
+    avg_grad = integral_approximation(grad)
+
+    # Apply expected gradient transforms
+    avg_grad = np.mean(avg_grad, axis=0, keepdims=True)
+    return avg_grad
+
+def interpolate_data(baseline, x, steps):
+    steps_x = steps[:, tf.newaxis, tf.newaxis]
+    delta = x - baseline
+    x = baseline + steps_x * delta
+    return x
 
 def mutagenesis(x, model, class_index=None, batch_size=None):
     """In silico mutagenesis analysis for a given sequence."""
@@ -259,7 +274,7 @@ def l2_norm(scores):
 def function_batch(X, fun, batch_size=128, **kwargs):
     """Run a function in batches."""
     data_size = X.shape[0]
-    if data_size < batch_size:
+    if data_size <= batch_size:
         return fun(X, **kwargs).numpy()
     else:
         outputs = np.zeros_like(X)
