@@ -1206,7 +1206,7 @@ class Crested:
                     scores[:, i, :, :] = integrated_grad(
                         x,
                         model=self.model,
-                        num_baseline=25,
+                        num_baselines=25,
                         num_steps=25,
                         class_index=class_index,
                         baseline_type="random",
