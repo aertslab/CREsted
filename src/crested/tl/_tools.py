@@ -350,10 +350,10 @@ def contribution_scores(
                 scores[:, i, :, :] = integrated_grad(
                     input_sequences,
                     model=m,
-                    num_baselines=1,
-                    num_steps=25,
                     class_index=class_index,
                     baseline_type="zeros",
+                    num_baselines=1,
+                    num_steps=25,
                     batch_size=batch_size
                 )
             elif method == "mutagenesis":
@@ -366,10 +366,10 @@ def contribution_scores(
             elif method == "expected_integrated_grad":
                 scores[:, i, :, :] = integrated_grad(
                     input_sequences,
-                    num_baselines=25,
-                    num_steps=25,
                     class_index=class_index,
                     baseline_type="random",
+                    num_baselines=25,
+                    num_steps=25,
                     batch_size=batch_size,
                     seed=seed
                 )
