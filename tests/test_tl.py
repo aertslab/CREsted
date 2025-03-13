@@ -147,7 +147,7 @@ def test_contribution_scores(keras_model, genome):
         batch_size=15
     )
     assert scores.shape == (1, 1, 500, 4)
-    assert one_hot_encoded_sequences.shape == (3, 500, 4)
+    assert one_hot_encoded_sequences.shape == (1, 500, 4)
 
     # test mutagenesis
     scores, one_hot_encoded_sequences = crested.tl.contribution_scores(
