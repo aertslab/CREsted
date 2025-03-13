@@ -5,6 +5,7 @@ from __future__ import annotations
 import keras.ops
 
 
+@keras.saving.register_keras_serializable(package="Losses")
 class CosineMSELogLoss(keras.losses.Loss):
     """
     Custom loss function combining logarithmic transformation, cosine similarity, and mean squared error (MSE).
