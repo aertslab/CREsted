@@ -53,6 +53,8 @@ def _smoothgrad(
     func=tf.math.reduce_mean,
 ):
     """Calculate smoothgrad for a given sequence."""
+    if not tf.is_tensor(x):
+        x = tf.Variable(x)
     _, L, A = x.shape
     x_noise = tf.tile(x, (num_samples, 1, 1)) + tf.random.normal(
         (num_samples, L, A), mean, stddev
@@ -62,6 +64,9 @@ def _smoothgrad(
 
 def function_batch(X, fun, batch_size=128, **kwargs):
     """Run a function in batches."""
+    if not tf.is_tensor(X):
+        X = tf.Variable(X)
+
     data_size = X.shape[0]
     if data_size <= batch_size:
         return fun(X, **kwargs).numpy()

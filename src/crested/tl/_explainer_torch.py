@@ -13,6 +13,8 @@ def _saliency_map(X, model, class_index=None, func=torch.mean):
     if func is None:
         func = torch.mean
 
+    if not torch.is_tensor(X):
+        X = torch.tensor(X)
     X = X.clone().detach().requires_grad_(True)
 
     outputs = model(X)
@@ -34,8 +36,9 @@ def _smoothgrad(
     func=torch.mean,
 ):
     """Calculate the smoothgrad for a given sequence."""
+    if not torch.is_tensor(x):
+        x = torch.tensor(x)
     _, L, A = x.shape
-    x = torch.tensor(x)
     x_noise = x.repeat((num_samples, 1, 1)) + torch.normal(
         mean, stddev, size=(num_samples, L, A)
     )
@@ -44,6 +47,9 @@ def _smoothgrad(
 
 def function_batch(X, fun, batch_size=128, **kwargs):
     """Run a function in batches."""
+    if not torch.is_tensor(X):
+        X = torch.tensor(X)
+
     data_size = X.shape[0]
     if data_size <= batch_size:
         return fun(X, **kwargs).detach().cpu().numpy()
