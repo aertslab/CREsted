@@ -1,0 +1,168 @@
+"""
+Model explanation functions using 'gradient x input'-based or mutagenesis-based methods.
+
+Loosely adapted from: https://github.com/p-koo/tfomics/blob/master/tfomics/
+"""
+
+import os
+
+import numpy as np
+
+from crested.utils._seq_utils import generate_mutagenesis
+
+if os.environ["KERAS_BACKEND"] == "tensorflow":
+    from crested.tl._explainer_tf import _saliency_map, _smoothgrad, function_batch
+elif os.environ["KERAS_BACKEND"] == "torch":
+    from crested.tl._explainer_torch import _saliency_map, _smoothgrad, function_batch
+
+# ---- Explainer functions ----
+def saliency_map(X, model, class_index, batch_size=128, func=None):
+    """Calculate saliency maps for a given (set of) sequences."""
+    return function_batch(
+        X,
+        _saliency_map,
+        batch_size=batch_size,
+        model=model,
+        class_index=class_index,
+        func=func,
+    )
+
+def integrated_grad(
+    X, model, num_baselines=25, num_steps=25, class_index=None, baseline_type="random", func=None, batch_size=128, seed=42,
+):
+    """Average integrated gradients across different backgrounds."""
+
+    def interpolate_data(x, baseline, steps):
+        """
+        Interpolate len(steps) sequences from baseline to x.
+
+        Parameters
+        ----------
+        x
+            Main sequence, of shape (1, L, A)
+        baseline
+            Baseline sequence to interpolate from, of shape (1, L, A)
+        steps
+            Steps to interpolate at, as 1d vector of [0, 1] values, ideally including both 0 and 1 to include baseline and x in result.
+            Easiest approach is tf.linspace(0.0, 1.0, num_steps).
+        """
+        # steps_x.shape = (n_steps, 1, 1)
+        # delta: x/baseline shape
+        # final x shape: n_steps, L, A)
+        steps_x = steps[:, None, None]
+        delta = x - baseline
+        x = baseline + steps_x * delta
+        return x
+
+    def integral_approximation(gradients):
+        grads = (gradients[:, :-1, ...] + gradients[:, 1:, ...]) / 2.0
+        integrated_gradients = np.mean(grads, axis=1)
+        return integrated_gradients
+
+    outputs = np.zeros_like(X)
+    for i, x in enumerate(X):
+        x = np.expand_dims(x, axis=0)
+        # Make baselines
+        baselines = make_baselines(x, num_samples = num_baselines, baseline_type = baseline_type, seed = seed)
+
+        # Make x: for each baseline, shuffle
+        x_full = []
+        for baseline_idx in range(num_baselines):
+            steps = np.linspace(start=0.0, stop=1.0, num=num_steps + 1)
+            x_interp = interpolate_data(baselines[0, baseline_idx, ...], x, steps)
+            x_full.append(x_interp)
+        x_full = np.concatenate(x_full, axis=0)
+
+        # Calculate grads
+        grad = function_batch(
+            x_full,
+            _saliency_map,
+            model=model,
+            class_index=class_index,
+            func=func,
+            batch_size=batch_size,
+        )
+        # Reshape from n_baselines*n_steps, seq_len, 4 to n_baselines, n_steps, seq_len, 4
+        grad = grad.reshape([num_baselines, num_steps+1, x.shape[-2], x.shape[-1]])
+
+        # Apply integrated gradient transform
+        avg_grad = integral_approximation(grad)
+
+        # Apply expected gradient transforms
+        outputs[i, ...] = np.mean(avg_grad, axis=0)
+    return outputs
+
+def mutagenesis(X, model, class_index=None, batch_size=None):
+    """In silico mutagenesis analysis for a given sequence."""
+
+    def reconstruct_map(predictions):
+        _, L, A = x.shape
+
+        mut_score = np.zeros((1, L, A))
+        k = 0
+        for length in range(L):
+            for a in range(A):
+                mut_score[0, length, a] = predictions[k]
+                k += 1
+        return mut_score
+
+    def get_score(x, model, class_index, batch_size=None):
+        score = model.predict(x, verbose=0, batch_size=batch_size)
+        if class_index is None:
+            score = np.sqrt(np.sum(score**2, axis=-1, keepdims=True))
+        else:
+            score = score[:, class_index]
+        return score
+
+    scores = []
+    for x in X:
+        x = np.expand_dims(x, axis=0)
+
+        # generate mutagenized sequences
+        x_mut = generate_mutagenesis(x)
+
+        # get baseline wildtype score
+        wt_score = get_score(x, model, class_index, batch_size=batch_size)
+        predictions = get_score(x_mut, model, class_index, batch_size=batch_size)
+
+        # reshape mutagenesis predictions
+        mut_score = reconstruct_map(predictions)
+        scores.append(mut_score - wt_score)
+
+    return np.concatenate(scores, axis=0)
+
+def smoothgrad(X, model, class_index, num_samples=50, mean=0.0, stddev=0.1, func=None):
+    """Calculate smoothgrad for a given sequence."""
+    return function_batch(
+        X,
+        _smoothgrad,
+        batch_size=1,
+        model=model,
+        num_samples=num_samples,
+        mean=mean,
+        stddev=stddev,
+        class_index=class_index,
+        func=None,
+    )
+
+# ---- Helper functions ----
+def make_baselines(X, baseline_type, num_samples = None, seed = 42):
+    """Set the background for integrated gradients. Assumes x shape is (B, L, A), returns (B, num_samples, L, A) or (B, 1, L, A)."""
+    if baseline_type == "random":
+        if num_samples is None:
+           raise ValueError("If using random baseline, num_samples must be set.")
+        return random_shuffle(X, num_samples, seed)
+    else:
+        # If using zeroes, extra samples is useless since they're all equivalent, so keeping it as 1 sample
+        return np.expand_dims(np.zeros_like(X), axis = 1)
+
+def random_shuffle(X, num_samples, seed = 42):
+    """Randomly shuffle sequences. Assumes x shape is (batch, seq_len, nucleotides), returns (batch, num_samples, seq_len, nucleotides)."""
+    B, L, A = X.shape
+    x_shuffle = np.zeros((B, num_samples, L, A), dtype=X.dtype)
+    for seq_i, x in enumerate(X):
+        rng = np.random.default_rng(seed=seed)
+        for sample_i in range(num_samples):
+            shuffle = rng.permutation(x.shape[-2])
+            x_shuffle[seq_i, sample_i, :, :] = x[shuffle, :]
+    return x_shuffle

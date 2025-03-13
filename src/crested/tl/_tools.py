@@ -12,6 +12,11 @@ from loguru import logger
 from tqdm import tqdm
 
 from crested._genome import Genome
+from crested.tl._explainer import (
+    saliency_map,
+    integrated_grad,
+    mutagenesis
+)
 from crested.tl._utils import (
     create_random_sequences,
     generate_motif_insertions,
@@ -272,6 +277,7 @@ def contribution_scores(
     all_class_names: list[str] | None = None,
     batch_size: int = 64,
     output_dir: os.PathLike | None = None,
+    seed: int | None = 42,
     verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -309,6 +315,8 @@ def contribution_scores(
     output_dir
         Path to the output directory to save the contribution scores and one hot seqs.
         Will create a separate npz file per class.
+    seed
+        Seed to use for shuffling regions. Only used in "expected_integrated_grad".
     verbose
         Boolean for disabling the logs and plotting progress of calculations using tqdm.
 
@@ -347,25 +355,39 @@ def contribution_scores(
         scores = np.zeros((N, n_classes, L, D))  # Shape: (N, C, L, 4)
 
         for i, class_index in enumerate(target_idx):
-            explainer = Explainer(m, class_index=class_index, batch_size=batch_size)
-
             if method == "integrated_grad":
-                scores[:, i, :, :] = explainer.integrated_grad(
+                scores[:, i, :, :] = integrated_grad(
                     input_sequences,
+                    model=m,
+                    num_baselines=1,
+                    num_steps=25,
+                    class_index=class_index,
                     baseline_type="zeros",
+                    batch_size=batch_size
                 )
             elif method == "mutagenesis":
-                scores[:, i, :, :] = explainer.mutagenesis(
+                scores[:, i, :, :] = mutagenesis(
                     input_sequences,
+                    model=m,
+                    class_index=class_index,
+                    batch_size=batch_size
                 )
             elif method == "expected_integrated_grad":
-                scores[:, i, :, :] = explainer.expected_integrated_grad(
+                scores[:, i, :, :] = integrated_grad(
                     input_sequences,
-                    num_baseline=25,
+                    num_baselines=25,
+                    num_steps=25,
+                    class_index=class_index,
+                    baseline_type="random",
+                    batch_size=batch_size,
+                    seed=seed
                 )
-            elif method == "saliency_maps":
-                scores[:, i, :, :] = explainer.saliency_maps(
-                    input_sequences
+            elif method == "saliency_map":
+                scores[:, i, :, :] = saliency_map(
+                    input_sequences,
+                    model=m,
+                    class_index=class_index,
+                    batch_size=batch_size
                 )
             else:
                 raise ValueError(f"Unsupported method: {method}")
