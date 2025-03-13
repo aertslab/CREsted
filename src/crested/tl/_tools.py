@@ -12,11 +12,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from crested._genome import Genome
-from crested.tl._explainer import (
-    saliency_map,
-    integrated_grad,
-    mutagenesis
-)
+from crested.tl._explainer import integrated_grad, mutagenesis, saliency_map
 from crested.tl._utils import (
     create_random_sequences,
     generate_motif_insertions,
@@ -32,11 +28,6 @@ from crested.utils._utils import (
     _transform_input,
     _weighted_difference,
 )
-
-if os.environ["KERAS_BACKEND"] == "tensorflow":
-    from crested.tl._explainer_tf import Explainer
-elif os.environ["KERAS_BACKEND"] == "torch":
-    from crested.tl._explainer_torch import Explainer
 
 
 def extract_layer_embeddings(
