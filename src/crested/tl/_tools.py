@@ -266,7 +266,7 @@ def contribution_scores(
     genome: Genome | os.PathLike | None = None,
     transpose: bool = False,
     all_class_names: list[str] | None = None,
-    batch_size: int = 64,
+    batch_size: int = 128,
     output_dir: os.PathLike | None = None,
     seed: int | None = 42,
     verbose: bool = True,
@@ -292,7 +292,7 @@ def contribution_scores(
         A (list of) trained keras model(s) to calculate the contribution scores for.
     method
         Method to use for calculating the contribution scores.
-        Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad', 'saliency_maps'.
+        Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad', 'saliency_map'.
     genome
         Genome or path to the genome fasta. Required if no genome is registered and input is an anndata object or region names.
     transpose
@@ -301,8 +301,8 @@ def contribution_scores(
         Optional list of all class names in the dataset. If provided and output_dir is not None, will use these to name the output files.
     batch_size
         Maximum number of input sequences to predict at once when calculating scores.
-        Useful for methods like 'expected_integrated_grad' which also calculate 25 background sequence contributions together with the sequence's contributions in one batch.
-        Default is 64.
+        Useful for methods like 'integrated_grad' which also calculate 25 background sequence contributions together with the sequence's contributions in one batch.
+        Default is 128.
     output_dir
         Path to the output directory to save the contribution scores and one hot seqs.
         Will create a separate npz file per class.
@@ -420,7 +420,7 @@ def contribution_scores_specific(
     genome: Genome | os.PathLike | None = None,
     method: str = "expected_integrated_grad",
     transpose: bool = True,
-    batch_size: int = 64,
+    batch_size: int = 128,
     output_dir: os.PathLike | None = None,
     verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -450,14 +450,14 @@ def contribution_scores_specific(
         Genome or Path to the genome file. Required if no genome is registered.
     method
         Method to use for calculating the contribution scores.
-        Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
+        Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad', 'saliency_map'.
     transpose
         Transpose the contribution scores to (N, C, 4, L) and one hots to (N, 4, L) (for compatibility with MoDISco).
         Defaults to True here since that is what modisco expects.
     batch_size
         Maximum number of input sequences to predict at once when calculating scores.
-        Useful for methods like 'expected_integrated_grad' which also calculate 25 background sequence contributions together with the sequence's contributions in one batch.
-        Default is 64.
+        Useful for methods like 'integrated_grad' which also calculate 25 background sequence contributions together with the sequence's contributions in one batch.
+        Default is 128.
     output_dir
         Path to the output directory to save the contribution scores and one hot seqs.
         Will create a separate npz file per class.
