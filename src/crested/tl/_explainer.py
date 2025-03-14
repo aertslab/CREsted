@@ -143,7 +143,7 @@ def integrated_grad(
     for i, x in enumerate(X):
         x = np.expand_dims(x, axis=0)
 
-        # Make x: for each baseline, shuffle
+        # Make x: for each baseline, interpolate from baseline to sequence
         x_full = []
         for baseline in baselines[i, ...]:
             steps = np.linspace(start=0.0, stop=1.0, num=num_steps + 1)
