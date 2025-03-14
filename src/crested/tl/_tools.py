@@ -366,6 +366,7 @@ def contribution_scores(
             elif method == "expected_integrated_grad":
                 scores[:, i, :, :] = integrated_grad(
                     input_sequences,
+                    model=m,
                     class_index=class_index,
                     baseline_type="random",
                     num_baselines=25,
