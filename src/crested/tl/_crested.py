@@ -1583,7 +1583,7 @@ class Crested:
             no_mutation_flanks = (0, 0)
 
         if insertions_per_pattern is None:
-            insertions_per_pattern = {pattern_name: 1 for pattern_name in patterns}
+            insertions_per_pattern = dict.fromkeys(patterns, 1)
 
         if preserve_inserted_motifs:
             inserted_motif_locations = np.array([])

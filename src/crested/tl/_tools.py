@@ -854,7 +854,7 @@ def enhancer_design_motif_insertion(
         no_mutation_flanks = (0, 0)
 
     if insertions_per_pattern is None:
-        insertions_per_pattern = {pattern_name: 1 for pattern_name in patterns}
+        insertions_per_pattern = dict.fromkeys(patterns, 1)
 
     # Generate initial sequences
     if starting_sequences is None:

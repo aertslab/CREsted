@@ -700,7 +700,7 @@ def match_h5_files_to_classes(
     A dictionary where keys are class names and values are paths to the corresponding .h5 files if matched, None otherwise.
     """
     h5_files = [file for file in os.listdir(contribution_dir) if file.endswith(".h5")]
-    matched_files = {class_name: None for class_name in classes}
+    matched_files = dict.fromkeys(classes, None)
 
     for file in h5_files:
         base_name = os.path.splitext(file)[0][:-16]
