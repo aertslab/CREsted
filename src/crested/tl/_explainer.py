@@ -136,18 +136,18 @@ def integrated_grad(
         grads = (gradients[:, :-1, ...] + gradients[:, 1:, ...]) / 2.0
         return np.mean(grads, axis=1)
 
+    # Make baselines
+    baselines = make_baselines(X, num_samples = num_baselines, baseline_type = baseline_type, seed = seed)
+
     outputs = np.zeros_like(X)
     for i, x in enumerate(X):
         x = np.expand_dims(x, axis=0)
 
-        # Make baselines
-        baselines = make_baselines(x, num_samples = num_baselines, baseline_type = baseline_type, seed = seed)
-
         # Make x: for each baseline, shuffle
         x_full = []
-        for baseline_idx in range(num_baselines):
+        for baseline in baselines[i, ...]:
             steps = np.linspace(start=0.0, stop=1.0, num=num_steps + 1)
-            x_interp = interpolate_data(baselines[0, baseline_idx, ...], x, steps)
+            x_interp = interpolate_data(baseline, x, steps)
             x_full.append(x_interp)
         x_full = np.concatenate(x_full, axis=0)
 
