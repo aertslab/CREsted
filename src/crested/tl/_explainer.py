@@ -3,9 +3,11 @@ Model explanation functions using 'gradient x input'-based or mutagenesis-based 
 
 Loosely adapted from: https://github.com/p-koo/tfomics/blob/master/tfomics/
 """
+from __future__ import annotations
 
 import os
 
+import keras
 import numpy as np
 
 from crested.utils._seq_utils import generate_mutagenesis
@@ -16,7 +18,13 @@ elif os.environ["KERAS_BACKEND"] == "torch":
     from crested.tl._explainer_torch import _saliency_map, _smoothgrad, function_batch
 
 # ---- Explainer functions ----
-def saliency_map(X, model, class_index, batch_size=128, func=None):
+def saliency_map(
+        X: np.ndarray,
+        model: keras.Model,
+        class_index: int | None,
+        batch_size: int = 128,
+        func = None
+    ) -> np.ndarray:
     """Calculate saliency maps for a given (set of) sequence(s).
 
     Parameters
@@ -29,7 +37,6 @@ def saliency_map(X, model, class_index, batch_size=128, func=None):
         The index of the class to explain. If None, applies func to average/sum/etc over all classes.
     func
         If class_index is None, how to combine the final predictions (sum/mean/etc). Should work on tensors of your backend.
-        Default (None) uses tf.math.reduce_mean/torch.mean.
     batch_size
         Batch size used for gradient calculations. Note that integrated_grad() calculates gradients for background sequences for each main sequence provided,
         so explaining 1 sequence still requires gradients of e.g. 650 sequences (num_baselines*num_steps+1).
@@ -45,8 +52,16 @@ def saliency_map(X, model, class_index, batch_size=128, func=None):
     )
 
 def integrated_grad(
-    X, model, class_index=None, baseline_type="random", num_baselines=25, num_steps=25, func=None, batch_size=128, seed=42,
-):
+        X: np.ndarray,
+        model: keras.Model,
+        class_index: int | None = None,
+        baseline_type: str = "random",
+        num_baselines: int =25,
+        num_steps: int =25,
+        func = None,
+        batch_size: int = 128,
+        seed: int =42,
+    ) -> np.ndarray:
     """Average integrated gradients across different backgrounds.
 
     Calculate expected integrated gradients with baseline_type='random' and num_baselines=25, the default settings.
@@ -79,7 +94,7 @@ def integrated_grad(
         Seed to use for shuffling sequences when using baseline_type "random".
     """
 
-    def interpolate_data(x, baseline, steps):
+    def interpolate_data(x: np.ndarray, baseline: np.ndarray, steps: np.ndarray) -> np.ndarray:
         """
         Interpolate len(steps) sequences from baseline to x.
 
@@ -92,6 +107,10 @@ def integrated_grad(
         steps
             Steps to interpolate at, as 1d vector of [0, 1] values, ideally including both 0 and 1 to include baseline and x in result.
             Easiest approach is np.linspace(0.0, 1.0, num_steps).
+
+        Returns
+        -------
+        Interpolated sequences of shape (n_steps, seq_len, nuc).
         """
         # steps_x.shape = (n_steps, 1, 1)
         # delta: (1, seq_len, nuc)
@@ -101,14 +120,18 @@ def integrated_grad(
         x = baseline + steps_x * delta
         return x
 
-    def integral_approximation(gradients):
+    def integral_approximation(gradients: np.ndarray) -> np.ndarray:
         """
         Calculate approximated integral over your sequence, the baseline, and all intermediate steps.
 
         Parameters
         ----------
         gradients
-            gradients, of shape (1, n_steps, seq_len, nuc).
+            gradients, of shape (batch, n_steps, seq_len, nuc).
+
+        Returns
+        -------
+        Integrated gradients of shape (batch, seq_len, nuc).
         """
         grads = (gradients[:, :-1, ...] + gradients[:, 1:, ...]) / 2.0
         return np.mean(grads, axis=1)
@@ -147,7 +170,12 @@ def integrated_grad(
         outputs[i, ...] = np.mean(avg_grad, axis=0)
     return outputs
 
-def mutagenesis(X, model, class_index=None, batch_size=256):
+def mutagenesis(
+        X: np.ndarray,
+        model: keras.Model,
+        class_index: int = None,
+        batch_size: int = 256
+    ) -> np.ndarray:
     """In silico mutagenesis analysis for a given sequence.
 
     Parameters
@@ -157,7 +185,7 @@ def mutagenesis(X, model, class_index=None, batch_size=256):
     model
         Your Keras model.
     class_index
-        The index of the class to explain. If None, applies func to average/sum/etc over all classes.
+        The index of the class to explain.
     batch_size
         Batch size to use when predicting values with the model. Note that mutagenesis requires (seq_len*3+1) predictions to explain one sequence.
         Default is 256.
@@ -199,8 +227,16 @@ def mutagenesis(X, model, class_index=None, batch_size=256):
 
     return np.concatenate(scores, axis=0)
 
-def smoothgrad(X, model, class_index, num_samples=50, mean=0.0, stddev=0.1, func=None):
-    """Calculate smoothgrad for a given sequence."""
+def smoothgrad(
+        X: np.ndarray,
+        model: keras.Model,
+        class_index: int | None,
+        num_samples: int = 50,
+        mean: float = 0.0,
+        stddev: float = 0.1,
+        func = None
+    ) -> np.ndarray:
+    """Calculate smoothgrad for a given (set of) sequence(s)."""
     return function_batch(
         X,
         _smoothgrad,
@@ -210,21 +246,52 @@ def smoothgrad(X, model, class_index, num_samples=50, mean=0.0, stddev=0.1, func
         mean=mean,
         stddev=stddev,
         class_index=class_index,
-        func=None,
+        func=func,
     )
 
 # ---- Helper functions ----
-def make_baselines(X, baseline_type, num_samples = None, seed = 42):
-    """Set the background for integrated gradients. Assumes x shape is (batch, seq_len, nuc), returns (batch, num_samples, seq_len, nuc) or (batch, 1, seq_len, nuc)."""
+def make_baselines(
+        X: np.ndarray,
+        baseline_type: str,
+        num_samples: int = 25,
+        seed: int = 42
+    ) -> np.ndarray:
+    """Create backgrounds for integrated gradients.
+
+    Assumes x shape is (batch, seq_len, nuc), returns (batch, num_samples, seq_len, nuc) or (batch, 1, seq_len, nuc).
+
+    Parameters
+    ----------
+    X
+        array of sequences, of shape (n_sequences, seq_len, nuc).
+    baseline_type
+        How to generate the baselines for each sequence.
+        "random" shuffles sequences along seq_len.
+        "zeros"/"zeroes" provides an array of zeros.
+    num_samples
+        If using baseline_type "random", how many shuffled sequences to generate. Default is 25.
+    seed
+        If using baseline_type "random", which seed to set. Default is 42.
+
+    Returns
+    -------
+    Baselines of shape (batch, num_samples, seq_len, nuc) if using baseline_type="random" or (batch, 1, seq_len, nuc) if using baseline_type="zeros".
+    """
     if baseline_type == "random":
         if num_samples is None:
            raise ValueError("If using random baseline, num_samples must be set.")
         return random_shuffle(X, num_samples, seed)
-    else:
+    elif baseline_type == "zeros" or baseline_type == "zeroes":
         # If using zeroes, extra samples is useless since they're all equivalent, so keeping it as 1 sample
         return np.expand_dims(np.zeros_like(X), axis = 1)
+    else:
+        raise ValueError(f"Unrecognised baseline_type {baseline_type}. Must be 'random' or 'zeros'/'zeroes'.")
 
-def random_shuffle(X, num_samples, seed = 42):
+def random_shuffle(
+        X: np.ndarray,
+        num_samples: int,
+        seed: int = 42
+    ) -> np.ndarray:
     """Randomly shuffle sequences. Assumes x shape is (batch, seq_len, nuc), returns (batch, num_samples, seq_len, nuc)."""
     B, L, A = X.shape
     x_shuffle = np.zeros((B, num_samples, L, A), dtype=X.dtype)
