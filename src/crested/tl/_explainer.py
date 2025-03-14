@@ -6,6 +6,7 @@ Loosely adapted from: https://github.com/p-koo/tfomics/blob/master/tfomics/
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 
 import keras
 import numpy as np
@@ -23,7 +24,7 @@ def saliency_map(
         model: keras.Model,
         class_index: int | None,
         batch_size: int = 128,
-        func = None
+        func: Callable = None
     ) -> np.ndarray:
     """Calculate saliency maps for a given (set of) sequence(s).
 
@@ -58,7 +59,7 @@ def integrated_grad(
         baseline_type: str = "random",
         num_baselines: int =25,
         num_steps: int =25,
-        func = None,
+        func: Callable = None,
         batch_size: int = 128,
         seed: int =42,
     ) -> np.ndarray:
@@ -234,7 +235,7 @@ def smoothgrad(
         num_samples: int = 50,
         mean: float = 0.0,
         stddev: float = 0.1,
-        func = None
+        func: Callable = None
     ) -> np.ndarray:
     """Calculate smoothgrad for a given (set of) sequence(s)."""
     return function_batch(
@@ -292,7 +293,21 @@ def random_shuffle(
         num_samples: int,
         seed: int = 42
     ) -> np.ndarray:
-    """Randomly shuffle sequences. Assumes x shape is (batch, seq_len, nuc), returns (batch, num_samples, seq_len, nuc)."""
+    """Randomly shuffle sequences.
+
+    Parameters
+    ----------
+    X
+        array of sequences, of shape (n_sequences, seq_len, nuc).
+    num_samples
+        How many shuffled sequences to generate.
+    seed
+        Seed for shuffling. Default is 42.
+
+    Returns
+    -------
+    Returns shuffled sequences of shape (batch, num_samples, seq_len, nuc).
+    """
     B, L, A = X.shape
     x_shuffle = np.zeros((B, num_samples, L, A), dtype=X.dtype)
     for seq_i, x in enumerate(X):

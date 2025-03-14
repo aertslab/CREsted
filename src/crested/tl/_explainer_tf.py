@@ -4,18 +4,22 @@ Model explanation functions using 'gradient x input'-based methods.
 Adapted from: https://github.com/p-koo/tfomics/blob/master/tfomics/
 """
 
+from collections.abc import Callable
+
+import keras
 import numpy as np
 import tensorflow as tf
 
 
-def _saliency_map(X, model, class_index=None, func=tf.math.reduce_mean):
+def _saliency_map(
+        X: tf.Tensor,
+        model: keras.Model,
+        class_index: int | None = None,
+        func: Callable[[tf.Tensor], tf.Tensor] = tf.math.reduce_mean
+    ) -> tf.Tensor:
     """Fast function to generate saliency maps."""
     if func is None:
         func = tf.math.reduce_mean
-
-    if not tf.is_tensor(X):
-        X = tf.Variable(X)
-
     with tf.GradientTape() as tape:
         tape.watch(X)
         if class_index is not None:
@@ -28,9 +32,6 @@ def _saliency_map(X, model, class_index=None, func=tf.math.reduce_mean):
 @tf.function
 def _hessian(X, model, class_index=None, func=tf.math.reduce_mean):
     """Fast function to generate saliency maps."""
-    if not tf.is_tensor(X):
-        X = tf.Variable(X)
-
     with tf.GradientTape() as t2:
         t2.watch(X)
         with tf.GradientTape() as t1:
@@ -43,17 +44,15 @@ def _hessian(X, model, class_index=None, func=tf.math.reduce_mean):
     return t2.jacobian(g, X)
 
 def _smoothgrad(
-    x,
-    model,
-    num_samples=50,
-    mean=0.0,
-    stddev=0.1,
-    class_index=None,
-    func=tf.math.reduce_mean,
+    x: tf.tensor,
+    model: keras.Model,
+    num_samples: int = 50,
+    mean: float = 0.0,
+    stddev: float = 0.1,
+    class_index = None,
+    func: Callable[[tf.Tensor], tf.Tensor] = tf.math.reduce_mean,
 ):
     """Calculate smoothgrad for a given sequence."""
-    if not tf.is_tensor(x):
-        x = tf.Variable(x)
     _, L, A = x.shape
     x_noise = tf.tile(x, (num_samples, 1, 1)) + tf.random.normal(
         (num_samples, L, A), mean, stddev
@@ -61,10 +60,34 @@ def _smoothgrad(
     grad = _saliency_map(x_noise, model, class_index=class_index, func=func)
     return tf.reduce_mean(grad, axis=0, keepdims=True)
 
-def function_batch(X, fun, batch_size=128, **kwargs):
-    """Run a function in batches."""
+def function_batch(
+        X: np.ndarray | tf.Tensor,
+        fun: Callable[[tf.Tensor], tf.Tensor],
+        batch_size: int = 128,
+        **kwargs
+    ) -> np.ndarray:
+    """Run a function in batches.
+
+    Parameters
+    ----------
+    X
+        Sequence inputs, of shape (batch, ...). Can be numpy array or tf tensor.
+    fun
+        A function that takes a tf.Tensor and returns a tf.Tensor of gradients/importances of the same shape.
+    model
+        Your Keras model.
+    batch_size
+        Batch size to use when calculating gradients with the model.
+        Default is 128.
+    kwargs
+        Passed to fun().
+
+    Returns
+    -------
+    Numpy array of the same shape as X.
+    """
     if not tf.is_tensor(X):
-        X = tf.Variable(X)
+        X = tf.convert_to_tensor(X)
 
     data_size = X.shape[0]
     if data_size <= batch_size:
