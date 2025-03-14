@@ -7,7 +7,6 @@ Adapted from: https://github.com/p-koo/tfomics/blob/master/tfomics/
 import numpy as np
 import tensorflow as tf
 
-### Primitive functions -----
 
 def _saliency_map(X, model, class_index=None, func=tf.math.reduce_mean):
     """Fast function to generate saliency maps."""
