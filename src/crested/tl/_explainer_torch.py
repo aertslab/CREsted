@@ -4,6 +4,8 @@ Model explanation functions using 'gradient x input'-based methods.
 Adapted from: https://github.com/p-koo/tfomics/blob/master/tfomics/
 """
 
+from __future__ import annotations
+
 from collections.abc import Callable
 
 import keras

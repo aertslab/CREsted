@@ -4,6 +4,8 @@ Model explanation functions using 'gradient x input'-based methods.
 Adapted from: https://github.com/p-koo/tfomics/blob/master/tfomics/
 """
 
+from __future__ import annotations
+
 from collections.abc import Callable
 
 import keras
@@ -44,7 +46,7 @@ def _hessian(X, model, class_index=None, func=tf.math.reduce_mean):
     return t2.jacobian(g, X)
 
 def _smoothgrad(
-    x: tf.tensor,
+    x: tf.Tensor,
     model: keras.Model,
     num_samples: int = 50,
     mean: float = 0.0,
