@@ -17,6 +17,7 @@ from pysam import FastaFile
 from tqdm import tqdm
 
 from crested.tl import TaskConfig
+from crested.tl._explainer import integrated_grad, mutagenesis
 from crested.tl.data import AnnDataModule
 from crested.tl.data._dataset import SequenceLoader
 from crested.utils import (
@@ -30,11 +31,6 @@ from crested.utils._seq_utils import (
     generate_mutagenesis,
 )
 from crested.utils._utils import _weighted_difference
-
-if os.environ["KERAS_BACKEND"] == "tensorflow":
-    from crested.tl._explainer_tf import Explainer
-elif os.environ["KERAS_BACKEND"] == "torch":
-    from crested.tl._explainer_torch import Explainer
 
 
 class Crested:
@@ -904,7 +900,7 @@ class Crested:
         self,
         class_names: list[str],
         anndata: AnnData | None = None,
-        method: str = "expected_integrated_grad",
+        method: str = "expected_integrated_grad"
     ) -> tuple[np.ndarray, np.ndarray] | None:
         """
         Calculate contribution scores based on the given method for the full dataset.
@@ -986,18 +982,33 @@ class Crested:
             )  # (N, C, W, 4)
 
             for i, class_index in enumerate(class_indices):
-                explainer = Explainer(self.model, class_index=class_index)
                 if method == "integrated_grad":
-                    scores[:, i, :, :] = explainer.integrated_grad(
-                        x, baseline_type="zeros"
+                    scores[:, i, :, :] = integrated_grad(
+                        x,
+                        model=self.model,
+                        num_baselines=1,
+                        num_steps=25,
+                        class_index=class_index,
+                        baseline_type="zeros",
+                        batch_size=128
                     )
                 elif method == "mutagenesis":
-                    scores[:, i, :, :] = explainer.mutagenesis(
-                        x, class_index=class_index
+                    scores[:, i, :, :] = mutagenesis(
+                        x,
+                        model=self.model,
+                        class_index=class_index,
+                        batch_size=128
                     )
                 elif method == "expected_integrated_grad":
-                    scores[:, i, :, :] = explainer.expected_integrated_grad(
-                        x, num_baseline=25
+                    scores[:, i, :, :] = integrated_grad(
+                        x,
+                        model=self.model,
+                        num_baselines=25,
+                        num_steps=25,
+                        class_index=class_index,
+                        baseline_type="random",
+                        batch_size=128,
+                        seed=42
                     )
             all_scores.append(scores)
 
@@ -1174,18 +1185,33 @@ class Crested:
             )  # (N, C, W, 4)
 
             for i, class_index in enumerate(class_indices):
-                explainer = Explainer(self.model, class_index=class_index)
                 if method == "integrated_grad":
-                    scores[:, i, :, :] = explainer.integrated_grad(
-                        x, baseline_type="zeros"
+                    scores[:, i, :, :] = integrated_grad(
+                        x,
+                        model=self.model,
+                        num_baselines=1,
+                        num_steps=25,
+                        class_index=class_index,
+                        baseline_type="zeros",
+                        batch_size=128,
                     )
                 elif method == "mutagenesis":
-                    scores[:, i, :, :] = explainer.mutagenesis(
-                        x, class_index=class_index
+                    scores[:, i, :, :] = mutagenesis(
+                        x,
+                        model=self.model,
+                        class_index=class_index,
+                        batch_size=128,
                     )
                 elif method == "expected_integrated_grad":
-                    scores[:, i, :, :] = explainer.expected_integrated_grad(
-                        x, num_baseline=25
+                    scores[:, i, :, :] = integrated_grad(
+                        x,
+                        model=self.model,
+                        num_baselines=25,
+                        num_steps=25,
+                        class_index=class_index,
+                        baseline_type="random",
+                        batch_size=128,
+                        seed=42
                     )
                 else:
                     raise
@@ -1557,7 +1583,7 @@ class Crested:
             no_mutation_flanks = (0, 0)
 
         if insertions_per_pattern is None:
-            insertions_per_pattern = {pattern_name: 1 for pattern_name in patterns}
+            insertions_per_pattern = dict.fromkeys(patterns, 1)
 
         if preserve_inserted_motifs:
             inserted_motif_locations = np.array([])
