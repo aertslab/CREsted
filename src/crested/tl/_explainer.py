@@ -57,11 +57,11 @@ def integrated_grad(
         model: keras.Model,
         class_index: int | None = None,
         baseline_type: str = "random",
-        num_baselines: int =25,
-        num_steps: int =25,
+        num_baselines: int = 25,
+        num_steps: int = 25,
         func: Callable = None,
         batch_size: int = 128,
-        seed: int =42,
+        seed: int = 42,
     ) -> np.ndarray:
     """Average integrated gradients across different backgrounds.
 
