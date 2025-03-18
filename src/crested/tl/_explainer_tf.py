@@ -66,6 +66,7 @@ def function_batch(
         X: np.ndarray | tf.Tensor,
         fun: Callable[[tf.Tensor], tf.Tensor],
         batch_size: int = 128,
+        low_gpu: bool = False,
         **kwargs
     ) -> np.ndarray:
     """Run a function in batches.
@@ -81,6 +82,8 @@ def function_batch(
     batch_size
         Batch size to use when calculating gradients with the model.
         Default is 128.
+    low_gpu
+        Move each batch to/from CPU separately, instead of whole input and output array. Saves GPU memory, but reduces speed.
     kwargs
         Passed to fun().
 
@@ -88,19 +91,37 @@ def function_batch(
     -------
     Numpy array of the same shape as X.
     """
-    if not tf.is_tensor(X):
+    # If low_gpu: convert to/from numpy+cpu at batch level for inputs & outputs
+    # Else: convert to/from numpy+cpu at X level for inputs & outputs
+
+    if not low_gpu and not tf.is_tensor(X):
         X = tf.convert_to_tensor(X)
 
     data_size = X.shape[0]
+    # If fits in one batch, return directly
     if data_size <= batch_size:
         return fun(X, **kwargs).numpy()
+    # Else, loop for as many batches as needed
     else:
-        outputs = np.zeros_like(X)
+        # Save outputs to numpy array (if low_gpu) or tf.Variable (if not low_gpu)
+        outputs = np.zeros_like(X) if low_gpu else tf.Variable(tf.zeros_like(X))
+
+        # Get batch indices
         n_batches = data_size // batch_size
-        for batch_i in range(n_batches):
-            batch_start = (batch_i)*batch_size
-            batch_end = (batch_i+1)*batch_size
-            outputs[batch_start:batch_end, ...] = fun(X[batch_start:batch_end, ...], **kwargs).numpy()
-        if (n_batches % X.shape[0]) > 0:
-            outputs[batch_end:, ...] = fun(X[batch_end: , ...], **kwargs).numpy()
-        return outputs
+        batch_idxes = [(i*batch_size, (i+1)*batch_size) for i in range(n_batches)]
+        if data_size % batch_size > 0:
+            batch_idxes.append((batch_idxes[-1][1], data_size))
+
+        # Loop over batches
+        for batch_start, batch_end in batch_idxes:
+            # Get inputs
+            batch = X[batch_start:batch_end, ...]
+            if low_gpu and not tf.is_tensor(batch):
+                batch = tf.convert_to_tensor(batch)
+            # Calculate gradients for batch
+            grads = fun(batch, **kwargs)
+            # Save gradients
+            outputs[batch_start:batch_end, ...] = grads.numpy() if low_gpu else grads
+
+        # Return outputs, converting to CPU if not low_gpu
+        return outputs if low_gpu else outputs.numpy()
