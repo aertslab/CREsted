@@ -24,7 +24,8 @@ def saliency_map(
         model: keras.Model,
         class_index: int | None,
         batch_size: int = 128,
-        func: Callable = None
+        func: Callable = None,
+        low_gpu: bool = False
     ) -> np.ndarray:
     """Calculate saliency maps for a given (set of) sequence(s).
 
@@ -50,6 +51,7 @@ def saliency_map(
         model=model,
         class_index=class_index,
         func=func,
+        low_gpu=low_gpu
     )
 
 def integrated_grad(
@@ -62,6 +64,7 @@ def integrated_grad(
         func: Callable = None,
         batch_size: int = 128,
         seed: int = 42,
+        low_gpu: bool = False
     ) -> np.ndarray:
     """Average integrated gradients across different backgrounds.
 
@@ -160,6 +163,7 @@ def integrated_grad(
             class_index=class_index,
             func=func,
             batch_size=batch_size,
+            low_gpu=low_gpu
         )
         # Reshape from n_baselines*n_steps, seq_len, 4 to n_baselines, n_steps, seq_len, 4
         grad = grad.reshape([num_baselines, num_steps+1, x.shape[-2], x.shape[-1]])
@@ -235,7 +239,8 @@ def smoothgrad(
         num_samples: int = 50,
         mean: float = 0.0,
         stddev: float = 0.1,
-        func: Callable = None
+        func: Callable = None,
+        low_gpu: bool = False
     ) -> np.ndarray:
     """Calculate smoothgrad for a given (set of) sequence(s)."""
     return function_batch(
@@ -248,6 +253,7 @@ def smoothgrad(
         stddev=stddev,
         class_index=class_index,
         func=func,
+        low_gpu=low_gpu
     )
 
 # ---- Helper functions ----
