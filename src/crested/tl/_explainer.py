@@ -14,9 +14,25 @@ import numpy as np
 from crested.utils._seq_utils import generate_mutagenesis
 
 if os.environ["KERAS_BACKEND"] == "tensorflow":
-    from crested.tl._explainer_tf import _saliency_map, _smoothgrad, function_batch
+    from tensorflow import Tensor
+
+    from crested.tl._explainer_tf import (
+        _from_tensor,
+        _is_tensor,
+        _saliency_map,
+        _smoothgrad,
+        _to_tensor,
+    )
 elif os.environ["KERAS_BACKEND"] == "torch":
-    from crested.tl._explainer_torch import _saliency_map, _smoothgrad, function_batch
+    from torch import Tensor
+
+    from crested.tl._explainer_torch import (
+        _from_tensor,
+        _is_tensor,
+        _saliency_map,
+        _smoothgrad,
+        _to_tensor,
+    )
 
 # ---- Explainer functions ----
 def saliency_map(
@@ -25,7 +41,6 @@ def saliency_map(
         class_index: int | None,
         batch_size: int = 128,
         func: Callable = None,
-        low_gpu: bool = False
     ) -> np.ndarray:
     """Calculate saliency maps for a given (set of) sequence(s).
 
@@ -51,7 +66,6 @@ def saliency_map(
         model=model,
         class_index=class_index,
         func=func,
-        low_gpu=low_gpu
     )
 
 def integrated_grad(
@@ -64,7 +78,6 @@ def integrated_grad(
         func: Callable = None,
         batch_size: int = 128,
         seed: int = 42,
-        low_gpu: bool = False
     ) -> np.ndarray:
     """Average integrated gradients across different backgrounds.
 
@@ -163,7 +176,6 @@ def integrated_grad(
             class_index=class_index,
             func=func,
             batch_size=batch_size,
-            low_gpu=low_gpu
         )
         # Reshape from n_baselines*n_steps, seq_len, 4 to n_baselines, n_steps, seq_len, 4
         grad = grad.reshape([num_baselines, num_steps+1, x.shape[-2], x.shape[-1]])
@@ -240,7 +252,6 @@ def smoothgrad(
         mean: float = 0.0,
         stddev: float = 0.1,
         func: Callable = None,
-        low_gpu: bool = False
     ) -> np.ndarray:
     """Calculate smoothgrad for a given (set of) sequence(s)."""
     return function_batch(
@@ -253,7 +264,6 @@ def smoothgrad(
         stddev=stddev,
         class_index=class_index,
         func=func,
-        low_gpu=low_gpu
     )
 
 # ---- Helper functions ----
@@ -322,3 +332,59 @@ def random_shuffle(
             shuffle = rng.permutation(x.shape[-2])
             x_shuffle[seq_i, sample_i, :, :] = x[shuffle, :]
     return x_shuffle
+
+def function_batch(
+        X: np.ndarray | Tensor,
+        fun: Callable[[Tensor], Tensor],
+        batch_size: int = 128,
+        **kwargs
+    ) -> np.ndarray:
+    """Run a function in batches.
+
+    Parameters
+    ----------
+    X
+        Sequence inputs, of shape (batch, ...). Can be numpy array or tf/torch tensor.
+    fun
+        A function that takes a tf.Tensor and returns a tf.Tensor of gradients/importances of the same shape.
+    model
+        Your Keras model.
+    batch_size
+        Batch size to use when calculating gradients with the model.
+        Default is 128.
+    kwargs
+        Passed to fun().
+
+    Returns
+    -------
+    Numpy array of the same shape as X.
+    """
+    data_size = X.shape[0]
+    # If fits in one batch, return directly
+    if data_size <= batch_size:
+        if not _is_tensor(X):
+            X = _to_tensor(X)
+        grads = fun(X, **kwargs)
+        return _from_tensor(grads)
+    # Else, loop for as many batches as needed
+    else:
+        outputs = []
+        # Get batch indices
+        n_batches = data_size // batch_size
+        batch_idxes = [(i*batch_size, (i+1)*batch_size) for i in range(n_batches)]
+        if data_size % batch_size > 0:
+            batch_idxes.append((batch_idxes[-1][1], data_size))
+
+        # Loop over batches
+        for batch_start, batch_end in batch_idxes:
+            # Get inputs
+            batch = X[batch_start:batch_end, ...]
+            if not _is_tensor(batch):
+                batch = _to_tensor(batch)
+            # Calculate gradients for batch
+            grads = fun(batch, **kwargs)
+            # Save gradients
+            outputs.append(_from_tensor(grads))
+
+        # Return outputs
+        return np.concatenate(outputs, axis=0)

@@ -267,7 +267,6 @@ def contribution_scores(
     transpose: bool = False,
     all_class_names: list[str] | None = None,
     batch_size: int = 128,
-    low_gpu: bool = False,
     output_dir: os.PathLike | None = None,
     seed: int | None = 42,
     verbose: bool = True,
@@ -356,7 +355,6 @@ def contribution_scores(
                     num_baselines=1,
                     num_steps=25,
                     batch_size=batch_size,
-                    low_gpu = low_gpu
                 )
             elif method == "mutagenesis":
                 scores[:, i, :, :] = mutagenesis(
@@ -374,7 +372,6 @@ def contribution_scores(
                     num_baselines=25,
                     num_steps=25,
                     batch_size=batch_size,
-                    low_gpu=low_gpu,
                     seed=seed,
                 )
             elif method == "saliency_map":
@@ -383,7 +380,6 @@ def contribution_scores(
                     model=m,
                     class_index=class_index,
                     batch_size=batch_size,
-                    low_gpu=low_gpu
                 )
             else:
                 raise ValueError(f"Unsupported method: {method}")
@@ -426,7 +422,6 @@ def contribution_scores_specific(
     method: str = "expected_integrated_grad",
     transpose: bool = True,
     batch_size: int = 128,
-    low_gpu: bool = False,
     output_dir: os.PathLike | None = None,
     verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -507,7 +502,6 @@ def contribution_scores_specific(
             verbose=verbose,
             output_dir=output_dir,
             batch_size=batch_size,
-            low_gpu=low_gpu,
             all_class_names=all_class_names,
             transpose=transpose,
         )
