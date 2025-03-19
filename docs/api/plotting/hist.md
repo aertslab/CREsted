@@ -1,6 +1,6 @@
 # Hist `pl.hist`
 
-Plots for inspecting distributions of ground truth and predictions?
+Plots for inspecting distributions.
 
 ```{eval-rst}
 .. currentmodule:: crested.pl.hist
@@ -11,5 +11,4 @@ Plots for inspecting distributions of ground truth and predictions?
     :toctree: _autosummary
 
     distribution
-    locus_scoring
 ```

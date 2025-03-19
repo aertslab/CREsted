@@ -1,4 +1,4 @@
-"""Distribution plots."""
+"""Locus scoring plotting function."""
 
 from __future__ import annotations
 
@@ -70,7 +70,7 @@ def locus_scoring(
 
     Example
     --------
-    >>> crested.pl.hist.locus_scoring(
+    >>> crested.pl.locus.locus_scoring(
     ...     scores,
     ...     range=(0, 1000),
     ...     gene_start=100,
@@ -80,7 +80,7 @@ def locus_scoring(
     ...     bigwig_midpoints=bigwig_midpoints,
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/hist_locus_scoring.png
+    .. image:: ../../../../docs/_static/img/examples/locus_locus_scoring.png
     """
     # Plotting predictions
     plt.figure(figsize=figsize)
