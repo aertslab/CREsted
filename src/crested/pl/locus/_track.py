@@ -20,6 +20,7 @@ def track(
     """Plot a predicted locus track, like a Borzoi prediction or BigWig track.
 
     Function is still in beta, and its API can be changed in future updates.
+    Default figure size is (20, 3).
 
     Parameters
     ----------
