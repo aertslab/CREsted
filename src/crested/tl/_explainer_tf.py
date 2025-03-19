@@ -19,7 +19,23 @@ def _saliency_map(
         class_index: int | None = None,
         func: Callable[[tf.Tensor], tf.Tensor] = tf.math.reduce_mean
     ) -> tf.Tensor:
-    """Fast function to generate saliency maps."""
+    """Fast function to generate saliency maps.
+
+    Parameters
+    ----------
+    X
+        tf.Tensor of sequences/model inputs, of shape (n_sequences, seq_len, nuc).
+    model
+        Your Keras model, or any object that supports __call__ with gradients, so it can also be a non-Keras TensorFlow model.
+    class_index
+        Index of model output to explain. Model assumed to return outputs of shape (batch_size, n_classes) if using this.
+    func
+        Function to reduce model outputs to one value with, if not using class_index.
+
+    Returns
+    -------
+    Gradients of the same shape as X, (batch, seq_len, nuc).
+    """
     if func is None:
         func = tf.math.reduce_mean
     with tf.GradientTape() as tape:
@@ -62,45 +78,11 @@ def _smoothgrad(
     grad = _saliency_map(x_noise, model, class_index=class_index, func=func)
     return tf.reduce_mean(grad, axis=0, keepdims=True)
 
-def function_batch(
-        X: np.ndarray | tf.Tensor,
-        fun: Callable[[tf.Tensor], tf.Tensor],
-        batch_size: int = 128,
-        **kwargs
-    ) -> np.ndarray:
-    """Run a function in batches.
+def _is_tensor(array) -> bool:
+    return tf.is_tensor(array)
 
-    Parameters
-    ----------
-    X
-        Sequence inputs, of shape (batch, ...). Can be numpy array or tf tensor.
-    fun
-        A function that takes a tf.Tensor and returns a tf.Tensor of gradients/importances of the same shape.
-    model
-        Your Keras model.
-    batch_size
-        Batch size to use when calculating gradients with the model.
-        Default is 128.
-    kwargs
-        Passed to fun().
+def _to_tensor(array: np.array) -> tf.Tensor:
+    return tf.convert_to_tensor(array)
 
-    Returns
-    -------
-    Numpy array of the same shape as X.
-    """
-    if not tf.is_tensor(X):
-        X = tf.convert_to_tensor(X)
-
-    data_size = X.shape[0]
-    if data_size <= batch_size:
-        return fun(X, **kwargs).numpy()
-    else:
-        outputs = np.zeros_like(X)
-        n_batches = data_size // batch_size
-        for batch_i in range(n_batches):
-            batch_start = (batch_i)*batch_size
-            batch_end = (batch_i+1)*batch_size
-            outputs[batch_start:batch_end, ...] = fun(X[batch_start:batch_end, ...], **kwargs).numpy()
-        if (n_batches % X.shape[0]) > 0:
-            outputs[batch_end:, ...] = fun(X[batch_end: , ...], **kwargs).numpy()
-        return outputs
+def _from_tensor(tensor: tf.Tensor) -> np.array:
+    return tensor.numpy()

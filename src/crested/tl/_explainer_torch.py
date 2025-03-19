@@ -19,7 +19,23 @@ def _saliency_map(
         class_index: int | None = None,
         func: Callable[[torch.Tensor], torch.Tensor] = torch.mean
     ) -> torch.Tensor:
-    """Fast function to generate saliency maps."""
+    """Fast function to generate saliency maps.
+
+    Parameters
+    ----------
+    X
+        torch.Tensor of sequences/model inputs, of shape (n_sequences, seq_len, nuc).
+    model
+        Your Keras model, or any object that supports __call__ with gradients, so it can also be a non-Keras PyTorch model.
+    class_index
+        Index of model output to explain. Model assumed to return outputs of shape (batch_size, n_classes) if using this.
+    func
+        Function to reduce model outputs to one value with, if not using class_index.
+
+    Returns
+    -------
+    Gradients of the same shape as X, (batch, seq_len, nuc).
+    """
     if func is None:
         func = torch.mean
     X = X.clone().detach().requires_grad_(True)
@@ -49,45 +65,12 @@ def _smoothgrad(
     grad = _saliency_map(x_noise, model, class_index=class_index, func=func)
     return torch.mean(grad, dim=0, keepdim=True).numpy()
 
-def function_batch(
-        X: np.ndarray | torch.Tensor,
-        fun: Callable[[torch.Tensor], torch.Tensor],
-        batch_size: int = 128,
-        **kwargs
-    ) -> np.ndarray:
-    """Run a function in batches.
+def _is_tensor(array) -> bool:
+    return torch.is_tensor(array)
 
-    Parameters
-    ----------
-    X
-        Sequence inputs, of shape (batch, ...). Can be numpy array or torch tensor.
-    fun
-        A function that takes a torch.Tensor and returns a torch.Tensor of gradients/importances of the same shape.
-    model
-        Your Keras model.
-    batch_size
-        Batch size to use when calculating gradients with the model.
-        Default is 128.
-    kwargs
-        Passed to fun().
+def _to_tensor(array: np.array) -> torch.Tensor:
+    return torch.from_numpy(array)
 
-    Returns
-    -------
-    Numpy array of the same shape as X.
-    """
-    if not torch.is_tensor(X):
-        X = torch.tensor(X)
+def _from_tensor(tensor: torch.Tensor) -> np.array:
+    return tensor.detach().cpu().numpy()
 
-    data_size = X.shape[0]
-    if data_size <= batch_size:
-        return fun(X, **kwargs).detach().cpu().numpy()
-    else:
-        outputs = np.zeros_like(X)
-        n_batches = data_size // batch_size
-        for batch_i in range(n_batches):
-            batch_start = (batch_i-1)*batch_size
-            batch_end = batch_i*batch_size
-            outputs[batch_start:batch_end, ...] = fun(X[batch_start:batch_end, ...], **kwargs).detach().cpu().numpy()
-        if (n_batches % X.shape[0]) > 0:
-            outputs[batch_end:, ...] = fun(X[batch_end: , ...], **kwargs).detach().cpu().numpy()
-        return outputs

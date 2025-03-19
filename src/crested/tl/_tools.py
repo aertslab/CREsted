@@ -354,7 +354,7 @@ def contribution_scores(
                     baseline_type="zeros",
                     num_baselines=1,
                     num_steps=25,
-                    batch_size=batch_size
+                    batch_size=batch_size,
                 )
             elif method == "mutagenesis":
                 scores[:, i, :, :] = mutagenesis(
@@ -372,14 +372,14 @@ def contribution_scores(
                     num_baselines=25,
                     num_steps=25,
                     batch_size=batch_size,
-                    seed=seed
+                    seed=seed,
                 )
             elif method == "saliency_map":
                 scores[:, i, :, :] = saliency_map(
                     input_sequences,
                     model=m,
                     class_index=class_index,
-                    batch_size=batch_size
+                    batch_size=batch_size,
                 )
             else:
                 raise ValueError(f"Unsupported method: {method}")
