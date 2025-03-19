@@ -3,7 +3,7 @@
 Plots for comparing correlations or other values 
 
 ```{eval-rst}
-.. currentmodule:: crested.pl.locus
+.. currentmodule:: crested.pl.violin
 ```
 
 ```{eval-rst}
