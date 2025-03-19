@@ -79,7 +79,7 @@ def correlations(
                 raise ValueError("Split must be 'train', 'val', 'test', or None.")
 
     # Validate inputs
-    if model_names is not None and isinstance(model_names, 'str'):
+    if model_names is not None and isinstance(model_names, str):
         model_names = [model_names]
     _check_input_params()
     if model_names is None:
@@ -114,7 +114,7 @@ def correlations(
         ax.set_ylim(ylim)
 
     # Set layout options
-    default_width = len(predicted_values)+1
+    default_width = 6 + max(0, len(predicted_values)-5) # 1-5 models: 6 wide, 5+ models: add 1 extra width per model
     default_height = 8
     if any(len(model_name) > 8 for model_name in model_names) and "x_label_rotation" not in kwargs:
         kwargs["x_label_rotation"] = 55
