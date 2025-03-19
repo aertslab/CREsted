@@ -19,7 +19,23 @@ def _saliency_map(
         class_index: int | None = None,
         func: Callable[[torch.Tensor], torch.Tensor] = torch.mean
     ) -> torch.Tensor:
-    """Fast function to generate saliency maps."""
+    """Fast function to generate saliency maps.
+
+    Parameters
+    ----------
+    X
+        torch.Tensor of sequences/model inputs, of shape (n_sequences, seq_len, nuc).
+    model
+        Your Keras model, or any object that supports __call__ with gradients, so it can also be a non-Keras PyTorch model.
+    class_index
+        Index of model output to explain. Model assumed to return outputs of shape (batch_size, n_classes) if using this.
+    func
+        Function to reduce model outputs to one value with, if not using class_index.
+
+    Returns
+    -------
+    Gradients of the same shape as X, (batch, seq_len, nuc).
+    """
     if func is None:
         func = torch.mean
     X = X.clone().detach().requires_grad_(True)

@@ -19,7 +19,23 @@ def _saliency_map(
         class_index: int | None = None,
         func: Callable[[tf.Tensor], tf.Tensor] = tf.math.reduce_mean
     ) -> tf.Tensor:
-    """Fast function to generate saliency maps."""
+    """Fast function to generate saliency maps.
+
+    Parameters
+    ----------
+    X
+        tf.Tensor of sequences/model inputs, of shape (n_sequences, seq_len, nuc).
+    model
+        Your Keras model, or any object that supports __call__ with gradients, so it can also be a non-Keras TensorFlow model.
+    class_index
+        Index of model output to explain. Model assumed to return outputs of shape (batch_size, n_classes) if using this.
+    func
+        Function to reduce model outputs to one value with, if not using class_index.
+
+    Returns
+    -------
+    Gradients of the same shape as X, (batch, seq_len, nuc).
+    """
     if func is None:
         func = tf.math.reduce_mean
     with tf.GradientTape() as tape:
