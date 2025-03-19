@@ -18,12 +18,13 @@ def correlations(
     split: str | None = "test",
     log_transform: bool = False,
     ylim: tuple(float, float) | None = (0., 1.),
+    title: str = "Class-wise prediction vs ground truth correlations",
     **kwargs,
 ) -> plt.Figure:
     """
-    Plot correlation heatmaps of predictions vs ground truth or target values for different cell types.
+    Plot correlation violinplots of predictions vs ground truth for different cell types.
 
-    Default width is len(model_names)+1.
+    Calculates correlations over cell types, i.e. for each cell type, calculates the correlation between ground truth and predictions across all regions.
 
     Parameters
     ----------
@@ -50,14 +51,14 @@ def correlations(
     --------
     >>> crested.pl.violin.correlations(
     ...     adata,
-    ...     model_names=None,
+    ...     model_names=['Base DilatedCNN', 'Fine-tuned DilatedCNN'],
     ...     split="test",
     ...     log_transform=True,
     ...     ylim=(0., 1.),
-    ...     title="Model correlations - Full test set",
+    ...     title="Class-wise prediction vs ground truth correlations",
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/heatmap_correlations_predictions.png
+    .. image:: ../../../../docs/_static/img/examples/violin_correlations.png
     """
 
     @log_and_raise(ValueError)
@@ -124,4 +125,4 @@ def correlations(
     if "height" not in kwargs:
         kwargs["height"] = default_height
 
-    return render_plot(fig, **kwargs)
+    return render_plot(fig, title=title, **kwargs)
