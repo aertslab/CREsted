@@ -10,6 +10,5 @@ Plots for comparing correlations or other values
 .. autosummary::
     :toctree: _autosummary
 
-    locus_scoring
-    track
+    correlations
 ```
