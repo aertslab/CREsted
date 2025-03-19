@@ -15,8 +15,6 @@ def track(
     range: tuple[chr, int, int] | tuple[int, int] | None = None,
     title: str | None = None,
     ylim: tuple(float, float) | None = None,
-    width: int | None = None,
-    height: int | None = None,
     **kwargs
 ) -> plt.Figure:
     """Plot a predicted locus track, like a Borzoi prediction or BigWig track.
@@ -33,10 +31,6 @@ def track(
         The title of the plot.
     ylim
         Y limits for the plot.
-    width
-        Plot width. Default is 20.
-    height
-        Plot height. Default is 3 per subplot.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to
         control the final plot output. Please see :func:`~crested.pl.render_plot`
@@ -64,10 +58,6 @@ def track(
     n_bins = scores.shape[0]
 
     # Prep figure inputs
-    if width is None:
-        width = 20
-    if height is None:
-        height = 3*n_subplots
     fig, ax = plt.subplots(n_subplots)
     if range is not None:
         if len(range) == 2:
@@ -91,10 +81,19 @@ def track(
         ax.set_title(title)
 
     if range is not None:
-        xlabel = f"{start:,.0f}-{end:,.0f} ({end-start} bp)"
+        default_xlabel = f"{start:,.0f}-{end:,.0f} ({end-start} bp)"
         if chrom is not None:
-            xlabel = chrom + ":" + xlabel
-        ax.set_xlabel(xlabel)
+            default_xlabel = chrom + ":" + default_xlabel
+        if "xlabel" not in kwargs:
+            kwargs["xlabel"] = default_xlabel
+
+    default_width = 20
+    default_height = 3*n_subplots
+
+    if "width" not in kwargs:
+        kwargs["width"] = default_width
+    if "height" not in kwargs:
+        kwargs["height"] = default_height
 
     if ylim is not None:
         ax.set_ylim(ylim)
@@ -102,5 +101,5 @@ def track(
         # Set y bottom margin to 0
         ax.set_ylim(min(scores), None)
 
-    return render_plot(fig, width, height, **kwargs)
+    return render_plot(fig, **kwargs)
 
