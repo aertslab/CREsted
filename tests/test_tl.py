@@ -144,7 +144,7 @@ def test_contribution_scores(keras_model, genome):
         model=keras_model,
         genome=genome,
         method="integrated_grad",
-        batch_size=15
+        batch_size=15,
     )
     assert scores.shape == (1, 1, 500, 4)
     assert one_hot_encoded_sequences.shape == (1, 500, 4)

@@ -101,7 +101,9 @@ def _plot_attribution_map(
     # Render the plot as an image
     temp_fig.canvas.draw()
     width, height = map(int, temp_fig.get_size_inches() * temp_fig.get_dpi())
-    image = np.frombuffer(temp_fig.canvas.tostring_rgb(), dtype="uint8").reshape(height, width, 3)
+    image = np.frombuffer(temp_fig.canvas.tostring_rgb(), dtype="uint8").reshape(
+        height, width, 3
+    )
     plt.close(temp_fig)  # Close the temporary figure to avoid memory leaks
 
     # Rotate the rendered image
@@ -117,6 +119,7 @@ def _plot_attribution_map(
 
     if return_ax:
         return ax
+
 
 def _plot_mutagenesis_map(mutagenesis_df, ax=None):
     """Plot an attribution map for mutagenesis using different colored dots, with adjusted x-axis limits."""

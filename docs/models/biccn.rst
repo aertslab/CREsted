@@ -14,7 +14,7 @@ The **BICCN** model is a peak regression model fine-tuned to cell type-specific 
 
 After pretraining on all consensus peaks, the model was fine-tuned to specific peaks. Specific peaks were determined through the ratio of highest and second highest peak, and the ratio of the second and third highest peak. These sets of regions were then used as input to the model, where 2114bp one-hot encoded DNA sequences were used to per cell type the mean peak accessibility over the center 1000 bp of the peak.
 
-The model is a CNN multiclass regression model using the :func:`~crested.tl.zoo.chrombpnet` architecture.
+The model is a CNN multiclass regression model using the :func:`~crested.tl.zoo.dilated_cnn` architecture.
 
 Details of the data and the model can be found in the original publication.
 

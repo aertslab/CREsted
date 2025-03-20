@@ -17,7 +17,7 @@ def locus_scoring(
     bigwig_midpoints: list[int] | None = None,
     save_path: str | None = None,
     grid: bool = True,
-    figsize: tuple[float, float] = (30,5),
+    figsize: tuple[float, float] = (30, 5),
     highlight_positions: list[tuple[int, int]] | None = None,
     marker_size: float = 5.0,
     line_width: float = 2.0,
@@ -96,7 +96,7 @@ def locus_scoring(
         linewidth=line_width,
         color=line_colors[0],
         label="Prediction Score",
-        rasterized=True
+        rasterized=True,
     )
     if gene_start is not None and gene_end is not None:
         plt.axvspan(gene_start, gene_end, color="red", alpha=0.2, label="Gene Locus")
@@ -122,7 +122,7 @@ def locus_scoring(
             linestyle="-",
             color=line_colors[1],
             label="bigWig Values",
-            rasterized='True'
+            rasterized="True",
         )
         if gene_start is not None and gene_end is not None:
             plt.axvspan(
@@ -137,5 +137,5 @@ def locus_scoring(
 
     plt.tight_layout()
     if save_path:
-        plt.savefig(save_path, bbox_inches='tight')
+        plt.savefig(save_path, bbox_inches="tight")
     plt.show()

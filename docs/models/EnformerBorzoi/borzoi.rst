@@ -10,7 +10,7 @@ Borzoi
    - **Input shape**: (524288, 4)
    - **Output shape**: (6144, 7611)/(6144, 2608)
 
-The **Borzoi** model is a large model trained on bulk ENCODE and FANTOM DNase, ChIP-seq, CAGE and RNA-seq data from a wide variety of human and mouse tissues. 
+The **Borzoi** model is a large model trained on bulk ENCODE and FANTOM DNase, ChIP-seq, CAGE and RNA-seq data from a wide variety of human and mouse tissues.
 It predicts 6144 bins of 32bp, corresponding to the core 196608 bp of the input sequence.
 
 It was originally provided based on the Baskerville package, and its weights and architecture have been ported to CREsted.
@@ -21,7 +21,7 @@ The model is a CNN+Transformer+Upsampling model using the :func:`~crested.tl.zoo
 
 Details of the data and the model can be found in the original publication.
 
-------------------- 
+-------------------
 
 .. admonition:: Citation
 

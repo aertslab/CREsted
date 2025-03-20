@@ -17,7 +17,7 @@ After pretraining on all consensus peaks, the model was fine-tuned to specific p
 
 Peak heights were normalized across cell types with the :func:`~crested.pp.normalize_peaks` function.
 
-The model is a CNN multiclass regression model that uses the :func:`~crested.tl.zoo.chrombpnet` architecture.
+The model is a CNN multiclass regression model that uses the :func:`~crested.tl.zoo.dilated_cnn` architecture.
 
 Details of the data and the model can be found in the original publication.
 

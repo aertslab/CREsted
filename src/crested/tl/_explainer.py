@@ -34,14 +34,15 @@ elif os.environ["KERAS_BACKEND"] == "torch":
         _to_tensor,
     )
 
+
 # ---- Explainer functions ----
 def saliency_map(
-        X: np.ndarray,
-        model: keras.Model,
-        class_index: int | None,
-        batch_size: int = 128,
-        func: Callable = None,
-    ) -> np.ndarray:
+    X: np.ndarray,
+    model: keras.Model,
+    class_index: int | None,
+    batch_size: int = 128,
+    func: Callable = None,
+) -> np.ndarray:
     """Calculate saliency maps for a given (set of) sequence(s).
 
     Parameters
@@ -68,17 +69,18 @@ def saliency_map(
         func=func,
     )
 
+
 def integrated_grad(
-        X: np.ndarray,
-        model: keras.Model,
-        class_index: int | None = None,
-        baseline_type: str = "random",
-        num_baselines: int = 25,
-        num_steps: int = 25,
-        func: Callable = None,
-        batch_size: int = 128,
-        seed: int = 42,
-    ) -> np.ndarray:
+    X: np.ndarray,
+    model: keras.Model,
+    class_index: int | None = None,
+    baseline_type: str = "random",
+    num_baselines: int = 25,
+    num_steps: int = 25,
+    func: Callable = None,
+    batch_size: int = 128,
+    seed: int = 42,
+) -> np.ndarray:
     """Average integrated gradients across different backgrounds.
 
     Calculate expected integrated gradients with baseline_type='random' and num_baselines=25, the default settings.
@@ -111,7 +113,9 @@ def integrated_grad(
         Seed to use for shuffling sequences when using baseline_type "random".
     """
 
-    def interpolate_data(x: np.ndarray, baseline: np.ndarray, steps: np.ndarray) -> np.ndarray:
+    def interpolate_data(
+        x: np.ndarray, baseline: np.ndarray, steps: np.ndarray
+    ) -> np.ndarray:
         """
         Interpolate len(steps) sequences from baseline to x.
 
@@ -154,7 +158,9 @@ def integrated_grad(
         return np.mean(grads, axis=1)
 
     # Make baselines
-    baselines = make_baselines(X, num_samples = num_baselines, baseline_type = baseline_type, seed = seed)
+    baselines = make_baselines(
+        X, num_samples=num_baselines, baseline_type=baseline_type, seed=seed
+    )
 
     outputs = np.zeros_like(X)
     for i, x in enumerate(X):
@@ -178,7 +184,7 @@ def integrated_grad(
             batch_size=batch_size,
         )
         # Reshape from n_baselines*n_steps, seq_len, 4 to n_baselines, n_steps, seq_len, 4
-        grad = grad.reshape([num_baselines, num_steps+1, x.shape[-2], x.shape[-1]])
+        grad = grad.reshape([num_baselines, num_steps + 1, x.shape[-2], x.shape[-1]])
 
         # Apply integrated gradient transform
         avg_grad = integral_approximation(grad)
@@ -187,12 +193,10 @@ def integrated_grad(
         outputs[i, ...] = np.mean(avg_grad, axis=0)
     return outputs
 
+
 def mutagenesis(
-        X: np.ndarray,
-        model: keras.Model,
-        class_index: int = None,
-        batch_size: int = 256
-    ) -> np.ndarray:
+    X: np.ndarray, model: keras.Model, class_index: int = None, batch_size: int = 256
+) -> np.ndarray:
     """In silico mutagenesis analysis for a given sequence.
 
     Parameters
@@ -244,15 +248,16 @@ def mutagenesis(
 
     return np.concatenate(scores, axis=0)
 
+
 def smoothgrad(
-        X: np.ndarray,
-        model: keras.Model,
-        class_index: int | None,
-        num_samples: int = 50,
-        mean: float = 0.0,
-        stddev: float = 0.1,
-        func: Callable = None,
-    ) -> np.ndarray:
+    X: np.ndarray,
+    model: keras.Model,
+    class_index: int | None,
+    num_samples: int = 50,
+    mean: float = 0.0,
+    stddev: float = 0.1,
+    func: Callable = None,
+) -> np.ndarray:
     """Calculate smoothgrad for a given (set of) sequence(s)."""
     return function_batch(
         X,
@@ -266,13 +271,11 @@ def smoothgrad(
         func=func,
     )
 
+
 # ---- Helper functions ----
 def make_baselines(
-        X: np.ndarray,
-        baseline_type: str,
-        num_samples: int = 25,
-        seed: int = 42
-    ) -> np.ndarray:
+    X: np.ndarray, baseline_type: str, num_samples: int = 25, seed: int = 42
+) -> np.ndarray:
     """Create backgrounds for integrated gradients.
 
     Assumes x shape is (batch, seq_len, nuc), returns (batch, num_samples, seq_len, nuc) or (batch, 1, seq_len, nuc).
@@ -296,19 +299,18 @@ def make_baselines(
     """
     if baseline_type == "random":
         if num_samples is None:
-           raise ValueError("If using random baseline, num_samples must be set.")
+            raise ValueError("If using random baseline, num_samples must be set.")
         return random_shuffle(X, num_samples, seed)
     elif baseline_type == "zeros" or baseline_type == "zeroes":
         # If using zeroes, extra samples is useless since they're all equivalent, so keeping it as 1 sample
-        return np.expand_dims(np.zeros_like(X), axis = 1)
+        return np.expand_dims(np.zeros_like(X), axis=1)
     else:
-        raise ValueError(f"Unrecognised baseline_type {baseline_type}. Must be 'random' or 'zeros'/'zeroes'.")
+        raise ValueError(
+            f"Unrecognised baseline_type {baseline_type}. Must be 'random' or 'zeros'/'zeroes'."
+        )
 
-def random_shuffle(
-        X: np.ndarray,
-        num_samples: int,
-        seed: int = 42
-    ) -> np.ndarray:
+
+def random_shuffle(X: np.ndarray, num_samples: int, seed: int = 42) -> np.ndarray:
     """Randomly shuffle sequences.
 
     Parameters
@@ -333,12 +335,13 @@ def random_shuffle(
             x_shuffle[seq_i, sample_i, :, :] = x[shuffle, :]
     return x_shuffle
 
+
 def function_batch(
-        X: np.ndarray | Tensor,
-        fun: Callable[[Tensor], Tensor],
-        batch_size: int = 128,
-        **kwargs
-    ) -> np.ndarray:
+    X: np.ndarray | Tensor,
+    fun: Callable[[Tensor], Tensor],
+    batch_size: int = 128,
+    **kwargs,
+) -> np.ndarray:
     """Run a function in batches.
 
     Parameters
@@ -371,7 +374,7 @@ def function_batch(
         outputs = []
         # Get batch indices
         n_batches = data_size // batch_size
-        batch_idxes = [(i*batch_size, (i+1)*batch_size) for i in range(n_batches)]
+        batch_idxes = [(i * batch_size, (i + 1) * batch_size) for i in range(n_batches)]
         if data_size % batch_size > 0:
             batch_idxes.append((batch_idxes[-1][1], data_size))
 

@@ -52,17 +52,18 @@ class SpearmanCorrelationPerClass(metrics.Metric):
 
             # Calculate numerator and denominator
             # Calculate numerator and denominator
-            numerator = (
-                ops.cast(ops.size(y_true_class), dtype="float32") * ops.sum(y_true_rank * y_pred_rank)
-                - ops.sum(y_true_rank) * ops.sum(y_pred_rank)
-            )
+            numerator = ops.cast(ops.size(y_true_class), dtype="float32") * ops.sum(
+                y_true_rank * y_pred_rank
+            ) - ops.sum(y_true_rank) * ops.sum(y_pred_rank)
             denominator = ops.sqrt(
                 (
-                    ops.cast(ops.size(y_true_class), dtype="float32") * ops.sum(ops.square(y_true_rank))
+                    ops.cast(ops.size(y_true_class), dtype="float32")
+                    * ops.sum(ops.square(y_true_rank))
                     - ops.square(ops.sum(y_true_rank))
                 )
                 * (
-                    ops.cast(ops.size(y_true_class), dtype="float32") * ops.sum(ops.square(y_pred_rank))
+                    ops.cast(ops.size(y_true_class), dtype="float32")
+                    * ops.sum(ops.square(y_pred_rank))
                     - ops.square(ops.sum(y_pred_rank))
                 )
             )
