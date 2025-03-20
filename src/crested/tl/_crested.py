@@ -900,7 +900,7 @@ class Crested:
         self,
         class_names: list[str],
         anndata: AnnData | None = None,
-        method: str = "expected_integrated_grad"
+        method: str = "expected_integrated_grad",
     ) -> tuple[np.ndarray, np.ndarray] | None:
         """
         Calculate contribution scores based on the given method for the full dataset.
@@ -990,14 +990,11 @@ class Crested:
                         num_steps=25,
                         class_index=class_index,
                         baseline_type="zeros",
-                        batch_size=128
+                        batch_size=128,
                     )
                 elif method == "mutagenesis":
                     scores[:, i, :, :] = mutagenesis(
-                        x,
-                        model=self.model,
-                        class_index=class_index,
-                        batch_size=128
+                        x, model=self.model, class_index=class_index, batch_size=128
                     )
                 elif method == "expected_integrated_grad":
                     scores[:, i, :, :] = integrated_grad(
@@ -1008,7 +1005,7 @@ class Crested:
                         class_index=class_index,
                         baseline_type="random",
                         batch_size=128,
-                        seed=42
+                        seed=42,
                     )
             all_scores.append(scores)
 
@@ -1211,7 +1208,7 @@ class Crested:
                         class_index=class_index,
                         baseline_type="random",
                         batch_size=128,
-                        seed=42
+                        seed=42,
                     )
                 else:
                     raise

@@ -49,7 +49,7 @@ else:
     class_instances = _optional_function_warning
     clustermap_tf_motif = _optional_function_warning
     tf_expression_per_cell_type = _optional_function_warning
-    clustermap_with_pwm_logos= _optional_function_warning
+    clustermap_with_pwm_logos = _optional_function_warning
 
 # Export these functions for public use
 __all__ = [

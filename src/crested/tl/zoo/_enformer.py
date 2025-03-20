@@ -26,10 +26,10 @@ def enformer(
     pool_type: str = "attention",
     first_kernel_size: int = 15,
     kernel_size: int = 5,
-    transformer_dropout = 0.4,
+    transformer_dropout=0.4,
     pointwise_dropout: float = 0.05,
     bn_sync: bool = False,
-    name: str = 'Enformer'
+    name: str = "Enformer",
 ) -> keras.Model:
     """
     Construct an fully replicated Enformer model.
@@ -89,8 +89,10 @@ def enformer(
     # Tower output length: n of bins after convolution pooling.
     #   every conv layer (and stem layer) halves length -> seq_len/binwidth = dimensionality
     # Crop length: (original dimensionality - target_length) // 2 = crop length from both sides
-    tower_out_length = int(seq_len/(2**(num_conv_blocks + 1))) # Should be same as filters
-    crop_length = int((tower_out_length-target_length)//2)
+    tower_out_length = int(
+        seq_len / (2 ** (num_conv_blocks + 1))
+    )  # Should be same as filters
+    crop_length = int((tower_out_length - target_length) // 2)
 
     # Sequence input
     sequence = keras.layers.Input(shape=(seq_len, 4), name="input")
@@ -99,9 +101,9 @@ def enformer(
     current = keras.layers.Conv1D(
         filters=start_filters,
         kernel_size=first_kernel_size,
-        padding='same',
-        name='stem_conv'
-        )(sequence)
+        padding="same",
+        name="stem_conv",
+    )(sequence)
 
     current = conv_block_bs(
         current,
@@ -118,12 +120,14 @@ def enformer(
         bn_sync=bn_sync,
         bn_epsilon=1e-5,
         kernel_initializer="he_normal",
-        name_prefix="stem_pointwise"
+        name_prefix="stem_pointwise",
     )
 
     # Build convolution tower
-     # Each block: (batchnorm + gelu + conv) + residual(batchnorm+gelu+conv)+pooling
-    tower_filters = exp_linspace_int(start=start_filters, end=filters, num_modules=num_conv_blocks, divisible_by=128)
+    # Each block: (batchnorm + gelu + conv) + residual(batchnorm+gelu+conv)+pooling
+    tower_filters = exp_linspace_int(
+        start=start_filters, end=filters, num_modules=num_conv_blocks, divisible_by=128
+    )
     for cidx, layer_filters in enumerate(tower_filters):
         # Add first standard conv block
         current = conv_block_bs(
@@ -139,7 +143,7 @@ def enformer(
             bn_sync=bn_sync,
             bn_epsilon=1e-5,
             kernel_initializer="he_normal",
-            name_prefix=f"tower_conv_{cidx+1}"
+            name_prefix=f"tower_conv_{cidx+1}",
         )
         # Add residual pointwise conv block
         current = conv_block_bs(
@@ -157,7 +161,7 @@ def enformer(
             bn_sync=bn_sync,
             bn_epsilon=1e-5,
             kernel_initializer="he_normal",
-            name_prefix=f"tower_pointwise_{cidx+1}"
+            name_prefix=f"tower_pointwise_{cidx+1}",
         )
 
     # Identity layer to use as stopping point for FastISM - after this operations are global
@@ -168,74 +172,87 @@ def enformer(
     # Build transformer tower
     for tidx in range(num_transformer_blocks):
         current = mha_block_enf(
-            inputs = current,
-            num_heads = num_transformer_heads,
-            key_query_dim = 64,
-            value_dim = filters // num_transformer_heads,
-            scaling = True,
-            attn_dropout = 0.05,
-            pos_dropout = 0.01,
-            final_dropout = transformer_dropout,
-            symmetric_pos_encoding = False,
-            pos_encoding_funs = 'enformer',
-            num_pos_feats = filters // num_transformer_heads,
-            zero_init = True,
-            residual = True,
-            ln_epsilon = 1e-5,
-            name_prefix = f"transformer_mha_{tidx+1}"
+            inputs=current,
+            num_heads=num_transformer_heads,
+            key_query_dim=64,
+            value_dim=filters // num_transformer_heads,
+            scaling=True,
+            attn_dropout=0.05,
+            pos_dropout=0.01,
+            final_dropout=transformer_dropout,
+            symmetric_pos_encoding=False,
+            pos_encoding_funs="enformer",
+            num_pos_feats=filters // num_transformer_heads,
+            zero_init=True,
+            residual=True,
+            ln_epsilon=1e-5,
+            name_prefix=f"transformer_mha_{tidx+1}",
         )
         current = ffn_block_enf(
-            inputs = current,
-            filters = filters,
-            dropout = transformer_dropout,
-            activation = transformer_activation,
-            residual = True,
-            ln_epsilon = 1e-5,
-            name_prefix = f"transformer_ff_{tidx+1}"
-
+            inputs=current,
+            filters=filters,
+            dropout=transformer_dropout,
+            activation=transformer_activation,
+            residual=True,
+            ln_epsilon=1e-5,
+            name_prefix=f"transformer_ff_{tidx+1}",
         )
-
 
     # Build crop and pointwise final block
     if crop_length > 0:
-        current = keras.layers.Cropping1D(crop_length, name = 'crop')(current)
+        current = keras.layers.Cropping1D(crop_length, name="crop")(current)
     current = conv_block_bs(
-            current,
-            filters=pointwise_filters,
-            kernel_size=1,
-            batch_norm=True,
-            activation=conv_activation,
-            residual=False,
-            l2_scale=0,
-            bn_momentum=0.9,
-            bn_gamma=None,
-            bn_sync=bn_sync,
-            bn_epsilon=1e-5,
-            kernel_initializer="he_normal",
-            name_prefix="final_pointwise"
-        )
-    current = keras.layers.Dropout(pointwise_dropout, name = 'final_pointwise_dropout')(current)
-    current = activate(current, conv_activation, name = 'final_activation')
+        current,
+        filters=pointwise_filters,
+        kernel_size=1,
+        batch_norm=True,
+        activation=conv_activation,
+        residual=False,
+        l2_scale=0,
+        bn_momentum=0.9,
+        bn_gamma=None,
+        bn_sync=bn_sync,
+        bn_epsilon=1e-5,
+        kernel_initializer="he_normal",
+        name_prefix="final_pointwise",
+    )
+    current = keras.layers.Dropout(pointwise_dropout, name="final_pointwise_dropout")(
+        current
+    )
+    current = activate(current, conv_activation, name="final_activation")
 
     # Build heads
     if isinstance(num_classes, int):
-        outputs = keras.layers.Conv1D(num_classes, kernel_size = 1, activation=output_activation, name = "head")(current)
+        outputs = keras.layers.Conv1D(
+            num_classes, kernel_size=1, activation=output_activation, name="head"
+        )(current)
     elif isinstance(num_classes, cabc.Sequence):
         outputs = []
         for i, n_tracks in enumerate(num_classes):
-            outputs.append(keras.layers.Conv1D(n_tracks, kernel_size = 1, activation=output_activation, name = f"head_{i}")(current))
+            outputs.append(
+                keras.layers.Conv1D(
+                    n_tracks,
+                    kernel_size=1,
+                    activation=output_activation,
+                    name=f"head_{i}",
+                )(current)
+            )
     else:
-        raise ValueError(f"Could not recognise num_classes argument ({num_classes}) as integer or list/tuple/sequence of integers.")
-
+        raise ValueError(
+            f"Could not recognise num_classes argument ({num_classes}) as integer or list/tuple/sequence of integers."
+        )
 
     # Construct model
-    m = keras.Model(inputs = sequence, outputs = outputs, name = name)
+    m = keras.Model(inputs=sequence, outputs=outputs, name=name)
     return m
+
 
 def exp_linspace_int(start, end, num_modules, divisible_by=1):
     """Get an exponentially rising set of values, guaranteed to be integers."""
-    def _round(x):
-        return int(np.round(x/divisible_by)*divisible_by)
-    base = np.exp(np.log(end/start)/(num_modules-1))
 
-    return [_round(start*base**i) for i in range(num_modules)]
+    def _round(x):
+        return int(np.round(x / divisible_by) * divisible_by)
+
+    base = np.exp(np.log(end / start) / (num_modules - 1))
+
+    return [_round(start * base**i) for i in range(num_modules)]

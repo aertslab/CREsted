@@ -93,18 +93,18 @@ def _trim_pattern_by_ic(
     v = (v - v.min()) / (v.max() - v.min() + 1e-9)
 
     try:
-        if min_v>0:
+        if min_v > 0:
             start_idx = min(np.where(v > min_v)[0])
-            end_idx = max(np.where(v > min_v)[0])+1
+            end_idx = max(np.where(v > min_v)[0]) + 1
         else:
-            start_idx=0
-            end_idx=len(ppm)
+            start_idx = 0
+            end_idx = len(ppm)
 
-        if end_idx==start_idx:
-            end_idx=start_idx+1
+        if end_idx == start_idx:
+            end_idx = start_idx + 1
 
-        if end_idx==len(v):
-            end_idx=len(v)-1
+        if end_idx == len(v):
+            end_idx = len(v) - 1
     except ValueError:
         logger.error("No valid pattern found. Aborting...")
 
@@ -490,6 +490,7 @@ def read_html_to_dataframe(source: str):
         # Handle the case where no tables are found
         return f"Error: {str(e)}"
 
+
 def write_to_meme(ppms: dict, output_file: str):
     """
     Write PPMs to a MEME-format file.
@@ -501,7 +502,7 @@ def write_to_meme(ppms: dict, output_file: str):
     output_file
         Path to the output MEME file.
     """
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         # Write the MEME header
         f.write("MEME version 4\n\n")
         f.write("ALPHABET= ACGT\n\n")

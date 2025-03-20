@@ -1,4 +1,4 @@
-# Hist  `pl.hist`
+# Hist `pl.hist`
 
 Plots for inspecting distributions of ground truth and predictions?
 

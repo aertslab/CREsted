@@ -14,11 +14,11 @@ import torch
 
 
 def _saliency_map(
-        X: torch.Tensor,
-        model: keras.Model,
-        class_index: int | None = None,
-        func: Callable[[torch.Tensor], torch.Tensor] = torch.mean
-    ) -> torch.Tensor:
+    X: torch.Tensor,
+    model: keras.Model,
+    class_index: int | None = None,
+    func: Callable[[torch.Tensor], torch.Tensor] = torch.mean,
+) -> torch.Tensor:
     """Fast function to generate saliency maps.
 
     Parameters
@@ -48,6 +48,7 @@ def _saliency_map(
     outputs.backward(torch.ones_like(outputs))
     return X.grad
 
+
 def _smoothgrad(
     x: torch.Tensor,
     model: keras.Model,
@@ -65,12 +66,14 @@ def _smoothgrad(
     grad = _saliency_map(x_noise, model, class_index=class_index, func=func)
     return torch.mean(grad, dim=0, keepdim=True).numpy()
 
+
 def _is_tensor(array) -> bool:
     return torch.is_tensor(array)
+
 
 def _to_tensor(array: np.array) -> torch.Tensor:
     return torch.from_numpy(array)
 
+
 def _from_tensor(tensor: torch.Tensor) -> np.array:
     return tensor.detach().cpu().numpy()
-

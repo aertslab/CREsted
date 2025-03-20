@@ -158,7 +158,11 @@ def modisco_results(
                     logger.info("total seqlets:", num_seqlets)
                 if num_seqlets < min_seqlets:
                     break
-                pattern_trimmed = _trim_pattern_by_ic(pattern, pos_pat, trim_ic_threshold) if trim_pattern else pattern
+                pattern_trimmed = (
+                    _trim_pattern_by_ic(pattern, pos_pat, trim_ic_threshold)
+                    if trim_pattern
+                    else pattern
+                )
                 if viz == "contrib":
                     ax = _plot_attribution_map(
                         ax=ax,
@@ -211,7 +215,7 @@ def clustermap(
     save_path: str | None = None,
     pat_seqs: list[tuple[str, np.ndarray]] | None = None,
     dendrogram_ratio: tuple[float, float] = (0.05, 0.2),
-    importance_threshold : float = 0,
+    importance_threshold: float = 0,
 ) -> sns.matrix.ClusterGrid:
     """
     Create a clustermap from the given pattern matrix and class labels with customizable options.
@@ -360,9 +364,10 @@ def clustermap(
         g.fig.canvas.draw()
 
     if save_path is not None:
-        plt.savefig(save_path, bbox_inches='tight')
+        plt.savefig(save_path, bbox_inches="tight")
 
     plt.show()
+
 
 def clustermap_with_pwm_logos(
     pattern_matrix: np.ndarray,
@@ -379,7 +384,7 @@ def clustermap_with_pwm_logos(
     importance_threshold: float = 0,
     logo_height_fraction: float = 0.35,
     logo_y_padding: float = 0.3,
-    pwm_or_contrib: str = 'pwm',
+    pwm_or_contrib: str = "pwm",
 ) -> sns.matrix.ClusterGrid:
     """
     Create a clustermap with additional PWM logo plots below the heatmap.
@@ -477,22 +482,27 @@ def clustermap_with_pwm_logos(
     ratio = logo_height / logo_width
 
     for i, pattern in enumerate(reordered_patterns):
-        plot_start_x = g.ax_heatmap.get_position().x0 + ((i - 0.75) / len(reordered_patterns)) * g.ax_heatmap.get_position().width
-        plot_start_y = g.ax_heatmap.get_position().y0 - logo_height - logo_height * logo_y_padding
+        plot_start_x = (
+            g.ax_heatmap.get_position().x0
+            + ((i - 0.75) / len(reordered_patterns)) * g.ax_heatmap.get_position().width
+        )
+        plot_start_y = (
+            g.ax_heatmap.get_position().y0 - logo_height - logo_height * logo_y_padding
+        )
         pwm_ax = fig.add_axes([plot_start_x, plot_start_y, logo_width, logo_height])
         pwm_ax.clear()
 
-        pwm=None
-        if pwm_or_contrib =='pwm':
+        pwm = None
+        if pwm_or_contrib == "pwm":
             ppm = _pattern_to_ppm(pattern["pattern"])
             ic, ic_pos, ic_mat = compute_ic(ppm)
             pwm = np.array(ic_mat)
-        elif pwm_or_contrib =='contrib':
-            pwm = np.array(pattern["pattern"]['contrib_scores'])
+        elif pwm_or_contrib == "contrib":
+            pwm = np.array(pattern["pattern"]["contrib_scores"])
         else:
             raise ValueError(
-                        'Invalid visualization method. Choose either "contrib" or "pwm" in the pwm_or_contrib parameter. Aborting...'
-                    )
+                'Invalid visualization method. Choose either "contrib" or "pwm" in the pwm_or_contrib parameter. Aborting...'
+            )
 
         pwm_ax = _plot_attribution_map(
             ax=pwm_ax,
@@ -531,10 +541,11 @@ def clustermap_with_pwm_logos(
     plt.show()
     return g
 
+
 def selected_instances(
     pattern_dict: dict,
     idcs: list[int],
-)-> None:
+) -> None:
     """
     Plot the patterns specified by the indices in `idcs` from the `pattern_dict`.
 
@@ -791,7 +802,9 @@ def clustermap_tf_motif(
 
     # Subset classes if specified
     if subset_classes is not None:
-        subset_indices = [i for i, label in enumerate(class_labels) if label in subset_classes]
+        subset_indices = [
+            i for i, label in enumerate(class_labels) if label in subset_classes
+        ]
         if not subset_indices:
             raise ValueError("No matching classes found in class_labels.")
         data = data[subset_indices, :, :]
@@ -806,7 +819,9 @@ def clustermap_tf_motif(
 
     # Apply filtering to data and pattern labels
     data = data[:, valid_columns, :]
-    pattern_labels = [label for i, label in enumerate(pattern_labels) if valid_columns[i]]
+    pattern_labels = [
+        label for i, label in enumerate(pattern_labels) if valid_columns[i]
+    ]
 
     # Mapping for dimensions
     dim_mapping = {"gex": 0, "contrib": 1}
@@ -858,7 +873,7 @@ def clustermap_tf_motif(
     norm = mcolors.TwoSlopeNorm(
         vmin=-max(np.abs(heatmap_data.min()), np.abs(heatmap_data.max())),
         vcenter=0,
-        vmax=max(np.abs(heatmap_data.min()), np.abs(heatmap_data.max()))
+        vmax=max(np.abs(heatmap_data.min()), np.abs(heatmap_data.max())),
     )
 
     # Plot heatmap
@@ -873,7 +888,12 @@ def clustermap_tf_motif(
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
             ax_heatmap.scatter(
-                j, i, s=dot_size_data[i, j] * 100, c="black", alpha=0.6, edgecolor="none"
+                j,
+                i,
+                s=dot_size_data[i, j] * 100,
+                c="black",
+                alpha=0.6,
+                edgecolor="none",
             )
 
     # Add colorbar
