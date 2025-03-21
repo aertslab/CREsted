@@ -4,7 +4,7 @@
 :maxdepth: 2
 :titlesonly:
 
-biccn
+BICCN/index
 DeepBrain/index
 deepflybrain
 DeepLiver/index

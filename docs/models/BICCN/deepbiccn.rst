@@ -1,4 +1,4 @@
-BICCN
+DeepBICCN
 ============
 
 .. sidebar:: Model Features
@@ -10,7 +10,7 @@ BICCN
    - **Input shape**: (2114, 4)
    - **Output shape**: (19,)
 
-The **BICCN** model is a peak regression model fine-tuned to cell type-specific regions for cell types in the mouse cortex. It was used in the BICCN Challenge, to predict in vivo activity of a large set of validated enhancers. The selected model was the one that had the highest ranking out of all submitted sequence-models.
+The **DeepBICCN** model is a peak regression model fine-tuned to cell type-specific regions for cell types in the mouse cortex. It was used in the BICCN Challenge, to predict in vivo activity of a large set of validated enhancers. The selected model was the one that had the highest ranking out of all submitted sequence-models.
 
 After pretraining on all consensus peaks, the model was fine-tuned to specific peaks. Specific peaks were determined through the ratio of highest and second highest peak, and the ratio of the second and third highest peak. These sets of regions were then used as input to the model, where 2114bp one-hot encoded DNA sequences were used to per cell type the mean peak accessibility over the center 1000 bp of the peak.
 
@@ -34,7 +34,7 @@ Usage
     import keras
 
     # download model
-    model_path, output_names = crested.get_model("BICCN")
+    model_path, output_names = crested.get_model("DeepBICCN")
 
     # load model
     model = keras.models.load_model(model_path)
