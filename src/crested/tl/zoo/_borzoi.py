@@ -28,10 +28,10 @@ def borzoi(
     pool_type: str = "max",
     first_kernel_size: int = 15,
     kernel_size: int = 5,
-    transformer_dropout = 0.2,
+    transformer_dropout=0.2,
     pointwise_dropout: float = 0.1,
     bn_sync: bool = False,
-    name: str = 'Borzoi'
+    name: str = "Borzoi",
 ) -> keras.Model:
     """
     Construct an fully replicated Borzoi model.
@@ -89,35 +89,41 @@ def borzoi(
     -------
     A Keras model.
     """
-    if any(unet_connections_i > num_conv_blocks for unet_connections_i in unet_connections):
-        raise ValueError(f"U-net connections requested at levels ({unet_connections}) past the current conv tower size ({num_conv_blocks})")
-    upsampling_out_length = int(seq_len/(2**(num_conv_blocks - len(unet_connections) + 1))) # Should be length after upsampling, so seq_len/32 for base Borzoi
-    crop_length = int((upsampling_out_length-target_length)//2)
+    if any(
+        unet_connections_i > num_conv_blocks for unet_connections_i in unet_connections
+    ):
+        raise ValueError(
+            f"U-net connections requested at levels ({unet_connections}) past the current conv tower size ({num_conv_blocks})"
+        )
+    upsampling_out_length = int(
+        seq_len / (2 ** (num_conv_blocks - len(unet_connections) + 1))
+    )  # Should be length after upsampling, so seq_len/32 for base Borzoi
+    crop_length = int((upsampling_out_length - target_length) // 2)
 
-     # Sequence input
+    # Sequence input
     sequence = keras.layers.Input(shape=(seq_len, 4), name="input")
 
     # Build stem (standard conv + pooling)
     current = keras.layers.Conv1D(
         filters=start_filters,
         kernel_size=first_kernel_size,
-        padding='same',
-        name='stem_conv'
-        )(sequence)
-    current = pool(
-        current,
-        pool_type=pool_type,
-        pool_size=2,
         padding="same",
-        name = "stem_pool"
+        name="stem_conv",
+    )(sequence)
+    current = pool(
+        current, pool_type=pool_type, pool_size=2, padding="same", name="stem_pool"
     )
 
-
     # Build convolution tower
-     # Each block: (batchnorm + gelu + conv)
-     # In enformer: stem has `start_filters`` filters, first layer of tower also has `start_filters` filters -> start exp_linspace_int at tower
-     # In borzoi: stem has `start_filters` filters, first layer of tower already increases -> start exp_linspace_int at stem
-    tower_filters = exp_linspace_int(start=start_filters, end=filters, num_modules=num_conv_blocks+1, divisible_by=32)
+    # Each block: (batchnorm + gelu + conv)
+    # In enformer: stem has `start_filters`` filters, first layer of tower also has `start_filters` filters -> start exp_linspace_int at tower
+    # In borzoi: stem has `start_filters` filters, first layer of tower already increases -> start exp_linspace_int at stem
+    tower_filters = exp_linspace_int(
+        start=start_filters,
+        end=filters,
+        num_modules=num_conv_blocks + 1,
+        divisible_by=32,
+    )
     unet_skips = []
     for cidx, layer_filters in enumerate(tower_filters[1:]):
         current = conv_block_bs(
@@ -133,25 +139,27 @@ def borzoi(
             bn_sync=bn_sync,
             bn_epsilon=1e-3,
             kernel_initializer="he_normal",
-            name_prefix=f"tower_conv_{cidx+1}"
+            name_prefix=f"tower_conv_{cidx+1}",
         )
-        if cidx+1 in unet_connections:
-            unet_skips.append(conv_block_bs(
-                current,
-                filters=unet_filters,
-                kernel_size=1,
-                pool_size=1,
-                batch_norm=True,
-                activation=conv_activation,
-                residual=False,
-                l2_scale=0,
-                bn_momentum=0.9,
-                bn_gamma=None,
-                bn_sync=bn_sync,
-                bn_epsilon=1e-3,
-                kernel_initializer="he_normal",
-                name_prefix=f"unet_skip_{len(unet_skips)+1}"
-            ))
+        if cidx + 1 in unet_connections:
+            unet_skips.append(
+                conv_block_bs(
+                    current,
+                    filters=unet_filters,
+                    kernel_size=1,
+                    pool_size=1,
+                    batch_norm=True,
+                    activation=conv_activation,
+                    residual=False,
+                    l2_scale=0,
+                    bn_momentum=0.9,
+                    bn_gamma=None,
+                    bn_sync=bn_sync,
+                    bn_epsilon=1e-3,
+                    kernel_initializer="he_normal",
+                    name_prefix=f"unet_skip_{len(unet_skips)+1}",
+                )
+            )
 
         # Separate pool layer so that we can save unet skip after conv but before pool where needed
         current = pool(
@@ -159,37 +167,37 @@ def borzoi(
             pool_type=pool_type,
             pool_size=2,
             padding="same",
-            name = f"tower_conv_{cidx+1}_pool"
+            name=f"tower_conv_{cidx+1}_pool",
         )
 
     # Build transformer tower
-     # Each block Residual(LayerNorm+MHA+Dropout) + Residual(LayerNorm+Conv+Dropout+ReLU+Conv+Dropout)
+    # Each block Residual(LayerNorm+MHA+Dropout) + Residual(LayerNorm+Conv+Dropout+ReLU+Conv+Dropout)
     for tidx in range(num_transformer_blocks):
         current = mha_block_enf(
-            inputs = current,
-            num_heads = num_transformer_heads,
-            key_query_dim = 64,
-            value_dim = filters // num_transformer_heads,
-            scaling = True,
-            attn_dropout = 0.05,
-            pos_dropout = 0.01,
-            final_dropout = transformer_dropout,
-            symmetric_pos_encoding = False,
-            pos_encoding_funs = 'borzoi',
-            num_pos_feats = 32,
-            zero_init = True,
-            residual = True,
-            ln_epsilon = 1e-3,
-            name_prefix = f"transformer_mha_{tidx+1}"
+            inputs=current,
+            num_heads=num_transformer_heads,
+            key_query_dim=64,
+            value_dim=filters // num_transformer_heads,
+            scaling=True,
+            attn_dropout=0.05,
+            pos_dropout=0.01,
+            final_dropout=transformer_dropout,
+            symmetric_pos_encoding=False,
+            pos_encoding_funs="borzoi",
+            num_pos_feats=32,
+            zero_init=True,
+            residual=True,
+            ln_epsilon=1e-3,
+            name_prefix=f"transformer_mha_{tidx+1}",
         )
         current = ffn_block_enf(
-            inputs = current,
-            filters = filters,
-            dropout = transformer_dropout,
-            activation = transformer_activation,
-            residual = True,
-            ln_epsilon = 1e-3,
-            name_prefix = f"transformer_ff_{tidx+1}"
+            inputs=current,
+            filters=filters,
+            dropout=transformer_dropout,
+            activation=transformer_activation,
+            residual=True,
+            ln_epsilon=1e-3,
+            name_prefix=f"transformer_ff_{tidx+1}",
         )
 
     # Build upsampling tower
@@ -209,7 +217,7 @@ def borzoi(
             bn_sync=bn_sync,
             bn_epsilon=1e-3,
             kernel_initializer="he_normal",
-            name_prefix=f"upsampling_conv_{uidx+1}"
+            name_prefix=f"upsampling_conv_{uidx+1}",
         )
         # Upsample
         current = keras.layers.UpSampling1D(size=2)(current)
@@ -222,50 +230,63 @@ def borzoi(
             filters=filters,
             kernel_size=3,
             padding="same",
-            name=f"upsampling_separable_{uidx+1}"
+            name=f"upsampling_separable_{uidx+1}",
         )(current)
 
     # Crop outputs
     if crop_length > 0:
-        current = keras.layers.Cropping1D(crop_length, name = 'crop')(current)
+        current = keras.layers.Cropping1D(crop_length, name="crop")(current)
     # Run final pointwise convblock + dropout + gelu section
     current = conv_block_bs(
-            current,
-            filters=pointwise_filters,
-            kernel_size=1,
-            batch_norm=True,
-            activation=conv_activation,
-            activation_end=conv_activation,
-            residual=False,
-            l2_scale=0,
-            dropout=pointwise_dropout,
-            bn_momentum=0.9,
-            bn_gamma=None,
-            bn_sync=bn_sync,
-            bn_epsilon=1e-3,
-            kernel_initializer="he_normal",
-            name_prefix="final_conv"
-        )
+        current,
+        filters=pointwise_filters,
+        kernel_size=1,
+        batch_norm=True,
+        activation=conv_activation,
+        activation_end=conv_activation,
+        residual=False,
+        l2_scale=0,
+        dropout=pointwise_dropout,
+        bn_momentum=0.9,
+        bn_gamma=None,
+        bn_sync=bn_sync,
+        bn_epsilon=1e-3,
+        kernel_initializer="he_normal",
+        name_prefix="final_conv",
+    )
 
     # Build heads
     if isinstance(num_classes, int):
-        outputs = keras.layers.Conv1D(num_classes, kernel_size = 1, activation=output_activation, name = "head")(current)
+        outputs = keras.layers.Conv1D(
+            num_classes, kernel_size=1, activation=output_activation, name="head"
+        )(current)
     elif isinstance(num_classes, cabc.Sequence):
         outputs = []
         for i, n_tracks in enumerate(num_classes):
-            outputs.append(keras.layers.Conv1D(n_tracks, kernel_size = 1, activation=output_activation, name = f"head_{i}")(current))
+            outputs.append(
+                keras.layers.Conv1D(
+                    n_tracks,
+                    kernel_size=1,
+                    activation=output_activation,
+                    name=f"head_{i}",
+                )(current)
+            )
     else:
-        raise ValueError(f"Could not recognise num_classes argument ({num_classes}) as integer or list/tuple/sequence of integers.")
-
+        raise ValueError(
+            f"Could not recognise num_classes argument ({num_classes}) as integer or list/tuple/sequence of integers."
+        )
 
     # Construct model
-    m = keras.Model(inputs = sequence, outputs = outputs, name = name)
+    m = keras.Model(inputs=sequence, outputs=outputs, name=name)
     return m
+
 
 def exp_linspace_int(start, end, num_modules, divisible_by=1):
     """Get an exponentially rising set of values, guaranteed to be integers."""
-    def _round(x):
-        return int(np.round(x/divisible_by)*divisible_by)
-    base = np.exp(np.log(end/start)/(num_modules-1))
 
-    return [_round(start*base**i) for i in range(num_modules)]
+    def _round(x):
+        return int(np.round(x / divisible_by) * divisible_by)
+
+    base = np.exp(np.log(end / start) / (num_modules - 1))
+
+    return [_round(start * base**i) for i in range(num_modules)]

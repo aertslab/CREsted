@@ -12,6 +12,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from crested._genome import Genome
+from crested.tl._explainer import integrated_grad, mutagenesis, saliency_map
 from crested.tl._utils import (
     create_random_sequences,
     generate_motif_insertions,
@@ -27,11 +28,6 @@ from crested.utils._utils import (
     _transform_input,
     _weighted_difference,
 )
-
-if os.environ["KERAS_BACKEND"] == "tensorflow":
-    from crested.tl._explainer_tf import Explainer
-elif os.environ["KERAS_BACKEND"] == "torch":
-    from crested.tl._explainer_torch import Explainer
 
 
 def extract_layer_embeddings(
@@ -270,7 +266,9 @@ def contribution_scores(
     genome: Genome | os.PathLike | None = None,
     transpose: bool = False,
     all_class_names: list[str] | None = None,
+    batch_size: int = 128,
     output_dir: os.PathLike | None = None,
+    seed: int | None = 42,
     verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -294,16 +292,22 @@ def contribution_scores(
         A (list of) trained keras model(s) to calculate the contribution scores for.
     method
         Method to use for calculating the contribution scores.
-        Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
+        Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad', 'saliency_map'.
     genome
         Genome or path to the genome fasta. Required if no genome is registered and input is an anndata object or region names.
     transpose
         Transpose the contribution scores to (N, C, 4, L) and one hots to (N, 4, L) (for compatibility with MoDISco).
     all_class_names
         Optional list of all class names in the dataset. If provided and output_dir is not None, will use these to name the output files.
+    batch_size
+        Maximum number of input sequences to predict at once when calculating scores.
+        Useful for methods like 'integrated_grad' which also calculate 25 background sequence contributions together with the sequence's contributions in one batch.
+        Default is 128.
     output_dir
         Path to the output directory to save the contribution scores and one hot seqs.
         Will create a separate npz file per class.
+    seed
+        Seed to use for shuffling regions. Only used in "expected_integrated_grad".
     verbose
         Boolean for disabling the logs and plotting progress of calculations using tqdm.
 
@@ -342,22 +346,40 @@ def contribution_scores(
         scores = np.zeros((N, n_classes, L, D))  # Shape: (N, C, L, 4)
 
         for i, class_index in enumerate(target_idx):
-            explainer = Explainer(m, class_index=class_index)
-
             if method == "integrated_grad":
-                scores[:, i, :, :] = explainer.integrated_grad(
+                scores[:, i, :, :] = integrated_grad(
                     input_sequences,
+                    model=m,
+                    class_index=class_index,
                     baseline_type="zeros",
+                    num_baselines=1,
+                    num_steps=25,
+                    batch_size=batch_size,
                 )
             elif method == "mutagenesis":
-                scores[:, i, :, :] = explainer.mutagenesis(
+                scores[:, i, :, :] = mutagenesis(
                     input_sequences,
+                    model=m,
                     class_index=class_index,
+                    batch_size=batch_size,
                 )
             elif method == "expected_integrated_grad":
-                scores[:, i, :, :] = explainer.expected_integrated_grad(
+                scores[:, i, :, :] = integrated_grad(
                     input_sequences,
-                    num_baseline=25,
+                    model=m,
+                    class_index=class_index,
+                    baseline_type="random",
+                    num_baselines=25,
+                    num_steps=25,
+                    batch_size=batch_size,
+                    seed=seed,
+                )
+            elif method == "saliency_map":
+                scores[:, i, :, :] = saliency_map(
+                    input_sequences,
+                    model=m,
+                    class_index=class_index,
+                    batch_size=batch_size,
                 )
             else:
                 raise ValueError(f"Unsupported method: {method}")
@@ -399,6 +421,7 @@ def contribution_scores_specific(
     genome: Genome | os.PathLike | None = None,
     method: str = "expected_integrated_grad",
     transpose: bool = True,
+    batch_size: int = 128,
     output_dir: os.PathLike | None = None,
     verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -428,10 +451,14 @@ def contribution_scores_specific(
         Genome or Path to the genome file. Required if no genome is registered.
     method
         Method to use for calculating the contribution scores.
-        Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
+        Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad', 'saliency_map'.
     transpose
         Transpose the contribution scores to (N, C, 4, L) and one hots to (N, 4, L) (for compatibility with MoDISco).
         Defaults to True here since that is what modisco expects.
+    batch_size
+        Maximum number of input sequences to predict at once when calculating scores.
+        Useful for methods like 'integrated_grad' which also calculate 25 background sequence contributions together with the sequence's contributions in one batch.
+        Default is 128.
     output_dir
         Path to the output directory to save the contribution scores and one hot seqs.
         Will create a separate npz file per class.
@@ -474,6 +501,7 @@ def contribution_scores_specific(
             genome=genome,
             verbose=verbose,
             output_dir=output_dir,
+            batch_size=batch_size,
             all_class_names=all_class_names,
             transpose=transpose,
         )
@@ -826,7 +854,7 @@ def enhancer_design_motif_insertion(
         no_mutation_flanks = (0, 0)
 
     if insertions_per_pattern is None:
-        insertions_per_pattern = {pattern_name: 1 for pattern_name in patterns}
+        insertions_per_pattern = dict.fromkeys(patterns, 1)
 
     # Generate initial sequences
     if starting_sequences is None:

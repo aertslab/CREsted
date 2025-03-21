@@ -16,7 +16,7 @@ The **DeepMouseBrain3** model is a peak regression model fine-tuned to cell type
 After pretraining on all consensus peaks, the model was fine-tuned to specific peaks obtained with the :func:`~crested.pp.filter_regions_on_specificity` function. These sets of regions were then used as input to the model, where 2114bp one-hot encoded DNA sequences were used to per cell type the mean peak accessibility over the center 1000 bp of the peak.
 Peak heights were normalized across cell types with the :func:`~crested.pp.normalize_peaks` function.
 
-The model is a CNN multiclass regression model that follows the the :func:`~crested.tl.zoo.chrombpnet` architecture. It has 1024 convolutional filters per layer instead of the default 512..
+The model is a CNN multiclass regression model that follows the the :func:`~crested.tl.zoo.dilated_cnn` architecture. It has 1024 convolutional filters per layer instead of the default 512..
 
 Details of the data and the model can be found in the original publication.
 
