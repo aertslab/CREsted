@@ -51,22 +51,28 @@ def _get_dataset_index():
                 # Models
                 "models/deepflybrain.tar.gz": "sha256:65ed3f8c2d15216b9b47a06165d330d2f7b9dbae1b8ba9c06c095c9a652e4a23",
                 "models/biccn.tar.gz": "sha256:e59887c3010c740cd34fbb5d0b5853cd254d7e53ea66783c1fcd42405ed6ea0f",
+                "models/deepbiccn2.tar.gz": "sha256:e5eb5a253ddb709d94cb9093ce05cf15df7755bc7428c4aa2c11640a07d4f8b9",
+                "models/deepccl.tar.gz": "sha256:2bf0b379572b58b5a6512801ac133cb728621204ce19ad3b361b2e5e705a4ade",
                 "models/deepchickenbrain1.tar.gz": "sha256:f87c58b7524cff8543bc817678408d01ca9c0349497f4b1e391c1b172046352f",
                 "models/deepchickenbrain2.tar.gz": "sha256:e61310256f96a28dc450d2440edd708e7eaf6b3ee58c53a76aa3e708e8cd39fa",
+                "models/deepglioma.tar.gz": "sha256:925931aadaf723a590843e37809afdf2757d2abe84448fd1bc674aedc609f18c",
                 "models/deephumanbrain.tar.gz": "sha256:8f1e3d71208a587f64b8d20d24851bda9b0779dc6dca623e9287d1506a357c06",
                 "models/deephumancortex1.tar.gz": "sha256:f69b75ea5839c666570e634ffa09646239be3fe2ab593b6f076589a36e5abea5",
                 "models/deephumancortex2.tar.gz": "sha256:dfd93febfdf4ba44ae6f65a13ed674e7b8d6d6f124ce4abd34c102bc04de4530",
                 "models/deepliver_accessibility.tar.gz": "sha256:8a3ddcfa29effa9e979eae769fbfc6a362de90197434a630015dccca9fecb34c",
                 "models/deepliver_activity.tar.gz": "sha256:e5e12200ce90b9f0b56653a35294c37f0f97e4d2e951e79c701355ef62b1ea6c",
                 "models/deepliver_zonation.tar.gz": "sha256:d7227b7ecf0bf7703e775713cef38466df1ee5e7a63a8ccf22a5da545040708c",
+                "models/deeppbmc.tar.gz": "sha256:aac4f08d55b2bab595f95f9ae59ee90cadf383e190968084a4ac4cdb0e9f5589",
                 "models/deepmel1.tar.gz": "sha256:f8ffd3362fb7ac3d946b30f4f1bc1eaa7da4c8ba826d1e206d69914e2a969c23",
                 "models/deepmel2.tar.gz": "sha256:df6ad28fe9bf892810afd34ae5c0318022bef6eec2f41b4fea66654ac51f9e47",
                 "models/deepmel2_gabpa.tar.gz": "sha256:856176c7755e7e93aadb532504f5841422ee00f3b431e7bc136ea498b586b303",
                 "models/deepmousebrain1.tar.gz": "sha256:af2c2487aa7b49b0d487d199b5e4efddb147578dc075682dd2b4bd48ad6ffaa5",
                 "models/deepmousebrain2.tar.gz": "sha256:4c7dd4649f642b6ec120fb324f479093644d622826d4a3a7d3ee9e3c2bb8bde6",
                 "models/deepmousebrain3.tar.gz": "sha256:a6160a87bb38eb64e7c39b0bda7f147b5c23bd41c82f72909f3372967aae7bdc",
+                "models/deepzebrafish.tar.gz": "sha256:a4aa540afc8fc372a9ed6a614ac2dc3f47f4675ece44eeb9c127800be20d6c26",
                 "models/enformer_human.tar.gz": "628f67f540304d4d0e143176dc824ed72b3413f78f2fa2efe5d4f0ab51ea1bcc",
                 "models/enformer_mouse.tar.gz": "77296be9f16bcf81b9c9d3ae2bba61d7ae99e01e77a05eefc1fa316ef5eb6e31",
+                "models/borzoi_biccn.tar.gz": "sha256:8062c50622e297053796af5359757c56e59f5188c5bcca7d4c3a002b937b122c",
                 "models/borzoi_human_rep0.tar.gz": "c78f0e15a4962a4ccb699c29eab71114fd92c6d08d435f28ea15c2f116ec8ff1",
                 "models/borzoi_human_rep1.tar.gz": "f5eefd9bddcdee02f00a3a0cd758174b58ea0b269f4d04b8d9e1e0e67ec6b9bd",
                 "models/borzoi_human_rep2.tar.gz": "48bc4dffc8e271eae7572fd63e8ce708744d8fe1f67a50c5422c1206e54d25db",
@@ -187,10 +193,13 @@ def get_model(model: str) -> tuple[str, list[str]]:
     ----------
     model
         The name of the model to fetch. Available options:
-          - 'BICCN'
+          - 'DeepBICCN'
+          - 'DeepBICCN2'
+          - 'DeepCCL'
           - 'DeepChickenBrain1'
           - 'DeepChickenBrain2'
           - 'DeepFlyBrain'
+          - 'DeepGlioma'
           - 'DeepHumanBrain'
           - 'DeepHumanCortex1'
           - 'DeepHumanCortex2'
@@ -203,8 +212,11 @@ def get_model(model: str) -> tuple[str, list[str]]:
           - 'DeepMouseBrain1'
           - 'DeepMouseBrain2'
           - 'DeepMouseBrain3'
+          - 'DeepPBMC'
+          - 'DeepZebraFish'
           - 'Enformer_human'
           - 'Enformer_mouse'
+          - 'BorzoiBICCN'
           - 'Borzoi_human_rep[0-3]'
           - 'Borzoi_mouse_rep[0-3]'
 
@@ -218,24 +230,30 @@ def get_model(model: str) -> tuple[str, list[str]]:
     """
     # Mapping: "user_facing_name": ("model_folder_in_registry.tar.gz")
     model_mapping = {
-        "BICCN": ("models/biccn.tar.gz"),
+        "DeepBICCN": ("models/biccn.tar.gz"),
+        "DeepBICCN2": ("models/deepbiccn2.tar.gz"),
+        "DeepCCL": ("models/deepccl.tar.gz"),
         "DeepChickenBrain1": ("models/deepchickenbrain1.tar.gz"),
         "DeepChickenBrain2": ("models/deepchickenbrain2.tar.gz"),
         "DeepFlyBrain": ("models/deepflybrain.tar.gz"),
+        "DeepGlioma": ("models/deepglioma.tar.gz"),
         "DeepHumanBrain": ("models/deephumanbrain.tar.gz"),
         "DeepHumanCortex1": ("models/deephumancortex1.tar.gz"),
         "DeepHumanCortex2": ("models/deephumancortex2.tar.gz"),
         "DeepLiver_accessibility": ("models/deepliver_accessibility.tar.gz"),
         "DeepLiver_activity": ("models/deepliver_activity.tar.gz"),
         "DeepLiver_zonation": ("models/deepliver_zonation.tar.gz"),
+        "DeepPBMC": ("models/deeppbmc.tar.gz"),
         "DeepMEL1": ("models/deepmel1.tar.gz"),
         "DeepMEL2": ("models/deepmel2.tar.gz"),
         "DeepMEL2_gabpa": ("models/deepmel2_gabpa.tar.gz"),
         "DeepMouseBrain1": ("models/deepmousebrain1.tar.gz"),
         "DeepMouseBrain2": ("models/deepmousebrain2.tar.gz"),
         "DeepMouseBrain3": ("models/deepmousebrain3.tar.gz"),
+        "DeepZebraFish": ("models/deepzebrafish.tar.gz"),
         "Enformer_human": ("models/enformer_human.tar.gz"),
         "Enformer_mouse": ("models/enformer_mouse.tar.gz"),
+        "BorzoiBICCN": ("models/borzoi_biccn.tar.gz"),
         "Borzoi_human_rep0": ("models/borzoi_human_rep0.tar.gz"),
         "Borzoi_human_rep1": ("models/borzoi_human_rep1.tar.gz"),
         "Borzoi_human_rep2": ("models/borzoi_human_rep2.tar.gz"),
