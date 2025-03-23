@@ -22,6 +22,7 @@ def borzoi(
     pointwise_filters: int | None = 1920,
     unet_connections: cabc.Sequence[int] = [5, 6],
     unet_filters: int = 1536,
+    unet_conv: bool = True,
     conv_activation: str = "gelu_approx",
     transformer_activation: str = "relu",
     output_activation: str = "softplus",
@@ -66,6 +67,9 @@ def borzoi(
         1-indexed, so [5, 6] means after the 5th and 6th block.
     unet_filters
         Number of filters to use for the U-net connection skip blocks.
+    unet_conv
+        Whether to include an extra convolution during the U-net horizontal connection.
+        Used in release Borzoi.
     conv_activation
         Activation function to use in the conv tower, in the upsampling, and in the final pointwise block.
     transformer_activation
@@ -143,9 +147,10 @@ def borzoi(
             name_prefix=f"tower_conv_{cidx+1}",
         )
         if cidx + 1 in unet_connections:
-            unet_skips.append(
-                conv_block_bs(
-                    current,
+            unet_current = current
+            if unet_conv:
+                unet_current = conv_block_bs(
+                    unet_current,
                     filters=unet_filters,
                     kernel_size=1,
                     pool_size=1,
@@ -158,8 +163,10 @@ def borzoi(
                     bn_sync=bn_sync,
                     bn_epsilon=1e-3,
                     kernel_initializer="he_normal",
-                    name_prefix=f"unet_skip_{len(unet_skips)+1}",
+                    name_prefix=f"unet_skip_{len(unet_skips)+1}"
                 )
+            unet_skips.append(
+                unet_current
             )
 
         # Separate pool layer so that we can save unet skip after conv but before pool where needed
