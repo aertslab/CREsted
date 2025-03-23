@@ -18,7 +18,7 @@ def borzoi(
     num_transformer_heads: int = 8,
     target_length: int = 6144,
     start_filters: int = 512,
-    tower_start_filters: int | None = 608,
+    tower_start_filters: int | None = None,
     filters: int = 1536,
     pointwise_filters: int | None = 1920,
     unet_connections: cabc.Sequence[int] = [5, 6],
@@ -59,7 +59,8 @@ def borzoi(
     start_filters
         Starting number of filters for the first DNA-facing block, exponentially increasing towards `filters` through the conv tower.
     tower_start_filters
-        Number of filters to start the conv tower with. If None, inferred starting from start_filters to filters.
+        Optional: Different number of filters to start the conv tower with after the stem conv. 
+        By default, inferred starting from start_filters to filters.
     filters
         Number of filters at the end of the conv tower and in the upsampling.
     pointwise_filters
