@@ -7,7 +7,13 @@ import collections.abc as cabc
 import keras
 import numpy as np
 
-from crested.tl.zoo.utils import conv_block_bs, ffn_block_enf, mha_block_enf, pool
+from crested.tl.zoo.utils import (
+    activate,
+    conv_block_bs,
+    ffn_block_enf,
+    mha_block_enf,
+    pool,
+)
 
 
 def borzoi(
@@ -18,10 +24,12 @@ def borzoi(
     num_transformer_heads: int = 8,
     target_length: int = 6144,
     start_filters: int = 512,
+    tower_start_filters: int | None = None,
     filters: int = 1536,
-    pointwise_filters: int = 1920,
+    pointwise_filters: int | None = 1920,
     unet_connections: cabc.Sequence[int] = [5, 6],
     unet_filters: int = 1536,
+    upsample_conv: bool = True,
     conv_activation: str = "gelu_approx",
     transformer_activation: str = "relu",
     output_activation: str = "softplus",
@@ -56,15 +64,22 @@ def borzoi(
         The target length in bins to crop to. Default is 6144, cropping away 5120 bins (164kb) on each side.
     start_filters
         Starting number of filters for the first DNA-facing block, exponentially increasing towards `filters` through the conv tower.
+    tower_start_filters
+        Optional: Different number of filters to start the conv tower with after the stem conv.
+        By default, inferred starting from start_filters to filters.
     filters
         Number of filters at the end of the conv tower and in the upsampling.
     pointwise_filters
         Number of filters of the post-transformer/upsampling final pointwise convolution.
+        If None, block is not included.
     unet_connections
         Levels in the convolution tower to add U-net skip connections past the transformer tower.
         1-indexed, so [5, 6] means after the 5th and 6th block.
     unet_filters
         Number of filters to use for the U-net connection skip blocks.
+    upsample_conv
+        Whether to include an extra convolution during the upsampling.
+        Used in release Borzoi, removed later.
     conv_activation
         Activation function to use in the conv tower, in the upsampling, and in the final pointwise block.
     transformer_activation
@@ -118,12 +133,20 @@ def borzoi(
     # Each block: (batchnorm + gelu + conv)
     # In enformer: stem has `start_filters`` filters, first layer of tower also has `start_filters` filters -> start exp_linspace_int at tower
     # In borzoi: stem has `start_filters` filters, first layer of tower already increases -> start exp_linspace_int at stem
-    tower_filters = exp_linspace_int(
-        start=start_filters,
-        end=filters,
-        num_modules=num_conv_blocks + 1,
-        divisible_by=32,
-    )
+    if tower_start_filters is not None:
+        tower_filters = [start_filters] + exp_linspace_int(
+            start=tower_start_filters,
+            end=filters,
+            num_modules=num_conv_blocks,
+            divisible_by=32,
+        )
+    else:
+        tower_filters = exp_linspace_int(
+            start=start_filters,
+            end=filters,
+            num_modules=num_conv_blocks + 1,
+            divisible_by=32,
+        )
     unet_skips = []
     for cidx, layer_filters in enumerate(tower_filters[1:]):
         current = conv_block_bs(
@@ -203,29 +226,38 @@ def borzoi(
     # Build upsampling tower
     # Generate an upsampling region (((ConvBlock -> Upsampling) + skipblock) -> SeparableConv) for each unet connection
     for uidx, unet_skip_current in enumerate(unet_skips[::-1]):
-        # Run first conv block
-        current = conv_block_bs(
-            current,
-            filters=filters,
-            kernel_size=1,
-            batch_norm=True,
-            activation=conv_activation,
-            residual=False,
-            l2_scale=0,
-            bn_momentum=0.9,
-            bn_gamma=None,
-            bn_sync=bn_sync,
-            bn_epsilon=1e-3,
-            kernel_initializer="he_normal",
-            name_prefix=f"upsampling_conv_{uidx+1}",
+        # First upsampling conv block
+        # If upsample_conv=True, matches a conv_block_bs
+        # If upsample_conv=False, keeps batchnorm/activation but drops conv, like baskerville unet_conv upsample_conv=False
+        current = keras.layers.BatchNormalization(
+            momentum=0.99,
+            epsilon=1e-3,
+            gamma_initializer="ones",
+            synchronized=bn_sync,
+            name=f"upsampling_conv_{uidx+1}_batchnorm"
+        )(current)
+        current = activate(
+            current, conv_activation, name=f"upsampling_conv_{uidx+1}_activation"
         )
+        if upsample_conv:
+            current = keras.layers.Conv1D(
+                filters=filters,
+                kernel_size=1,
+                strides=1,
+                padding="same",
+                use_bias=True,
+                dilation_rate=1,
+                kernel_initializer="he_normal",
+                kernel_regularizer=keras.regularizers.l2(0),
+                name=f"upsampling_conv_{uidx+1}_conv"
+            )(current)
         # Upsample
         current = keras.layers.UpSampling1D(size=2)(current)
 
         # Add skip
         current = keras.layers.Add()([current, unet_skip_current])
 
-        # Run upsampling conv block
+        # Run upsampling separable conv block
         current = keras.layers.SeparableConv1D(
             filters=filters,
             kernel_size=3,
@@ -236,24 +268,29 @@ def borzoi(
     # Crop outputs
     if crop_length > 0:
         current = keras.layers.Cropping1D(crop_length, name="crop")(current)
-    # Run final pointwise convblock + dropout + gelu section
-    current = conv_block_bs(
-        current,
-        filters=pointwise_filters,
-        kernel_size=1,
-        batch_norm=True,
-        activation=conv_activation,
-        activation_end=conv_activation,
-        residual=False,
-        l2_scale=0,
-        dropout=pointwise_dropout,
-        bn_momentum=0.9,
-        bn_gamma=None,
-        bn_sync=bn_sync,
-        bn_epsilon=1e-3,
-        kernel_initializer="he_normal",
-        name_prefix="final_conv",
-    )
+
+    if pointwise_filters is not None:
+        # Run final pointwise convblock + dropout + gelu section
+        current = conv_block_bs(
+            current,
+            filters=pointwise_filters,
+            kernel_size=1,
+            batch_norm=True,
+            activation=conv_activation,
+            activation_end=conv_activation,
+            residual=False,
+            l2_scale=0,
+            dropout=pointwise_dropout,
+            bn_momentum=0.9,
+            bn_gamma=None,
+            bn_sync=bn_sync,
+            bn_epsilon=1e-3,
+            kernel_initializer="he_normal",
+            name_prefix="final_conv",
+        )
+    else:
+        # Add final activation only
+        current = activate(current, conv_activation, name="final_conv_activation_end")
 
     # Build heads
     if isinstance(num_classes, int):
