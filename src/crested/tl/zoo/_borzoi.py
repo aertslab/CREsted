@@ -18,6 +18,7 @@ def borzoi(
     num_transformer_heads: int = 8,
     target_length: int = 6144,
     start_filters: int = 512,
+    tower_start_filters: int | None = 608,
     filters: int = 1536,
     pointwise_filters: int | None = 1920,
     unet_connections: cabc.Sequence[int] = [5, 6],
@@ -57,6 +58,8 @@ def borzoi(
         The target length in bins to crop to. Default is 6144, cropping away 5120 bins (164kb) on each side.
     start_filters
         Starting number of filters for the first DNA-facing block, exponentially increasing towards `filters` through the conv tower.
+    tower_start_filters
+        Number of filters to start the conv tower with. If None, inferred starting from start_filters to filters.
     filters
         Number of filters at the end of the conv tower and in the upsampling.
     pointwise_filters
@@ -123,12 +126,20 @@ def borzoi(
     # Each block: (batchnorm + gelu + conv)
     # In enformer: stem has `start_filters`` filters, first layer of tower also has `start_filters` filters -> start exp_linspace_int at tower
     # In borzoi: stem has `start_filters` filters, first layer of tower already increases -> start exp_linspace_int at stem
-    tower_filters = exp_linspace_int(
-        start=start_filters,
-        end=filters,
-        num_modules=num_conv_blocks + 1,
-        divisible_by=32,
-    )
+    if tower_start_filters is not None:
+        tower_filters = [start_filters] + exp_linspace_int(
+            start=tower_start_filters,
+            end=filters,
+            num_modules=num_conv_blocks,
+            divisible_by=32,
+        )
+    else:
+        tower_filters = exp_linspace_int(
+            start=start_filters,
+            end=filters,
+            num_modules=num_conv_blocks + 1,
+            divisible_by=32,
+        )
     unet_skips = []
     for cidx, layer_filters in enumerate(tower_filters[1:]):
         current = conv_block_bs(
