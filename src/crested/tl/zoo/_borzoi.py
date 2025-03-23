@@ -7,7 +7,13 @@ import collections.abc as cabc
 import keras
 import numpy as np
 
-from crested.tl.zoo.utils import conv_block_bs, ffn_block_enf, mha_block_enf, pool
+from crested.tl.zoo.utils import (
+    activate,
+    conv_block_bs,
+    ffn_block_enf,
+    mha_block_enf,
+    pool,
+)
 
 
 def borzoi(
@@ -59,7 +65,7 @@ def borzoi(
     start_filters
         Starting number of filters for the first DNA-facing block, exponentially increasing towards `filters` through the conv tower.
     tower_start_filters
-        Optional: Different number of filters to start the conv tower with after the stem conv. 
+        Optional: Different number of filters to start the conv tower with after the stem conv.
         By default, inferred starting from start_filters to filters.
     filters
         Number of filters at the end of the conv tower and in the upsampling.
@@ -159,24 +165,30 @@ def borzoi(
             name_prefix=f"tower_conv_{cidx+1}",
         )
         if cidx + 1 in unet_connections:
-            unet_current = current
+            # If unet_conv=True, matches a conv_block_bs
+            # If unet_conv=False, keeps batchnorm/activation but drops conv, like baskerville unet_conv upsample_conv=False
+            unet_current = keras.layers.BatchNormalization(
+                momentum=0.9,
+                epsilon=1e-3,
+                gamma_initializer="ones",
+                synchronized=bn_sync,
+                name=f"unet_skip_{len(unet_skips)+1}_batchnorm"
+            )(current)
+            unet_current = activate(
+                unet_current, conv_activation, name=f"unet_skip_{len(unet_skips)+1}_activation"
+            )
             if unet_conv:
-                unet_current = conv_block_bs(
-                    unet_current,
+                unet_current = keras.layers.Conv1D(
                     filters=unet_filters,
                     kernel_size=1,
-                    pool_size=1,
-                    batch_norm=True,
-                    activation=conv_activation,
-                    residual=False,
-                    l2_scale=0,
-                    bn_momentum=0.9,
-                    bn_gamma=None,
-                    bn_sync=bn_sync,
-                    bn_epsilon=1e-3,
+                    strides=1,
+                    padding="same",
+                    use_bias=True,
+                    dilation_rate=1,
                     kernel_initializer="he_normal",
-                    name_prefix=f"unet_skip_{len(unet_skips)+1}"
-                )
+                    kernel_regularizer=keras.regularizers.l2(0),
+                    name=f"unet_skip_{len(unet_skips)+1}_conv"
+                )(unet_current)
             unet_skips.append(
                 unet_current
             )
