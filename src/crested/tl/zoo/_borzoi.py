@@ -268,7 +268,7 @@ def borzoi(
     # Crop outputs
     if crop_length > 0:
         current = keras.layers.Cropping1D(crop_length, name="crop")(current)
-    
+
     if pointwise_filters is not None:
         # Run final pointwise convblock + dropout + gelu section
         current = conv_block_bs(
