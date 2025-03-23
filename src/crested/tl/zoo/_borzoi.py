@@ -19,7 +19,7 @@ def borzoi(
     target_length: int = 6144,
     start_filters: int = 512,
     filters: int = 1536,
-    pointwise_filters: int = 1920,
+    pointwise_filters: int | None = 1920,
     unet_connections: cabc.Sequence[int] = [5, 6],
     unet_filters: int = 1536,
     conv_activation: str = "gelu_approx",
@@ -60,6 +60,7 @@ def borzoi(
         Number of filters at the end of the conv tower and in the upsampling.
     pointwise_filters
         Number of filters of the post-transformer/upsampling final pointwise convolution.
+        If None, block is not included.
     unet_connections
         Levels in the convolution tower to add U-net skip connections past the transformer tower.
         1-indexed, so [5, 6] means after the 5th and 6th block.
@@ -236,24 +237,25 @@ def borzoi(
     # Crop outputs
     if crop_length > 0:
         current = keras.layers.Cropping1D(crop_length, name="crop")(current)
-    # Run final pointwise convblock + dropout + gelu section
-    current = conv_block_bs(
-        current,
-        filters=pointwise_filters,
-        kernel_size=1,
-        batch_norm=True,
-        activation=conv_activation,
-        activation_end=conv_activation,
-        residual=False,
-        l2_scale=0,
-        dropout=pointwise_dropout,
-        bn_momentum=0.9,
-        bn_gamma=None,
-        bn_sync=bn_sync,
-        bn_epsilon=1e-3,
-        kernel_initializer="he_normal",
-        name_prefix="final_conv",
-    )
+    if pointwise_filters is not None:
+        # Run final pointwise convblock + dropout + gelu section
+        current = conv_block_bs(
+            current,
+            filters=pointwise_filters,
+            kernel_size=1,
+            batch_norm=True,
+            activation=conv_activation,
+            activation_end=conv_activation,
+            residual=False,
+            l2_scale=0,
+            dropout=pointwise_dropout,
+            bn_momentum=0.9,
+            bn_gamma=None,
+            bn_sync=bn_sync,
+            bn_epsilon=1e-3,
+            kernel_initializer="he_normal",
+            name_prefix="final_conv",
+        )
 
     # Build heads
     if isinstance(num_classes, int):
