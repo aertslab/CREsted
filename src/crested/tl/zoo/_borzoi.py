@@ -230,7 +230,7 @@ def borzoi(
         # If upsample_conv=True, matches a conv_block_bs
         # If upsample_conv=False, keeps batchnorm/activation but drops conv, like baskerville unet_conv upsample_conv=False
         current = keras.layers.BatchNormalization(
-            momentum=0.9,
+            momentum=0.99,
             epsilon=1e-3,
             gamma_initializer="ones",
             synchronized=bn_sync,
@@ -268,6 +268,7 @@ def borzoi(
     # Crop outputs
     if crop_length > 0:
         current = keras.layers.Cropping1D(crop_length, name="crop")(current)
+    
     if pointwise_filters is not None:
         # Run final pointwise convblock + dropout + gelu section
         current = conv_block_bs(
@@ -287,6 +288,9 @@ def borzoi(
             kernel_initializer="he_normal",
             name_prefix="final_conv",
         )
+    else:
+        # Add final activation only
+        current = activate(current, conv_activation, name="final_conv_activation_end")
 
     # Build heads
     if isinstance(num_classes, int):
