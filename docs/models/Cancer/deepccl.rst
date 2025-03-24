@@ -1,18 +1,18 @@
-DeepBICCN2
+DeepCCL
 ============
 
 .. sidebar:: Model Features
 
-   - **Genome**: *mm10*
+   - **Genome**: *hg38*
    - **Type**: Peak Regression
-   - **Parameters**: 18.9M
-   - **Size**: 60MB
+   - **Parameters**: 12.6M
+   - **Size**: 47MB
    - **Input shape**: (2114, 4)
-   - **Output shape**: (19,)
+   - **Output shape**: (8,)
 
-The **DeepBICCN2** model is a peak regression model fine-tuned to cell type-specific regions for cell types in the mouse cortex. Differently to **DeepBICCN**, this model is trained on Tn5 cut-site counts instead of mean coverage.
+The **DeepCCL** model is a peak regression model trained on an ATAC-seq dataset of cancer cell lines, using two ENCODE deeply-profiled-cell lines, namely HepG2 and GM12878; three melanoma cell lines (2 mesenchymal-like, MM029 and MM099, and one melanocytic-like, MM001); and three GBM cell lines (A172, M059J, and LN229).
 
-After pretraining on all consensus peaks, the model was fine-tuned to specific peaks. Specific peaks were determined through the ratio of highest and second highest peak, and the ratio of the second and third highest peak. These sets of regions were then used as input to the model, where 2114bp one-hot encoded DNA sequences were used to per cell type predict the Tn5 cut-site counts over the center 1000 bp of the peak.
+The model was trained on a set of 415K consensus peaks and fine-tuned on 207K cell type-specific peaks, where peak heights were normalized across cell types with the normalize_peaks() function.
 
 The model is a CNN multiclass regression model using the :func:`~crested.tl.zoo.dilated_cnn` architecture.
 
@@ -34,7 +34,7 @@ Usage
     import keras
 
     # download model
-    model_path, output_names = crested.get_model("DeepBICCN2")
+    model_path, output_names = crested.get_model("DeepCCL")
 
     # load model
     model = keras.models.load_model(model_path)

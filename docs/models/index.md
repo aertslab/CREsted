@@ -5,9 +5,11 @@
 :titlesonly:
 
 BICCN/index
-DeepBrain/index
-deepflybrain
-DeepLiver/index
-DeepMEL/index
+Brain/index
+Cancer/index
 EnformerBorzoi/index
+Liver/index
+deepflybrain
+deeppbmc
+deepzebrafish
 ```

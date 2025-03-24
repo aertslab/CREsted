@@ -5,16 +5,15 @@ BorzoiBICCN
 
    - **Genome**: *mm10*
    - **Type**: Peak Regression
-   - **Parameters**: 6.3M
-   - **Size**: 23MB
-   - **Input shape**: (2114, 4)
+   - **Parameters**: 511M
+   - **Size**: 1.6GB
+   - **Input shape**: (2048, 4)
    - **Output shape**: (19,)
 
-The **DeepBICCN** model is a peak regression model fine-tuned to cell type-specific regions for cell types in the mouse cortex. It was used in the BICCN Challenge, to predict in vivo activity of a large set of validated enhancers. The selected model was the one that had the highest ranking out of all submitted sequence-models.
+The **BorzoiBICCN** model is Borzoi model that is (double) fine-tuned to perform peak regression on motor cortex cell types from the BICCN dataset. The model was first fine-tuned on all consensus peaks (440K regions),
+and further fine-tuned on a training set of cell type-specific peaks (73K regions).
 
-After pretraining on all consensus peaks, the model was fine-tuned to specific peaks. Specific peaks were determined through the ratio of highest and second highest peak, and the ratio of the second and third highest peak. These sets of regions were then used as input to the model, where 2114bp one-hot encoded DNA sequences were used to per cell type the mean peak accessibility over the center 1000 bp of the peak.
-
-The model is a CNN multiclass regression model using the :func:`~crested.tl.zoo.dilated_cnn` architecture.
+The model is a CNN multiclass regression model using the :func:`~crested.tl.zoo.borzoi` architecture, with an added dense layer after the final embedding layer to predict peak heights over cell types.
 
 Details of the data and the model can be found in the original publication.
 
@@ -22,7 +21,7 @@ Details of the data and the model can be found in the original publication.
 
 .. admonition:: Citation
 
-    Johansen, N.J., Kempynck, N. et al. Evaluating Methods for the Prediction of Cell Type-Specific Enhancers in the Mammalian Cortex. bioRxiv (2024). https://doi.org/10.1101/2024.08.21.609075
+   Kempynck, N., De Winter, S., et al. CREsted: modeling genomic and synthetic cell type-specific enhancers across tissues and species. Zenodo. https://doi.org/10.5281/zenodo.13918932
 
 Usage
 -------------------
@@ -40,6 +39,12 @@ Usage
     model = keras.models.load_model(model_path)
 
     # make predictions
-    sequence = "A" * 500
+    sequence = "A" * 2048
     predictions = crested.tl.predict(sequence, model)
     print(predictions.shape)
+
+-------------------
+
+.. warning::
+
+    The borzoi architecture uses custom layers that are serialized inside the CRESted package. To ensure that the model is loaded correctly, make sure that crested is imported before loading the model.

@@ -1,4 +1,4 @@
-# DeepBrain
+# BICCN
 
 ```{toctree}
 :maxdepth: 1

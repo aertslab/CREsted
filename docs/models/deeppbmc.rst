@@ -1,18 +1,18 @@
-DeepBICCN2
+DeepPBMC
 ============
 
 .. sidebar:: Model Features
 
-   - **Genome**: *mm10*
+   - **Genome**: *hg38*
    - **Type**: Peak Regression
    - **Parameters**: 18.9M
-   - **Size**: 60MB
+   - **Size**: 49MB
    - **Input shape**: (2114, 4)
-   - **Output shape**: (19,)
+   - **Output shape**: (7,)
 
-The **DeepBICCN2** model is a peak regression model fine-tuned to cell type-specific regions for cell types in the mouse cortex. Differently to **DeepBICCN**, this model is trained on Tn5 cut-site counts instead of mean coverage.
+The **DeepPBMC** model is a peak regression model trained to predict genomic region accessibility over seven cell types from human PBMC data.
 
-After pretraining on all consensus peaks, the model was fine-tuned to specific peaks. Specific peaks were determined through the ratio of highest and second highest peak, and the ratio of the second and third highest peak. These sets of regions were then used as input to the model, where 2114bp one-hot encoded DNA sequences were used to per cell type predict the Tn5 cut-site counts over the center 1000 bp of the peak.
+The model is pre-trained on a set of 278K consensus peaks, followed by fine-tuning on 51K cell type-specific peaks.
 
 The model is a CNN multiclass regression model using the :func:`~crested.tl.zoo.dilated_cnn` architecture.
 
@@ -34,7 +34,7 @@ Usage
     import keras
 
     # download model
-    model_path, output_names = crested.get_model("DeepBICCN2")
+    model_path, output_names = crested.get_model("DeepPBMC")
 
     # load model
     model = keras.models.load_model(model_path)
