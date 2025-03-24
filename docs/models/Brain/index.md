@@ -1,4 +1,4 @@
-# DeepBrain
+# Brain
 
 ```{toctree}
 :maxdepth: 1
