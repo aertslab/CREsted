@@ -51,7 +51,7 @@ def _get_dataset_index():
                 # Models
                 "models/deepflybrain.tar.gz": "sha256:65ed3f8c2d15216b9b47a06165d330d2f7b9dbae1b8ba9c06c095c9a652e4a23",
                 "models/biccn.tar.gz": "sha256:e59887c3010c740cd34fbb5d0b5853cd254d7e53ea66783c1fcd42405ed6ea0f",
-                "models/deepbiccn2.tar.gz": "sha256:e5eb5a253ddb709d94cb9093ce05cf15df7755bc7428c4aa2c11640a07d4f8b9",
+                "models/deepbiccn2.tar.gz": "sha256:277f8321955e55f4c4d80e2ec202194af1873f4b782771324b3411017755cc18",
                 "models/deepccl.tar.gz": "sha256:2bf0b379572b58b5a6512801ac133cb728621204ce19ad3b361b2e5e705a4ade",
                 "models/deepchickenbrain1.tar.gz": "sha256:f87c58b7524cff8543bc817678408d01ca9c0349497f4b1e391c1b172046352f",
                 "models/deepchickenbrain2.tar.gz": "sha256:e61310256f96a28dc450d2440edd708e7eaf6b3ee58c53a76aa3e708e8cd39fa",
