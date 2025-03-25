@@ -68,7 +68,7 @@ For questions and help requests, please use the [issue tracker][issue-tracker].
 
 ## Citation
 
-Kempynck, N., De Winter, S., et al. CREsted: modeling genomic and synthetic cell type-specific enhancers across tissues and species. Zenodo. [https://doi.org/10.5281/zenodo.13918932](https://doi.org/10.5281/zenodo.15045960)
+Kempynck, N., De Winter, S., et al. CREsted: modeling genomic and synthetic cell type-specific enhancers across tissues and species. Zenodo. [https://doi.org/10.5281/zenodo.15045960](https://doi.org/10.5281/zenodo.15045960)
 
 ## Choosing your backend
 
