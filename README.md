@@ -25,7 +25,7 @@ Please refer to the [documentation][link-docs]. In particular, the
 
 ## Installation
 
-You need to have Python 3.9 or newer installed on your system and a deep learning backend to be able to use CREsted.
+You need to have Python 3.9 or newer installed on your system and a deep learning backend to be able to use CREsted. Installation takes around five minutes.
 
 CREsted is build on top of keras 3 and can therefore be used with your deep learning backend of choice (Tensorflow or Pytorch).
 
