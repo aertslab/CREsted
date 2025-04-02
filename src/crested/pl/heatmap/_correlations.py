@@ -7,6 +7,8 @@ import numpy as np
 import seaborn as sns
 from anndata import AnnData
 from loguru import logger
+import scipy.cluster.hierarchy as hc
+from scipy.spatial.distance import pdist
 
 from crested.pl._utils import render_plot
 from crested.utils._logging import log_and_raise
@@ -87,6 +89,7 @@ def correlations_predictions(
     log_transform: bool = False,
     vmin: float | None = None,
     vmax: float | None = None,
+    reorder: bool = False,
     **kwargs,
 ) -> plt.Figure:
     """
@@ -190,6 +193,14 @@ def correlations_predictions(
         # and no self correlations
         correlation_matrix = np.hsplit(np.vsplit(correlation_matrix, 2)[1], 2)[0].T
 
+        # Reorder the rows/columns to group related classes together
+        if reorder:
+            D = pdist(correlation_matrix, 'correlation')
+            Z = hc.linkage(D, 'complete', optimal_ordering=True)
+            ordering = hc.leaves_list(Z)
+            correlation_matrix = correlation_matrix[ordering,:][:,ordering]
+            classes = np.array(classes)[ordering]
+    
         sns.heatmap(
             correlation_matrix,
             cmap="coolwarm",
