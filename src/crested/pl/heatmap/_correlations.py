@@ -4,14 +4,15 @@ from __future__ import annotations
 
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.cluster.hierarchy as hc
 import seaborn as sns
 from anndata import AnnData
 from loguru import logger
-import scipy.cluster.hierarchy as hc
 from scipy.spatial.distance import pdist
 
 from crested.pl._utils import render_plot
 from crested.utils._logging import log_and_raise
+
 
 def _generate_heatmap(correlation_matrix, classes, vmin, vmax):
     fig, ax = plt.subplots()
@@ -81,10 +82,10 @@ def correlations_self(
 
     # Reorder the rows/columns to group related classes together
     if reorder:
-        D = pdist(correlation_matrix, 'correlation')
-        Z = hc.linkage(D, 'complete', optimal_ordering=True)
+        D = pdist(correlation_matrix, "correlation")
+        Z = hc.linkage(D, "complete", optimal_ordering=True)
         ordering = hc.leaves_list(Z)
-        correlation_matrix = correlation_matrix[ordering,:][:,ordering]
+        correlation_matrix = correlation_matrix[ordering, :][:, ordering]
         classes = np.array(classes)[ordering]
 
     fig = _generate_heatmap(correlation_matrix, classes, vmin, vmax)
@@ -207,12 +208,12 @@ def correlations_predictions(
 
         # Reorder the rows/columns to group related classes together
         if reorder:
-            D = pdist(correlation_matrix, 'correlation')
-            Z = hc.linkage(D, 'complete', optimal_ordering=True)
+            D = pdist(correlation_matrix, "correlation")
+            Z = hc.linkage(D, "complete", optimal_ordering=True)
             ordering = hc.leaves_list(Z)
-            correlation_matrix = correlation_matrix[ordering,:][:,ordering]
+            correlation_matrix = correlation_matrix[ordering, :][:, ordering]
             classes = np.array(classes)[ordering]
-    
+
         sns.heatmap(
             correlation_matrix,
             cmap="coolwarm",
