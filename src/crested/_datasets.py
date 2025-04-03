@@ -81,6 +81,9 @@ def _get_dataset_index():
                 "models/borzoi_mouse_rep1.tar.gz": "b931b14ee0d5a340f7c39b317ab0be099b45e5f4075511dc5e56cd0e9af7f857",
                 "models/borzoi_mouse_rep2.tar.gz": "0b4183a2751975de8ee2070fbf9bad40cbbfb17fe6784299920f5a2723cc07b5",
                 "models/borzoi_mouse_rep3.tar.gz": "a18fd295ec356ada86c6681b173ffe25f320447884129f5d3c15be80755423e4",
+                "models/embryo_10x.tar.gz": "sha256:3de62e6913ea491ebdad4bc2ef4e9f404250531093b29e67b5a1fa907f5cf41b",
+                "models/embryo_hydrop.tar.gz": "sha256:9036ef2f18ab894016c8adcd3bba5f1985b74bd2432f4e9b07e6128e43833636",
+                "models/mousecortex_hydrop.tar.gz": "sha256:a850edcd6f9cabd0efb7ea66f48287c1c05ff7c3466363259dfb9229a076c53c",
             },
         )
     return _datasets
@@ -219,6 +222,9 @@ def get_model(model: str) -> tuple[str, list[str]]:
           - 'BorzoiBICCN'
           - 'Borzoi_human_rep[0-3]'
           - 'Borzoi_mouse_rep[0-3]'
+          - 'Embryo10x"
+          - 'EmbryoHydrop'
+          - 'MouseCortexHydrop'
 
     Returns
     -------
@@ -262,6 +268,9 @@ def get_model(model: str) -> tuple[str, list[str]]:
         "Borzoi_mouse_rep1": ("models/borzoi_mouse_rep1.tar.gz"),
         "Borzoi_mouse_rep2": ("models/borzoi_mouse_rep2.tar.gz"),
         "Borzoi_mouse_rep3": ("models/borzoi_mouse_rep3.tar.gz"),
+        "Embryo10x": ("models/embryo_10x.tar.gz"),
+        "EmbryoHydrop": ("models/embryo_hydrop.tar.gz"),
+        "MouseCortexHydrop": ("models/mousecortex_hydrop.tar.gz"),
     }
     assert (
         model in model_mapping
