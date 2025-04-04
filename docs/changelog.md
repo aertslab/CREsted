@@ -1,5 +1,17 @@
 # Release Notes
 
+## 1.4.1
+
+Small release with the new models for the Hydropv2 papers.
+
+### Features
+
+-   new models in the model repository from the Hydropv2 paper
+    -   Embryo10x
+    -   EmbryoHydrop
+    -   MouseCortexHydrop
+-   new argument option in `crested.pl.heatmap.correlations_self` and `crested.pl.heatmap.correlations_predictions` to order plot on class similarity
+
 ## 1.4.0
 
 This is the version that is released together with the preprint of the CREsted paper.
