@@ -22,7 +22,7 @@ Details of the data and the model can be found in the original publication.
 
 .. admonition:: Citation
 
-
+   Dickmanken, H., Wojno, M., Theunis, K., Eksi, E. C., Mahieu, L., Christiaens, V., Kempynck, N., De Rop, F., Roels, N., Spanier, K. I., Vandepoel, R., Hulselmans, G., Poovathingal, S., Aerts, S. HyDrop v2: Scalable atlas construction for training sequence-to-function models. bioRxiv doi: 10.1101/2025.04.02.646792
 
 Usage
 -------------------
