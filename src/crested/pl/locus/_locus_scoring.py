@@ -82,6 +82,15 @@ def locus_scoring(
 
     .. image:: ../../../../docs/_static/img/examples/locus_locus_scoring.png
     """
+    # Validate highlight_positions to ensure they fall within the specified range.
+    if highlight_positions:
+        for pos in highlight_positions:
+            start, end = pos
+            if start < range[0] or end > range[1]:
+                raise ValueError(
+                    f"Highlighted position ({start}, {end}) falls outside the plotting range {range}."
+                )
+
     # Plotting predictions
     plt.figure(figsize=figsize)
 
