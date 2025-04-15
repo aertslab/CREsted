@@ -113,6 +113,30 @@ def generate_motif_insertions(x, motif, flanks=(0, 0), masked_locations=None):
     return np.concatenate(x_mut, axis=0), insertion_locations
 
 
+def generate_window_shuffle(
+    x, window_size, n_shuffles, uniform, include_original=True, flanks=(0, 0)
+):
+    """Generate all possible single point mutations in a sequence."""
+    _, L, A = x.shape
+    start, end = 0, L
+    x_mut = []
+    start = flanks[0]
+    end = L - flanks[1] - window_size + 1
+    rng = np.random.default_rng()
+    uniform_array = np.identity(4, dtype=int)
+    for _ in range(n_shuffles):
+        for location in range(start, end):
+            x_new = np.copy(x)
+            if uniform:
+                x_new[0, location : location + window_size, :] = rng.choice(
+                    uniform_array, window_size
+                )
+            else:
+                rng.shuffle(x_new[0, location : location + window_size, :], axis=0)
+            x_mut.append(x_new)
+    return np.concatenate(x_mut, axis=0)
+
+
 def build_one_hot_decoding_table() -> np.ndarray:
     """Get hot decoding table to decode a one hot encoded sequence to a DNA sequence string."""
     one_hot_decoding_table = np.full(
