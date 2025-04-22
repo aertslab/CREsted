@@ -393,7 +393,6 @@ def contribution_scores(
                     batch_size=batch_size,
                 )
             elif method == "window_shuffle":
-                # TODO CHANGE THIS
                 scores[:, i, :, :] = window_shuffle(
                     input_sequences,
                     model=m,
@@ -404,7 +403,6 @@ def contribution_scores(
                     batch_size=batch_size,
                 )
             elif method == "window_shuffle_uniform":
-                # TODO CHANGE THIS
                 scores[:, i, :, :] = window_shuffle(
                     input_sequences,
                     model=m,
