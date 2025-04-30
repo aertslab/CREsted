@@ -4,7 +4,7 @@ requires = ["hatchling"]
 
 [project]
 name = "crested"
-version = "1.3.0"
+version = "1.4.1"
 description = "CREsted: Cis-Regulatory Element Sequence Training, Explanation, and Design"
 readme = "README.md"
 requires-python = ">=3.9"

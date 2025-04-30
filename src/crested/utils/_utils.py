@@ -325,8 +325,8 @@ def read_bigwig_region(
 
     Example
     -------
-    >>> anndata = crested.read_bigwig_region(
-    ...     bw_file="path/to/bigwig",
+    >>> values, positions = crested.utils.read_bigwig_region(
+    ...     bigwig_file="path/to/bigwig",
     ...     coordinates=("chr1", 0, 32000),
     ...     bin_size=32,
     ...     target="mean",

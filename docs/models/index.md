@@ -4,10 +4,13 @@
 :maxdepth: 2
 :titlesonly:
 
-biccn
-DeepBrain/index
-deepflybrain
-DeepLiver/index
-DeepMEL/index
+BICCN/index
+Brain/index
+Cancer/index
 EnformerBorzoi/index
+Hydrop/index
+Liver/index
+deepflybrain
+deeppbmc
+deepzebrafish
 ```

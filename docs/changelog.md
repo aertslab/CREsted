@@ -1,5 +1,41 @@
 # Release Notes
 
+## 1.4.1
+
+Small release with the new models for the Hydropv2 papers.
+
+### Features
+
+-   new models in the model repository from the Hydropv2 paper
+    -   Embryo10x
+    -   EmbryoHydrop
+    -   MouseCortexHydrop
+-   new argument option in `crested.pl.heatmap.correlations_self` and `crested.pl.heatmap.correlations_predictions` to order plot on class similarity
+
+## 1.4.0
+
+This is the version that is released together with the preprint of the CREsted paper.
+
+### Features
+
+-   new models in the model repository from the CREsted paper
+    -   DeepCCL
+    -   DeepGlioma
+    -   DeepPBMC
+    -   DeepZebraFish
+    -   BorzoiBICCN
+    -   DeepBICCN2
+-   Some new flexibility to the Borzoi model architectures.
+-   Chrombpnet architecture is renamed to DilatedCNN to avoid confusion with the Chrombpnet framework (with backwards compatibility).
+-   Updates to contribution scores calculations to reduce memory consumption and clean up function structure.
+-   Now possible to choose a custom model save path when calling `fit(...)`.
+-   Borzoi peak regression notebook added.
+-   New `crested.pl.violin` plotting module and added `crested.pl.violin.correlations`.
+
+### Bugfixes
+
+-   Fixed a bug that causes models to not be serialized correctly during saving, making them unable to load in compile=True mode.
+
 ## 1.3.0
 
 This is a big release wherein we introduce our model repository and do a functional refactoring of our `tl.Crested` class.
@@ -16,23 +52,23 @@ This is a big release wherein we introduce our model repository and do a functio
 -   extra ylim option in `crested.pl.bar.prediction`
 -   gene locus scoring plotting improvements
 
-## Bugfixes
+### Bugfixes
 
 -   importing bigwigs now correctly accounts for regions that were removed due to chromsizes
 
-## Notebooks
+### Notebooks
 
 -   Rewrote the tutorials to use the new functional API (WIP).
 -   Expanded on the enhancer design section
 
-## Functional Refactor of crested.tl.Crested(...) class
+### Functional Refactor of crested.tl.Crested(...) class
 
 In this large refactor we're moving everything from the Crested class that does not use both a model and the AnnDatamodule out to a new \_tools.py module where everything will be functional.
 All the old functions remain in the Crested class for backward compatibility (for now) but will now raise a deprecation warning.
 
 We're giving up a bit of clarity for ease of use by combining functions that do the same on different inputs into one single function.
 
-### Equivalent new functions
+#### Equivalent new functions
 
 -   `tl.Crested.get_embeddings(...)` ---> `tl.extract_layer_embeddings(...)`
 -   `tl.Crested.predict(...)` --->` tl.predict(...)`
@@ -48,14 +84,14 @@ We're giving up a bit of clarity for ease of use by combining functions that do 
 -   `tl.Crested.enhancer_design_motif_implementation` ---> `tl.enhancer_design_motif_insertion`
 -   `tl.Crested.enhancer_design_in_silico_evolution` ---> `tl.enhancer_design_in_silico_evolution`
 
-### New functions
+#### New functions
 
 Some utility functions were hidden inside the Crested class but required to be made explicit.
 
 -   `utils.calculate_nucleotide_distribution` (advised for enhancer design)
 -   `utils.derive_intermediate_sequences` (required for inspecting intermediate results from enhancer design)
 
-### New behaviour
+#### New behaviour
 
 -   All functions that accept a model can now also accept lists of models, in which case the results will be averaged across models.
 -   All functions use a similar api, namely they expect some 'input' that can be converted to a one hot encoding (sequences, region names, anndatas with region names), but now the conversion happens behind the scenes so the user doesn't have to worry about this and we don't have a separate function per input format.

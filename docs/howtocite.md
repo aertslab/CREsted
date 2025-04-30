@@ -2,4 +2,6 @@
 
 If you use the CREsted package in your work, please cite it as follows:
 
-Kempynck, N., Mahieu, L., Ekşi, E. C., Konstantakos, V., Blaauw, C., De Winter, S., Hulselmans, G., Taskiran, I., & Aerts, S. (2024). CREsted: Cis Regulatory Element Sequence Training, Explanation, and Design (1.3.0). Zenodo. https://10.5281/zenodo.13918932
+Kempynck, N., De Winter, S., et al. [CREsted: modeling genomic and synthetic cell type-specific enhancers across tissues and species.](https://www.biorxiv.org/content/10.1101/2025.04.02.646812v1)
+
+We also store CREsted version backups on Zenodo: [https://doi.org/10.5281/zenodo.15045960](https://doi.org/10.5281/zenodo.15045960)

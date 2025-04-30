@@ -1,4 +1,4 @@
-"""Distribution plots."""
+"""Locus scoring plotting function."""
 
 from __future__ import annotations
 
@@ -70,7 +70,7 @@ def locus_scoring(
 
     Example
     --------
-    >>> crested.pl.hist.locus_scoring(
+    >>> crested.pl.locus.locus_scoring(
     ...     scores,
     ...     range=(0, 1000),
     ...     gene_start=100,
@@ -80,8 +80,17 @@ def locus_scoring(
     ...     bigwig_midpoints=bigwig_midpoints,
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/hist_locus_scoring.png
+    .. image:: ../../../../docs/_static/img/examples/locus_locus_scoring.png
     """
+    # Validate highlight_positions to ensure they fall within the specified range.
+    if highlight_positions:
+        for pos in highlight_positions:
+            start, end = pos
+            if start < range[0] or end > range[1]:
+                raise ValueError(
+                    f"Highlighted position ({start}, {end}) falls outside the plotting range {range}."
+                )
+
     # Plotting predictions
     plt.figure(figsize=figsize)
 
