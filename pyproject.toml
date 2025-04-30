@@ -35,7 +35,7 @@ dependencies = [
     "pooch",
     "scanpy",
     "biothings_client<0.4.0",
-    memelite,
+    "memelite",
 ]
 
 [project.optional-dependencies]
