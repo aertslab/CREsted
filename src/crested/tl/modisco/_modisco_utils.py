@@ -4,6 +4,7 @@ import modiscolite as modisco
 import numpy as np
 import pandas as pd
 from loguru import logger
+from memelite import tomtom
 
 
 def _trim_pattern_by_ic_old(
@@ -415,14 +416,11 @@ def match_score_patterns(a: dict, b: dict) -> float:
     _, _, ic_a = compute_ic(a["ppm"])
     _, _, ic_b = compute_ic(b["ppm"])
     try:
-        from tangermeme.tools import tomtom as tangermeme_tomtom
-    except ImportError as e:
-        raise ImportError(
-            "Please install tangermeme to use this function with 'pip install tangermeme'. \
-            Warning: tangermeme also installs torch and may cause issues with a tensorflow environment."
-        ) from e
-    try:
-        score = tangermeme_tomtom.tomtom(Qs=[ic_a.T], Ts=[ic_b.T])[0, 0][0]
+        from memelite import tomtom
+        p, s, offset, overlaps, strand = tomtom(Qs=[ic_a.T], Ts=[ic_b.T])
+        #print(p)
+        #p, s, offset, overlaps, strand = tomtom(Qs=[a["ppm"].T], Ts=[b["ppm"].T])
+        #print(p)
     except Exception as e:  # noqa: BLE001
         print(
             f"Warning: TOMTOM error while comparing patterns {a['id']} and {b['id']}. Returning no match."
@@ -430,7 +428,7 @@ def match_score_patterns(a: dict, b: dict) -> float:
         print(f"Error details: {e}")
         score = 1
 
-    log_score = -np.log10(max(score, 1e-12))
+    log_score = -np.log10(max(p[0, 0], 1e-12))
 
     return log_score
 
