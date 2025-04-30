@@ -416,17 +416,13 @@ def match_score_patterns(a: dict, b: dict) -> float:
     _, _, ic_a = compute_ic(a["ppm"])
     _, _, ic_b = compute_ic(b["ppm"])
     try:
-        from memelite import tomtom
-        p, s, offset, overlaps, strand = tomtom(Qs=[ic_a.T], Ts=[ic_b.T])
-        #print(p)
-        #p, s, offset, overlaps, strand = tomtom(Qs=[a["ppm"].T], Ts=[b["ppm"].T])
-        #print(p)
+        p, _, _, _, _ = tomtom(Qs=[ic_a.T], Ts=[ic_b.T])
     except Exception as e:  # noqa: BLE001
         print(
             f"Warning: TOMTOM error while comparing patterns {a['id']} and {b['id']}. Returning no match."
         )
         print(f"Error details: {e}")
-        score = 1
+        p = 1
 
     log_score = -np.log10(max(p[0, 0], 1e-12))
 
