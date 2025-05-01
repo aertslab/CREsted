@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from loguru import logger
+from matplotlib.patches import Patch
 from scipy.cluster.hierarchy import dendrogram, leaves_list, linkage
 
 from crested.pl._utils import render_plot
@@ -200,6 +201,184 @@ def modisco_results(
         kwargs["height"] = 2 * max_num_patterns
 
     return render_plot(fig, **kwargs)
+
+
+def clustermap_tomtom_similarities(
+    sim_matrix: np.ndarray,
+    ids: list[str],
+    pattern_dict: dict[str, dict],
+    group_info: list[tuple[list[str], dict[str, str]]] = None,
+    query_id: str | None = None,
+    threshold: float | None = None,
+    min_seqlets: int = 0,
+    class_names: list[str] | None = None,
+    figsize: tuple[int, int] = (10, 10),
+    dendrogram_ratio: tuple[float, float] = (0.05, 0.05),
+    logo_width_fraction: float = 0.35,
+    logo_x_padding: float = 0.5,
+    show_pwms: bool = True,
+    save_path: str | None = None,
+) -> sns.matrix.ClusterGrid:
+    """
+    Create a Seaborn clustermap of TOMTOM similarity scores with optional PWM logo display and filtering.
+
+    Parameters
+    ----------
+    sim_matrix
+        2D square array of TOMTOM similarity scores (-log10 p-values), shape (N, N).
+    ids
+        List of pattern identifiers corresponding to rows/columns of sim_matrix.
+    pattern_dict
+        Dictionary mapping pattern IDs to metadata. Each entry should contain:
+        - 'n_seqlets': number of seqlets contributing to the pattern.
+        - 'contrib_scores': DataFrame or array used for PWM logo plotting.
+    group_info
+        List of (group_labels, color_map) tuples. Each group_labels list has the same length as ids,
+        and each color_map assigns colors to group values.
+    query_id
+        If provided, only show motifs with similarity > `threshold` to this ID.
+    threshold
+        Minimum TOMTOM score for similarity filtering (used only with `query_id`).
+    min_seqlets
+        Minimum number of seqlets required for a pattern to be shown.
+    class_names
+        If provided, only keep patterns whose class name (parsed as '_'.join(id.split('_')[:-3]))
+        is in this list.
+    figsize
+        Base size of the clustermap figure in inches.
+    dendrogram_ratio : tuple[float, float]
+        Ratio of dendrogram size to figure size for rows and columns.
+    logo_width_fraction
+        Width of the PWM logo strip relative to the heatmap width.
+    logo_x_padding
+        Horizontal space between the PWM logos and the heatmap.
+    show_pwms
+        Whether to display PWM logos to the left of the heatmap.
+    save_path
+        If provided, the figure is saved to this path (e.g., as a PNG or PDF).
+
+    Returns
+    -------
+    sns.matrix.ClusterGrid
+        The Seaborn clustermap object containing the heatmap and dendrograms.
+    """
+    if group_info is None:
+        group_info = []
+
+    ids_arr = np.array(ids)
+
+    # --- Step 0: Filter by min_seqlets and class_names ---
+    ids_filtered = []
+    for i in ids_arr:
+        ct = '_'.join(i.split('_')[:-3])
+        if pattern_dict[i]['n_seqlets'] >= min_seqlets and (class_names is None or ct in class_names):
+            ids_filtered.append(i)
+
+    keep_idx = [i for i, x in enumerate(ids_arr) if x in ids_filtered]
+    sim_matrix = sim_matrix[np.ix_(keep_idx, keep_idx)]
+    ids_arr = ids_arr[keep_idx]
+    group_info = [([g[i] for i in keep_idx], colors) for g, colors in group_info]
+
+    # --- Step 1: Optional similarity filter ---
+    if query_id is not None and threshold is not None:
+        assert query_id in ids_arr, f"{query_id} not in filtered IDs"
+        idx = np.where(ids_arr == query_id)[0][0]
+        scores = sim_matrix[idx]
+        keep_indices = np.where((scores > threshold) & (np.arange(len(scores)) != idx))[0]
+        keep_indices = np.append(keep_indices, idx)
+
+        sim_matrix = sim_matrix[np.ix_(keep_indices, keep_indices)]
+        ids_arr = ids_arr[keep_indices]
+        group_info = [([g[i] for i in keep_indices], colors) for g, colors in group_info]
+
+    # --- Step 2: Build row_colors matrix ---
+    row_colors = []
+    try:
+        for group_labels, group_colors in group_info:
+            row_colors.append([group_colors[g] for g in group_labels])
+    except KeyError as e:
+        print("!! KeyError in color mapping:", e)
+        raise
+
+    row_colors = np.array(row_colors)  # shape (n_groups, n_rows)
+
+    # --- Step 3: Clustermap ---
+    g = sns.clustermap(
+        sim_matrix,
+        cmap='viridis',
+        xticklabels=ids_arr,
+        yticklabels=ids_arr,
+        row_colors=row_colors,
+        col_colors=row_colors,
+        figsize=figsize,
+        dendrogram_ratio=dendrogram_ratio,
+    )
+    g.ax_heatmap.set_xticklabels(g.ax_heatmap.get_xticklabels(), rotation=90)
+
+    # --- Step 4: PWM logos ---
+    if show_pwms:
+        row_order = g.dendrogram_row.reordered_ind
+        reordered_ids = [ids_arr[i] for i in row_order]
+
+        fig = g.fig
+        original_width = figsize[0]
+        extra_width = logo_width_fraction * original_width
+        fig.set_size_inches(original_width + extra_width, figsize[1])
+
+        heatmap_pos = g.ax_heatmap.get_position()
+        logo_width = logo_width_fraction * heatmap_pos.width
+        logo_height = heatmap_pos.height / len(reordered_ids)
+
+        for i, motif_id in enumerate(reordered_ids):
+            y_start = heatmap_pos.y0 + (len(reordered_ids) - 1 - i) * logo_height
+            x_start = heatmap_pos.x0 - logo_width - logo_width * logo_x_padding
+            ppm = pattern_dict[motif_id]['contrib_scores']
+
+            pwm_ax = fig.add_axes([x_start, y_start, logo_width, logo_height])
+            _plot_attribution_map(
+                ax=pwm_ax,
+                saliency_df=ppm,
+                return_ax=True,
+                figsize=(8, 2),
+                rotate=False,
+            )
+            pwm_ax.axis("off")
+
+    # --- Step 5: Move colorbar out of the way ---
+    heatmap_pos = g.ax_heatmap.get_position()
+    cbar = g.cax
+    cbar_height = heatmap_pos.height / 4
+    cbar_width = heatmap_pos.width / 20
+    cbar_x = heatmap_pos.x1 + 0.02
+    cbar_y = heatmap_pos.y0 - 0.2
+    cbar.set_position([cbar_x, cbar_y, cbar_width, cbar_height])
+    g.cax.set_ylabel("Motif similarity (−log₁₀ p-value)", rotation=270, labelpad=15)
+
+    # --- Step 6: Add a legend for the first group ---
+    if group_info:
+        group_labels, group_colors = group_info[0]
+        legend_elements = [
+            Patch(facecolor=color, edgecolor='black', label=label)
+            for label, color in group_colors.items()
+        ]
+        fig = g.fig
+        fig.legend(
+            handles=legend_elements,
+            title="Class",
+            loc='lower left',
+            bbox_to_anchor=(-0.06, 0.05),
+            frameon=True,
+            framealpha=0.9,
+            borderpad=0.6,
+            fontsize=11,
+            title_fontsize=11
+        )
+
+    if save_path is not None:
+        plt.savefig(save_path, bbox_inches="tight")
+
+    plt.show()
+    return g
 
 
 def clustermap(

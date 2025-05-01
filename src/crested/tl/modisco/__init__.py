@@ -3,6 +3,7 @@
 from ._tfmodisco import (
     calculate_mean_expression_per_cell_type,
     calculate_similarity_matrix,
+    calculate_tomtom_similarity_per_pattern,
     create_pattern_matrix,
     create_pattern_tf_dict,
     create_tf_ct_matrix,
