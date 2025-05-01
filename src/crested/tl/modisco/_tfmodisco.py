@@ -897,7 +897,7 @@ def process_patterns(
     matched_files
         dictionary with class names as keys and paths to HDF5 files as values.
     sim_threshold
-        Similarity threshold for matching patterns (-log10(pval), pval obtained through TOMTOM matching from tangermeme)
+        Similarity threshold for matching patterns (-log10(pval), pval obtained through TOMTOM matching from memesuite-lite)
     trim_ic_threshold
         Information content threshold for trimming patterns.
     discard_ic_threshold
