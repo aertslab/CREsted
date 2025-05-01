@@ -738,22 +738,22 @@ def _read_and_trim_patterns(
 
     Parameters
     ----------
-    cell_type : str
+    cell_type
         The name of the cell type whose patterns are being processed.
-    file_list : str or list of str
+    file_list
         Path(s) to HDF5 file(s) containing patterns for the cell type.
-    trim_ic_threshold : float
+    trim_ic_threshold
         Information content threshold for trimming each pattern.
-    verbose : bool
+    verbose
         Whether to print diagnostic information during reading and processing.
 
     Returns
     -------
-    trimmed_patterns : list of dict
+    trimmed_patterns
         A list of trimmed pattern dictionaries, one per pattern found.
-    pattern_ids : list of str
+    pattern_ids
         A list of pattern identifiers, each uniquely naming a pattern.
-    is_pattern_pos : list of bool
+    is_pattern_pos
         A list of boolean flags indicating whether the pattern came from the "pos_patterns" metacluster.
     """
     trimmed_patterns = []
@@ -808,29 +808,25 @@ def calculate_tomtom_similarity_per_pattern(
 
     Parameters
     ----------
-    matched_files : dict[str, str | list[str] | None]
+    matched_files
         Dictionary mapping cell type names (or class names) to HDF5 file paths or list of paths
         containing TF-MoDISco results. A value of None indicates no data for that cell type.
-
-    trim_ic_threshold : float, optional
+    trim_ic_threshold
         Threshold for trimming low-information-content ends of patterns.
         Defaults to 0.05.
-
-    verbose : bool, optional
+    verbose
         If True, prints progress messages.
 
     Returns
     -------
-    similarity_matrix : np.ndarray
+    similarity_matrix
         A 2D square NumPy array of shape (N, N), where N is the number of trimmed patterns across
         all cell types. Each entry [i, j] contains the TOMTOM similarity score (-log10 p-value)
         between pattern i and pattern j.
-
-    all_pattern_ids : list[str]
+    all_pattern_ids
         A list of unique pattern identifiers, corresponding to the rows and columns in
         `similarity_matrix`.
-
-    pattern_dict : dict[str, dict]
+    pattern_dict
         A dictionary mapping each pattern ID to a dictionary containing:
             - 'contrib_scores': the contribution score matrix (for visualization),
             - 'n_seqlets': the number of seqlets contributing to the pattern.

@@ -224,37 +224,37 @@ def clustermap_tomtom_similarities(
 
     Parameters
     ----------
-    sim_matrix : np.ndarray
+    sim_matrix
         2D square array of TOMTOM similarity scores (-log10 p-values), shape (N, N).
-    ids : list[str]
+    ids
         List of pattern identifiers corresponding to rows/columns of sim_matrix.
-    pattern_dict : dict[str, dict]
+    pattern_dict
         Dictionary mapping pattern IDs to metadata. Each entry should contain:
         - 'n_seqlets': number of seqlets contributing to the pattern.
         - 'contrib_scores': DataFrame or array used for PWM logo plotting.
-    group_info : list of (list[str], dict[str, str]), optional
+    group_info
         List of (group_labels, color_map) tuples. Each group_labels list has the same length as ids,
         and each color_map assigns colors to group values.
-    query_id : str, optional
+    query_id
         If provided, only show motifs with similarity > `threshold` to this ID.
-    threshold : float, optional
+    threshold
         Minimum TOMTOM score for similarity filtering (used only with `query_id`).
-    min_seqlets : int, optional
+    min_seqlets
         Minimum number of seqlets required for a pattern to be shown.
-    class_names : list[str], optional
+    class_names
         If provided, only keep patterns whose class name (parsed as '_'.join(id.split('_')[:-3]))
         is in this list.
-    figsize : tuple[int, int], optional
+    figsize
         Base size of the clustermap figure in inches.
-    dendrogram_ratio : tuple[float, float], optional
+    dendrogram_ratio : tuple[float, float]
         Ratio of dendrogram size to figure size for rows and columns.
-    logo_width_fraction : float, optional
+    logo_width_fraction
         Width of the PWM logo strip relative to the heatmap width.
-    logo_x_padding : float, optional
+    logo_x_padding
         Horizontal space between the PWM logos and the heatmap.
-    show_pwms : bool, optional
+    show_pwms
         Whether to display PWM logos to the left of the heatmap.
-    save_path : str, optional
+    save_path
         If provided, the figure is saved to this path (e.g., as a PNG or PDF).
 
     Returns

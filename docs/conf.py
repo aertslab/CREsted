@@ -62,10 +62,6 @@ extensions = [
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
 ]
 
-autodoc_type_aliases = {
-    'np': 'numpy'
-}
-
 autosummary_generate = True
 autodoc_member_order = "groupwise"
 bibtex_reference_style = "author_year"
