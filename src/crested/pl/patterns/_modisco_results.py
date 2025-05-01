@@ -211,6 +211,7 @@ def clustermap_tomtom_similarities(
     query_id: str | None = None,
     threshold: float | None = None,
     min_seqlets: int = 0,
+    class_names: list[str] | None = None,
     figsize: tuple[int, int] = (10, 10),
     dendrogram_ratio: tuple[float, float] = (0.05, 0.05),
     logo_width_fraction: float = 0.35,
@@ -226,20 +227,23 @@ def clustermap_tomtom_similarities(
     sim_matrix : np.ndarray
         2D square array of TOMTOM similarity scores (-log10 p-values), shape (N, N).
     ids : list[str]
-        List of pattern identifiers corresponding to rows/columns of p_log.
+        List of pattern identifiers corresponding to rows/columns of sim_matrix.
     pattern_dict : dict[str, dict]
         Dictionary mapping pattern IDs to metadata. Each entry should contain:
         - 'n_seqlets': number of seqlets contributing to the pattern.
         - 'contrib_scores': DataFrame or array used for PWM logo plotting.
     group_info : list of (list[str], dict[str, str]), optional
         List of (group_labels, color_map) tuples. Each group_labels list has the same length as ids,
-        and each color_map assigns colors to group values. These colors are shown as row/column annotations.
+        and each color_map assigns colors to group values.
     query_id : str, optional
         If provided, only show motifs with similarity > `threshold` to this ID.
     threshold : float, optional
         Minimum TOMTOM score for similarity filtering (used only with `query_id`).
     min_seqlets : int, optional
         Minimum number of seqlets required for a pattern to be shown.
+    class_names : list[str], optional
+        If provided, only keep patterns whose class name (parsed as '_'.join(id.split('_')[:-3]))
+        is in this list.
     figsize : tuple[int, int], optional
         Base size of the clustermap figure in inches.
     dendrogram_ratio : tuple[float, float], optional
@@ -257,21 +261,20 @@ def clustermap_tomtom_similarities(
     -------
     sns.matrix.ClusterGrid
         The Seaborn clustermap object containing the heatmap and dendrograms.
-
-    Notes
-    -----
-    - If `query_id` and `threshold` are set, the function will restrict the clustermap
-      to motifs most similar to the query pattern.
-    - If `show_pwms` is False, the clustermap will not allocate space for PWM logos.
-    - The pattern order in the clustermap reflects hierarchical clustering based on similarity.
-    - Color legends for the first group are added manually to the bottom-left of the figure.
     """
+    if group_info is None:
+        group_info = []
+
     ids_arr = np.array(ids)
 
-    # --- Step 0: Filter by min_seqlets ---
-    ids_filtered = [i for i in ids_arr if pattern_dict[i]['n_seqlets'] >= min_seqlets]
-    keep_idx = [i for i, x in enumerate(ids_arr) if x in ids_filtered]
+    # --- Step 0: Filter by min_seqlets and class_names ---
+    ids_filtered = []
+    for i in ids_arr:
+        ct = '_'.join(i.split('_')[:-3])
+        if pattern_dict[i]['n_seqlets'] >= min_seqlets and (class_names is None or ct in class_names):
+            ids_filtered.append(i)
 
+    keep_idx = [i for i, x in enumerate(ids_arr) if x in ids_filtered]
     sim_matrix = sim_matrix[np.ix_(keep_idx, keep_idx)]
     ids_arr = ids_arr[keep_idx]
     group_info = [([g[i] for i in keep_idx], colors) for g, colors in group_info]
@@ -376,6 +379,7 @@ def clustermap_tomtom_similarities(
 
     plt.show()
     return g
+
 
 def clustermap(
     pattern_matrix: np.ndarray,
