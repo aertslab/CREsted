@@ -398,33 +398,62 @@ def pad_pattern(pattern: dict, pad_len: int = 2) -> dict:
     return p0
 
 
-def match_score_patterns(a: dict, b: dict) -> float:
+def match_score_patterns(
+        a: list[dict] | dict,
+        b: list[dict] | dict,
+        use_ppm: bool = False,
+        background_freqs: list | None = None,
+    ) -> float | np.ndarray:
     """
-    Compute the match score between two patterns.
+    Compute the match score between two sets of patterns using TOMTOM through memesuite-lite.
 
     Parameters
     ----------
     a
-        First pattern.
+        First set of patterns.
     b
-        Second pattern.
+        Second set of patterns.
+    use_ppm
+        Use PPM instead of PWM for TOMTOM comparison.
+    background_freqs
+        1D numpy array with the background frequencies of each symbol.
 
     Returns
     -------
-    Match score between the patterns.
+    Match TOMTOM score (-log10(pval)) between the patterns. Return a float if it is a one vs one comparison, a 2D numpy array when comparing lists of motifs.
     """
-    _, _, ic_a = compute_ic(a["ppm"])
-    _, _, ic_b = compute_ic(b["ppm"])
+    if background_freqs is None:
+        background_freqs = [0.28, 0.22, 0.22, 0.28]
+    background_freqs = np.array(background_freqs)
+
+    if not isinstance(a, list):
+        a = [a]
+    if not isinstance(b, list):
+        b = [b]
+
+    if not use_ppm:
+        a = [compute_ic(pat["ppm"], background_freqs=background_freqs)[2].T for pat in a]
+        b = [compute_ic(pat["ppm"], background_freqs=background_freqs)[2].T for pat in b]
+    else:
+        a = [pat["ppm"].T for pat in a]
+        b = [pat["ppm"].T for pat in b]
+
     try:
-        p, _, _, _, _ = tomtom(Qs=[ic_a.T], Ts=[ic_b.T])
+        p, _, _, _, _ = tomtom(Qs=a, Ts=b)
+
     except Exception as e:  # noqa: BLE001
         print(
-            f"Warning: TOMTOM error while comparing patterns {a['id']} and {b['id']}. Returning no match."
+            "Warning: TOMTOM error while comparing patterns. Returning no match."
         )
         print(f"Error details: {e}")
-        p = 1
+        p = np.ones((len(a), len(b)))
 
-    log_score = -np.log10(max(p[0, 0], 1e-12))
+    p[p<=0]=1e-15 # Sometimes negative value returned
+
+    log_score = -np.log10(p)
+
+    if log_score.shape == (1, 1):# Return a float if it is only a one vs one comparison
+        return log_score[0,0]
 
     return log_score
 

@@ -32,6 +32,7 @@ if MODISCOLITE_AVAILABLE:
             class_instances,
             clustermap,
             clustermap_tf_motif,
+            clustermap_tomtom_similarities,
             clustermap_with_pwm_logos,
             modisco_results,
             selected_instances,
@@ -43,6 +44,7 @@ if MODISCOLITE_AVAILABLE:
         raise
 else:
     clustermap = _optional_function_warning
+    clustermap_tomtom_similarities = _optional_function_warning
     modisco_results = _optional_function_warning
     selected_instances = _optional_function_warning
     similarity_heatmap = _optional_function_warning
@@ -69,5 +71,6 @@ if MODISCOLITE_AVAILABLE:
             "clustermap_tf_motif",
             "tf_expression_per_cell_type",
             "clustermap_with_pwm_logos",
+            "clustermap_tomtom_similarities",
         ]
     )

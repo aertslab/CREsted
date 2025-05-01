@@ -724,11 +724,168 @@ def match_h5_files_to_classes(
 
     return matched_files
 
+def _read_and_trim_patterns(
+    cell_type: str,
+    file_list: str | list[str],
+    trim_ic_threshold: float,
+    verbose: bool
+) -> tuple[list[dict], list[str], list[bool]]:
+    """
+    Read and trim patterns from HDF5 files for a specific cell type.
+
+    This function iterates over all HDF5 files associated with a cell type, reads the patterns stored in each metacluster,
+    trims them using an information content threshold, and collects associated metadata.
+
+    Parameters
+    ----------
+    cell_type : str
+        The name of the cell type whose patterns are being processed.
+    file_list : str or list of str
+        Path(s) to HDF5 file(s) containing patterns for the cell type.
+    trim_ic_threshold : float
+        Information content threshold for trimming each pattern.
+    verbose : bool
+        Whether to print diagnostic information during reading and processing.
+
+    Returns
+    -------
+    trimmed_patterns : list of dict
+        A list of trimmed pattern dictionaries, one per pattern found.
+    pattern_ids : list of str
+        A list of pattern identifiers, each uniquely naming a pattern.
+    is_pattern_pos : list of bool
+        A list of boolean flags indicating whether the pattern came from the "pos_patterns" metacluster.
+    """
+    trimmed_patterns = []
+    pattern_ids = []
+    is_pattern_pos = []
+
+    if isinstance(file_list, str):
+        file_list = [file_list]
+
+    for h5_file in file_list:
+        if verbose:
+            print(f"Reading file {h5_file}")
+        try:
+            with h5py.File(h5_file) as hdf5_results:
+                for metacluster_name in list(hdf5_results.keys()):
+                    pattern_idx = 0
+                    for i in range(len(list(hdf5_results[metacluster_name]))):
+                        p = "pattern_" + str(i)
+                        pattern_ids.append(
+                            f"{cell_type.replace(' ', '_')}_{metacluster_name}_{pattern_idx}"
+                        )
+                        is_pos = metacluster_name == "pos_patterns"
+                        pattern = _trim_pattern_by_ic(
+                            hdf5_results[metacluster_name][p],
+                            is_pos,
+                            trim_ic_threshold,
+                        )
+                        pattern["file_path"] = h5_file
+                        trimmed_patterns.append(pattern)
+                        is_pattern_pos.append(is_pos)
+                        pattern_idx += 1
+        except OSError:
+            print(f"File error at {h5_file}")
+            continue
+
+    return trimmed_patterns, pattern_ids, is_pattern_pos
+
+def calculate_tomtom_similarity_per_pattern(
+    matched_files: dict[str, str | list[str] | None],
+    trim_ic_threshold: float = 0.05,
+    use_ppm: bool = False,
+    background_freqs: list | None = None,
+    verbose: bool = False,
+) -> tuple[np.ndarray, list[str], dict[str, dict]]:
+    """
+    Compute pairwise similarity between all trimmed patterns across matched HDF5 files using TOMTOM.
+
+    This function reads in motif patterns from HDF5 files (e.g., from a TF-MoDISco pipeline),
+    trims them based on information content, converts them to PPMs, and computes a full pairwise
+    similarity matrix using TOMTOM. It also returns pattern metadata, including the contribution
+    scores and the number of seqlets per pattern.
+
+    Parameters
+    ----------
+    matched_files : dict[str, str | list[str] | None]
+        Dictionary mapping cell type names (or class names) to HDF5 file paths or list of paths
+        containing TF-MoDISco results. A value of None indicates no data for that cell type.
+
+    trim_ic_threshold : float, optional
+        Threshold for trimming low-information-content ends of patterns.
+        Defaults to 0.05.
+
+    verbose : bool, optional
+        If True, prints progress messages.
+
+    Returns
+    -------
+    similarity_matrix : np.ndarray
+        A 2D square NumPy array of shape (N, N), where N is the number of trimmed patterns across
+        all cell types. Each entry [i, j] contains the TOMTOM similarity score (-log10 p-value)
+        between pattern i and pattern j.
+
+    all_pattern_ids : list[str]
+        A list of unique pattern identifiers, corresponding to the rows and columns in
+        `similarity_matrix`.
+
+    pattern_dict : dict[str, dict]
+        A dictionary mapping each pattern ID to a dictionary containing:
+            - 'contrib_scores': the contribution score matrix (for visualization),
+            - 'n_seqlets': the number of seqlets contributing to the pattern.
+
+    Notes
+    -----
+    - Patterns are first trimmed using `_read_and_trim_patterns`.
+    - PPMs are computed using `_pattern_to_ppm` and inserted into each pattern dictionary.
+    - Similarity is computed using `match_score_patterns`, which uses TOMTOM under the hood.
+    - The function assumes the presence of external dependencies like `_read_and_trim_patterns`,
+      `_pattern_to_ppm`, and `match_score_patterns`, typically from a motif analysis library.
+    """
+    if background_freqs is None:
+        background_freqs = [0.28, 0.22, 0.22, 0.28]
+    background_freqs = np.array(background_freqs)
+
+    all_trimmed_patterns = []
+    all_pattern_ids = []
+
+    for cell_type in matched_files:
+        trimmed_patterns, pattern_ids, is_pattern_pos = _read_and_trim_patterns(
+            cell_type,
+            matched_files[cell_type],
+            trim_ic_threshold,
+            verbose
+        )
+        all_trimmed_patterns += trimmed_patterns
+        all_pattern_ids += pattern_ids
+
+    # Add PPMs to each pattern
+    pattern_ppms = [_pattern_to_ppm(p) for p in all_trimmed_patterns]
+    for i, pat in enumerate(all_trimmed_patterns):
+        pat['ppm'] = pattern_ppms[i]
+
+    if verbose:
+        print('Total patterns:', len(all_trimmed_patterns))
+
+    # Compute pairwise TOMTOM similarity
+    similarity_matrix = match_score_patterns(all_trimmed_patterns, all_trimmed_patterns, use_ppm=use_ppm, background_freqs=background_freqs)
+
+    # Construct output metadata dictionary
+    pattern_dict = {
+        pid: {
+            'contrib_scores': all_trimmed_patterns[i]['contrib_scores'],
+            'n_seqlets': all_trimmed_patterns[i]['seqlets']['n_seqlets']
+        }
+        for i, pid in enumerate(all_pattern_ids)
+    }
+
+    return similarity_matrix, all_pattern_ids, pattern_dict
 
 def process_patterns(
     matched_files: dict[str, str | list[str] | None],
     sim_threshold: float = 3.0,
-    trim_ic_threshold: float = 0.1,
+    trim_ic_threshold: float = 0.05,
     discard_ic_threshold: float = 0.1,
     verbose: bool = False,
 ) -> dict[str, dict[str, str | list[float]]]:
@@ -759,45 +916,13 @@ def process_patterns(
     all_patterns = {}
 
     for cell_type in matched_files:
-        trimmed_patterns = []
-        pattern_ids = []
-        is_pattern_pos = []
 
-        if matched_files[cell_type] is None:
-            continue
-
-        # read all patterns of cell type
-        if isinstance(matched_files[cell_type], str):
-            matched_files[cell_type] = [matched_files[cell_type]]
-
-        for h5_file in matched_files[cell_type]:
-            if verbose:
-                print(f"Reading file {h5_file}")
-            try:
-                with h5py.File(h5_file) as hdf5_results:
-                    for metacluster_name in list(hdf5_results.keys()):
-                        pattern_idx = 0
-                        for i in range(len(list(hdf5_results[metacluster_name]))):
-                            p = "pattern_" + str(i)
-                            pattern_ids.append(
-                                f"{cell_type.replace(' ', '_')}_{metacluster_name}_{pattern_idx}"
-                            )
-                            is_pos = metacluster_name == "pos_patterns"
-                            pattern = _trim_pattern_by_ic(
-                                hdf5_results[metacluster_name][p],
-                                is_pos,
-                                trim_ic_threshold,
-                            )
-                            # store file path so it is possible to track back
-                            # where the pattern comes from.
-                            pattern["file_path"] = h5_file
-                            trimmed_patterns.append(pattern)
-                            is_pattern_pos.append(is_pos)
-                            pattern_idx = pattern_idx + 1
-
-            except OSError:
-                print(f"File error at {h5_file}")
-                continue
+        trimmed_patterns, pattern_ids, is_pattern_pos = _read_and_trim_patterns(
+            cell_type,
+            matched_files[cell_type],
+            trim_ic_threshold,
+            verbose
+        )
 
         for idx, p in enumerate(trimmed_patterns):
             all_patterns = match_to_patterns(
