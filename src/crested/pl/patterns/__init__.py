@@ -35,6 +35,7 @@ if MODISCOLITE_AVAILABLE:
             clustermap_tomtom_similarities,
             clustermap_with_pwm_logos,
             modisco_results,
+            plot_pattern,
             selected_instances,
             similarity_heatmap,
             tf_expression_per_cell_type,
@@ -52,6 +53,7 @@ else:
     clustermap_tf_motif = _optional_function_warning
     tf_expression_per_cell_type = _optional_function_warning
     clustermap_with_pwm_logos = _optional_function_warning
+    plot_pattern = _optional_function_warning
 
 # Export these functions for public use
 __all__ = [
@@ -72,5 +74,6 @@ if MODISCOLITE_AVAILABLE:
             "tf_expression_per_cell_type",
             "clustermap_with_pwm_logos",
             "clustermap_tomtom_similarities",
+            "plot_pattern",
         ]
     )

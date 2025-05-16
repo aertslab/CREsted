@@ -16,6 +16,7 @@ from crested.tl.modisco._modisco_utils import (
     _trim_pattern_by_ic,
     compute_ic,
 )
+from crested.tl.modisco._tfmodisco import ModiscoPattern
 
 from ._utils import _plot_attribution_map
 
@@ -1097,3 +1098,55 @@ def clustermap_tf_motif(
     if save_path:
         plt.savefig(save_path, bbox_inches="tight")
     plt.show()
+
+def plot_pattern(
+        patterns: ModiscoPattern | list[ModiscoPattern],
+        ic_threshold: float | None = None,
+        scale_by_ic: bool = True,
+        **kwargs
+) -> plt.Figure | None:
+    """
+    Plot a pattern
+
+    Parameters
+    ----------
+    patterns
+        ModiscoPatter(s) to plot.
+    ic_threshold
+        Threshold on the pattern information content used for trimming the pattern.
+    scale_by_ic
+        Wether to scale the nucleotides by information content (bits) or not.
+    kwargs
+        Additional keyword arguments for the plot.
+    """
+    if isinstance(patterns, ModiscoPattern):
+        patterns = [patterns]
+    fig, axs = plt.subplots(nrows = len(patterns))
+    if len(patterns) == 1:
+        axs = [axs]
+    for ax, pattern in zip(axs, patterns):
+        if ic_threshold is not None:
+            ic_start, ic_stop = pattern.ic_trim(ic_threshold)
+            ppm = pattern.ppm[ic_start: ic_stop].copy()
+        else:
+            ppm = pattern.ppm.copy()
+            ic_start = 0
+            ic_stop = ppm.shape[0]
+        if ppm.shape[0] == 0:
+            continue
+        if scale_by_ic:
+            ppm *= pattern.ic()[ic_start: ic_stop][:, None]
+            y_label = "Bits"
+        else:
+            y_label = "Probability"
+        ax = _plot_attribution_map(
+            ppm,
+            ax = ax
+        )
+        ax = ax.set_ylabel(y_label)
+    fig.tight_layout()
+    if "width" not in kwargs:
+        kwargs["width"] = 6
+    if "height" not in kwargs:
+        kwargs["height"] = 2 * len(patterns)
+    return render_plot(fig, **kwargs)

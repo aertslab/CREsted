@@ -2,15 +2,20 @@ from __future__ import annotations
 
 import os
 import re
+from dataclasses import dataclass
+from typing import Self
 
 import anndata
 import h5py
+import keras
 import modiscolite as modisco
 import numpy as np
 import pandas as pd
 import scanpy as sc
 from loguru import logger
+from memelite import tomtom
 
+from crested.tl import _explainer
 from crested.utils._logging import log_and_raise
 
 from ._modisco_utils import (
@@ -21,6 +26,135 @@ from ._modisco_utils import (
     read_html_to_dataframe,
     write_to_meme,
 )
+
+
+@dataclass
+class Seqlet:
+    seq_instance: np.ndarray
+    start: int
+    end: int
+    region_one_hot: np.ndarray
+    is_revcomp: bool
+    contrib_scores: np.ndarray | None = None
+    hypothetical_contrib_scores: np.ndarray | None = None
+    @classmethod
+    def read_from_file(
+        cls,
+        p: h5py._hl.group.Group,
+        seqlet_idx: int,
+        ohs: np.ndarray,
+    ):
+        """
+        Read a seqlet from file
+
+        Parameters
+        ----------
+        p
+            Open hdf5 file.
+        seqlet_idx
+            Index, relative to ohs, of the seqlet.
+        ohs
+            Original one hot encoded sequences used to generate the patterns.
+        """
+        contrib_scores = p["contrib_scores"][seqlet_idx]
+        hypothetical_contrib_scores = p["hypothetical_contribs"][seqlet_idx]
+        seq_instance = p["sequence"][seqlet_idx]
+        start = p["start"][seqlet_idx]
+        end = p["end"][seqlet_idx]
+        is_revcomp = p["is_revcomp"][seqlet_idx]
+        region_idx = p["example_idx"][seqlet_idx]
+        region_one_hot = ohs[region_idx].T
+        if (
+            not np.all(seq_instance == region_one_hot[start : end])
+            and not is_revcomp
+        ) or (
+            not np.all(
+                seq_instance[::-1, ::-1] == region_one_hot[start : end]
+            )
+            and is_revcomp
+        ):
+            raise ValueError(
+                "sequence instance does not match onehot\n"
+                + f"region_idx\t{region_idx}\n"
+                + f"start\t\t{start}\n"
+                + f"end\t\t{end}\n"
+                + f"is_revcomp\t{is_revcomp}\n"
+                + f"seq. instance sequence: {seq_instance.argmax(1)}\n"
+                + f"ONEHOT sequence:        {region_one_hot[start: end].argmax(1)}"
+            )
+        return cls(
+            seq_instance=seq_instance,
+            start=start,
+            end=end,
+            region_one_hot=region_one_hot,
+            is_revcomp=is_revcomp,
+            contrib_scores=contrib_scores,
+            hypothetical_contrib_scores=hypothetical_contrib_scores
+        )
+    def __repr__(self):
+        return f"Seqlet {self.start}:{self.end}"
+
+@dataclass
+class ModiscoPattern:
+    ppm: np.ndarray
+    seqlets: list[Seqlet]
+    contrib_scores: np.ndarray | None = None
+    hypothetical_contrib_scores: np.ndarray | None = None
+    is_pos: bool | None = None
+    subpatterns: list[Self] | None = None
+    @classmethod
+    def read_from_file(
+        cls,
+        p: h5py._hl.group.Group,
+        is_pos: bool,
+        ohs: np.ndarray,
+    ):
+        """
+        Read a pattern from a hdf5 file
+
+        Parameters
+        ----------
+        p
+            Open hdf5 file.
+        is_pos
+            Wether the pattern is positive or not.
+        ohs
+            Original one hot encoded sequences used to generate the patterns.
+        """
+        contrib_scores = p["contrib_scores"][:]
+        hypothetical_contrib_scores = p["hypothetical_contribs"][:]
+        ppm = p["sequence"][:]
+        is_pos = is_pos
+        seqlets = [
+            Seqlet.read_from_file(p=p["seqlets"], seqlet_idx=i, ohs=ohs)
+            for i in range(p["seqlets"]["n_seqlets"][0])
+        ]
+        subpatterns = [
+            ModiscoPattern(p[sub], is_pos, ohs)
+            for sub in p.keys()
+            if sub.startswith("subpattern_")
+        ]
+        return cls(
+            contrib_scores=contrib_scores,
+            hypothetical_contrib_scores=hypothetical_contrib_scores,
+            ppm=ppm,
+            is_pos=is_pos,
+            seqlets=seqlets,
+            subpatterns=subpatterns
+        )
+    def __repr__(self):
+        return f"ModiscoPattern with {len(self.seqlets)} seqlets"
+    def ic(self, bg=np.array([0.27, 0.23, 0.23, 0.27]), eps=1e-3) -> np.ndarray:
+        return (
+            self.ppm * np.log(self.ppm + eps) / np.log(2) - bg * np.log(bg) / np.log(2)
+        ).sum(1)
+    def ic_trim(self, min_v: float, **kwargs) -> tuple[int, int]:
+        delta = np.where(np.diff((self.ic(**kwargs) > min_v) * 1))[0]
+        if len(delta) == 0:
+            return 0, 0
+        start_index = min(delta)
+        end_index = max(delta)
+        return start_index, end_index + 1
 
 
 def _calculate_window_offsets(center: int, window_size: int) -> tuple:
@@ -203,6 +337,211 @@ def tfmodisco(
         except KeyError as e:
             logger.error(f"Missing data for class: {class_name}, error: {e}")
 
+
+
+@log_and_raise(Exception)
+def load_patterns(
+        modisco_dir: os.PathLike = "modisco_results",
+        class_names: list[str] | None = None,
+        window: int = 500,
+) -> list[tuple[str, ModiscoPattern]]:
+    """
+    Load tf-modisco patterns.
+
+    Parameters
+    ----------
+    modisco_dir
+        Directory containing tf-modisco results.
+    class_names
+        list of class names to process. If None, all class names found in the output directory will be processed.
+    window
+        The window surrounding the peak center that was used for running tf-modisco.
+    """
+        # Check if .npz exist in the contribution directory
+    if not os.path.exists(modisco_dir):
+        raise FileNotFoundError(f"Contribution directory not found: {modisco_dir}")
+    files = os.listdir(modisco_dir)
+    if not any(f.endswith(".npz") for f in files):
+        raise FileNotFoundError("No .npz files found in the contribution directory")
+    if not any(f.endswith(".h5") for f in files):
+        raise FileNotFoundError("No .h5 files found in the contribution directory")
+
+    # Use all class names found in the contribution directory if class_names is not provided
+    if class_names is None:
+        class_names = [
+            re.match(r"(.+?)_oh\.npz$", f).group(1)
+            for f in os.listdir(modisco_dir)
+            if f.endswith("_oh.npz")
+        ]
+        class_names = sorted(class_names)
+        for class_name in class_names:
+            if not os.path.exists(os.path.join(modisco_dir, f"{class_name}_modisco_results.h5")):
+                raise FileNotFoundError(f"{class_name}_modisco_results.h5 does not exist eventhough {class_name}_oh.npz does")
+        logger.info(
+            f"No class names provided, using all found in the contribution directory: {class_names}"
+        )
+
+    pattern_names = []
+    patterns = []
+    for class_name in class_names:
+        logger.info(f"Loading {class_name} ...")
+        ohs = np.load(os.path.join(modisco_dir, f"{class_name}_oh.npz"))["arr_0"]
+        _center = ohs.shape[2] // 2
+        _start, _end = _calculate_window_offsets(_center, window)
+        # TODO: better to add this offset to the start location of each pattern instead!
+        #       Now, when we compute the model's gradient for each class this array is
+        #       padded with zeros which is not ideal (but seems to work).
+        ohs = ohs[:, :, _start: _end]
+        with h5py.File(os.path.join(modisco_dir, f"{class_name}_modisco_results.h5")) as f:
+            for pos_neg in ["pos_patterns", "neg_patterns"]:
+                if pos_neg not in f.keys():
+                    continue
+                for pattern in f[pos_neg].keys():
+                    pattern_names.append(
+                        "_".join([
+                            class_name,
+                            pos_neg.split("_")[0],
+                            pattern
+                        ])
+                    )
+                    patterns.append(
+                        ModiscoPattern.read_from_file(
+                            p=f[pos_neg][pattern],
+                            is_pos=pos_neg=="pos_patterns",
+                            ohs=ohs
+                        )
+                    )
+
+    return pattern_names, patterns
+
+@log_and_raise(Exception)
+def combine_patterns(
+    patterns: list[ModiscoPattern],
+    ic_threshold: float = 0.0,
+) -> ModiscoPattern:
+    """
+    Merge a list of patterns.
+
+    Patterns will first be trimmed using ic_threshold and then aligned before merging.
+
+    Parameters
+    ----------
+    patterns
+        list of patterns to merge
+    ic_threshold
+        threshold on the information content used to trim the patterns before calculating alignment
+    """
+    ppms = [
+        p.ppm[slice(*p.ic_trim(ic_threshold))].T
+        for p in patterns
+    ]
+    # remove empty patterns
+    ppms = [
+        p for p in ppms if p.shape[1] > 0
+    ]
+    _, _, offsets, _, strands = tomtom(
+        Qs=ppms, Ts=ppms
+    )
+    root_motif = 0
+    offsets = offsets[root_motif, :]
+    strands = strands[root_motif, :]
+    flank: int = int(max(offsets))
+    _ppms: list[np.ndarray] = []
+    new_seqlets: list[Seqlet] = []
+    for (of, s, pattern) in zip(offsets, strands, patterns):
+        _ppm: list[np.ndarray] = []
+        ic_start, ic_end = pattern.ic_trim(ic_threshold)
+        of = of * -1 if s else of
+        for seqlet in pattern.seqlets:
+            oh = seqlet.region_one_hot.copy()
+            if seqlet.is_revcomp:
+                start = oh.shape[0] - seqlet.end
+                oh = oh[::-1, ::-1]
+            else:
+                start = seqlet.start
+            new_start = int(start + ic_start + of - flank)
+            new_end = int(start + ic_end + of + flank)
+            if new_start < 0 or new_end > oh.shape[0]:
+                # out of bounds, don't use this seqlet
+                continue
+            _seq_instance = oh[new_start: new_end, :].copy()
+            if s:
+                _seq_instance = _seq_instance[::-1, ::-1]
+            new_seqlets.append(
+                Seqlet(
+                    seq_instance=_seq_instance.copy(),
+                    start=new_start,
+                    end=new_end,
+                    region_one_hot=oh.copy(),
+                    is_revcomp=bool(s)
+                )
+            )
+            _ppm.append(_seq_instance)
+        _ppms.append(np.array(_ppm))
+    max_l  = max([p.shape[1] for p in _ppms])
+    n_ppms = sum([p.shape[0] for p in _ppms])
+    f_ppm = np.zeros((n_ppms, max_l, 4))
+    prev = 0
+    for p in _ppms:
+        f_ppm[prev : prev + p.shape[0], 0 : p.shape[1]] = p
+        prev += p.shape[0]
+    ppm_mn = f_ppm.mean(0)
+    return ModiscoPattern(
+        ppm=ppm_mn,
+        seqlets=new_seqlets
+    )
+
+@log_and_raise(Exception)
+def calculate_attribution_for_pattern(
+        pattern: ModiscoPattern,
+        model: keras.Model,
+        class_index: list[int] | int | None = None
+) -> dict[int, np.ndarray]:
+    if isinstance(class_index, int):
+        class_index = [class_index]
+    elif class_index is None:
+        class_index = list(range(model.output.shape[1]))
+    one_hot, inverse_idc = np.unique(
+        np.array(
+            [
+                seqlet.region_one_hot
+                for seqlet in pattern.seqlets
+            ]
+        ),
+        axis=0,
+        return_inverse=True
+    )
+    input_size = model.input.shape[1]
+    left_pad = (input_size - one_hot.shape[1]) // 2
+    right_pad = input_size - one_hot.shape[1] - left_pad
+    one_hot = np.pad(
+        one_hot,
+        ((0, 0), (left_pad, right_pad), (0, 0))
+    )
+    class_to_ppm = {}
+    for c in class_index:
+        logger.info(f"Calculating attribution for class index: {c}")
+        attrs = _explainer.saliency_map(
+            X=one_hot,
+            model=model,
+            class_index=c
+        )[inverse_idc]
+        assert attrs.shape[0] == len(pattern.seqlets), "attrs and seqlet shape mismatch"
+        _ppm = []
+        for seqlet, attr in zip(pattern.seqlets, attrs):
+            expl = seqlet.region_one_hot * attr[left_pad: input_size - right_pad, :]
+            if seqlet.is_revcomp:
+                _ppm.append(expl[seqlet.start: seqlet.end][::-1, ::-1])
+            else:
+                _ppm.append(expl[seqlet.start: seqlet.end])
+        max_l  = max([p.shape[0] for p in _ppm])
+        n_ppms = len(_ppm)
+        f_ppm = np.zeros((n_ppms, max_l, 4))
+        for i, p in enumerate(_ppm):
+            f_ppm[i, 0:p.shape[0]] = p
+        ppm_mn = f_ppm.mean(0)
+        class_to_ppm[c] = ppm_mn
+    return class_to_ppm
 
 def get_pwms_from_modisco_file(
     modisco_file: str,
@@ -802,7 +1141,7 @@ def calculate_tomtom_similarity_per_pattern(
     Compute pairwise similarity between all trimmed patterns across matched HDF5 files using TOMTOM.
 
     This function reads in motif patterns from HDF5 files (e.g., from a TF-MoDISco pipeline),
-    trims them based on information content, converts them to PPMs, and computes a full pairwise
+    trims th em based on information content, converts them to PPMs, and computes a full pairwise
     similarity matrix using TOMTOM. It also returns pattern metadata, including the contribution
     scores and the number of seqlets per pattern.
 
