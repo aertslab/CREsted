@@ -159,7 +159,7 @@ def _transform_input(input, genome: Genome | os.PathLike | None = None) -> np.nd
         genome = _resolve_genome(genome)
         sequences = [
             genome.fetch(chrom, start, end)
-            for chrom, start, end in zip(adata.var['chr'], adata.var['start'], adata.var['end'])
+            for chrom, start, end in zip(input.var['chr'], input.var['start'], input.var['end'])
         ]
     elif input_type == "region":
         genome = _resolve_genome(genome)
