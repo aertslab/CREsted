@@ -157,8 +157,10 @@ def _transform_input(input, genome: Genome | os.PathLike | None = None) -> np.nd
 
     if input_type == "anndata":
         genome = _resolve_genome(genome)
-        regions = list(input.var_names)
-        sequences = [genome.fetch(region=region) for region in regions]
+        sequences = [
+            genome.fetch(chrom, start, end)
+            for chrom, start, end in zip(input.var['chr'], input.var['start'], input.var['end'])
+        ]
     elif input_type == "region":
         genome = _resolve_genome(genome)
         regions = input if isinstance(input, list) else [input]
