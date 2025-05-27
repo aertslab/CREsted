@@ -129,7 +129,7 @@ def predict(
                 preds = _batched_predict(input, m, manual_batch_size, **kwargs)
             else:
                 preds = m.predict(input, **kwargs)
-            all_predictions.append(predictions)
+            all_predictions.append(preds)
 
         averaged_predictions = np.mean(all_predictions, axis=0)
         return averaged_predictions
