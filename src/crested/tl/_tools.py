@@ -74,6 +74,8 @@ def predict(
     input: str | list[str] | np.array | AnnData,
     model: keras.Model | list[keras.Model],
     genome: Genome | os.PathLike | None = None,
+    manual_batching: bool = False,
+    manual_batch_size: int = 512,
     **kwargs,
 ) -> None | np.ndarray:
     """
@@ -89,6 +91,10 @@ def predict(
         A (list of) trained keras model(s) to make predictions with.
     genome
         Genome or path to the genome file. Required if no genome is registered and input is an anndata object or region names.
+    manual_batching : bool
+        If True, manually slice the input into chunks of `manual_batch_size`.
+    manual_batch_size : int
+        Chunk size used when `manual_batching` is True.
     **kwargs
         Additional keyword arguments to pass to the keras.Model.predict method.
 
@@ -106,9 +112,12 @@ def predict(
     """
     input = _transform_input(input, genome)
 
-    n_predict_steps = (
-        input.shape[0] if os.environ["KERAS_BACKEND"] == "tensorflow" else None
-    )
+    def _batched_predict(input_array, model, manual_batch_size, **kwargs):
+        preds = []
+        for i in range(0, len(input_array), manual_batch_size):
+            chunk = input_array[i:i + manual_batch_size]
+            preds.append(model.predict(chunk, **kwargs))
+        return np.concatenate(preds, axis=0)
 
     if isinstance(model, list):
         if not all(isinstance(m, keras.Model) for m in model):
@@ -116,18 +125,21 @@ def predict(
 
         all_predictions = []
         for m in model:
-            predictions = m.predict(input, steps=n_predict_steps, **kwargs)
+            if manual_batching:
+                preds = _batched_predict(input, m, manual_batch_size, **kwargs)
+            else:
+                preds = m.predict(input, **kwargs)
             all_predictions.append(predictions)
 
         averaged_predictions = np.mean(all_predictions, axis=0)
         return averaged_predictions
+    if not isinstance(model, keras.Model):
+        raise ValueError("Model must be a Keras model or a list of Keras models.")
+
+    if manual_batching:
+        return _batched_predict(input, model, manual_batch_size, **kwargs)
     else:
-        if not isinstance(model, keras.Model):
-            raise ValueError("Model must be a Keras model or a list of Keras models.")
-
-        predictions = model.predict(input, steps=n_predict_steps, **kwargs)
-        return predictions
-
+        return model.predict(input, **kwargs)
 
 def score_gene_locus(
     chr_name: str,
