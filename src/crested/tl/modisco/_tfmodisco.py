@@ -1191,7 +1191,7 @@ def find_pattern_matches(
             if not isinstance(df_motif_database, pd.DataFrame):
                 logger.warning(
                     f"Skipping pattern match: expected DataFrame but got {type(df_motif_database).__name__}.\n"
-                    f"Problematic HTML path: {html_path}"
+                    f"Problematic HTML path: {html_paths[i][j]}"
                 )
                 continue
             pattern_id_whole = all_patterns[p_idx]["instances"][pattern]["id"]
