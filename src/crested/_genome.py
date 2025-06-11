@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import errno
 import os
-from pathlib import Path
 from functools import cached_property
+from pathlib import Path
 
 from loguru import logger
 from pysam import FastaFile

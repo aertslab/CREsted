@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 from typing import Any
 
@@ -10,7 +11,6 @@ import numpy as np
 from anndata import AnnData
 from loguru import logger
 from tqdm import tqdm
-import math
 
 from crested._genome import Genome
 from crested.tl._explainer import integrated_grad, mutagenesis, saliency_map
@@ -95,18 +95,20 @@ def predict(
 ) -> None | np.ndarray:
     """
     Make predictions using the model(s) on some input that represents sequences.
+
     If a list of models is provided, the predictions will be averaged across all models.
 
     Parameters
     ----------
     input
-        Input data to make predictions on. Can be a (list of) sequence(s), a (list of) region name(s), a matrix of one hot encodings (N, L, 4), or an AnnData object with region names as its var_names.
+        Input data to make predictions on. Can be a (list of) sequence(s), a (list of) region name(s),
+        a matrix of one hot encodings (N, L, 4), or an AnnData object with region names as its var_names.
     model
         A (list of) trained keras model(s) to make predictions with.
     genome
         Genome or path to the genome file. Required if no genome is registered and input is an anndata object or region names.
     batch_size
-        Batch size to use for predictions. 
+        Batch size to use for predictions.
     **kwargs
         Additional keyword arguments to pass to the keras.Model.predict method.
 

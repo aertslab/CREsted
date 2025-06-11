@@ -154,7 +154,6 @@ def _transform_input(input, genome: Genome | os.PathLike | None = None) -> np.nd
     One-hot encoded matrix of shape (N, L, 4), where N is the number of sequences/regions and L is the sequence length.
     """
     input_type = _detect_input_type(input)
-    from tqdm import tqdm
     if input_type == "anndata":
         genome = _resolve_genome(genome)
         sequences = [
