@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 from typing import Any
 
@@ -69,26 +70,82 @@ def extract_layer_embeddings(
 
     return embeddings
 
+class PredictPyDataset(keras.utils.PyDataset):
+    """
+    A Keras-compatible dataset for batched prediction.
+
+    Wraps an array-like input (e.g., one-hot encoded sequences) and yields batches for model prediction.
+    """
+
+    def __init__(self, input_array, batch_size=128):
+        """
+        Initialize the prediction dataset.
+
+        Parameters
+        ----------
+        input_array : array-like
+            Input data, typically a NumPy array of shape (N, L, 4).
+        batch_size : int, optional
+            Number of samples per batch. Default is 128.
+        """
+        super().__init__()
+        self.input_array = input_array
+        self.batch_size = batch_size
+
+    def __len__(self):
+        """
+        Return the number of batches.
+
+        Returns
+        -------
+        int
+            Total number of batches per epoch.
+        """
+        return math.ceil(len(self.input_array) / self.batch_size)
+
+    def __getitem__(self, idx):
+        """
+        Retrieve a single batch of data.
+
+        Parameters
+        ----------
+        idx : int
+            Index of the batch.
+
+        Returns
+        -------
+        array-like
+            A batch of input data.
+        """
+        low = idx * self.batch_size
+        high = min(low + self.batch_size, len(self.input_array))
+        batch = self.input_array[low:high]
+        return batch
+
 
 def predict(
     input: str | list[str] | np.array | AnnData,
     model: keras.Model | list[keras.Model],
     genome: Genome | os.PathLike | None = None,
+    batch_size: int = 128,
     **kwargs,
 ) -> None | np.ndarray:
     """
-    Make predictions using the model(s) some input that represents sequences.
+    Make predictions using the model(s) on some input that represents sequences.
 
     If a list of models is provided, the predictions will be averaged across all models.
 
     Parameters
     ----------
     input
-        Input data to make predictions on. Can be a (list of) sequence(s), a (list of) region name(s), a matrix of one hot encodings (N, L, 4), or an AnnData object with region names as its var_names.
+        Input data to make predictions on. Can be a (list of) sequence(s), a (list of) region name(s),
+        a matrix of one hot encodings (N, L, 4), or an AnnData object with region names as its var_names.
     model
         A (list of) trained keras model(s) to make predictions with.
     genome
         Genome or path to the genome file. Required if no genome is registered and input is an anndata object or region names.
+    batch_size
+        Batch size to use for predictions.
     **kwargs
         Additional keyword arguments to pass to the keras.Model.predict method.
 
@@ -105,29 +162,20 @@ def predict(
     ... )
     """
     input = _transform_input(input, genome)
-
-    n_predict_steps = (
-        input.shape[0] if os.environ["KERAS_BACKEND"] == "tensorflow" else None
-    )
+    dataset = PredictPyDataset(input, batch_size)
 
     if isinstance(model, list):
         if not all(isinstance(m, keras.Model) for m in model):
             raise ValueError("All items in the model list must be Keras models.")
-
-        all_predictions = []
+        all_preds = []
         for m in model:
-            predictions = m.predict(input, steps=n_predict_steps, **kwargs)
-            all_predictions.append(predictions)
-
-        averaged_predictions = np.mean(all_predictions, axis=0)
-        return averaged_predictions
+            preds = m.predict(dataset, **kwargs)
+            all_preds.append(preds)
+        return np.mean(all_preds, axis=0)
     else:
         if not isinstance(model, keras.Model):
             raise ValueError("Model must be a Keras model or a list of Keras models.")
-
-        predictions = model.predict(input, steps=n_predict_steps, **kwargs)
-        return predictions
-
+        return model.predict(dataset, **kwargs)
 
 def score_gene_locus(
     chr_name: str,

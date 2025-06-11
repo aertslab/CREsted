@@ -541,19 +541,6 @@ def post_hoc_merging(
     if verbose:
         print(f"Total iterations: {iterations}")
 
-    # Debugging step to check for any remaining patterns exceeding the similarity threshold
-    for i, (idx1, _) in enumerate(final_patterns.items()):
-        for j, (idx2, _) in enumerate(final_patterns.items()):
-            if i >= j:
-                continue
-
-            sim = pattern_similarity(final_patterns, idx1, idx2)
-
-            if sim > sim_threshold:
-                print(
-                    f"Warning: Patterns {idx1} and {idx2} exceed similarity threshold with similarity {sim}"
-                )
-
     return final_patterns
 
 
@@ -1188,6 +1175,12 @@ def find_pattern_matches(
         pattern_ids = []
         for j, pattern in enumerate(all_patterns[p_idx]["instances"]):
             df_motif_database = read_html_to_dataframe(html_paths[i][j])
+            if not isinstance(df_motif_database, pd.DataFrame):
+                logger.warning(
+                    f"Skipping pattern match: expected DataFrame but got {type(df_motif_database).__name__}.\n"
+                    f"Problematic HTML path: {html_paths[i][j]}"
+                )
+                continue
             pattern_id_whole = all_patterns[p_idx]["instances"][pattern]["id"]
             pattern_id_parts = pattern_id_whole.split("_")
             pattern_id = (
@@ -1381,6 +1374,8 @@ def create_tf_ct_matrix(
     total_tf_patterns = sum(len(pattern_tf_dict[p]["tfs"]) for p in pattern_tf_dict)
     tf_ct_matrix = np.zeros((len(classes), total_tf_patterns, 2))
     tf_pattern_annots = []
+
+    df = df.reindex(classes) # Ensure they are in same order.
 
     if pattern_parameter not in ["contrib", "seqlet_count", "seqlet_count_log"]:
         logger.info("Pattern parameter not valid. Setting to default ('seqlet_count').")

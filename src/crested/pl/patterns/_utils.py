@@ -100,10 +100,13 @@ def _plot_attribution_map(
 
     # Render the plot as an image
     temp_fig.canvas.draw()
+    renderer = temp_fig.canvas.get_renderer()
     width, height = map(int, temp_fig.get_size_inches() * temp_fig.get_dpi())
-    image = np.frombuffer(temp_fig.canvas.tostring_rgb(), dtype="uint8").reshape(
-        height, width, 3
-    )
+    image = np.frombuffer(renderer.buffer_rgba(), dtype="uint8").reshape(height, width, 4)[..., :3]
+    #width, height = map(int, temp_fig.get_size_inches() * temp_fig.get_dpi())
+    #image = np.frombuffer(temp_fig.canvas.tostring_rgb(), dtype="uint8").reshape(
+    #    height, width, 3
+    #)
     plt.close(temp_fig)  # Close the temporary figure to avoid memory leaks
 
     # Rotate the rendered image
