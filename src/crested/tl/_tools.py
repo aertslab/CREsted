@@ -71,15 +71,52 @@ def extract_layer_embeddings(
     return embeddings
 
 class PredictPyDataset(keras.utils.PyDataset):
+    """
+    A Keras-compatible dataset for batched prediction.
+
+    Wraps an array-like input (e.g., one-hot encoded sequences) and yields batches for model prediction.
+    """
+
     def __init__(self, input_array, batch_size=128):
+        """
+        Initialize the prediction dataset.
+
+        Parameters
+        ----------
+        input_array : array-like
+            Input data, typically a NumPy array of shape (N, L, 4).
+        batch_size : int, optional
+            Number of samples per batch. Default is 128.
+        """
         super().__init__()
         self.input_array = input_array
         self.batch_size = batch_size
 
     def __len__(self):
+        """
+        Return the number of batches.
+
+        Returns
+        -------
+        int
+            Total number of batches per epoch.
+        """
         return math.ceil(len(self.input_array) / self.batch_size)
 
     def __getitem__(self, idx):
+        """
+        Retrieve a single batch of data.
+
+        Parameters
+        ----------
+        idx : int
+            Index of the batch.
+
+        Returns
+        -------
+        array-like
+            A batch of input data.
+        """
         low = idx * self.batch_size
         high = min(low + self.batch_size, len(self.input_array))
         batch = self.input_array[low:high]
