@@ -5,6 +5,7 @@ from __future__ import annotations
 import errno
 import os
 from pathlib import Path
+from functools import cached_property
 
 from loguru import logger
 from pysam import FastaFile
@@ -89,7 +90,7 @@ class Genome:
 
         self._name = name
 
-    @property
+    @cached_property
     def fasta(self) -> FastaFile:
         """
         The pysam FastaFile object for the FASTA file.

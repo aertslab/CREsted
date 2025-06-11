@@ -10,6 +10,7 @@ import numpy as np
 from anndata import AnnData
 from loguru import logger
 from tqdm import tqdm
+import math
 
 from crested._genome import Genome
 from crested.tl._explainer import integrated_grad, mutagenesis, saliency_map
@@ -69,18 +70,31 @@ def extract_layer_embeddings(
 
     return embeddings
 
+class PredictPyDataset(keras.utils.PyDataset):
+    def __init__(self, input_array, batch_size=128):
+        super().__init__()
+        self.input_array = input_array
+        self.batch_size = batch_size
+
+    def __len__(self):
+        return math.ceil(len(self.input_array) / self.batch_size)
+
+    def __getitem__(self, idx):
+        low = idx * self.batch_size
+        high = min(low + self.batch_size, len(self.input_array))
+        batch = self.input_array[low:high]
+        return batch
+
 
 def predict(
     input: str | list[str] | np.array | AnnData,
     model: keras.Model | list[keras.Model],
     genome: Genome | os.PathLike | None = None,
-    manual_batching: bool = False,
-    manual_batch_size: int = 512,
+    batch_size: int = 128,
     **kwargs,
 ) -> None | np.ndarray:
     """
-    Make predictions using the model(s) some input that represents sequences.
-
+    Make predictions using the model(s) on some input that represents sequences.
     If a list of models is provided, the predictions will be averaged across all models.
 
     Parameters
@@ -91,10 +105,8 @@ def predict(
         A (list of) trained keras model(s) to make predictions with.
     genome
         Genome or path to the genome file. Required if no genome is registered and input is an anndata object or region names.
-    manual_batching : bool
-        If True, manually slice the input into chunks of `manual_batch_size`.
-    manual_batch_size : int
-        Chunk size used when `manual_batching` is True.
+    batch_size
+        Batch size to use for predictions. 
     **kwargs
         Additional keyword arguments to pass to the keras.Model.predict method.
 
@@ -111,35 +123,20 @@ def predict(
     ... )
     """
     input = _transform_input(input, genome)
-
-    def _batched_predict(input_array, model, manual_batch_size, **kwargs):
-        preds = []
-        for i in range(0, len(input_array), manual_batch_size):
-            chunk = input_array[i:i + manual_batch_size]
-            preds.append(model.predict(chunk, **kwargs))
-        return np.concatenate(preds, axis=0)
+    dataset = PredictPyDataset(input, batch_size)
 
     if isinstance(model, list):
         if not all(isinstance(m, keras.Model) for m in model):
             raise ValueError("All items in the model list must be Keras models.")
-
-        all_predictions = []
+        all_preds = []
         for m in model:
-            if manual_batching:
-                preds = _batched_predict(input, m, manual_batch_size, **kwargs)
-            else:
-                preds = m.predict(input, **kwargs)
-            all_predictions.append(preds)
-
-        averaged_predictions = np.mean(all_predictions, axis=0)
-        return averaged_predictions
-    if not isinstance(model, keras.Model):
-        raise ValueError("Model must be a Keras model or a list of Keras models.")
-
-    if manual_batching:
-        return _batched_predict(input, model, manual_batch_size, **kwargs)
+            preds = m.predict(dataset, **kwargs)
+            all_preds.append(preds)
+        return np.mean(all_preds, axis=0)
     else:
-        return model.predict(input, **kwargs)
+        if not isinstance(model, keras.Model):
+            raise ValueError("Model must be a Keras model or a list of Keras models.")
+        return model.predict(dataset, **kwargs)
 
 def score_gene_locus(
     chr_name: str,

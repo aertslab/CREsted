@@ -541,19 +541,6 @@ def post_hoc_merging(
     if verbose:
         print(f"Total iterations: {iterations}")
 
-    # Debugging step to check for any remaining patterns exceeding the similarity threshold
-    for i, (idx1, _) in enumerate(final_patterns.items()):
-        for j, (idx2, _) in enumerate(final_patterns.items()):
-            if i >= j:
-                continue
-
-            sim = pattern_similarity(final_patterns, idx1, idx2)
-
-            if sim > sim_threshold:
-                print(
-                    f"Warning: Patterns {idx1} and {idx2} exceed similarity threshold with similarity {sim}"
-                )
-
     return final_patterns
 
 
