@@ -192,7 +192,7 @@ class Genome:
                 chrom, start_end = region.split(":")
             start, end = map(int, start_end.split("-"))
 
-        elif not (chrom and start and end):
+        if not (chrom and start and end):
             raise ValueError(
                 "chrom/start/end must all be supplied to extract a sequence."
             )
