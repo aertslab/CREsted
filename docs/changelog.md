@@ -1,5 +1,16 @@
 # Release Notes
 
+## 1.5.0
+
+### Features
+
+-   Faster sequence loading (updated `crested.Genome` class and \_transform_input)
+-   Better handling of very large inputs in `crested.tl.predict` by using a generator instead of copying everything to GPU first.
+-   Added options for window shuffling ISM as well as option to plot ISM as letters
+-   memelite update and removed tangermeme dependency
+-   Add bbox_inches=tight to render_plot (small breaking)
+-   New validation logic for highlight_positions parameters in `locus_scoring` to make errors more clear.
+
 ## 1.4.1
 
 Small release with the new models for the Hydropv2 papers.
