@@ -691,7 +691,7 @@ def enhancer_design_in_silico_evolution(
                 # initialize info
                 intermediate_info_list.append(
                     {
-                        "inital_sequence": hot_encoding_to_sequence(
+                        "initial_sequence": hot_encoding_to_sequence(
                             sequence_onehot_prev_iter[i]
                         ),
                         "changes": [(-1, "N")],
