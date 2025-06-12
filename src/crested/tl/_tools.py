@@ -13,7 +13,12 @@ from loguru import logger
 from tqdm import tqdm
 
 from crested._genome import Genome
-from crested.tl._explainer import integrated_grad, mutagenesis, saliency_map
+from crested.tl._explainer import (
+    integrated_grad,
+    mutagenesis,
+    saliency_map,
+    window_shuffle,
+)
 from crested.tl._utils import (
     create_random_sequences,
     generate_motif_insertions,
@@ -311,6 +316,8 @@ def contribution_scores(
     target_idx: int | list[int] | None,
     model: keras.Model | list[keras.Model],
     method: str = "expected_integrated_grad",
+    window_size: int | None = 7,
+    n_shuffles: int | None = 24,
     genome: Genome | os.PathLike | None = None,
     transpose: bool = False,
     all_class_names: list[str] | None = None,
@@ -340,7 +347,11 @@ def contribution_scores(
         A (list of) trained keras model(s) to calculate the contribution scores for.
     method
         Method to use for calculating the contribution scores.
-        Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad', 'saliency_map'.
+        Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad', 'saliency_map', 'window_shuffle', 'window_shuffle_uniform'.
+    window_size
+        Window size to use if using the method 'window_shuffle' or 'window_shuffle_uniform'.
+    n_shuffles
+        Number of times to shuffle per window if using the method 'window_shuffle' or 'window_shuffle_uniform'.
     genome
         Genome or path to the genome fasta. Required if no genome is registered and input is an anndata object or region names.
     transpose
@@ -427,6 +438,26 @@ def contribution_scores(
                     input_sequences,
                     model=m,
                     class_index=class_index,
+                    batch_size=batch_size,
+                )
+            elif method == "window_shuffle":
+                scores[:, i, :, :] = window_shuffle(
+                    input_sequences,
+                    model=m,
+                    class_index=class_index,
+                    window_size=window_size,
+                    n_shuffles=n_shuffles,
+                    uniform=False,
+                    batch_size=batch_size,
+                )
+            elif method == "window_shuffle_uniform":
+                scores[:, i, :, :] = window_shuffle(
+                    input_sequences,
+                    model=m,
+                    class_index=class_index,
+                    window_size=window_size,
+                    n_shuffles=n_shuffles,
+                    uniform=True,
                     batch_size=batch_size,
                 )
             else:
@@ -708,7 +739,7 @@ def enhancer_design_in_silico_evolution(
                 # initialize info
                 intermediate_info_list.append(
                     {
-                        "inital_sequence": hot_encoding_to_sequence(
+                        "initial_sequence": hot_encoding_to_sequence(
                             sequence_onehot_prev_iter[i]
                         ),
                         "changes": [(-1, "N")],

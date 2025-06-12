@@ -426,7 +426,7 @@ def derive_intermediate_sequences(
     """
     all_designed_list = []
     for intermediate_dict in enhancer_design_intermediate:
-        current_sequence = intermediate_dict["inital_sequence"]
+        current_sequence = intermediate_dict["initial_sequence"]
         sequence_list = [current_sequence]
         for loc, change in intermediate_dict["changes"]:
             if loc == -1:

@@ -1604,7 +1604,7 @@ class Crested:
             if return_intermediate:
                 intermediate_info_list.append(
                     {
-                        "inital_sequence": sequence,
+                        "initial_sequence": sequence,
                         "changes": [(-1, "N")],
                         "predictions": [
                             self.model.predict(sequence_onehot, verbose=False)[0]
@@ -1834,7 +1834,7 @@ class Crested:
                     # initialize info
                     intermediate_info_list.append(
                         {
-                            "inital_sequence": hot_encoding_to_sequence(
+                            "initial_sequence": hot_encoding_to_sequence(
                                 sequence_onehot_prev_iter[i]
                             ),
                             "changes": [(-1, "N")],
@@ -1964,7 +1964,7 @@ class Crested:
     def _derive_intermediate_sequences(self, enhancer_design_intermediate):
         all_designed_list = []
         for intermediate_dict in enhancer_design_intermediate:
-            current_sequence = intermediate_dict["inital_sequence"]
+            current_sequence = intermediate_dict["initial_sequence"]
             sequence_list = [current_sequence]
             for loc, change in intermediate_dict["changes"]:
                 if loc == -1:

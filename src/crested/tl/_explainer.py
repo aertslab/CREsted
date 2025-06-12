@@ -11,7 +11,7 @@ from collections.abc import Callable
 import keras
 import numpy as np
 
-from crested.utils._seq_utils import generate_mutagenesis
+from crested.utils._seq_utils import generate_mutagenesis, generate_window_shuffle
 
 if os.environ["KERAS_BACKEND"] == "tensorflow":
     from tensorflow import Tensor
@@ -246,6 +246,83 @@ def mutagenesis(
         mut_score = reconstruct_map(predictions)
         scores.append(mut_score - wt_score)
 
+    return np.concatenate(scores, axis=0)
+
+
+def window_shuffle(
+    X: np.ndarray,
+    model: keras.Model,
+    class_index: int = None,
+    window_size: int = 5,
+    n_shuffles: int = 5,
+    uniform: bool = False,
+    batch_size: int = 256,
+) -> np.ndarray:
+    """In silico mutagenesis analysis for a given sequence.
+
+    Parameters
+    ----------
+    X
+        Sequence inputs, of shape (batch, seq_len, 4). Can be numpy array or tf/torch tensor.
+    model
+        Your Keras model.
+    class_index
+        The index of the class to explain.
+    window_size
+        Window size to use to shuffle
+    n_shuffles
+        Number of shuffles
+    uniform
+        Whether to reshuffle local sequence or replace with uniformly random sequence
+    batch_size
+        Batch size to use when predicting values with the model. Note that mutagenesis requires (seq_len*3+1) predictions to explain one sequence.
+        Default is 256.
+    """
+
+    def reconstruct_map(predictions, window_size, n_shuffles):
+        _, L, A = x.shape
+
+        mut_score = np.zeros((1, L, A))
+        n_mut_per_shuffle = len(predictions) // n_shuffles
+        for location in range(L):
+            # determine which predictions affect this location
+            number_of_changes = np.min([location + 1, window_size, L - location])
+            start = np.max([location - window_size + 1, 0])
+            indexes = []
+            for shuffle in range(n_shuffles):
+                offset = shuffle * n_mut_per_shuffle
+                indexes.extend(
+                    range(start + offset, (start + number_of_changes) + offset)
+                )
+            mut_score[0, location, :] = np.mean(predictions[indexes])
+        return mut_score
+
+    def get_score(x, model, class_index, batch_size=None):
+        score = model.predict(x, verbose=0, batch_size=batch_size)
+        if class_index is None:
+            score = np.sqrt(np.sum(score**2, axis=-1, keepdims=True))
+        else:
+            score = score[:, class_index]
+        return score
+
+    scores = []
+    for x in X:
+        x = np.expand_dims(x, axis=0)
+
+        # generate mutagenized sequences
+        x_mut = generate_window_shuffle(
+            x, window_size=window_size, n_shuffles=n_shuffles, uniform=uniform
+        )
+
+        # get baseline wildtype score
+        wt_score = get_score(x, model, class_index, batch_size=batch_size)
+        predictions = get_score(x_mut, model, class_index, batch_size=batch_size)
+
+        # reshape mutagenesis predictions
+        mut_score = reconstruct_map(
+            predictions, window_size=window_size, n_shuffles=n_shuffles
+        )
+        scores.append(wt_score - mut_score)
     return np.concatenate(scores, axis=0)
 
 

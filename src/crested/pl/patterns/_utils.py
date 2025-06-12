@@ -51,6 +51,27 @@ def grad_times_input_to_df_mutagenesis(x, grad, alphabet="ACGT"):
     return df
 
 
+def grad_times_input_to_df_mutagenesis_letters(x, grad, alphabet="ACGT"):
+    """Generate pandas dataframe for mutagenesis plot based on grad x inputs."""
+    x = np.squeeze(x)  # Ensure x is correctly squeezed
+    grad = np.squeeze(grad)
+    L, A = x.shape
+
+    # Get original nucleotides' indices, ensure it's 1D
+    x_index = np.argmax(x, axis=1)
+
+    all_locs = np.array([0, 1, 2, 3])
+    seq = ""
+    saliency = np.zeros(L)
+    for i in range(L):
+        seq += alphabet[x_index[i]]
+        saliency[i] = -np.mean(grad[i, np.delete(all_locs, x_index[i])])
+
+    # create saliency matrix
+    saliency_df = logomaker.saliency_to_matrix(seq=seq, values=saliency)
+    return saliency_df
+
+
 def _plot_attribution_map(
     saliency_df,
     ax=None,

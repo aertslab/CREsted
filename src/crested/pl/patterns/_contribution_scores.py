@@ -13,6 +13,7 @@ from ._utils import (
     _plot_mutagenesis_map,
     grad_times_input_to_df,
     grad_times_input_to_df_mutagenesis,
+    grad_times_input_to_df_mutagenesis_letters,
 )
 
 
@@ -73,7 +74,8 @@ def contribution_scores(
     ylim
         Y-axis limits. Default is None.
     method
-        Method used for calculating contribution scores. If mutagenesis, specify.
+        Method used for calculating contribution scores. If mutagenesis, you can either set this to mutagenesis to visualize
+        in legacy way, or mutagenesis_letters to visualize an average of changes.
 
     See Also
     --------
@@ -93,7 +95,6 @@ def contribution_scores(
     .. image:: ../../../../docs/_static/img/examples/contribution_scores.png
     """
     _check_contrib_params(zoom_n_bases, scores, class_labels, sequence_labels)
-
     if zoom_n_bases is None:
         zoom_n_bases = scores.shape[2]
     if sequence_labels and not isinstance(sequence_labels, list):
@@ -124,6 +125,19 @@ def contribution_scores(
         if method == "mutagenesis":
             global_max = scores[seq].max() + 0.25 * np.abs(scores[seq].max())
             global_min = scores[seq].min() - 0.25 * np.abs(scores[seq].min())
+        elif method == "mutagenesis_letters":
+            mins = []
+            maxs = []
+            for i in range(total_classes):
+                seq_class_scores = scores[seq, i, :, :]
+                mins.append(
+                    np.min(-np.sum(seq_class_scores * (1 - seq_class_x), axis=1) / 3)
+                )
+                maxs.append(
+                    np.max(-np.sum(seq_class_scores * (1 - seq_class_x), axis=1) / 3)
+                )
+            global_max = np.array(maxs).max() + 0.25 * np.abs(np.array(maxs).max())
+            global_min = np.array(mins).min() - 0.25 * np.abs(np.array(mins).min())
         else:
             mins = []
             maxs = []
@@ -144,6 +158,11 @@ def contribution_scores(
                     seq_class_x, seq_class_scores
                 )
                 _plot_mutagenesis_map(mutagenesis_df, ax=ax)
+            elif method == "mutagenesis_letters":
+                mutagenesis_df_letters = grad_times_input_to_df_mutagenesis_letters(
+                    seq_class_x, seq_class_scores
+                )
+                _plot_attribution_map(mutagenesis_df_letters, ax=ax, return_ax=False)
             else:
                 intgrad_df = grad_times_input_to_df(seq_class_x, seq_class_scores)
                 _plot_attribution_map(intgrad_df, ax=ax, return_ax=False)
