@@ -34,6 +34,11 @@ elif os.environ["KERAS_BACKEND"] == "torch":
         _to_tensor,
     )
 
+def _is_input_float(X: np.ndarray):
+    if np.issubdtype(X.dtype, np.floating):
+        return X
+    else:
+        raise ValueError(f"Input data type should be float, it is {X.dtype}")
 
 # ---- Explainer functions ----
 def saliency_map(
@@ -60,6 +65,7 @@ def saliency_map(
         so explaining 1 sequence still requires gradients of e.g. 650 sequences (num_baselines*num_steps+1).
         Default is 128, which works well for 2kb input size models but might struggle on bigger models.
     """
+    X = _is_input_float(X)
     return function_batch(
         X,
         _saliency_map,
@@ -156,6 +162,8 @@ def integrated_grad(
         """
         grads = (gradients[:, :-1, ...] + gradients[:, 1:, ...]) / 2.0
         return np.mean(grads, axis=1)
+
+    X = _is_input_float(X)
 
     # Make baselines
     baselines = make_baselines(
@@ -336,6 +344,7 @@ def smoothgrad(
     func: Callable = None,
 ) -> np.ndarray:
     """Calculate smoothgrad for a given (set of) sequence(s)."""
+    X = _is_input_float(X)
     return function_batch(
         X,
         _smoothgrad,
