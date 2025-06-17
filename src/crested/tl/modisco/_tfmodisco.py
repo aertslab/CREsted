@@ -345,7 +345,7 @@ def match_to_patterns(
     pattern_id: str,
     pos_pattern: bool,
     all_patterns: dict[str, dict[str, str | list[float]]],
-    sim_threshold: float = 0.5,
+    sim_threshold: float = 7.0,
     ic_threshold: float = 0.15,
     verbose: bool = False,
 ) -> dict:
@@ -395,13 +395,15 @@ def match_to_patterns(
 
     p["class"] = cell_type
 
-    for pat_idx, pattern in enumerate(all_patterns.keys()):
-        sim = match_score_patterns(p, all_patterns[pattern]["pattern"])
-        if sim > sim_threshold:
-            match = True
-            if sim > max_sim:
-                max_sim = sim
-                match_idx = pat_idx
+    all_patterns_list = [pat['pattern'] for pat in all_patterns.values()]
+    sim_matrix1 = match_score_patterns(p, all_patterns_list)
+    sim_matrix2 = match_score_patterns(all_patterns_list, p).T # for some reason changing the order can give different results
+    sim_matrix = np.maximum(sim_matrix1, sim_matrix2)
+
+    max_sim = np.max(sim_matrix)
+    if max_sim > sim_threshold:
+        match = True
+        match_idx = np.argmax(sim_matrix[0])
 
     if not match:
         pattern_idx = len(all_patterns.keys())
@@ -438,6 +440,103 @@ def match_to_patterns(
 
 
 def post_hoc_merging(
+    all_patterns: dict,
+    sim_threshold: float = 0.5,
+    ic_discard_threshold: float = 0.15,
+    verbose: bool = False,
+    return_info: bool = False,
+) -> dict | tuple[dict, list[tuple[str, str, float]]]:
+    """
+    Double-checks the similarity of all patterns and merges them if they exceed the threshold.
+
+    Filters out patterns with IC below the discard threshold at the last step and updates the keys.
+
+    Parameters
+    ----------
+    all_patterns
+        Dictionary of all patterns with metadata. Each pattern must include 'pattern', 'ic', and 'classes'.
+    sim_threshold
+        Similarity threshold for merging patterns.
+    ic_discard_threshold
+        IC threshold below which patterns are discarded unless they belong to multiple classes.
+    verbose
+        Flag to enable verbose output of merged patterns.
+    return_info
+        If True, also return a list of all performed merges as (pattern_id_1, pattern_id_2, similarity).
+
+    Returns
+    -------
+    Updated patterns after merging and filtering with sequential keys.
+    If `return_info=True`, also returns a list of performed merges.
+    """
+    current_meta = list(all_patterns.values())
+    all_merges = []
+    iteration = 0
+
+    while True:
+        iteration += 1
+        N = len(current_meta)
+
+        raw_patterns = [m["pattern"] for m in current_meta]
+        raw_ids = [m["pattern"]["id"] for m in current_meta]
+
+        S = match_score_patterns(raw_patterns, raw_patterns)
+        S = np.maximum(S, S.T)
+        np.fill_diagonal(S, -np.inf)
+
+        candidates = np.argwhere(S > sim_threshold)
+        candidates = [(i, j, S[i, j]) for i, j in candidates if i < j]
+
+        if not candidates:
+            if verbose:
+                print(f"Iteration {iteration}: no more matches above {sim_threshold}")
+            break
+
+        candidates.sort(key=lambda x: x[2], reverse=True)
+
+        matched = set()
+        merges = []
+        for i, j, score in candidates:
+            if i in matched or j in matched:
+                continue
+            matched.add(i)
+            matched.add(j)
+            merges.append((i, j, score))
+            all_merges.append((raw_ids[i], raw_ids[j], score))
+
+        if verbose:
+            print(f"Iteration {iteration}: performing {len(merges)} merges")
+            for i, j, score in merges:
+                print(f"  -> merging {raw_ids[i]} + {raw_ids[j]} (sim={score:.3f})")
+
+        new_meta = []
+        used = set()
+        for i, j, _ in merges:
+            merged = merge_patterns(current_meta[i], current_meta[j])
+            new_meta.append(merged)
+            used.update({i, j})
+
+        for idx in range(N):
+            if idx not in used:
+                new_meta.append(current_meta[idx])
+
+        current_meta = new_meta
+
+    final = {}
+    idx = 0
+    for m in current_meta:
+        if m["ic"] >= ic_discard_threshold or len(m["classes"]) > 1:
+            final[str(idx)] = m
+            idx += 1
+        elif verbose:
+            print(f"Dropping {m['pattern']['id']} (IC={m['ic']:.3f})")
+
+    if verbose:
+        print(f"Done after {iteration} iterations; {len(final)} patterns remain.")
+
+    return (final, all_merges) if return_info else final
+
+def post_hoc_merging_old(
     all_patterns: dict,
     sim_threshold: float = 0.5,
     ic_discard_threshold: float = 0.15,
@@ -867,8 +966,8 @@ def calculate_tomtom_similarity_per_pattern(
 
 def process_patterns(
     matched_files: dict[str, str | list[str] | None],
-    sim_threshold: float = 3.0,
-    trim_ic_threshold: float = 0.05,
+    sim_threshold: float = 6.0,
+    trim_ic_threshold: float = 0.025,
     discard_ic_threshold: float = 0.1,
     verbose: bool = False,
 ) -> dict[str, dict[str, str | list[float]]]:
