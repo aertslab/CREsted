@@ -724,6 +724,7 @@ def clustermap_with_pwm_logos(
 def selected_instances(
     pattern_dict: dict,
     idcs: list[int],
+    save_path: str = None,
 ) -> None:
     """
     Plot the patterns specified by the indices in `idcs` from the `pattern_dict`.
@@ -735,6 +736,8 @@ def selected_instances(
         contribution scores and metadata for the pattern. Refer to the output of `crested.tl.modisco.process_patterns`.
     idcs
         A list of indices specifying which patterns to plot. The indices correspond to keys in the `pattern_dict`.
+    save_path
+        File to save plot to.
 
     See Also
     --------
@@ -761,11 +764,13 @@ def selected_instances(
         ax.set_title(pattern_dict[str(idx)]["pattern"]["id"])
 
     plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight')
     plt.show()
 
 
 def class_instances(
-    pattern_dict: dict, idx: int, class_representative: bool = False
+    pattern_dict: dict, idx: int, class_representative: bool = False, save_path: str = None,
 ) -> None:
     """
     Plot instances of a specific pattern, either the representative pattern per class or all instances for a given pattern index.
@@ -780,6 +785,8 @@ def class_instances(
     class_representative
         If True, only the best representative instance of each class is plotted. If False (default), all instances of the pattern
         within each class are plotted.
+    save_path
+        File to save plot to.
 
     See Also
     --------
@@ -814,6 +821,8 @@ def class_instances(
         ax.set_title(pattern_dict[str(idx)][key][cl]["id"])
 
     plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight')
     plt.show()
 
 
