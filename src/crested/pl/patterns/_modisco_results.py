@@ -3,12 +3,11 @@ from __future__ import annotations
 import h5py
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.colors import TwoSlopeNorm, LinearSegmentedColormap
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from loguru import logger
+from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.patches import Patch
 from scipy.cluster.hierarchy import dendrogram, leaves_list, linkage
 
