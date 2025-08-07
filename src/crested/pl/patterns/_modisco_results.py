@@ -3,6 +3,8 @@ from __future__ import annotations
 import h5py
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.colors import TwoSlopeNorm, LinearSegmentedColormap
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -1067,11 +1069,17 @@ def clustermap_tf_motif(
         vmax=max(np.abs(heatmap_data.min()), np.abs(heatmap_data.max())),
     )
 
+
+    # Define custom light-centered colormap
+    light_centered_cmap = LinearSegmentedColormap.from_list(
+        "light_coolwarm", ["blue", "#f0f0f0", "red"]
+    )
+
     # Plot heatmap
     heatmap = ax_heatmap.imshow(
         heatmap_data,
         aspect="auto",
-        cmap="coolwarm",
+        cmap=light_centered_cmap,
         norm=norm,
     )
 
