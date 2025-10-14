@@ -144,7 +144,7 @@ def class_density(
 
         if density_indication:
             xy = np.vstack([x, y])
-            if downsample_density:
+            if downsample_density and downsample_density < xy.shape[1]:
                 downsample_idxs = np.random.randint(xy.shape[1], size = downsample_density)
                 kde = gaussian_kde(xy[:, downsample_idxs])
             else:
