@@ -20,6 +20,7 @@ def class_density(
     log_transform: bool = False,
     exclude_zeros: bool = True,
     density_indication: bool = False,
+    downsample_density: int = 10000,
     alpha: float = 0.25,
     **kwargs,
 ) -> plt.Figure:
@@ -42,6 +43,10 @@ def class_density(
         Whether to exclude zero ground truth values from the plot. Default is True.
     density_indication
         Whether to indicate density in the scatter plot. Default is False.
+    downsample_density
+        Number of points to downsample to if fitting the density indication. 
+        Note that one point denotes one region for one class, so the full set would be # of (test) regions * # classes. 
+        Default is 10000. If False, will not downsample.
     alpha
         Transparency of points in scatter plot. From 0 (transparent) to 1 (opaque).
     kwargs
@@ -139,7 +144,12 @@ def class_density(
 
         if density_indication:
             xy = np.vstack([x, y])
-            z = gaussian_kde(xy)(xy)
+            if downsample_density:
+                downsample_idxs = np.random.randint(xy.shape[1], size = downsample_density)
+                kde = gaussian_kde(xy[:, downsample_idxs])
+            else:
+                kde = gaussian_kde(xy)
+            z = kde(xy)
             scatter = ax.scatter(x, y, c=z, s=50, edgecolor="k", alpha=alpha)
             scatter.set_rasterized(True)  # Rasterize only the scatter points
             plt.colorbar(scatter, ax=ax, label="Density")
