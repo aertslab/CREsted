@@ -44,8 +44,8 @@ def class_density(
     density_indication
         Whether to indicate density in the scatter plot. Default is False.
     downsample_density
-        Number of points to downsample to if fitting the density indication. 
-        Note that one point denotes one region for one class, so the full set would be # of (test) regions * # classes. 
+        Number of points to downsample to if fitting the density indication.
+        Note that one point denotes one region for one class, so the full set would be # of (test) regions * # classes.
         Default is 10000. If False, will not downsample.
     alpha
         Transparency of points in scatter plot. From 0 (transparent) to 1 (opaque).
