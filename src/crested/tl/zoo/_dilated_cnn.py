@@ -1,9 +1,26 @@
-"""Chrombpnet like model architecture for peak regression."""
+"""Chrombp net like model architecture for peak regression."""
+
+import warnings
 
 import keras
 
 
-def chrombpnet_decoupled(
+def chrombpnet(*args, **kwargs):
+    """
+    Use dilated_cnn instead.
+
+    :meta private:
+    """
+    warnings.warn(
+        "'chrombpnet' is deprecated and will be removed in a future release. "
+        "Use its new name 'dilated_cnn' instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return dilated_cnn(*args, **kwargs)
+
+
+def dilated_cnn(
     seq_len: int,
     num_classes: int,
     first_conv_filters: int = 512,
@@ -23,9 +40,10 @@ def chrombpnet_decoupled(
     dense_bias: bool = True,
 ) -> keras.Model:
     """
-    Construct a ChromBPNet like model.
+    Construct a CNN using dilated convolutions.
 
     This architecture is based on the ChromBPNet model described in :cite:`Pampari_Bias_factorized_base-resolution_2023`.
+    This was renamed to DilatedCNN to avoid confusion with the original ChromBPNet framework.
 
     Parameters
     ----------
@@ -130,24 +148,13 @@ def chrombpnet_decoupled(
             )
 
     x = keras.layers.GlobalAveragePooling1D()(x)
-    # Decouple the dense layers
-    outputs = []
-    for i in range(num_classes):
-        outputs.append(
-            keras.layers.Dense(
-                units=1,
-                activation=output_activation,  # Or your choice of activation
-                name=f"dense_out_class_{i}",
-                use_bias=dense_bias,
-            )(x)  # `x` is the shared feature vector from previous layers
-        )
+    outputs = keras.layers.Dense(
+        units=num_classes,
+        activation=output_activation,
+        use_bias=dense_bias,
+        name="dense_out",
+    )(x)
 
-    # Concatenate to restore original output shape
-    final_output = keras.layers.Concatenate(axis=-1)(
-        outputs
-    )  # Shape: (batch_size, num_classes)
-
-    # Define the model
-    model = keras.Model(inputs=inputs, outputs=final_output)
+    model = keras.Model(inputs=inputs, outputs=outputs)
 
     return model

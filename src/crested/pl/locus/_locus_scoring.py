@@ -1,4 +1,4 @@
-"""Distribution plots."""
+"""Locus scoring plotting function."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ def locus_scoring(
     bigwig_midpoints: list[int] | None = None,
     save_path: str | None = None,
     grid: bool = True,
-    figsize: tuple[float, float] = (30,5),
+    figsize: tuple[float, float] = (30, 5),
     highlight_positions: list[tuple[int, int]] | None = None,
     marker_size: float = 5.0,
     line_width: float = 2.0,
@@ -70,7 +70,7 @@ def locus_scoring(
 
     Example
     --------
-    >>> crested.pl.hist.locus_scoring(
+    >>> crested.pl.locus.locus_scoring(
     ...     scores,
     ...     range=(0, 1000),
     ...     gene_start=100,
@@ -80,8 +80,17 @@ def locus_scoring(
     ...     bigwig_midpoints=bigwig_midpoints,
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/hist_locus_scoring.png
+    .. image:: ../../../../docs/_static/img/examples/locus_locus_scoring.png
     """
+    # Validate highlight_positions to ensure they fall within the specified range.
+    if highlight_positions:
+        for pos in highlight_positions:
+            start, end = pos
+            if start < range[0] or end > range[1]:
+                raise ValueError(
+                    f"Highlighted position ({start}, {end}) falls outside the plotting range {range}."
+                )
+
     # Plotting predictions
     plt.figure(figsize=figsize)
 
@@ -96,7 +105,7 @@ def locus_scoring(
         linewidth=line_width,
         color=line_colors[0],
         label="Prediction Score",
-        rasterized=True
+        rasterized=True,
     )
     if gene_start is not None and gene_end is not None:
         plt.axvspan(gene_start, gene_end, color="red", alpha=0.2, label="Gene Locus")
@@ -122,7 +131,7 @@ def locus_scoring(
             linestyle="-",
             color=line_colors[1],
             label="bigWig Values",
-            rasterized='True'
+            rasterized="True",
         )
         if gene_start is not None and gene_end is not None:
             plt.axvspan(
@@ -137,5 +146,5 @@ def locus_scoring(
 
     plt.tight_layout()
     if save_path:
-        plt.savefig(save_path, bbox_inches='tight')
+        plt.savefig(save_path, bbox_inches="tight")
     plt.show()

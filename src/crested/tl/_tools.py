@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 from typing import Any
 
@@ -12,6 +13,12 @@ from loguru import logger
 from tqdm import tqdm
 
 from crested._genome import Genome
+from crested.tl._explainer import (
+    integrated_grad,
+    mutagenesis,
+    saliency_map,
+    window_shuffle,
+)
 from crested.tl._utils import (
     create_random_sequences,
     generate_motif_insertions,
@@ -27,11 +34,6 @@ from crested.utils._utils import (
     _transform_input,
     _weighted_difference,
 )
-
-if os.environ["KERAS_BACKEND"] == "tensorflow":
-    from crested.tl._explainer_tf import Explainer
-elif os.environ["KERAS_BACKEND"] == "torch":
-    from crested.tl._explainer_torch import Explainer
 
 
 def extract_layer_embeddings(
@@ -73,26 +75,82 @@ def extract_layer_embeddings(
 
     return embeddings
 
+class PredictPyDataset(keras.utils.PyDataset):
+    """
+    A Keras-compatible dataset for batched prediction.
+
+    Wraps an array-like input (e.g., one-hot encoded sequences) and yields batches for model prediction.
+    """
+
+    def __init__(self, input_array, batch_size=128):
+        """
+        Initialize the prediction dataset.
+
+        Parameters
+        ----------
+        input_array : array-like
+            Input data, typically a NumPy array of shape (N, L, 4).
+        batch_size : int, optional
+            Number of samples per batch. Default is 128.
+        """
+        super().__init__()
+        self.input_array = input_array
+        self.batch_size = batch_size
+
+    def __len__(self):
+        """
+        Return the number of batches.
+
+        Returns
+        -------
+        int
+            Total number of batches per epoch.
+        """
+        return math.ceil(len(self.input_array) / self.batch_size)
+
+    def __getitem__(self, idx):
+        """
+        Retrieve a single batch of data.
+
+        Parameters
+        ----------
+        idx : int
+            Index of the batch.
+
+        Returns
+        -------
+        array-like
+            A batch of input data.
+        """
+        low = idx * self.batch_size
+        high = min(low + self.batch_size, len(self.input_array))
+        batch = self.input_array[low:high]
+        return batch
+
 
 def predict(
     input: str | list[str] | np.array | AnnData,
     model: keras.Model | list[keras.Model],
     genome: Genome | os.PathLike | None = None,
+    batch_size: int = 128,
     **kwargs,
 ) -> None | np.ndarray:
     """
-    Make predictions using the model(s) some input that represents sequences.
+    Make predictions using the model(s) on some input that represents sequences.
 
     If a list of models is provided, the predictions will be averaged across all models.
 
     Parameters
     ----------
     input
-        Input data to make predictions on. Can be a (list of) sequence(s), a (list of) region name(s), a matrix of one hot encodings (N, L, 4), or an AnnData object with region names as its var_names.
+        Input data to make predictions on. Can be a (list of) sequence(s), a (list of) region name(s),
+        a matrix of one hot encodings (N, L, 4), or an AnnData object with region names as its var_names.
     model
         A (list of) trained keras model(s) to make predictions with.
     genome
         Genome or path to the genome file. Required if no genome is registered and input is an anndata object or region names.
+    batch_size
+        Batch size to use for predictions.
     **kwargs
         Additional keyword arguments to pass to the keras.Model.predict method.
 
@@ -109,29 +167,20 @@ def predict(
     ... )
     """
     input = _transform_input(input, genome)
-
-    n_predict_steps = (
-        input.shape[0] if os.environ["KERAS_BACKEND"] == "tensorflow" else None
-    )
+    dataset = PredictPyDataset(input, batch_size)
 
     if isinstance(model, list):
         if not all(isinstance(m, keras.Model) for m in model):
             raise ValueError("All items in the model list must be Keras models.")
-
-        all_predictions = []
+        all_preds = []
         for m in model:
-            predictions = m.predict(input, steps=n_predict_steps, **kwargs)
-            all_predictions.append(predictions)
-
-        averaged_predictions = np.mean(all_predictions, axis=0)
-        return averaged_predictions
+            preds = m.predict(dataset, **kwargs)
+            all_preds.append(preds)
+        return np.mean(all_preds, axis=0)
     else:
         if not isinstance(model, keras.Model):
             raise ValueError("Model must be a Keras model or a list of Keras models.")
-
-        predictions = model.predict(input, steps=n_predict_steps, **kwargs)
-        return predictions
-
+        return model.predict(dataset, **kwargs)
 
 def score_gene_locus(
     chr_name: str,
@@ -267,10 +316,14 @@ def contribution_scores(
     target_idx: int | list[int] | None,
     model: keras.Model | list[keras.Model],
     method: str = "expected_integrated_grad",
+    window_size: int | None = 7,
+    n_shuffles: int | None = 24,
     genome: Genome | os.PathLike | None = None,
     transpose: bool = False,
     all_class_names: list[str] | None = None,
+    batch_size: int = 128,
     output_dir: os.PathLike | None = None,
+    seed: int | None = 42,
     verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -294,16 +347,26 @@ def contribution_scores(
         A (list of) trained keras model(s) to calculate the contribution scores for.
     method
         Method to use for calculating the contribution scores.
-        Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
+        Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad', 'saliency_map', 'window_shuffle', 'window_shuffle_uniform'.
+    window_size
+        Window size to use if using the method 'window_shuffle' or 'window_shuffle_uniform'.
+    n_shuffles
+        Number of times to shuffle per window if using the method 'window_shuffle' or 'window_shuffle_uniform'.
     genome
         Genome or path to the genome fasta. Required if no genome is registered and input is an anndata object or region names.
     transpose
         Transpose the contribution scores to (N, C, 4, L) and one hots to (N, 4, L) (for compatibility with MoDISco).
     all_class_names
         Optional list of all class names in the dataset. If provided and output_dir is not None, will use these to name the output files.
+    batch_size
+        Maximum number of input sequences to predict at once when calculating scores.
+        Useful for methods like 'integrated_grad' which also calculate 25 background sequence contributions together with the sequence's contributions in one batch.
+        Default is 128.
     output_dir
         Path to the output directory to save the contribution scores and one hot seqs.
         Will create a separate npz file per class.
+    seed
+        Seed to use for shuffling regions. Only used in "expected_integrated_grad".
     verbose
         Boolean for disabling the logs and plotting progress of calculations using tqdm.
 
@@ -342,22 +405,60 @@ def contribution_scores(
         scores = np.zeros((N, n_classes, L, D))  # Shape: (N, C, L, 4)
 
         for i, class_index in enumerate(target_idx):
-            explainer = Explainer(m, class_index=class_index)
-
             if method == "integrated_grad":
-                scores[:, i, :, :] = explainer.integrated_grad(
+                scores[:, i, :, :] = integrated_grad(
                     input_sequences,
+                    model=m,
+                    class_index=class_index,
                     baseline_type="zeros",
+                    num_baselines=1,
+                    num_steps=25,
+                    batch_size=batch_size,
                 )
             elif method == "mutagenesis":
-                scores[:, i, :, :] = explainer.mutagenesis(
+                scores[:, i, :, :] = mutagenesis(
                     input_sequences,
+                    model=m,
                     class_index=class_index,
+                    batch_size=batch_size,
                 )
             elif method == "expected_integrated_grad":
-                scores[:, i, :, :] = explainer.expected_integrated_grad(
+                scores[:, i, :, :] = integrated_grad(
                     input_sequences,
-                    num_baseline=25,
+                    model=m,
+                    class_index=class_index,
+                    baseline_type="random",
+                    num_baselines=25,
+                    num_steps=25,
+                    batch_size=batch_size,
+                    seed=seed,
+                )
+            elif method == "saliency_map":
+                scores[:, i, :, :] = saliency_map(
+                    input_sequences,
+                    model=m,
+                    class_index=class_index,
+                    batch_size=batch_size,
+                )
+            elif method == "window_shuffle":
+                scores[:, i, :, :] = window_shuffle(
+                    input_sequences,
+                    model=m,
+                    class_index=class_index,
+                    window_size=window_size,
+                    n_shuffles=n_shuffles,
+                    uniform=False,
+                    batch_size=batch_size,
+                )
+            elif method == "window_shuffle_uniform":
+                scores[:, i, :, :] = window_shuffle(
+                    input_sequences,
+                    model=m,
+                    class_index=class_index,
+                    window_size=window_size,
+                    n_shuffles=n_shuffles,
+                    uniform=True,
+                    batch_size=batch_size,
                 )
             else:
                 raise ValueError(f"Unsupported method: {method}")
@@ -399,6 +500,7 @@ def contribution_scores_specific(
     genome: Genome | os.PathLike | None = None,
     method: str = "expected_integrated_grad",
     transpose: bool = True,
+    batch_size: int = 128,
     output_dir: os.PathLike | None = None,
     verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -428,10 +530,14 @@ def contribution_scores_specific(
         Genome or Path to the genome file. Required if no genome is registered.
     method
         Method to use for calculating the contribution scores.
-        Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad'.
+        Options are: 'integrated_grad', 'mutagenesis', 'expected_integrated_grad', 'saliency_map'.
     transpose
         Transpose the contribution scores to (N, C, 4, L) and one hots to (N, 4, L) (for compatibility with MoDISco).
         Defaults to True here since that is what modisco expects.
+    batch_size
+        Maximum number of input sequences to predict at once when calculating scores.
+        Useful for methods like 'integrated_grad' which also calculate 25 background sequence contributions together with the sequence's contributions in one batch.
+        Default is 128.
     output_dir
         Path to the output directory to save the contribution scores and one hot seqs.
         Will create a separate npz file per class.
@@ -474,6 +580,7 @@ def contribution_scores_specific(
             genome=genome,
             verbose=verbose,
             output_dir=output_dir,
+            batch_size=batch_size,
             all_class_names=all_class_names,
             transpose=transpose,
         )
@@ -632,7 +739,7 @@ def enhancer_design_in_silico_evolution(
                 # initialize info
                 intermediate_info_list.append(
                     {
-                        "inital_sequence": hot_encoding_to_sequence(
+                        "initial_sequence": hot_encoding_to_sequence(
                             sequence_onehot_prev_iter[i]
                         ),
                         "changes": [(-1, "N")],
@@ -826,7 +933,7 @@ def enhancer_design_motif_insertion(
         no_mutation_flanks = (0, 0)
 
     if insertions_per_pattern is None:
-        insertions_per_pattern = {pattern_name: 1 for pattern_name in patterns}
+        insertions_per_pattern = dict.fromkeys(patterns, 1)
 
     # Generate initial sequences
     if starting_sequences is None:

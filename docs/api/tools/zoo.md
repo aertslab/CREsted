@@ -13,9 +13,10 @@ Supply these (or your own) to `tl.Crested(...)` to use them in training.
 
     basenji
     borzoi
-    chrombpnet
     deeptopic_cnn
     deeptopic_lstm
+    dilated_cnn
+    dilated_cnn_decoupled
     enformer
     simple_convnet
 ```

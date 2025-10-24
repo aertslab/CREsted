@@ -14,7 +14,9 @@ patterns
 bar
 hist
 heatmap
+locus
 scatter
+violin
 ```
 
 ```{eval-rst}
@@ -30,6 +32,15 @@ scatter
 .. autosummary::
     patterns.contribution_scores
     patterns.modisco_results
+    patterns.enhancer_design_steps_contribution_scores
+    patterns.enhancer_design_steps_predictions
+    patterns.selected_instances
+    patterns.class_instances
+    patterns.clustermap
+    patterns.clustermap_with_pwm_logos
+    patterns.clustermap_tf_motif
+    patterns.tf_expression_per_cell_type
+    patterns.similarity_heatmap
 ```
 
 ## Bar plots
@@ -48,9 +59,7 @@ scatter
     hist.distribution
 ```
 
-## Heatmap
-
-Correlations
+## Correlation heatmaps
 
 ```{eval-rst}
 .. autosummary::
@@ -58,9 +67,24 @@ Correlations
     heatmap.correlations_predictions
 ```
 
+## Locus plots
+
+```{eval-rst}
+.. autosummary::
+    locus.locus_scoring
+    locus.track
+```
+
 ## Scatter plots
 
 ```{eval-rst}
 .. autosummary::
     scatter.class_density
+```
+
+## Violin plots
+
+```{eval-rst}
+.. autosummary::
+    violin.correlations
 ```

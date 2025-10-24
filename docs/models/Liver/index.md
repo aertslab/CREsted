@@ -1,4 +1,4 @@
-# DeepLiver
+# Liver
 
 ```{toctree}
 :maxdepth: 1

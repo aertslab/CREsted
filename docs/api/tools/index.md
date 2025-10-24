@@ -45,8 +45,12 @@ modisco
 ```{eval-rst}
 .. autosummary::
     zoo.basenji
-    zoo.chrombpnet
+    zoo.borzoi
     zoo.deeptopic_cnn
+    zoo.deeptopic_lstm
+    zoo.dilated_cnn
+    zoo.dilated_cnn_decoupled
+    zoo.enformer
     zoo.simple_convnet
 ```
 
@@ -55,6 +59,7 @@ modisco
 ```{eval-rst}
 .. autosummary::
     losses.CosineMSELoss
+    losses.CosineMSELogLoss
 ```
 
 ## Metrics

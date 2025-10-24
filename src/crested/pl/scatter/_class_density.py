@@ -86,7 +86,9 @@ def class_density(
     _check_input_params()
 
     classes = list(adata.obs_names)
-    column_index = classes.index(class_name) if class_name else np.arange(0, len(classes))
+    column_index = (
+        classes.index(class_name) if class_name else np.arange(0, len(classes))
+    )
     if model_names is None:
         model_names = list(adata.layers.keys())
 

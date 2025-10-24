@@ -25,7 +25,7 @@ Please refer to the [documentation][link-docs]. In particular, the
 
 ## Installation
 
-You need to have Python 3.9 or newer installed on your system and a deep learning backend to be able to use CREsted.
+You need to have Python 3.9 or newer installed on your system and a deep learning backend to be able to use CREsted. Installation takes around five minutes.
 
 CREsted is build on top of keras 3 and can therefore be used with your deep learning backend of choice (Tensorflow or Pytorch).
 
@@ -68,7 +68,9 @@ For questions and help requests, please use the [issue tracker][issue-tracker].
 
 ## Citation
 
-Kempynck, N., Mahieu, L., Ekşi, E. C., Konstantakos, V., Blaauw, C., De Winter, S., Hulselmans, G., Taskiran, I., & Aerts, S. (2024). CREsted: Cis Regulatory Element Sequence Training, Explanation, and Design (1.3.0). Zenodo. https://10.5281/zenodo.13918932
+Kempynck, N., De Winter, S., et al. [CREsted: modeling genomic and synthetic cell type-specific enhancers across tissues and species.](https://www.biorxiv.org/content/10.1101/2025.04.02.646812v1)
+
+We also store CREsted version backups on Zenodo: [https://doi.org/10.5281/zenodo.15045960](https://doi.org/10.5281/zenodo.15045960)
 
 ## Choosing your backend
 

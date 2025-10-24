@@ -12,6 +12,7 @@ Tfmodisco (utility) functions. Requires the `modisco-lite` package to be install
 
     tfmodisco
     match_h5_files_to_classes
+    calculate_tomtom_similarity_per_pattern
     process_patterns
     create_pattern_matrix
     generate_nucleotide_sequences

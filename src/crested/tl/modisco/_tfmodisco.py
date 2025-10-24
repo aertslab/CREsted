@@ -149,8 +149,10 @@ def tfmodisco(
             attributions = contribution_scores[:, :, start:end]
 
             if top_n_regions:
-                top_n = top_n_regions if top_n_regions < len(sequences) else len(sequences)
-                top_n = max(top_n,1) # avoid faulty inputs
+                top_n = (
+                    top_n_regions if top_n_regions < len(sequences) else len(sequences)
+                )
+                top_n = max(top_n, 1)  # avoid faulty inputs
                 sequences = sequences[:top_n]
                 attributions = attributions[:top_n]
 
@@ -177,7 +179,7 @@ def tfmodisco(
                     n_leiden_runs=n_leiden,
                     verbose=verbose,
                     min_metacluster_size=min_metacluster_size,
-                    final_min_cluster_size=min_final_cluster_size
+                    final_min_cluster_size=min_final_cluster_size,
                 )
 
                 modisco.io.save_hdf5(
@@ -201,12 +203,13 @@ def tfmodisco(
         except KeyError as e:
             logger.error(f"Missing data for class: {class_name}, error: {e}")
 
+
 def get_pwms_from_modisco_file(
     modisco_file: str,
     min_ic: float = 0.1,
     output_meme_file: str | None = None,
     metacluster_name: str | None = None,
-    pattern_indices: list[int] | None = None
+    pattern_indices: list[int] | None = None,
 ):
     """
     Extract PPMs (Position Probability Matrices) from a Modisco HDF5 results file.
@@ -245,7 +248,7 @@ def get_pwms_from_modisco_file(
         pattern_indices = None
 
     # Open the HDF5 file
-    with h5py.File(modisco_file, 'r') as hdf5_results:
+    with h5py.File(modisco_file, "r") as hdf5_results:
         # Select specific metacluster or iterate through all metaclusters
         metaclusters_to_process = (
             [metacluster_name] if metacluster_name else hdf5_results.keys()
@@ -253,9 +256,11 @@ def get_pwms_from_modisco_file(
 
         for metacluster in metaclusters_to_process:
             if metacluster not in hdf5_results:
-                raise ValueError(f"Metacluster '{metacluster}' not found in the HDF5 file.")
+                raise ValueError(
+                    f"Metacluster '{metacluster}' not found in the HDF5 file."
+                )
 
-            pos_pat = metacluster == 'pos_patterns'
+            pos_pat = metacluster == "pos_patterns"
             metacluster_data = hdf5_results[metacluster]
 
             # Select specific patterns or iterate through all patterns
@@ -266,13 +271,15 @@ def get_pwms_from_modisco_file(
             for i in patterns_to_process:
                 pattern_name = f"pattern_{i}"
                 if pattern_name not in metacluster_data:
-                    raise ValueError(f"Pattern '{pattern_name}' not found in metacluster '{metacluster}'.")
+                    raise ValueError(
+                        f"Pattern '{pattern_name}' not found in metacluster '{metacluster}'."
+                    )
 
                 pattern = metacluster_data[pattern_name]
                 pattern_trimmed = _trim_pattern_by_ic(pattern, pos_pat, min_ic)
 
                 # Extract the PPM as a numpy array
-                ppm = np.array(pattern_trimmed['sequence'])
+                ppm = np.array(pattern_trimmed["sequence"])
 
                 # Save the PPM with a unique key
                 ppms[f"{metacluster}_{pattern_name}"] = ppm
@@ -372,7 +379,7 @@ def match_to_patterns(
     """
     p["id"] = pattern_id
     p["pos_pattern"] = pos_pattern
-    p['n_seqlets'] = p['seqlets']['n_seqlets'][0]
+    p["n_seqlets"] = p["seqlets"]["n_seqlets"][0]
     if not all_patterns:
         return add_pattern_to_dict(p, 0, cell_type, pos_pattern, all_patterns)
 
@@ -408,11 +415,17 @@ def match_to_patterns(
     all_patterns[str(match_idx)]["instances"][pattern_id] = p
 
     if cell_type in all_patterns[str(match_idx)]["classes"].keys():
-        ic_class_representative = all_patterns[str(match_idx)]["classes"][cell_type]["ic"]
-        n_seqlets_class_representative = all_patterns[str(match_idx)]["classes"][cell_type]['n_seqlets']
+        ic_class_representative = all_patterns[str(match_idx)]["classes"][cell_type][
+            "ic"
+        ]
+        n_seqlets_class_representative = all_patterns[str(match_idx)]["classes"][
+            cell_type
+        ]["n_seqlets"]
         if p_ic > ic_class_representative:
             all_patterns[str(match_idx)]["classes"][cell_type] = p
-        all_patterns[str(match_idx)]["classes"][cell_type]['n_seqlets'] = n_seqlets_class_representative + p['n_seqlets'] # We add to the total number of seqlets for this class
+        all_patterns[str(match_idx)]["classes"][cell_type]["n_seqlets"] = (
+            n_seqlets_class_representative + p["n_seqlets"]
+        )  # We add to the total number of seqlets for this class
     else:
         all_patterns[str(match_idx)]["classes"][cell_type] = p
 
@@ -528,19 +541,6 @@ def post_hoc_merging(
     if verbose:
         print(f"Total iterations: {iterations}")
 
-    # Debugging step to check for any remaining patterns exceeding the similarity threshold
-    for i, (idx1, _) in enumerate(final_patterns.items()):
-        for j, (idx2, _) in enumerate(final_patterns.items()):
-            if i >= j:
-                continue
-
-            sim = pattern_similarity(final_patterns, idx1, idx2)
-
-            if sim > sim_threshold:
-                print(
-                    f"Warning: Patterns {idx1} and {idx2} exceed similarity threshold with similarity {sim}"
-                )
-
     return final_patterns
 
 
@@ -563,15 +563,15 @@ def merge_patterns(pattern1: dict, pattern2: dict) -> dict:
     for cell_type in pattern1["classes"].keys():
         if cell_type in pattern2["classes"].keys():
             ic_a = pattern1["classes"][cell_type]["ic"]
-            n_seqlets_a = pattern1["classes"][cell_type]['n_seqlets']
+            n_seqlets_a = pattern1["classes"][cell_type]["n_seqlets"]
             ic_b = pattern2["classes"][cell_type]["ic"]
-            n_seqlets_b = pattern2["classes"][cell_type]['n_seqlets']
+            n_seqlets_b = pattern2["classes"][cell_type]["n_seqlets"]
             merged_classes[cell_type] = (
                 pattern1["classes"][cell_type]
                 if ic_a > ic_b
                 else pattern2["classes"][cell_type]
             )
-            merged_classes[cell_type]['n_seqlets'] = n_seqlets_a + n_seqlets_b
+            merged_classes[cell_type]["n_seqlets"] = n_seqlets_a + n_seqlets_b
         else:
             merged_classes[cell_type] = pattern1["classes"][cell_type]
 
@@ -700,7 +700,7 @@ def match_h5_files_to_classes(
     A dictionary where keys are class names and values are paths to the corresponding .h5 files if matched, None otherwise.
     """
     h5_files = [file for file in os.listdir(contribution_dir) if file.endswith(".h5")]
-    matched_files = {class_name: None for class_name in classes}
+    matched_files = dict.fromkeys(classes, None)
 
     for file in h5_files:
         base_name = os.path.splitext(file)[0][:-16]
@@ -711,11 +711,164 @@ def match_h5_files_to_classes(
 
     return matched_files
 
+def _read_and_trim_patterns(
+    cell_type: str,
+    file_list: str | list[str],
+    trim_ic_threshold: float,
+    verbose: bool
+) -> tuple[list[dict], list[str], list[bool]]:
+    """
+    Read and trim patterns from HDF5 files for a specific cell type.
+
+    This function iterates over all HDF5 files associated with a cell type, reads the patterns stored in each metacluster,
+    trims them using an information content threshold, and collects associated metadata.
+
+    Parameters
+    ----------
+    cell_type
+        The name of the cell type whose patterns are being processed.
+    file_list
+        Path(s) to HDF5 file(s) containing patterns for the cell type.
+    trim_ic_threshold
+        Information content threshold for trimming each pattern.
+    verbose
+        Whether to print diagnostic information during reading and processing.
+
+    Returns
+    -------
+    trimmed_patterns
+        A list of trimmed pattern dictionaries, one per pattern found.
+    pattern_ids
+        A list of pattern identifiers, each uniquely naming a pattern.
+    is_pattern_pos
+        A list of boolean flags indicating whether the pattern came from the "pos_patterns" metacluster.
+    """
+    trimmed_patterns = []
+    pattern_ids = []
+    is_pattern_pos = []
+
+    if isinstance(file_list, str):
+        file_list = [file_list]
+
+    for h5_file in file_list:
+        if verbose:
+            print(f"Reading file {h5_file}")
+        try:
+            with h5py.File(h5_file) as hdf5_results:
+                for metacluster_name in list(hdf5_results.keys()):
+                    pattern_idx = 0
+                    for i in range(len(list(hdf5_results[metacluster_name]))):
+                        p = "pattern_" + str(i)
+                        pattern_ids.append(
+                            f"{cell_type.replace(' ', '_')}_{metacluster_name}_{pattern_idx}"
+                        )
+                        is_pos = metacluster_name == "pos_patterns"
+                        pattern = _trim_pattern_by_ic(
+                            hdf5_results[metacluster_name][p],
+                            is_pos,
+                            trim_ic_threshold,
+                        )
+                        pattern["file_path"] = h5_file
+                        trimmed_patterns.append(pattern)
+                        is_pattern_pos.append(is_pos)
+                        pattern_idx += 1
+        except OSError:
+            print(f"File error at {h5_file}")
+            continue
+
+    return trimmed_patterns, pattern_ids, is_pattern_pos
+
+def calculate_tomtom_similarity_per_pattern(
+    matched_files: dict[str, str | list[str] | None],
+    trim_ic_threshold: float = 0.05,
+    use_ppm: bool = False,
+    background_freqs: list | None = None,
+    verbose: bool = False,
+) -> tuple[np.ndarray, list[str], dict[str, dict]]:
+    """
+    Compute pairwise similarity between all trimmed patterns across matched HDF5 files using TOMTOM.
+
+    This function reads in motif patterns from HDF5 files (e.g., from a TF-MoDISco pipeline),
+    trims them based on information content, converts them to PPMs, and computes a full pairwise
+    similarity matrix using TOMTOM. It also returns pattern metadata, including the contribution
+    scores and the number of seqlets per pattern.
+
+    Parameters
+    ----------
+    matched_files
+        Dictionary mapping cell type names (or class names) to HDF5 file paths or list of paths
+        containing TF-MoDISco results. A value of None indicates no data for that cell type.
+    trim_ic_threshold
+        Threshold for trimming low-information-content ends of patterns.
+        Defaults to 0.05.
+    verbose
+        If True, prints progress messages.
+
+    Returns
+    -------
+    similarity_matrix
+        A 2D square NumPy array of shape (N, N), where N is the number of trimmed patterns across
+        all cell types. Each entry [i, j] contains the TOMTOM similarity score (-log10 p-value)
+        between pattern i and pattern j.
+    all_pattern_ids
+        A list of unique pattern identifiers, corresponding to the rows and columns in
+        `similarity_matrix`.
+    pattern_dict
+        A dictionary mapping each pattern ID to a dictionary containing:
+            - 'contrib_scores': the contribution score matrix (for visualization),
+            - 'n_seqlets': the number of seqlets contributing to the pattern.
+
+    Notes
+    -----
+    - Patterns are first trimmed using `_read_and_trim_patterns`.
+    - PPMs are computed using `_pattern_to_ppm` and inserted into each pattern dictionary.
+    - Similarity is computed using `match_score_patterns`, which uses TOMTOM under the hood.
+    - The function assumes the presence of external dependencies like `_read_and_trim_patterns`,
+      `_pattern_to_ppm`, and `match_score_patterns`, typically from a motif analysis library.
+    """
+    if background_freqs is None:
+        background_freqs = [0.28, 0.22, 0.22, 0.28]
+    background_freqs = np.array(background_freqs)
+
+    all_trimmed_patterns = []
+    all_pattern_ids = []
+
+    for cell_type in matched_files:
+        trimmed_patterns, pattern_ids, is_pattern_pos = _read_and_trim_patterns(
+            cell_type,
+            matched_files[cell_type],
+            trim_ic_threshold,
+            verbose
+        )
+        all_trimmed_patterns += trimmed_patterns
+        all_pattern_ids += pattern_ids
+
+    # Add PPMs to each pattern
+    pattern_ppms = [_pattern_to_ppm(p) for p in all_trimmed_patterns]
+    for i, pat in enumerate(all_trimmed_patterns):
+        pat['ppm'] = pattern_ppms[i]
+
+    if verbose:
+        print('Total patterns:', len(all_trimmed_patterns))
+
+    # Compute pairwise TOMTOM similarity
+    similarity_matrix = match_score_patterns(all_trimmed_patterns, all_trimmed_patterns, use_ppm=use_ppm, background_freqs=background_freqs)
+
+    # Construct output metadata dictionary
+    pattern_dict = {
+        pid: {
+            'contrib_scores': all_trimmed_patterns[i]['contrib_scores'],
+            'n_seqlets': all_trimmed_patterns[i]['seqlets']['n_seqlets']
+        }
+        for i, pid in enumerate(all_pattern_ids)
+    }
+
+    return similarity_matrix, all_pattern_ids, pattern_dict
 
 def process_patterns(
     matched_files: dict[str, str | list[str] | None],
     sim_threshold: float = 3.0,
-    trim_ic_threshold: float = 0.1,
+    trim_ic_threshold: float = 0.05,
     discard_ic_threshold: float = 0.1,
     verbose: bool = False,
 ) -> dict[str, dict[str, str | list[float]]]:
@@ -727,7 +880,7 @@ def process_patterns(
     matched_files
         dictionary with class names as keys and paths to HDF5 files as values.
     sim_threshold
-        Similarity threshold for matching patterns (-log10(pval), pval obtained through TOMTOM matching from tangermeme)
+        Similarity threshold for matching patterns (-log10(pval), pval obtained through TOMTOM matching from memesuite-lite)
     trim_ic_threshold
         Information content threshold for trimming patterns.
     discard_ic_threshold
@@ -746,45 +899,13 @@ def process_patterns(
     all_patterns = {}
 
     for cell_type in matched_files:
-        trimmed_patterns = []
-        pattern_ids = []
-        is_pattern_pos = []
 
-        if matched_files[cell_type] is None:
-            continue
-
-        # read all patterns of cell type
-        if isinstance(matched_files[cell_type], str):
-            matched_files[cell_type] = [matched_files[cell_type]]
-
-        for h5_file in matched_files[cell_type]:
-            if verbose:
-                print(f"Reading file {h5_file}")
-            try:
-                with h5py.File(h5_file) as hdf5_results:
-                    for metacluster_name in list(hdf5_results.keys()):
-                        pattern_idx = 0
-                        for i in range(len(list(hdf5_results[metacluster_name]))):
-                            p = "pattern_" + str(i)
-                            pattern_ids.append(
-                                f"{cell_type.replace(' ', '_')}_{metacluster_name}_{pattern_idx}"
-                            )
-                            is_pos = metacluster_name == "pos_patterns"
-                            pattern = _trim_pattern_by_ic(
-                                hdf5_results[metacluster_name][p],
-                                is_pos,
-                                trim_ic_threshold,
-                            )
-                            # store file path so it is possible to track back
-                            # where the pattern comes from.
-                            pattern["file_path"] = h5_file
-                            trimmed_patterns.append(pattern)
-                            is_pattern_pos.append(is_pos)
-                            pattern_idx = pattern_idx + 1
-
-            except OSError:
-                print(f"File error at {h5_file}")
-                continue
+        trimmed_patterns, pattern_ids, is_pattern_pos = _read_and_trim_patterns(
+            cell_type,
+            matched_files[cell_type],
+            trim_ic_threshold,
+            verbose
+        )
 
         for idx, p in enumerate(trimmed_patterns):
             all_patterns = match_to_patterns(
@@ -813,7 +934,7 @@ def create_pattern_matrix(
     classes: list[str],
     all_patterns: dict[str, dict[str, str | list[float]]],
     normalize: bool = False,
-    pattern_parameter : str = 'seqlet_count'
+    pattern_parameter: str = "seqlet_count",
 ) -> np.ndarray:
     """
     Create a pattern matrix from classes and patterns, with optional normalization.
@@ -838,11 +959,9 @@ def create_pattern_matrix(
     -------
     The resulting pattern matrix, optionally normalized.
     """
-    if pattern_parameter not in ['contrib', 'seqlet_count', 'seqlet_count_log']:
-        logger.info(
-            "Pattern parameter not valid. Setting to default ('seqlet_count')"
-        )
-        pattern_parameter = 'seqlet_count'
+    if pattern_parameter not in ["contrib", "seqlet_count", "seqlet_count_log"]:
+        logger.info("Pattern parameter not valid. Setting to default ('seqlet_count')")
+        pattern_parameter = "seqlet_count"
 
     pattern_matrix = np.zeros((len(classes), len(all_patterns.keys())))
 
@@ -850,22 +969,27 @@ def create_pattern_matrix(
         p_classes = list(all_patterns[p_idx]["classes"].keys())
         for ct in p_classes:
             idx = np.argwhere(np.array(classes) == ct)[0][0]
-            avg_contrib = np.mean(
-                    all_patterns[p_idx]["classes"][ct]["contrib_scores"]
-                )
-            if pattern_parameter == 'contrib':
+            avg_contrib = np.mean(all_patterns[p_idx]["classes"][ct]["contrib_scores"])
+            if pattern_parameter == "contrib":
                 pattern_matrix[idx, int(p_idx)] = avg_contrib
-            elif pattern_parameter == 'seqlet_count':
-                sign = 1 if avg_contrib > 0 else -1 # Negative patterns will have a 'negative' count to reflect the negative performance.
-                pattern_matrix[idx, int(p_idx)] = sign * all_patterns[p_idx]["classes"][ct]["n_seqlets"]
-            elif pattern_parameter == 'seqlet_count_log':
-                sign = 1 if avg_contrib > 0 else -1 # Negative patterns will have a 'negative' count to reflect the negative performance.
-                pattern_matrix[idx, int(p_idx)] = sign * np.log1p(all_patterns[p_idx]["classes"][ct]["n_seqlets"])
+            elif pattern_parameter == "seqlet_count":
+                sign = (
+                    1 if avg_contrib > 0 else -1
+                )  # Negative patterns will have a 'negative' count to reflect the negative performance.
+                pattern_matrix[idx, int(p_idx)] = (
+                    sign * all_patterns[p_idx]["classes"][ct]["n_seqlets"]
+                )
+            elif pattern_parameter == "seqlet_count_log":
+                sign = (
+                    1 if avg_contrib > 0 else -1
+                )  # Negative patterns will have a 'negative' count to reflect the negative performance.
+                pattern_matrix[idx, int(p_idx)] = sign * np.log1p(
+                    all_patterns[p_idx]["classes"][ct]["n_seqlets"]
+                )
             else:
                 raise ValueError(
                     "Invalid pattern_parameter. Set to either 'contrib' or 'seqlet_count'."
                 )
-
 
     # Filter out columns that are all zeros
     filtered_array = pattern_matrix[:, ~np.all(pattern_matrix == 0, axis=0)]
@@ -1051,6 +1175,12 @@ def find_pattern_matches(
         pattern_ids = []
         for j, pattern in enumerate(all_patterns[p_idx]["instances"]):
             df_motif_database = read_html_to_dataframe(html_paths[i][j])
+            if not isinstance(df_motif_database, pd.DataFrame):
+                logger.warning(
+                    f"Skipping pattern match: expected DataFrame but got {type(df_motif_database).__name__}.\n"
+                    f"Problematic HTML path: {html_paths[i][j]}"
+                )
+                continue
             pattern_id_whole = all_patterns[p_idx]["instances"][pattern]["id"]
             pattern_id_parts = pattern_id_whole.split("_")
             pattern_id = (
@@ -1062,7 +1192,9 @@ def find_pattern_matches(
                 + "_"
                 + pattern_id_parts[-1]
             )
-            matching_row = df_motif_database.loc[df_motif_database["pattern"] == pattern_id]
+            matching_row = df_motif_database.loc[
+                df_motif_database["pattern"] == pattern_id
+            ]
             matching_rows.append(matching_row)
             pattern_ids.append(pattern_id_whole)
 
@@ -1094,7 +1226,10 @@ def find_pattern_matches(
                         patterns.append(pattern_ids[i])
 
             if matches_filt:
-                pattern_match_dict[p_idx] = {"matches": matches_filt, "patterns": patterns}
+                pattern_match_dict[p_idx] = {
+                    "matches": matches_filt,
+                    "patterns": patterns,
+                }
         else:
             print(f"No matching row found for pattern_id '{pattern_id}'")
 
@@ -1188,11 +1323,11 @@ def create_tf_ct_matrix(
     normalize_gex: bool = False,
     min_tf_gex: float = 0,
     importance_threshold: float = 0,
-    pattern_parameter : str = "seqlet_count",
+    pattern_parameter: str = "seqlet_count",
     filter_correlation: bool = False,
     zscore_threshold: float = 2,
     correlation_threshold: float = 0.2,
-    verbose : bool = False,
+    verbose: bool = False,
 ) -> tuple[np.ndarray, list[str]]:
     """
     Create a tensor (matrix) of transcription factor (TF) expression and cell type contributions.
@@ -1240,11 +1375,11 @@ def create_tf_ct_matrix(
     tf_ct_matrix = np.zeros((len(classes), total_tf_patterns, 2))
     tf_pattern_annots = []
 
-    if pattern_parameter not in ['contrib', 'seqlet_count', 'seqlet_count_log']:
-        logger.info(
-            "Pattern parameter not valid. Setting to default ('seqlet_count')."
-        )
-        pattern_parameter = 'seqlet_count'
+    df = df.reindex(classes) # Ensure they are in same order.
+
+    if pattern_parameter not in ["contrib", "seqlet_count", "seqlet_count_log"]:
+        logger.info("Pattern parameter not valid. Setting to default ('seqlet_count').")
+        pattern_parameter = "seqlet_count"
 
     counter = 0
     for p_idx in pattern_tf_dict:
@@ -1252,14 +1387,18 @@ def create_tf_ct_matrix(
         for ct in all_patterns[p_idx]["classes"]:
             idx = np.argwhere(np.array(classes) == ct)[0][0]
             contribs = np.mean(all_patterns[p_idx]["classes"][ct]["contrib_scores"])
-            if pattern_parameter == 'contrib':
+            if pattern_parameter == "contrib":
                 ct_contribs[idx] = contribs
-            elif pattern_parameter =='seqlet_count':
+            elif pattern_parameter == "seqlet_count":
                 sign = 1 if contribs > 0 else -1
-                ct_contribs[idx] = sign * all_patterns[p_idx]["classes"][ct]["n_seqlets"]
-            elif pattern_parameter =='seqlet_count_log':
+                ct_contribs[idx] = (
+                    sign * all_patterns[p_idx]["classes"][ct]["n_seqlets"]
+                )
+            elif pattern_parameter == "seqlet_count_log":
                 sign = 1 if contribs > 0 else -1
-                ct_contribs[idx] = sign * np.log1p(all_patterns[p_idx]["classes"][ct]["n_seqlets"])
+                ct_contribs[idx] = sign * np.log1p(
+                    all_patterns[p_idx]["classes"][ct]["n_seqlets"]
+                )
             else:
                 raise ValueError(
                     "Invalid pattern_parameter. Set to either 'contrib' or 'seqlet_count'."
@@ -1296,7 +1435,9 @@ def create_tf_ct_matrix(
         relevant_contribs = ct_contribs_col > importance_threshold
 
         # Check if there are valid ct_contribs and tf_gex above the threshold
-        if np.any(relevant_contribs) and np.any(tf_gex_col[relevant_contribs] > min_tf_gex):
+        if np.any(relevant_contribs) and np.any(
+            tf_gex_col[relevant_contribs] > min_tf_gex
+        ):
             columns_to_keep.append(col)
 
     # Convert columns_to_keep to a boolean mask
@@ -1325,11 +1466,13 @@ def create_tf_ct_matrix(
             tf_gex_col = tf_ct_matrix[:, col, 0]
             ct_contribs_col = np.abs(tf_ct_matrix[:, col, 1])
 
-            tf_gex_col_z = (tf_gex_col - np.mean(tf_gex_col))/ np.std(tf_gex_col)
+            tf_gex_col_z = (tf_gex_col - np.mean(tf_gex_col)) / np.std(tf_gex_col)
 
             correlation = np.corrcoef(tf_gex_col, ct_contribs_col)[0, 1]
-            #if correlation >= correlation_threshold:
-            if (np.max(tf_gex_col_z) > zscore_threshold) and (correlation >= correlation_threshold):
+            # if correlation >= correlation_threshold:
+            if (np.max(tf_gex_col_z) > zscore_threshold) and (
+                correlation >= correlation_threshold
+            ):
                 columns_to_keep.append(col)
 
         # Update matrix and annotations based on filtering
@@ -1347,6 +1490,7 @@ def create_tf_ct_matrix(
             print(f"Total columns removed: {removed_columns}")
 
     return tf_ct_matrix, tf_pattern_annots
+
 
 def calculate_mean_expression_per_cell_type(
     file_path: str,
@@ -1372,7 +1516,7 @@ def calculate_mean_expression_per_cell_type(
     # Read the AnnData object from the specified H5AD file
     adata: anndata.AnnData = anndata.read_h5ad(file_path)
 
-    #CPM normalize the counts if necessary
+    # CPM normalize the counts if necessary
     if cpm_normalize:
         sc.pp.normalize_total(adata)
 

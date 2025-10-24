@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.cluster.hierarchy as hc
 import seaborn as sns
 from anndata import AnnData
 from loguru import logger
+from scipy.spatial.distance import pdist
 
 from crested.pl._utils import render_plot
 from crested.utils._logging import log_and_raise
@@ -33,6 +35,7 @@ def correlations_self(
     log_transform: bool = False,
     vmin: float | None = None,
     vmax: float | None = None,
+    reorder: bool = False,
     **kwargs,
 ):
     """
@@ -50,6 +53,8 @@ def correlations_self(
         Minimum value for heatmap color scale.
     vmax
         Maximum value for heatmap color scale.
+    reorder
+        Whether or not to order the clases by similarity (boolean).
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to
         control the final plot output. Please see :func:`~crested.pl.render_plot`
@@ -75,6 +80,14 @@ def correlations_self(
 
     correlation_matrix = np.corrcoef(x)
 
+    # Reorder the rows/columns to group related classes together
+    if reorder:
+        D = pdist(correlation_matrix, "correlation")
+        Z = hc.linkage(D, "complete", optimal_ordering=True)
+        ordering = hc.leaves_list(Z)
+        correlation_matrix = correlation_matrix[ordering, :][:, ordering]
+        classes = np.array(classes)[ordering]
+
     fig = _generate_heatmap(correlation_matrix, classes, vmin, vmax)
 
     return render_plot(fig, **kwargs)
@@ -87,6 +100,7 @@ def correlations_predictions(
     log_transform: bool = False,
     vmin: float | None = None,
     vmax: float | None = None,
+    reorder: bool = False,
     **kwargs,
 ) -> plt.Figure:
     """
@@ -106,6 +120,8 @@ def correlations_predictions(
         Minimum value for heatmap color scale.
     vmax
         Maximum value for heatmap color scale.
+    reorder
+        Whether or not to order the clases by similarity (boolean).
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to
         control the final plot output. Please see :func:`~crested.pl.render_plot`
@@ -189,6 +205,14 @@ def correlations_predictions(
         # reformat the array to only get correlations between x and y
         # and no self correlations
         correlation_matrix = np.hsplit(np.vsplit(correlation_matrix, 2)[1], 2)[0].T
+
+        # Reorder the rows/columns to group related classes together
+        if reorder:
+            D = pdist(correlation_matrix, "correlation")
+            Z = hc.linkage(D, "complete", optimal_ordering=True)
+            ordering = hc.leaves_list(Z)
+            correlation_matrix = correlation_matrix[ordering, :][:, ordering]
+            classes = np.array(classes)[ordering]
 
         sns.heatmap(
             correlation_matrix,

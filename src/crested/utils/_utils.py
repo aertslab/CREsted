@@ -154,11 +154,12 @@ def _transform_input(input, genome: Genome | os.PathLike | None = None) -> np.nd
     One-hot encoded matrix of shape (N, L, 4), where N is the number of sequences/regions and L is the sequence length.
     """
     input_type = _detect_input_type(input)
-
     if input_type == "anndata":
         genome = _resolve_genome(genome)
-        regions = list(input.var_names)
-        sequences = [genome.fetch(region=region) for region in regions]
+        sequences = [
+            genome.fetch(chrom, start, end)
+            for chrom, start, end in zip(input.var['chr'], input.var['start'], input.var['end'])
+        ]
     elif input_type == "region":
         genome = _resolve_genome(genome)
         regions = input if isinstance(input, list) else [input]
@@ -325,8 +326,8 @@ def read_bigwig_region(
 
     Example
     -------
-    >>> anndata = crested.read_bigwig_region(
-    ...     bw_file="path/to/bigwig",
+    >>> values, positions = crested.utils.read_bigwig_region(
+    ...     bigwig_file="path/to/bigwig",
     ...     coordinates=("chr1", 0, 32000),
     ...     bin_size=32,
     ...     target="mean",
@@ -425,7 +426,7 @@ def derive_intermediate_sequences(
     """
     all_designed_list = []
     for intermediate_dict in enhancer_design_intermediate:
-        current_sequence = intermediate_dict["inital_sequence"]
+        current_sequence = intermediate_dict["initial_sequence"]
         sequence_list = [current_sequence]
         for loc, change in intermediate_dict["changes"]:
             if loc == -1:

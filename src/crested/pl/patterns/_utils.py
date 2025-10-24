@@ -51,6 +51,27 @@ def grad_times_input_to_df_mutagenesis(x, grad, alphabet="ACGT"):
     return df
 
 
+def grad_times_input_to_df_mutagenesis_letters(x, grad, alphabet="ACGT"):
+    """Generate pandas dataframe for mutagenesis plot based on grad x inputs."""
+    x = np.squeeze(x)  # Ensure x is correctly squeezed
+    grad = np.squeeze(grad)
+    L, A = x.shape
+
+    # Get original nucleotides' indices, ensure it's 1D
+    x_index = np.argmax(x, axis=1)
+
+    all_locs = np.array([0, 1, 2, 3])
+    seq = ""
+    saliency = np.zeros(L)
+    for i in range(L):
+        seq += alphabet[x_index[i]]
+        saliency[i] = -np.mean(grad[i, np.delete(all_locs, x_index[i])])
+
+    # create saliency matrix
+    saliency_df = logomaker.saliency_to_matrix(seq=seq, values=saliency)
+    return saliency_df
+
+
 def _plot_attribution_map(
     saliency_df,
     ax=None,
@@ -100,8 +121,13 @@ def _plot_attribution_map(
 
     # Render the plot as an image
     temp_fig.canvas.draw()
+    renderer = temp_fig.canvas.get_renderer()
     width, height = map(int, temp_fig.get_size_inches() * temp_fig.get_dpi())
-    image = np.frombuffer(temp_fig.canvas.tostring_rgb(), dtype="uint8").reshape(height, width, 3)
+    image = np.frombuffer(renderer.buffer_rgba(), dtype="uint8").reshape(height, width, 4)[..., :3]
+    #width, height = map(int, temp_fig.get_size_inches() * temp_fig.get_dpi())
+    #image = np.frombuffer(temp_fig.canvas.tostring_rgb(), dtype="uint8").reshape(
+    #    height, width, 3
+    #)
     plt.close(temp_fig)  # Close the temporary figure to avoid memory leaks
 
     # Rotate the rendered image
@@ -117,6 +143,7 @@ def _plot_attribution_map(
 
     if return_ax:
         return ax
+
 
 def _plot_mutagenesis_map(mutagenesis_df, ax=None):
     """Plot an attribution map for mutagenesis using different colored dots, with adjusted x-axis limits."""
