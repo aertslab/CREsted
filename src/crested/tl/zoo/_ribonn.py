@@ -1,7 +1,7 @@
 import keras
 
 
-def RiboNN(
+def ribonn(
     num_targets,
     seq_len: int = 13318, # codebase says 12288, paper says 13318?
     num_convblocks: int = 10, # 10 blocks for human, 8 for mouse

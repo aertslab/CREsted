@@ -7,4 +7,5 @@ from ._deeptopic_lstm import deeptopic_lstm
 from ._dilated_cnn import chrombpnet, dilated_cnn
 from ._dilated_cnn_decoupled import chrombpnet_decoupled, dilated_cnn_decoupled
 from ._enformer import enformer
+from ._ribonn import ribonn
 from ._simple_convnet import simple_convnet
