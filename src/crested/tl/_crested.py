@@ -18,7 +18,7 @@ from tqdm import tqdm
 
 from crested.tl import TaskConfig
 from crested.tl._explainer import integrated_grad, mutagenesis
-from crested.tl.data import AnnDataModule
+from crested.tl.data import AnnDataModule, BaseDataWrapper
 from crested.tl.data._dataset import SequenceLoader
 from crested.utils import (
     EnhancerOptimizer,
@@ -330,32 +330,47 @@ class Crested:
         print(self.model.summary())
 
         # setup data
-        if (
-            self.anndatamodule.train_dataset is None
-            or self.anndatamodule.val_dataset is None
-        ):
-            self.anndatamodule.setup("fit")
-        train_loader = self.anndatamodule.train_dataloader
-        val_loader = self.anndatamodule.val_dataloader
-
-        n_train_steps_per_epoch = len(train_loader)
-        n_val_steps_per_epoch = len(val_loader)
+        if isinstance(self.anndatamodule, BaseDataWrapper):
+            train_loader = self.anndatamodule.create_dataloader(split='train', augment=True, shuffle=True)
+            val_loader = self.anndatamodule.create_dataloader(split='val')
+            n_train_steps_per_epoch = self.anndatamodule.batched_length('train')
+            n_val_steps_per_epoch = self.anndatamodule.batched_length('val')
+            n_train = self.anndatamodule.split_len('train')
+            n_val =  self.anndatamodule.split_len('val')
+            seq_len = self.anndatamodule.input_shape[-2]
+            train_values = self.anndatamodule.split_values['train']
+            val_values = self.anndatamodule.split_values['val']
+            test_values = self.anndatamodule.split_values['test']
+        else:
+            if (
+                self.anndatamodule.train_dataset is None
+                or self.anndatamodule.val_dataset is None
+            ):
+                self.anndatamodule.setup("fit")
+            train_loader = self.anndatamodule.train_dataloader.data
+            val_loader = self.anndatamodule.val_dataloader.data
+            n_train_steps_per_epoch = len(self.anndatamodule.train_dataloader)
+            n_val_steps_per_epoch = len(self.anndatamodule.val_dataloader)
+            n_train = len(self.anndatamodule.train_dataset)
+            n_val = len(self.anndatamodule.val_dataset)
+            seq_len = self.anndatamodule.train_dataset.seq_len
+            train_values = 'train'
+            val_values = 'val'
+            test_values = 'test'
 
         if run:
             run.config.update(self.config.to_dict())
             run.config.update(
                 {
                     "epochs": epochs,
-                    "n_train": len(self.anndatamodule.train_dataset),
-                    "n_val": len(self.anndatamodule.val_dataset),
+                    "n_train": n_train,
+                    "n_val": n_val,
                     "batch_size": self.anndatamodule.batch_size,
                     "n_train_steps_per_epoch": n_train_steps_per_epoch,
                     "n_val_steps_per_epoch": n_val_steps_per_epoch,
-                    "seq_len": self.anndatamodule.train_dataset.seq_len,
-                    "in_memory": self.anndatamodule.in_memory,
+                    "seq_len": seq_len,
                     "random_reverse_complement": self.anndatamodule.random_reverse_complement,
                     "max_stochastic_shift": self.anndatamodule.max_stochastic_shift,
-                    "shuffle": self.anndatamodule.shuffle,
                     "mixed_precision": mixed_precision,
                     "model_checkpointing": model_checkpointing,
                     "model_checkpointing_best_only": model_checkpointing_best_only,
@@ -363,14 +378,17 @@ class Crested:
                     "early_stopping_patience": early_stopping_patience,
                     "learning_rate_reduce": learning_rate_reduce,
                     "learning_rate_reduce_patience": learning_rate_reduce_patience,
+                    "train_values": train_values,
+                    "val_values": val_values,
+                    "test_values": test_values
                 }
             )
 
         try:
             if os.environ["KERAS_BACKEND"] == "tensorflow":
                 self.model.fit(
-                    train_loader.data,
-                    validation_data=val_loader.data,
+                    train_loader,
+                    validation_data=val_loader,
                     epochs=epochs,
                     steps_per_epoch=n_train_steps_per_epoch,
                     validation_steps=n_val_steps_per_epoch,
@@ -381,8 +399,8 @@ class Crested:
             # torch.Dataloader throws "repeat" warnings when using steps_per_epoch
             elif os.environ["KERAS_BACKEND"] == "torch":
                 self.model.fit(
-                    train_loader.data,
-                    validation_data=val_loader.data,
+                    train_loader,
+                    validation_data=val_loader,
                     epochs=epochs,
                     callbacks=callbacks,
                     shuffle=False,
