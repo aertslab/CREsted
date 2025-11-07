@@ -123,7 +123,7 @@ class BaseDataWrapper:
         # Pseudocode: return self.data.metadata.index
         raise NotImplementedError("Please define `self._get_indices()` to extract some kind of unique ID per sample from your dataset, i.e. AnnData var_names or DataFrame index.")
 
-    def _get_splits(self, split):
+    def _get_splits(self):
         """Get values that map to train/val/test splits for each index.
 
         Expected to return values according to train/val/test_values, so if you have train_values='fold0', val_values='fold1', test_values='fold2',
@@ -148,7 +148,7 @@ class BaseDataWrapper:
     # ----- Index management -----
     def _split_indices(self, split: str) -> list[str]:
         """Split the list of indices according to the split they belong to."""
-        return [index for index, index_split in zip(self.indices, self._get_splits(split)) if index_split in self.split_values[split]]
+        return [index for index, index_split in zip(self.indices, self._get_splits()) if index_split in self.split_values[split]]
 
     def _expand_indices(self, indices: list[str], augment_revcomp: bool) -> list[str]:
         """Add strand information to indices, if not already present. Optionally also augments total set of indices by adding the reverse complement version index."""
