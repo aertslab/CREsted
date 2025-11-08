@@ -148,6 +148,11 @@ class BaseDataWrapper:
     # ----- Index management -----
     def _split_indices(self, split: str) -> list[str]:
         """Split the list of indices according to the split they belong to."""
+        # Check whether train/val/test values are in the split column
+        for split, split_values in self.split_values.items():
+            for split_value in split_values:
+                if split_value not in self._get_splits():
+                    raise ValueError(f"Could not find {split} split value {split_value} in your split data. Split data example: {self._get_splits()[:5]}")
         return [index for index, index_split in zip(self.indices, self._get_splits()) if index_split in self.split_values[split]]
 
     def _expand_indices(self, indices: list[str], augment_revcomp: bool) -> list[str]:
