@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 if os.environ["KERAS_BACKEND"] == "torch":
     import torch
-    from torch.utils.data import DataLoader
+    from torch.utils.data import DataLoader, default_collate
     FrameworkDatasetClass = torch.utils.data.Dataset
 else:
     import tensorflow as tf
@@ -234,17 +234,16 @@ class BaseDataWrapper:
 
         return x, y
 
-    # ----- Item batching -----
+    # ----- Item batching (PyTorch) -----
     def _collate_fn(self, batch: list[tuple[np.ndarray, np.ndarray]]) -> tuple[list[keras.KerasTensor], list[keras.KerasTensor]]:
         """Collate function to combine entries into a batch and move tensors to the specified device if backend is torch.
 
-        Should work as is if your input and output are both a single tensor. If any are tuples or dicts of tensors, adjust inputs/targets respectively.
+        Should work in most cases - in case you need to add batch-specific padding or something else, overwrite this function.
         """
-        # TODO: make this work on nested tensors out of the box as well, so that people don't have to adjust this?
-        inputs, targets = zip(*batch)
-        inputs = torch.stack([torch.tensor(input) for input in inputs]).to(self.device)
-        targets = torch.stack([torch.tensor(target) for target in targets]).to(self.device)
-        return inputs, targets
+        # default_collate is recursive (can also handle tuples of arrays), automatically converts to tensor
+        batch = default_collate(batch)
+        batch = recursive_move_device(batch, self.device)
+        return batch
 
     # ----- Dataloader creation -----
     def create_dataloader(self, split: str | None, augment: bool = False, shuffle: bool = False, **kwargs):
@@ -353,10 +352,6 @@ class DataLooper(FrameworkDatasetClass):
 
     def __len__(self):
         return len(self.indices)
-
-    def _collate_fn(self, batch: list[tuple[np.ndarray, np.ndarray]]) -> tuple[list[keras.KerasTensor], list[keras.KerasTensor]]:
-        """Collate function for PyTorch. Uses the base datawrapper's implementation."""
-        return self.datawrapper._collate_fn(batch)
 
     # ----- TensorFlow generator side -----
     def get_generator(self):
@@ -656,3 +651,15 @@ def recursive_shape(output):
         return output.shape
     else:
         return tuple(recursive_shape(xi) for xi in output)
+
+def recursive_move_device(output: keras.KerasTensor | tuple(keras.KerasTensor), device, **kwargs):
+    """Move (a tuple) of tensors shapes to another device recursively.
+
+    Works on standard (seq, target) dataloader output tuples, but also on more complicated things like (seq, (target1, target2)).
+    """
+    if isinstance(output, tuple):
+        return tuple(recursive_move_device(xi, device) for xi in output)
+    elif isinstance(output, list):
+        return [recursive_move_device(xi, device) for xi in output]
+    else:
+        return output.to(device, **kwargs)
