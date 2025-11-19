@@ -399,9 +399,11 @@ class DataLooper(FrameworkDatasetClass):
 
     # ----- PyTorch indexing side -----
     def __getitem__(self, idx: int):
+        """Retrieve the (input, output) pair for the region index with integer index idx."""
         return self.datawrapper.get_indexed_item(self.indices[idx], augment=self.augment)
 
     def __len__(self):
+        """Return the number of indices."""
         return len(self.indices)
 
     # ----- TensorFlow generator side -----

@@ -61,7 +61,7 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
         test_values: str | list = 'test',
         split_column = 'split',
         **kwargs
-    ): # TODO: ADD ARGS
+    ):
         """Initialize the AnnDataWrapper with an AnnData and a genome."""
         # Set some basic values (esp those required for _get_indices and _get_splits)
         self.data = data
