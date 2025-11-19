@@ -42,9 +42,6 @@ def dilated_cnn(
     """
     Construct a CNN using dilated convolutions.
 
-    This architecture is based on the ChromBPNet model described in :cite:`Pampari_Bias_factorized_base-resolution_2023`.
-    This was renamed to DilatedCNN to avoid confusion with the original ChromBPNet framework.
-
     Parameters
     ----------
     seq_len
