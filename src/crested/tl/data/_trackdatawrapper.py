@@ -132,15 +132,5 @@ class GeckoDataWrapper(BaseGenomicDataWrapper):
         y2 = self.trackdata[expanded_index]
         return y1, y2
 
-    def _collate_fn(self, batch: list[tuple[np.ndarray, np.ndarray]]) -> tuple[list[keras.KerasTensor], list[keras.KerasTensor]]:
-        """Collate function to combine entries into a batch and move tensors to the specified device if backend is torch."""
-        # Adjust this since targets is now a tuple of arrays rather than a array
-        inputs, targets = zip(*batch)
-        targets_scalar, targets_track = zip(*targets)
-        inputs = torch.stack([torch.tensor(input) for input in inputs]).to(self.device)
-        targets_scalar = torch.stack([torch.tensor(target) for target in targets_scalar]).to(self.device)
-        targets_track = torch.stack([torch.tensor(target) for target in targets_track]).to(self.device)
-        return inputs, (targets_scalar, targets_track)
-
     def __repr__(self):
         return f"TrackAnnDataWrapper: (n_samples={len(self)}, batch_size={self.batch_size}, batched_length={self.batched_length()}, data shape: {self.data.shape}, input_shape={self.input_shape}, output_shape={self.output_shape})" #TODO: finish
