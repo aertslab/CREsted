@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import os
 import re
 
+import keras
 import numpy as np
 from anndata import AnnData
 from loguru import logger
@@ -274,7 +274,7 @@ class IndexManager:
         return augmented_indices, augmented_indices_map
 
 
-if os.environ["KERAS_BACKEND"] == "pytorch":
+if keras.config.backend() == "pytorch":
     import torch
 
     BaseClass = torch.utils.data.Dataset

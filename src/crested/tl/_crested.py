@@ -170,7 +170,7 @@ class Crested:
         """Initialize logger."""
         callbacks = []
         if logger_type == "wandb":
-            if os.environ["KERAS_BACKEND"] != "tensorflow":
+            if keras.config.backend() != "tensorflow":
                 raise ValueError(
                     "Wandb logging is only available with the tensorflow backend until wandb has finished their keras 3.0 integration."
                 )
@@ -185,7 +185,7 @@ class Crested:
             wandb_callback_batch = WandbMetricsLogger(log_freq=10)
             callbacks.extend([wandb_callback_epoch, wandb_callback_batch])
         elif logger_type == "tensorboard":
-            if os.environ["KERAS_BACKEND"] != "tensorflow":
+            if keras.config.backend() != "tensorflow":
                 raise ValueError("Tensorboard requires a tensorflow installation")
             log_dir = os.path.join(project_name, run_name, "logs")
             tensorboard_callback = keras.callbacks.TensorBoard(
@@ -194,7 +194,7 @@ class Crested:
             callbacks.append(tensorboard_callback)
             run = None
         elif logger_type == "dvc":
-            if os.environ["KERAS_BACKEND"] != "tensorflow":
+            if keras.config.backend() != "tensorflow":
                 raise ValueError("DVC Keras logging requires a tensorflow backend")
             logger.warning("Using DVC logger. Make sure to have dvclive installed.")
             from dvclive.keras import DVCLiveCallback
@@ -385,7 +385,7 @@ class Crested:
             )
 
         try:
-            if os.environ["KERAS_BACKEND"] == "tensorflow":
+            if keras.config.backend() == "tensorflow":
                 self.model.fit(
                     train_loader,
                     validation_data=val_loader,
@@ -397,7 +397,7 @@ class Crested:
                     initial_epoch=self.max_epoch,
                 )
             # torch.Dataloader throws "repeat" warnings when using steps_per_epoch
-            elif os.environ["KERAS_BACKEND"] == "torch":
+            elif keras.config.backend() == "torch":
                 self.model.fit(
                     train_loader,
                     validation_data=val_loader,
@@ -573,7 +573,7 @@ class Crested:
         test_loader = self.anndatamodule.test_dataloader
 
         n_test_steps = (
-            len(test_loader) if os.environ["KERAS_BACKEND"] == "tensorflow" else None
+            len(test_loader) if keras.config.backend() == "tensorflow" else None
         )
         try:
             evaluation_metrics = self.model.evaluate(
@@ -634,7 +634,7 @@ class Crested:
             self.anndatamodule.setup("predict")
         predict_loader = self.anndatamodule.predict_dataloader
         n_predict_steps = (
-            len(predict_loader) if os.environ["KERAS_BACKEND"] == "tensorflow" else None
+            len(predict_loader) if keras.config.backend() == "tensorflow" else None
         )
         embeddings = embedding_model.predict(predict_loader.data, steps=n_predict_steps)
 
@@ -681,7 +681,7 @@ class Crested:
         predict_loader = self.anndatamodule.predict_dataloader
 
         n_predict_steps = (
-            len(predict_loader) if os.environ["KERAS_BACKEND"] == "tensorflow" else None
+            len(predict_loader) if keras.config.backend() == "tensorflow" else None
         )
 
         predictions = self.model.predict(predict_loader.data, steps=n_predict_steps)
@@ -2000,7 +2000,7 @@ class Crested:
     @staticmethod
     def _check_gpu_availability():
         """Check if GPUs are available."""
-        if os.environ["KERAS_BACKEND"] == "torch":
+        if keras.config.backend() == "torch":
             # torch backend not yet available in keras.distribution
             import torch
 
@@ -2010,7 +2010,7 @@ class Crested:
                 logger.warning("No GPUs available, falling back to CPU.")
                 return torch.device("cpu")
 
-        elif os.environ["KERAS_BACKEND"] == "tensorflow":
+        elif keras.config.backend() == "tensorflow":
             devices = keras.distribution.list_devices("gpu")
             if not devices:
                 logger.warning("No GPUs available, falling back to CPU.")
