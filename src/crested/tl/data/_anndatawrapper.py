@@ -1,3 +1,5 @@
+"""AnnDataWrapper class to load sequences and AnnData values from your genome and AnnData of choice."""
+
 import numpy as np
 from anndata import AnnData
 from scipy.sparse import spmatrix
@@ -8,6 +10,40 @@ from ._datawrapper import BaseGenomicDataWrapper
 
 
 class AnnDataWrapper(BaseGenomicDataWrapper):
+    """
+    Wrapper around your AnnData and genome, providing you with values to train a model with.
+
+    Required input for the `tl.Crested` class.
+
+    Parameters
+    ----------
+    data
+        Your AnnData object.
+    genome
+        The genome to extract sequences from, as a crested.Genome object. If None, will look up the registered Genome.
+    batch_size
+        Batch size to use during training and evaluation.
+    random_reverse_complement
+        If True, the sequences will be randomly reverse complemented during training.
+        Incompatible with always_reverse_complement.
+    always_reverse_complement
+        If True, the dataset will be expanded to include both the forward and reverse-complemented versions of every entry in the training set.
+        Incompatible with random_reverse_complement.
+    max_stochastic_shift
+        Maximum stochastic shift (n base pairs in either direction) to apply randomly to each sequence during training.
+        Default is 0 (disabled).
+    drop_remainder
+        If True, drop the last batch if it is not the full batch_size. Default is False.
+    train_values
+        The values in your split labeling that correspond to the training set as string or list of strings, i.e 'train' or ['fold0', 'fold1', 'fold2']
+    val_values
+        The values in your split labeling that correspond to the validation set as string or list of strings, i.e 'val' or ['fold3', 'fold4']
+    test_values
+        The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
+    split_column
+        The column in adata.var that contains the values to split on (as provided to [train/val/test]_values)
+    """
+
     def __init__(
         self,
         data: AnnData,
@@ -21,10 +57,10 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
         train_values: str | list = 'train',
         val_values: str | list = 'val',
         test_values: str | list = 'test',
-        split_column = 'split', # TODO: add docs for these, maybe only keep this in downstream implementations
+        split_column = 'split',
         **kwargs
     ): # TODO: ADD ARGS
-        """"""
+        """Initialize the AnnDataWrapper with an AnnData and a genome."""
         # Set some basic values (esp those required for _get_indices and _get_splits)
         self.data = data
         self.split_column = split_column
@@ -49,11 +85,11 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
         self.index_map = {index: i for i, index in enumerate(self.indices)}
 
     def _get_indices(self):
-        """"""
+        """Return a list of raw training sample indices, the anndata's var_names."""
         return list(self.data.var_names)
 
     def _get_splits(self):
-        """"""
+        """Return a list of split values, for each index."""
         return list(self.data.var[self.split_column])
 
     def _get_target(self, original_index: str, **kwargs) -> np.ndarray:
@@ -64,6 +100,3 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
             if self.compressed
             else self.data.X[:, y_index].astype('float32')
         )
-
-    def __repr__(self):
-        return f"AnnDataWrapper: (n_samples={len(self)}, batch_size={self.batch_size}, batched_length={self.batched_length()}, data shape: {self.data.shape}, input_shape={self.input_shape}, output_shape={self.output_shape})" #TODO: finish

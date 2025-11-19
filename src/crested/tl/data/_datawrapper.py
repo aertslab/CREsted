@@ -1,4 +1,4 @@
-""""""
+"""DataWrapper class to load and transform model inputs and outputs from your object of choice."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ class BaseDataWrapper:
         If True, the sequences will be randomly reverse complemented during training.
         Incompatible with always_reverse_complement.
     always_reverse_complement
-        If True, all sequences will be augmented with their reverse complement during training.
+        If True, the dataset will be expanded to include both the forward and reverse-complemented versions of every entry in the training set.
         Incompatible with random_reverse_complement.
     max_stochastic_shift
         Maximum stochastic shift (n base pairs in either direction) to apply randomly to each sequence during training.
@@ -95,6 +95,10 @@ class BaseDataWrapper:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Process indices
+        self._process_indices()
+
+    def _process_indices(self):
+        """Get, split, expand and save indices, using _get_indices(), _split_indices() and _expand_indices()."""
         self.indices = self._get_indices()
         self.split_indices = {split: self._split_indices(split) for split in  ('train', 'val', 'test')}
         # Check if indices (look like they) contain stranded information
@@ -105,21 +109,21 @@ class BaseDataWrapper:
             self.stranded = False
 
         # Set up sequence index handling to match deterministic augmentation (always_reverse_complement) to original output values
-        # Pass all values through _expand_indices (since it makes sure all values are stranded), for training also actually augment (adds always_rev_comp)
+        # Pass all values through _expand_indices (since it makes sure all values are stranded), for training also actually add the reverse complement version (if always_rev_comp=True)
 
         # Get stranded indices for entire dataset (for prediction)
         self.split_expanded_indices = {}
-        self.split_expanded_indices['predict'] = self._expand_indices(self.indices, augment_revcomp = False)
-        # Get stranded indices per split, augmenting for training set
-        self.split_expanded_indices['train'] =  self._expand_indices(self.split_indices['train'], augment_revcomp = self.always_reverse_complement)
+        self.split_expanded_indices['predict'] = self._expand_indices(self.indices, expand_revcomp = False)
+        # Get stranded indices per split, expanding with revcomp for training set
+        self.split_expanded_indices['train'] =  self._expand_indices(self.split_indices['train'], expand_revcomp = self.always_reverse_complement)
         for split in ('val', 'test'):
-            self.split_expanded_indices[split] =  self._expand_indices(self.split_indices[split], augment_revcomp = False)
-        # Get total set of augmented indices across all possibilities
+            self.split_expanded_indices[split] =  self._expand_indices(self.split_indices[split], expand_revcomp = False)
+        # Get total set of expanded indices across all possibilities
         self.full_expanded_indices = {aug_index for aug_index_list in self.split_expanded_indices.values() for aug_index in aug_index_list}
 
     # ----- Primary methods to implement/overwrite in the inherited versions: -----
     def _get_indices(self):
-        """Get a list of all indices. Indices (possibly after augmentation) are used in _get_sequence() and _get_target() to retrieve sequence and targets for that entry, respectively."""
+        """Get a list of all indices. Indices (possibly after expansion) are used in _get_sequence() and _get_target() to retrieve sequence and targets for that entry, respectively."""
         # Pseudocode: return self.data.metadata.index
         raise NotImplementedError("Please define `self._get_indices()` to extract some kind of unique ID per sample from your dataset, i.e. AnnData var_names or DataFrame index.")
 
@@ -127,21 +131,24 @@ class BaseDataWrapper:
         """Get values that map to train/val/test splits for each index.
 
         Expected to return values according to train/val/test_values, so if you have train_values='fold0', val_values='fold1', test_values='fold2',
-        _get_splits should return values of {'fold0', 'fold1', 'fold2'}.
+        _get_splits should return a list of values in the set {'fold0', 'fold1', 'fold2'}.
         """
         # Pseudocode: return self.data.metadata[self.split_column]
         raise NotImplementedError("Please define `self._get_splits()` to extract a split identifier per sample from your dataset, i.e. AnnData var['split'].")
 
     def _get_sequence(self, original_index: str, expanded_index: str, revcomp: bool = False, shift: int = 0, **kwargs) -> str:
         """Get a sequence (as a string) given a certain index."""
-        raise NotImplementedError("Implement _get_sequence of your inherited DataWrapper class to retrieve (unencoded) input sequences for your classes")
+        raise NotImplementedError("Implement _get_sequence of your inherited DataWrapper class to retrieve (unencoded) input sequences for your classes, to be encoded by _encode_sequence.")
 
     def _encode_sequence(self, seq: str, **kwargs) -> np.ndarray:
         """Encode the sequence as string to a numerical representation by one-hot encoding it. Returned value should not have a batch dimension yet."""
         return one_hot_encode_sequence(seq, expand_dim=False)
 
     def _get_target(self, original_index: str, expanded_index: str, revcomp: bool = False, shift: int = 0, **kwargs) -> np.ndarray:
-        """Get target for a given index. Returned value should not have a batch dimension yet."""
+        """Get target for a given index. Returned value should not have a batch dimension yet.
+
+        If not using certain arguments in your implementation (like only using one of original_index/expanded_index), please keep **kwargs to absorb the un-used other arguments.
+        """
         raise NotImplementedError("Implement _get_target() of your inherited DataWrapper class to retrieve output values for your sequence")
 
 
@@ -155,8 +162,8 @@ class BaseDataWrapper:
                     raise ValueError(f"Could not find {split} split value {split_value} in your split data. Split data example: {self._get_splits()[:5]}")
         return [index for index, index_split in zip(self.indices, self._get_splits()) if index_split in self.split_values[split]]
 
-    def _expand_indices(self, indices: list[str], augment_revcomp: bool) -> list[str]:
-        """Add strand information to indices, if not already present. Optionally also augments total set of indices by adding the reverse complement version index."""
+    def _expand_indices(self, indices: list[str], expand_revcomp: bool) -> list[str]:
+        """Add strand information to indices, if not already present. Optionally also expands total set of indices by adding the reverse complement version index."""
         if not hasattr(self, 'expanded_indices_map'):
             self.expanded_indices_map = {}
         expanded_indices = []
@@ -167,23 +174,25 @@ class BaseDataWrapper:
                 stranded_region = region
             expanded_indices.append(stranded_region)
             self.expanded_indices_map[stranded_region] = region # Update shared backmapping with the original indices
-            if augment_revcomp:
+            if expand_revcomp:
                 expanded_indices.append(_flip_region_strand(stranded_region))
                 self.expanded_indices_map[_flip_region_strand(stranded_region)] = region
         return expanded_indices
 
 
     # ----- Item retrieval -----
-    def __getitem__(self, idx: int) -> tuple[np.ndarray, np.ndarray]:
+    def __getitem__(self, idx: int | str) -> tuple[np.ndarray, np.ndarray]:
         """
-        Return sequence and target for a given numeric index. Not used too much: primary indexing function is get_indexed_item().
+        Return sequence and target for a given numeric or expanded str index. Not used too much: primary indexing function is get_indexed_item().
 
-        Main logic is implemented in get_indexed_item() to retrieve using expanded indices and with optional augmentation.
+        Main logic is implemented in get_indexed_item() to retrieve using expanded indices and with optional stochastic augmentation.
         """
-        # Get expanded index (after adding revcomp indices)
-        # Generally a guaranteed-stranded version of the original index.
-        expanded_index = self.split_expanded_indices['predict'][idx]
-        return self.get_indexed_item(expanded_index)
+        if isinstance(idx, int):
+            # Get expanded index (after adding revcomp indices) from prediction list
+            # Generally a guaranteed-stranded version of the original index.
+            return self.get_indexed_item(expanded_index=self.split_expanded_indices['predict'][idx])
+        else:
+            return self.get_indexed_item(expanded_index=idx)
 
     def get_indexed_item(self, expanded_index: str | None = None, original_index: str | None = None, augment: bool = False) -> tuple[np.ndarray, np.ndarray]:
         """Retrieve sequence and target for an expanded index.
@@ -229,7 +238,7 @@ class BaseDataWrapper:
         # Encode sequence (one-hot by default, but can override for i.e. tokenisation)
         x = self._encode_sequence(x)
 
-        # Get targets, letting the function choose whether to use original (like with scalars) or augmented index (like with tracks)
+        # Get targets, letting the function choose whether to use original (like with scalars) or expanded index (like with tracks)
         y = self._get_target(original_index=original_index, expanded_index=expanded_index, revcomp=revcomp, shift=shift)
 
         return x, y
@@ -246,9 +255,25 @@ class BaseDataWrapper:
         return batch
 
     # ----- Dataloader creation -----
-    def create_dataloader(self, split: str | None, augment: bool = False, shuffle: bool = False, **kwargs):
-        """"""
+    def create_dataloader(self, split: str | None, augment: bool = False, shuffle: bool = False):
+        """Create a dataloader class that loops and batches the indices of choice, for use with model.fit() or your backend training loop of choice.
 
+        If using the PyTorch backend, this will return a DataLoader. If using the TensorFlow backend, this will return a Dataset.
+        Useful defaults are accessible as DataWrapper.[train/val/test/predict]_dataloader.
+
+        Parameters
+        ----------
+        split
+            str or None, indicating the split indices to loop over. Must be one of 'train', 'val', 'test' or 'predict'. None is a shorthand for 'predict'.
+        augment
+            Whether to use stochastic augmentation when retrieving sequences and targets.
+        shuffle
+            Whether to shuffle the indices.
+
+        Returns
+        -------
+        A configured tf.data.Dataset or torch.utils.data.DataLoader object, iterating over the split of choice.
+        """
         # PyTorch loops based on __len__ and __getitem__
         if os.environ["KERAS_BACKEND"] == "torch":
             return DataLoader(
@@ -271,8 +296,15 @@ class BaseDataWrapper:
                 .prefetch(tf.data.AUTOTUNE)
             )
             return ds
+        else:
+            return ImportError("CREsted currently only supports backends 'tensorflow' and 'torch', not backend {os.environ["KERAS_BACKEND"]}")
 
     def _create_looper(self, split: str, augment: bool = False, shuffle_generator: bool = False) -> DataLooper:
+        """Create a DataLooper mini-wrapper around the DataWrapper, using the indices of the split requested."""
+        if split is None:
+            split = 'predict'
+        if split not in self.split_expanded_indices:
+            raise ValueError(f"split {split} must be in self.split_expanded_indices. Available splits: {list(self.split_expanded_indices.keys())}")
         return DataLooper(datawrapper=self, indices=self.split_expanded_indices[split], augment=augment, shuffle_generator=shuffle_generator)
 
     @property
@@ -281,7 +313,7 @@ class BaseDataWrapper:
         return self.create_dataloader('train', augment=True, shuffle=True)
     @property
     def val_dataloader(self):
-        """Return a tf.data.Dataset or torch.utils.data.DataLoader instance of the validation samples.."""
+        """Return a tf.data.Dataset or torch.utils.data.DataLoader instance of the validation samples."""
         return self.create_dataloader('val', augment=False, shuffle=False)
     @property
     def test_dataloader(self):
@@ -304,33 +336,53 @@ class BaseDataWrapper:
         else:
             return ceil(dataset_len/self.batch_size)
 
-    def split_len(self, split) -> int:
-        """"""
+    def split_len(self, split: str) -> int:
+        """Get length (including expanded revcomp samples) of the requested split."""
         return len(self.split_expanded_indices[split])
 
     @property
     def input_shape(self):
+        """Shape of a single returned input, generally a sequence."""
         if self.input_shape_cache is None:
             self.input_shape_cache = recursive_shape(self[0][0])
         return self.input_shape_cache
 
     @property
     def output_shape(self):
+        """Shape of a single returned output."""
         if self.output_shape_cache is None:
             self.output_shape_cache = recursive_shape(self[0][1])
         return self.output_shape_cache
 
     def __len__(self) -> int:
-        """Get number of (augmented) samples in the datawrapper."""
+        """Get number of samples in the datawrapper, when looping in 'predict' mode."""
         return len(self.split_expanded_indices['predict'])
 
     def __repr__(self) -> str:
         """Get string representation of the wrapped dataset."""
-        return f"{self.__class__.__name__}: (n_samples={len(self)},  batch_size={self.batch_size}, batched_length={self.batched_length()}" # TODO: expand (without self.data? or just leave to inheriting classes to figure out)
+        return (
+            f"{self.__class__.__name__}: n_samples={len(self)}, (train: {self.split_len('train')}, val: {self.split_len('val')}, test: {self.split_len('test')}), "
+            f"batch_size={self.batch_size}, input_shape={self.input_shape}, output_shape={self.output_shape}",
+        )
+             # TODO: expand (without self.data? or just leave to inheriting classes to figure out)
 
 
 class DataLooper(FrameworkDatasetClass):
-    """A mini-class providing iteration and indexing based on the subset of indices provided."""
+    """A small wrapper around a DataWrapper class, using (a subset of) indices and providing integer indexing (for PyTorch) and a generator (for TensorFlow).
+
+    Meant to be used within tf.data.Dataset.from_generator() or torch's DataLoader (this subclasses torch.utils.data.Dataset).
+
+    Parameters
+    ----------
+    datawrapper
+        The DataWrapper object to retrieve samples from.
+    indices
+        The list of indices, which should work with datawrapper.get_indexed_item().
+    augment
+        Whether to use stochastic augmentation, passed to datawrapper.get_indexed_item().
+    shuffle_generator
+        Whether to shuffle the generator (used in TensorFlow). In PyTorch, please use DataLoader(DataLooper, shuffle=True) instead.
+    """
 
     def __init__(
         self,
@@ -339,7 +391,7 @@ class DataLooper(FrameworkDatasetClass):
         augment: bool,
         shuffle_generator: bool = False
     ):
-        """"""
+        """Initialize the DataLooper class."""
         self.datawrapper = datawrapper
         self.indices = indices
         self.augment = augment
@@ -355,6 +407,7 @@ class DataLooper(FrameworkDatasetClass):
 
     # ----- TensorFlow generator side -----
     def get_generator(self):
+        """Create a generator looping over the indices, shuffling if self.shuffle_generator = True."""
         loop_indices = self.indices
         if self.shuffle_generator:
             rng = np.random.default_rng()
@@ -363,7 +416,40 @@ class DataLooper(FrameworkDatasetClass):
             yield self.datawrapper.get_indexed_item(index, augment=self.augment)
 
 class BaseGenomicDataWrapper(BaseDataWrapper):
-    """A slightly expanded BaseDataWrapper, with genome management built-in."""
+    """
+    Version of BaseDataWrapper with genomic sequence loading built-in.
+
+    Please inherit this and implement self._get_target(), self._get_indices() and self._get_splits().
+
+    Parameters
+    ----------
+    genome
+        The genome to extract sequences from, as a crested.Genome object. If None, will look up the registered Genome.
+    batch_size
+        Batch size to use during training and evaluation.
+    random_reverse_complement
+        If True, the sequences will be randomly reverse complemented during training.
+        Incompatible with always_reverse_complement.
+    always_reverse_complement
+        If True, the dataset will be expanded to include both the forward and reverse-complemented versions of every entry in the training set.
+        Incompatible with random_reverse_complement.
+    max_stochastic_shift
+        Maximum stochastic shift (n base pairs in either direction) to apply randomly to each sequence during training.
+        Default is 0 (disabled).
+    in_memory
+        If True, extract the sequences from the genome before training starts and save them to memory,
+        rather than extracting on the fly every time. Default is True.
+    drop_remainder
+        If True, drop the last batch if it is not the full batch_size. Default is False.
+    train_values
+        The values in your split labeling that correspond to the training set as string or list of strings, i.e 'train' or ['fold0', 'fold1', 'fold2']
+    val_values
+        The values in your split labeling that correspond to the validation set as string or list of strings, i.e 'val' or ['fold3', 'fold4']
+    test_values
+        The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
+    kwargs
+        Remaining keyword arguments, passed to BaseDataLoader.
+    """
 
     def __init__(
         self,
@@ -379,40 +465,7 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         test_values: str | list = 'test',
         **kwargs
     ):
-        """
-        Version of BaseDataWrapper with genomic sequence loading built-in.
-
-        Please inherit this and implement self._get_target(), self._get_indices() and self._get_splits().
-
-        Parameters
-        ----------
-        genome
-            The genome to extract sequences from, as a crested.Genome object. If None, will look up the registered Genome.
-        batch_size
-            Batch size to use during training and evaluation.
-        random_reverse_complement
-            If True, the sequences will be randomly reverse complemented during training.
-            Incompatible with always_reverse_complement.
-        always_reverse_complement
-            If True, all sequences will be augmented with their reverse complement during training.
-            Incompatible with random_reverse_complement.
-        max_stochastic_shift
-            Maximum stochastic shift (n base pairs in either direction) to apply randomly to each sequence during training.
-            Default is 0 (disabled).
-        in_memory
-            If True, extract the sequences from the genome before training starts and save them to memory,
-            rather than extracting on the fly every time. Default is True.
-        drop_remainder
-            If True, drop the last batch if it is not the full batch_size. Default is False.
-        train_values
-            The values in your split labeling that correspond to the training set as string or list of strings, i.e 'train' or ['fold0', 'fold1', 'fold2']
-        val_values
-            The values in your split labeling that correspond to the validation set as string or list of strings, i.e 'val' or ['fold3', 'fold4']
-        test_values
-            The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
-        kwargs
-            Remaining keyword arguments, passed to BaseDataLoader.
-        """
+        """Initialize the BaseGenomicDataWrapper, calling BaseDataWrapper.__init__() and initializing the SequenceLoader."""
         super().__init__(
             batch_size=batch_size,
             random_reverse_complement=random_reverse_complement,
@@ -493,7 +546,7 @@ class SequenceLoader:
     in_memory
         If True, the sequences of supplied regions will be loaded into memory.
     always_reverse_complement
-        If True, all sequences will be augmented with their reverse complement.
+        If True, the dataset will be expanded to include both the forward and reverse-complemented versions of every region provided.
         Doubles the dataset size.
     max_stochastic_shift
         Maximum stochastic shift (n base pairs) to apply randomly to each sequence.
@@ -521,7 +574,7 @@ class SequenceLoader:
 
         if self.in_memory:
             self._load_sequences_into_memory(self.regions)
-        # TODO: maybe add check for sequence length 
+        # TODO: maybe add check for sequence length
 
     def _load_sequences_into_memory(self, regions: list[str]):
         """Load all sequences into memory (dict)."""
@@ -635,7 +688,7 @@ class SequenceLoader:
 def recursive_tensor_spec(output):
     """Generate (a tuple) of TensorSpecs recursively, to turn a tuple of (tuple of) arrays into TensorSpecs for tf.data.dataset.from_generator().
 
-    Works on standard (seq, target) dataloader output tuples, but also on more complicated things like (seq, (target1, target2)).
+    Works on standard (seq, target) dataloader tuples, but also on more complicated things like (seq, (target1, target2)).
     """
     if tf.is_tensor(output) or isinstance(output, np.ndarray):
         return tf.TensorSpec(shape=output.shape, dtype=output.dtype)
@@ -645,7 +698,7 @@ def recursive_tensor_spec(output):
 def recursive_shape(output):
     """Generate (a tuple) of array shapes recursively.
 
-    Works on standard (seq, target) dataloader output tuples, but also on more complicated things like (seq, (target1, target2)).
+    Works on standard (seq, target) dataloader tuples, but also on more complicated things like (seq, (target1, target2)).
     """
     if hasattr(output, 'shape'):
         return output.shape
@@ -655,7 +708,7 @@ def recursive_shape(output):
 def recursive_move_device(output: keras.KerasTensor | tuple(keras.KerasTensor), device, **kwargs):
     """Move (a tuple) of tensors shapes to another device recursively.
 
-    Works on standard (seq, target) dataloader output tuples, but also on more complicated things like (seq, (target1, target2)).
+    Works on standard (seq, target) dataloader tuples, but also on more complicated things like (seq, (target1, target2)).
     """
     if isinstance(output, tuple):
         return tuple(recursive_move_device(xi, device) for xi in output)
