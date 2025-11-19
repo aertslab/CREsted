@@ -1,5 +1,7 @@
 """AnnDataWrapper class to load sequences and AnnData values from your genome and AnnData of choice."""
 
+from __future__ import annotations
+
 import numpy as np
 from anndata import AnnData
 from scipy.sparse import spmatrix
