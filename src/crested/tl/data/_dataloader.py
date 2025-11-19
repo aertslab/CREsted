@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import os
+import keras
 
-if os.environ["KERAS_BACKEND"] == "torch":
+if keras.config.backend() == "torch":
     import torch
     from torch.utils.data import DataLoader
 else:
@@ -51,7 +51,7 @@ class AnnDataLoader:
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.drop_remainder = drop_remainder
-        if os.environ["KERAS_BACKEND"] == "torch":
+        if keras.config.backend() == "torch":
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         if self.shuffle:
@@ -67,7 +67,7 @@ class AnnDataLoader:
         return inputs, targets
 
     def _create_dataset(self):
-        if os.environ["KERAS_BACKEND"] == "torch":
+        if keras.config.backend() == "torch":
             return DataLoader(
                 self.dataset,
                 batch_size=self.batch_size,
@@ -75,7 +75,7 @@ class AnnDataLoader:
                 num_workers=0,
                 collate_fn=self._collate_fn,
             )
-        elif os.environ["KERAS_BACKEND"] == "tensorflow":
+        elif keras.config.backend() == "tensorflow":
             ds = tf.data.Dataset.from_generator(
                 self.dataset,
                 output_signature=(

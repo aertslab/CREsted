@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import re
 from math import ceil
 
@@ -11,7 +10,7 @@ import numpy as np
 from loguru import logger
 from tqdm import tqdm
 
-if os.environ["KERAS_BACKEND"] == "torch":
+if keras.config.backend() == "torch":
     import torch
     from torch.utils.data import DataLoader, default_collate
     FrameworkDatasetClass = torch.utils.data.Dataset
@@ -91,7 +90,7 @@ class BaseDataWrapper:
         self.output_shape_cache = None
 
         # Get device if using torch
-        if os.environ["KERAS_BACKEND"] == "torch":
+        if keras.config.backend() == "torch":
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Process indices
@@ -275,7 +274,7 @@ class BaseDataWrapper:
         A configured tf.data.Dataset or torch.utils.data.DataLoader object, iterating over the split of choice.
         """
         # PyTorch loops based on __len__ and __getitem__
-        if os.environ["KERAS_BACKEND"] == "torch":
+        if keras.config.backend() == "torch":
             return DataLoader(
                 self._create_looper(split=split, augment=augment),
                 batch_size=self.batch_size,
@@ -285,7 +284,7 @@ class BaseDataWrapper:
                 collate_fn=self._collate_fn,
             )
         # TensorFlow loops using a generator
-        elif os.environ["KERAS_BACKEND"] == "tensorflow":
+        elif keras.config.backend() == "tensorflow":
             ds = tf.data.Dataset.from_generator(
                 self._create_looper(split=split, augment=augment, shuffle_generator=shuffle).get_generator,
                 output_signature=recursive_tensor_spec(self[0]),
@@ -297,7 +296,7 @@ class BaseDataWrapper:
             )
             return ds
         else:
-            return ImportError("CREsted currently only supports backends 'tensorflow' and 'torch', not backend {os.environ["KERAS_BACKEND"]}")
+            return ImportError(f"CREsted currently only supports backends 'tensorflow' and 'torch', not backend {keras.config.backend()}")
 
     def _create_looper(self, split: str, augment: bool = False, shuffle_generator: bool = False) -> DataLooper:
         """Create a DataLooper mini-wrapper around the DataWrapper, using the indices of the split requested."""
