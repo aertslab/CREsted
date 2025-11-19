@@ -49,6 +49,7 @@ def contribution_scores(
     zoom_n_bases: int | None = None,
     highlight_positions: list[tuple[int, int]] | None = None,
     ylim: tuple | None = None,
+    x_shift: int = 0,
     method: str | None = None,
     **kwargs,
 ):
@@ -73,6 +74,8 @@ def contribution_scores(
         List of tuples with start and end positions to highlight. Default is None.
     ylim
         Y-axis limits. Default is None.
+    x_shift
+        Number of base pairs to shift left or right for visualizing specific subsets of the region. Only use when combined with zooming in. Default is zero.
     method
         Method used for calculating contribution scores. If mutagenesis, you can either set this to mutagenesis to visualize
         in legacy way, or mutagenesis_letters to visualize an average of changes.
@@ -102,7 +105,13 @@ def contribution_scores(
     if class_labels and not isinstance(class_labels, list):
         class_labels = [str(class_labels)]
     center = int(scores.shape[2] / 2)
-    start_idx = center - int(zoom_n_bases / 2)
+    start_idx = center - int(zoom_n_bases / 2) + x_shift
+    if start_idx < 0 or (start_idx + zoom_n_bases > scores.shape[2]):
+        raise ValueError(
+            f"Parameter x_shift={x_shift} with zoom={zoom_n_bases} "
+            f"gives invalid coordinates (start_idx={start_idx}, "
+            f"max={scores.shape[2]})."
+        )
     scores = scores[:, :, start_idx : start_idx + zoom_n_bases, :]
 
     total_classes = scores.shape[1]

@@ -36,6 +36,7 @@ dependencies = [
     "scanpy",
     "biothings_client<0.4.0",
     "memelite",
+    "lxml"
 ]
 
 [project.optional-dependencies]
