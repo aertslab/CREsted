@@ -24,7 +24,7 @@ from crested.utils import one_hot_encode_sequence
 
 class BaseDataWrapper:
     """
-    Base DataWrapper class for retrieving sequences and their associated target values.
+    Class for retrieving sequences and their associated target values.
 
     Please inherit this and implement self._get_sequence(), self._get_target(), self._get_indices() and self._get_splits().
     If training on sequences extracted from the genome, have a look at BaseGenomicDataWrapper for built-in sequence loading.

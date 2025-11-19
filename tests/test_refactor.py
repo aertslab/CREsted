@@ -1,7 +1,5 @@
 """Test that ensures the outputs after the functional refactor are the same as before."""
 
-import os
-
 import keras
 import numpy as np
 import pytest
