@@ -5,7 +5,7 @@ from __future__ import annotations
 import keras
 import numpy as np
 
-backend = keras.src.backend.config.backend()
+backend = keras.config.backend()
 if backend == "tensorflow":
     from tensorflow.math import lgamma
 elif backend == "torch":
