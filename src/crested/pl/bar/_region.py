@@ -14,7 +14,7 @@ from crested.utils._logging import log_and_raise
 def region_predictions(
     adata: AnnData,
     region: str,
-    model_names: list[str] | None = None,
+    model_names: str | list[str] | None = None,
     share_y: bool = True,
     **kwargs,
 ) -> plt.Figure:
@@ -28,7 +28,7 @@ def region_predictions(
     region
         String in the format 'chr:start-end' representing the genomic location.
     model_names
-        List of model names in `adata.layers`. If None, will create a plot per model in `adata.layers`.
+        Single model name or list of model names in `adata.layers`. If None, will create a plot per model in `adata.layers`.
     share_y
         Whether to rescale the y-axis to be the same across plots. Default is True.
     kwargs
@@ -63,10 +63,12 @@ def region_predictions(
                 if model_name not in adata.layers:
                     raise ValueError(f"Model {model_name} not found in adata.layers.")
 
-    _check_input_params()
-
-    if model_names is None:
+    if isinstance(model_names, str):
+        model_names = [model_names]
+    elif model_names is None:
         model_names = list(adata.layers.keys())
+
+    _check_input_params()
 
     logger.info(f"Plotting bar plots for region: {region}, models: {model_names}")
 

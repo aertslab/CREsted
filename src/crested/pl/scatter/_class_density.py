@@ -17,7 +17,7 @@ from crested.utils._logging import log_and_raise
 def class_density(
     adata: AnnData,
     class_name: str | None = None,
-    model_names: list[str] | None = None,
+    model_names: str | list[str] | None = None,
     split: str | None = "test",
     log_transform: bool = False,
     exclude_zeros: bool = True,
@@ -37,7 +37,7 @@ def class_density(
     class_name
         Name of the class in `adata.obs_names`. If None, plot is made for all the classes.
     model_names
-        List of model names in `adata.layers`. If None, will create a plot per model in `adata.layers`.
+        Model name or list of model names in `adata.layers`. If None, will create a plot per model in `adata.layers`.
     split
         'train', 'val', 'test' subset or None. If None, will use all targets. If not None, expects a "split" column in adata.var.
     log_transform
@@ -93,14 +93,17 @@ def class_density(
         if split not in ["train", "val", "test", None]:
             raise ValueError("Split must be 'train', 'val', 'test', or None.")
 
+    if isinstance(model_names, str):
+        model_names = [model_names]
+    elif model_names is None:
+        model_names = list(adata.layers.keys())
+
     _check_input_params()
 
     classes = list(adata.obs_names)
     column_index = (
         classes.index(class_name) if class_name else np.arange(0, len(classes))
     )
-    if model_names is None:
-        model_names = list(adata.layers.keys())
 
     if split is not None:
         x = adata[:, adata.var["split"] == split].X[column_index, :].flatten()
