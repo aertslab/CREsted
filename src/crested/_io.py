@@ -96,6 +96,10 @@ def _extract_values_from_bigwig(
     total_bed_entries = idx + 1
     bed_entries_to_keep_idx = np.array(bed_entries_to_keep_idx, np.intp)
 
+    # Warn if we filtered out a significant amount of regions
+    if (len(bed_entries_to_keep_idx)/total_bed_entries) < 0.66:
+        logger.warning(f"{1-len(bed_entries_to_keep_idx)/total_bed_entries:.2f}% of BED regions did not match BigWig file {bw_file} chromosomes and were filtered out.")
+
     if target == "mean":
         with pybigtools.open(bw_file, "r") as bw:
             values = np.fromiter(
@@ -129,6 +133,10 @@ def _extract_values_from_bigwig(
 
     # Remove temporary BED file.
     temp_bed_file.close()
+
+    # Check for negative values
+    if any(values < 0):
+        logger.warning("Your read-in peak heights contain negative values, which most models in CREsted don't support. Proceed with caution.")
 
     if values.shape[0] != total_bed_entries:
         # Set all values for BED entries for which the chromosome was not in in the bigWig file to NaN.
@@ -193,8 +201,20 @@ def _extract_tracks_from_bigwig(
     binned_length = region_length // bin_size if bin_size else region_length
     bins = region_length // bin_size if bin_size else None
 
+    # Get region total chromosome set
+    coordinate_chroms = {region[0] for region in coordinates}
+
     # Open the bigWig file
     with pybigtools.open(bw_file, "r") as bw:
+        # Check chromosome match
+        bw_chroms = set(bw.chroms().keys())
+        if all(coord_chrom not in bw_chroms for coord_chrom in coordinate_chroms):
+            raise ValueError(
+                f"None of the data chromosomes match BigWig {bw_file}'s chromosomes.",
+                f"Data chromosomes: {coordinate_chroms}",
+                f"BigWig chromosomes: {bw_chroms}"
+            )
+        # Read out values
         results = []
         for region in coordinates:
             arr = np.empty(
@@ -216,8 +236,15 @@ def _extract_tracks_from_bigwig(
                     arr=arr,
                 )
             )
+    results = np.vstack(results)
 
-    return np.vstack(results)
+    if any(results < 0):
+        logger.warning("Your read-in tracks contain negative values, which most models in CREsted don't support. Proceed with caution.")
+
+    if all(np.isnan(results)):
+        raise ValueError("All read-in values are NaNs. Your region chromosomes most likely don't match your bigwig dataset.")
+
+    return results
 
 
 def _read_consensus_regions(
@@ -266,6 +293,8 @@ def _read_consensus_regions(
         logger.warning(
             f"Filtered {len(consensus_peaks) - len(consensus_peaks_filtered)} consensus regions (not within chromosomes)",
         )
+    if len(consensus_peaks_filtered) == 0:
+        raise ValueError(f"None of the consensus regions in {regions_file} fell within known chromosomes. Your registered genome likely doesn't match your consensus region's chromosome names (e.g. chrI vs I).")
     return consensus_peaks_filtered
 
 
