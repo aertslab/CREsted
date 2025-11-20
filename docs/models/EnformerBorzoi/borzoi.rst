@@ -22,6 +22,7 @@ The model is a CNN+Transformer+Upsampling model using the :func:`~crested.tl.zoo
 Details of the data and the model can be found in the original publication.
 
 -------------------
+
 .. warning::
 
     The Borzoi architecture uses custom layers that are serialized inside the CREsted package. To ensure that the model is loaded correctly, make sure that CREsted is imported before loading the model.
