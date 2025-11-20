@@ -17,6 +17,7 @@ else:
 
 
 # Attention pooling layer
+@keras.saving.register_keras_serializable(package="crested", name="AttentionPool1D")
 class AttentionPool1D(keras.layers.Layer):
     """
     AttentionPool from the FastISM repository. Does learnable Softmax pooling, for use in Enformer.
@@ -111,6 +112,7 @@ class AttentionPool1D(keras.layers.Layer):
 
 
 # Multi-head attention block from baskerville
+@keras.saving.register_keras_serializable(package="crested", name="MultiheadAttention")
 class MultiheadAttention(keras.layers.Layer):
     """
     Creates a MultiheadAttention module.
