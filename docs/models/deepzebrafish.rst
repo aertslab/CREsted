@@ -25,6 +25,10 @@ Details of the data and the model can be found in the original publication.
 
    Kempynck, N., De Winter, S., et al. CREsted: modeling genomic and synthetic cell type-specific enhancers across tissues and species. bioRxiv (2025). https://doi.org/10.1101/2025.04.02.646812
 
+.. admonition:: Data source
+
+   Sun, K., Liu, X., et al. Mapping the chromatin accessibility landscape of zebrafish embryogenesis at single-cell resolution by SPATAC-seq. Nature Cell Biology (2024). https://doi.org/10.1038/s41556-024-01449-0
+
 Usage
 -------------------
 

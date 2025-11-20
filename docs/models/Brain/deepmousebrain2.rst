@@ -25,6 +25,10 @@ Details of the data and the model can be found in the original publication.
 
     Hecker, N., Kempynck, N. et al. Enhancer-driven cell type comparison reveals similarities between the mammalian and bird pallium. Science (2025). https://doi.org/10.1126/science.adp3957
 
+.. admonition:: Data source
+
+    Li, Y.E., Preissl, S., et al. An atlas of gene regulatory elements in adult mouse cerebrum. Nature (2021). https://doi.org/10.1038/s41586-021-03604-1
+
 Usage
 -------------------
 

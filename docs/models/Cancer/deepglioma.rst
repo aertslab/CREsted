@@ -12,7 +12,7 @@ DeepGlioma
 
 The **DeepGlioma** model is a topic classification model trained on a scATAC-seq dataset of human gliomas obtained from Wang et al., 2019 (Cancer discovery). The dataset comprises 6 patient samples, 4 IDH–wild-type GBMs, 2 IDH-mutant grade II astrocytomas, and 2 IDH-mutant oligodendrogliomas.
 
-Using pycistopic, binarized topics per region were extracted for 24 target topics, where topics 8/21 and topics 20/25 represent patient-specific and patient-mixed MES-like states, while topics 14/18/19 represent an OPC/NPC-like state.
+Using pycisTopic, binarized topics per region were extracted for 24 target topics, where topics 8/21 and topics 20/25 represent patient-specific and patient-mixed MES-like states, while topics 14/18/19 represent an OPC/NPC-like state.
 
 The model is a CNN multiclass classifier that uses the :func:`~crested.tl.zoo.deeptopic_cnn` architecture.
 
@@ -23,6 +23,11 @@ Details of the data and the model can be found in the original publication.
 .. admonition:: Citation
 
    Kempynck, N., De Winter, S., et al. CREsted: modeling genomic and synthetic cell type-specific enhancers across tissues and species. bioRxiv (2025). https://doi.org/10.1101/2025.04.02.646812
+
+.. admonition:: Data source
+
+   Wang, L., Babikir, H., Müller, S., et al. The Phenotypes of Proliferating Glioblastoma Cells Reside on a Single Axis of Variation. Cancer Discovery (2019). https://doi.org/10.1158/2159-8290.CD-19-0329
+
 
 Usage
 -------------------

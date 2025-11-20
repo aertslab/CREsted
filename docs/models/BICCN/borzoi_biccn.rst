@@ -15,13 +15,17 @@ and further fine-tuned on a training set of cell type-specific peaks (73K region
 
 The model is a CNN multiclass regression model using the :func:`~crested.tl.zoo.borzoi` architecture, with an added dense layer after the final embedding layer to predict peak heights over cell types.
 
-Details of the data and the model can be found in the original publication.
+Details of the data and the model can be found in the original publication. The training data can be downloaded with `crested.get_dataset('mouse_cortex_bigwig_cut_sites')`.
 
 -------------------
 
 .. admonition:: Citation
 
    Kempynck, N., De Winter, S., et al. CREsted: modeling genomic and synthetic cell type-specific enhancers across tissues and species. bioRxiv (2025). https://doi.org/10.1101/2025.04.02.646812
+
+.. admonition:: Data source
+
+   Zemke, N.R., Armand, E.J., et al. Conserved and divergent gene regulatory programs of the mammalian neocortex. Nature (2023). https://doi.org/10.1038/s41586-023-06819-6
 
 Usage
 -------------------

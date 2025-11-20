@@ -25,6 +25,10 @@ Details of the data and the model can be found in the original publication.
 
     Hecker, N., Kempynck, N. et al. Enhancer-driven cell type comparison reveals similarities between the mammalian and bird pallium. Science (2025). https://doi.org/10.1126/science.adp3957
 
+.. admonition:: Data source
+
+    Bravo González-Blas, C., De Winter, S., et al. SCENIC+: single-cell multiomic inference of enhancers and gene regulatory networks. Nat Methods (2023). https://doi.org/10.1038/s41592-023-01938-4
+
 Usage
 -------------------
 
