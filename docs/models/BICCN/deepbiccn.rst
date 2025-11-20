@@ -22,7 +22,7 @@ Details of the data and the model can be found in the original publication.
 
 .. admonition:: Citation
 
-    Johansen, N.J., Kempynck, N. et al. Evaluating Methods for the Prediction of Cell Type-Specific Enhancers in the Mammalian Cortex. bioRxiv (2024). https://doi.org/10.1101/2024.08.21.609075
+    Johansen, N.J., Kempynck, N. et al. Evaluating Methods for the Prediction of Cell Type-Specific Enhancers in the Mammalian Cortex. Cell Genomics (2025). https://doi.org/10.1016/j.xgen.2025.100879
 
 Usage
 -------------------
