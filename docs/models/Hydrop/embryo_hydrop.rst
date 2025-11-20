@@ -10,7 +10,8 @@ EmbryoHydrop
    - **Input shape**: (500, 4)
    - **Output shape**: (20,)
 
-The **Embryo10x** and **EmbryoHydrop** models are peak regression models trained on on ATAC coverage from the same cell types that were captured using different technologies to show the similarities between these methods.
+The **Embryo10x** and **EmbryoHydrop** models are peak regression models trained on on ATAC coverage from Drosophila embryonal development. 
+The training datasets contain the same cell types, captured using different technologies to show the similarities between these methods.
 
 Both models were trained using the same preprocessing steps and model architecture.
 

@@ -1,4 +1,4 @@
-# Hydrop
+# HyDrop
 
 ```{toctree}
 :maxdepth: 1
