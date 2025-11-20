@@ -22,6 +22,9 @@ The model is a CNN+Transformer model using the :func:`~crested.tl.zoo.enformer` 
 Details of the data and the model can be found in the original publication.
 
 -------------------
+.. warning::
+
+    The Enformer architecture uses custom layers that are serialized inside the CREsted package. To ensure that the model is loaded correctly, make sure that CREsted is imported before loading the model.
 
 .. admonition:: Citation
 
