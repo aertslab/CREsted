@@ -10,7 +10,8 @@ EmbryoHydrop
    - **Input shape**: (500, 4)
    - **Output shape**: (20,)
 
-The **Embryo10x** and **EmbryoHydrop** models are peak regression models trained on on ATAC coverage from the same cell types that were captured using different technologies to show the similarities between these methods.
+The **Embryo10x** and **EmbryoHydrop** models are peak regression models trained on on ATAC coverage from Drosophila embryonal development. 
+The training datasets contain the same cell types, captured using different technologies to show the similarities between these methods.
 
 Both models were trained using the same preprocessing steps and model architecture.
 
@@ -27,7 +28,7 @@ Details of the data and the model can be found in the original publication.
 
 .. admonition:: Citation
 
-   Dickmanken, H., Wojno, M., Theunis, K., Eksi, E. C., Mahieu, L., Christiaens, V., Kempynck, N., De Rop, F., Roels, N., Spanier, K. I., Vandepoel, R., Hulselmans, G., Poovathingal, S., Aerts, S. HyDrop v2: Scalable atlas construction for training sequence-to-function models. bioRxiv doi: 10.1101/2025.04.02.646792
+   Dickmanken, H., Wojno, M., Theunis, K., Eksi, E. C., Mahieu, L., Christiaens, V., Kempynck, N., De Rop, F., Roels, N., Spanier, K. I., Vandepoel, R., Hulselmans, G., Poovathingal, S., Aerts, S. HyDrop v2: Scalable atlas construction for training sequence-to-function models. bioRxiv (2025). https://doi.org/10.1101/2025.04.02.646792
 
 Usage
 -------------------

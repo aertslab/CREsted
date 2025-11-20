@@ -1,4 +1,4 @@
-# BICCN
+# BICCN (Brain cortex)
 
 ```{toctree}
 :maxdepth: 1
