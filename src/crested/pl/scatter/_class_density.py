@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+
 import matplotlib.pyplot as plt
 import numpy as np
 from anndata import AnnData
@@ -21,6 +23,7 @@ def class_density(
     exclude_zeros: bool = True,
     density_indication: bool = False,
     downsample_density: int = 10000,
+    max_threads: int = 1,
     alpha: float = 0.25,
     **kwargs,
 ) -> plt.Figure:
@@ -44,9 +47,11 @@ def class_density(
     density_indication
         Whether to indicate density in the scatter plot. Default is False.
     downsample_density
-        Number of points to downsample to if fitting the density indication.
+        Number of points to downsample to when fitting the density if using the density indication.
         Note that one point denotes one region for one class, so the full set would be # of (test) regions * # classes.
         Default is 10000. If False, will not downsample.
+    max_threads
+        Maximum number of threads to use when evaluating the density if using the density indication. If 1, will not parallelize.
     alpha
         Transparency of points in scatter plot. From 0 (transparent) to 1 (opaque).
     kwargs
@@ -144,12 +149,22 @@ def class_density(
 
         if density_indication:
             xy = np.vstack([x, y])
+            # Fit KDE to data
             if downsample_density and downsample_density < xy.shape[1]:
                 downsample_idxs = np.random.randint(xy.shape[1], size = downsample_density)
                 kde = gaussian_kde(xy[:, downsample_idxs])
             else:
                 kde = gaussian_kde(xy)
-            z = kde(xy)
+            # Evaluate data points to position on fitted KDE
+            if max_threads > 1:
+                xy_chunked = np.array_split(xy, max_threads, axis=1)
+                z = []
+                with ThreadPoolExecutor(max_workers=max_threads) as executor:
+                    for chunk in executor.map(kde, xy_chunked):
+                        z.append(chunk)
+                    z = np.concatenate(z)
+            else:
+                z = kde(xy)
             scatter = ax.scatter(x, y, c=z, s=50, edgecolor="k", alpha=alpha)
             scatter.set_rasterized(True)  # Rasterize only the scatter points
             plt.colorbar(scatter, ax=ax, label="Density")
