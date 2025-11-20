@@ -50,7 +50,3 @@ Usage
     sequence = "A" * 2048
     predictions = crested.tl.predict(sequence, model)
     print(predictions.shape)
-
--------------------
-
-
