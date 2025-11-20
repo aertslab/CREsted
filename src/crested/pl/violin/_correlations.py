@@ -80,11 +80,11 @@ def correlations(
                 raise ValueError("Split must be 'train', 'val', 'test', or None.")
 
     # Validate inputs
-    if model_names is not None and isinstance(model_names, str):
+    if isinstance(model_names, str):
         model_names = [model_names]
-    _check_input_params()
-    if model_names is None:
+    elif model_names is None:
         model_names = list(adata.layers.keys())
+    _check_input_params()
 
     # Gather ground truth and prediction data
     if split is not None:
