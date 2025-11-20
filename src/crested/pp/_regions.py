@@ -43,6 +43,7 @@ def change_regions_width(
         The new width of the regions.
     chromsizes_file
         File path of the chromsizes file. Used for checking if the new regions are within the chromosome boundaries.
+        If not provided, uses chromsizes from the registered Genome object, and if that doesn't exist either, doesn't check against chromosome boundaries.
 
     Returns
     -------
