@@ -26,7 +26,7 @@ from ._utils import _plot_attribution_map
 def modisco_results(
     classes: list[str],
     contribution: str,
-    modisco_dir: str,
+    contribution_dir: str,
     num_seq: int,
     viz: str = "contrib",
     min_seqlets: int = 0,
@@ -36,7 +36,6 @@ def modisco_results(
     background: list[float] = None,
     trim_pattern: bool = True,
     trim_ic_threshold: float = 0.1,
-    contribution_dir: str | None = None,
     **kwargs,
 ) -> None:
     """
@@ -51,7 +50,7 @@ def modisco_results(
         List of classes to plot genomic contributions for.
     contribution
         Contribution type to plot. Choose either "positive" or "negative".
-    modisco_dir
+    contribution_dir
         Directory containing the modisco results.
         Each class should have a separate modisco .h5 results file in the format {class}_modisco_results.h5.
     num_seq
@@ -73,8 +72,6 @@ def modisco_results(
         Boolean for trimming modisco patterns.
     trim_ic_threshold
         If trimming patterns, indicate threshold.
-    contribution_dir
-        Deprecated argument; renamed to modisco_dir.
     kwargs
         Additional keyword arguments for the plot.
 
@@ -88,7 +85,7 @@ def modisco_results(
     >>> crested.pl.patterns.modisco_results(
     ...     classes=["Lamp5", "Pvalb", "Sst", ""Sst-Chodl", "Vip"],
     ...     contribution="positive",
-    ...     modisco_dir="/path/to/modisco_results",
+    ...     contribution_dir="/path/to/modisco_results",
     ...     num_seq=1000,
     ...     viz="pwm",
     ...     save_path="/path/to/genomic_contributions.png",
@@ -106,15 +103,11 @@ def modisco_results(
 
     @log_and_raise(FileNotFoundError)
     def _check_file_params():
-        if not os.isdir(modisco_dir):
-            raise FileNotFoundError(f"modisco_dir {modisco_dir} is not a directory.")
+        if not os.isdir(contribution_dir):
+            raise FileNotFoundError(f"contribution_dir {contribution_dir} is not a directory.")
         for class_name in classes:
-            if not os.path.exists(os.path.join(modisco_dir, f"{class_name}_modisco_results.h5")):
-                raise FileNotFoundError(f"Could not find modisco output file {class_name}_modisco_results.h5 in modisco_dir {modisco_dir}.")
-
-    if contribution_dir is not None:
-        logger.warning("Argument contribution_dir has been renamed to modisco_dir. Usage of contribution_dir will be deprecated.")
-        modisco_dir = contribution_dir
+            if not os.path.exists(os.path.join(contribution_dir, f"{class_name}_modisco_results.h5")):
+                raise FileNotFoundError(f"Could not find modisco output file {class_name}_modisco_results.h5 in contribution_dir {contribution_dir}.")
 
     _check_input_params()
     _check_file_params()
@@ -133,7 +126,7 @@ def modisco_results(
         if verbose:
             logger.info(cell_type)
         hdf5_results = h5py.File(
-            os.path.join(modisco_dir, f"{cell_type}_modisco_results.h5"), "r"
+            os.path.join(contribution_dir, f"{cell_type}_modisco_results.h5"), "r"
         )
         metacluster_names = list(hdf5_results.keys())
 
@@ -159,7 +152,7 @@ def modisco_results(
 
     for idx, cell_type in enumerate(classes):
         hdf5_results = h5py.File(
-            os.path.join(modisco_dir, f"{cell_type}_modisco_results.h5"), "r"
+            os.path.join(contribution_dir, f"{cell_type}_modisco_results.h5"), "r"
         )
         metacluster_names = list(hdf5_results.keys())
 

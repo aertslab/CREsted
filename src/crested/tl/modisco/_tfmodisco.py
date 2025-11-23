@@ -679,14 +679,14 @@ def find_pattern(pattern_id: str, pattern_dict: dict) -> int | None:
 
 
 def match_h5_files_to_classes(
-    modisco_dir: str, classes: list[str], contribution_dir: str | None = None,
+    contribution_dir: str, classes: list[str]
 ) -> dict[str, str | None]:
     """
     Match .h5 files in a given directory with a list of class names and returns a dictionary mapping.
 
     Parameters
     ----------
-    modisco_dir
+    contribution_dir
         Directory containing .h5 files.
     classes
         list of class names to match against file names.
@@ -699,18 +699,14 @@ def match_h5_files_to_classes(
     -------
     A dictionary where keys are class names and values are paths to the corresponding .h5 files if matched, None otherwise.
     """
-    if contribution_dir is not None:
-        logger.warning("Argument contribution_dir has been renamed to modisco_dir. Usage of contribution_dir will be deprecated.")
-        modisco_dir = contribution_dir
-
-    h5_files = [file for file in os.listdir(modisco_dir) if file.endswith(".h5")]
+    h5_files = [file for file in os.listdir(contribution_dir) if file.endswith(".h5")]
     matched_files = dict.fromkeys(classes, None)
 
     for file in h5_files:
         base_name = os.path.splitext(file)[0][:-16]
         for class_name in classes:
             if base_name == class_name:
-                matched_files[class_name] = os.path.join(modisco_dir, file)
+                matched_files[class_name] = os.path.join(contribution_dir, file)
                 break
 
     return matched_files
@@ -1072,8 +1068,7 @@ def generate_image_paths(
     pattern_matrix: np.ndarray,
     all_patterns: dict,
     classes: list[str],
-    modisco_dir: str,
-    contribution_dir: str | None = None,
+    contribution_dir: str,
 ) -> list[str]:
     """
     Generate image paths for each pattern in the filtered array.
@@ -1086,17 +1081,13 @@ def generate_image_paths(
         Dictionary containing pattern data.
     classes
         List of class labels.
-    modisco_dir
+    contribution_dir
         Modisco output directory, containing folders with per-class reports that have a trimmed_logos directory.
 
     Returns
     -------
     List of image paths corresponding to the patterns.
     """
-    if contribution_dir is not None:
-        logger.warning("Argument contribution_dir has been renamed to modisco_dir. Usage of contribution_dir will be deprecated.")
-        modisco_dir = contribution_dir
-
     image_paths = []
 
     for i in range(pattern_matrix.shape[1]):
@@ -1110,14 +1101,14 @@ def generate_image_paths(
 
         id_split = pattern_id.split("_")
         pos_neg = "pos_patterns." if id_split[-4] == "pos" else "neg_patterns."
-        im_path = os.path.join(modisco_dir, f"{pattern_class}_report/trimmed_logos/{pos_neg}pattern_{id_split[-1]}.cwm.fwd.png")
+        im_path = os.path.join(contribution_dir, f"{pattern_class}_report/trimmed_logos/{pos_neg}pattern_{id_split[-1]}.cwm.fwd.png")
         image_paths.append(im_path)
 
     return image_paths
 
 
 def generate_html_paths(
-    all_patterns: dict, classes: list[str], modisco_dir: str, contribution_dir: str | None = None
+    all_patterns: dict, classes: list[str], contribution_dir: str
 ) -> list[str]:
     """
     Generate html paths for each pattern in the filtered array.
@@ -1130,17 +1121,13 @@ def generate_html_paths(
         dictionary containing pattern data.
     classes
         list of class labels.
-    modisco_dir
+    contribution_dir
         Modisco output directory, containing folders with per-class reports.
 
     Returns
     -------
     List of image paths corresponding to the patterns.
     """
-    if contribution_dir is not None:
-        logger.warning("Argument contribution_dir has been renamed to modisco_dir. Usage of contribution_dir will be deprecated.")
-        modisco_dir = contribution_dir
-
     html_paths = []
 
     for pat_id in all_patterns:
@@ -1154,7 +1141,7 @@ def generate_html_paths(
                 else pattern_class_parts[0]
             )
 
-            html_dir = os.path.join(modisco_dir, pattern_class + "_report")
+            html_dir = os.path.join(contribution_dir, pattern_class + "_report")
             html_paths_pattern.append(os.path.join(html_dir, "motifs.html"))
         html_paths.append(html_paths_pattern)
 
