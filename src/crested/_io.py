@@ -672,6 +672,13 @@ def import_bigwigs(
         }
     ).set_index("region")
 
+    if target_region_width:
+        var_df['target_start'] = var_df.apply(
+            lambda row: max(0, row['start'] - (target_region_width - (row['end'] - row['start'])) // 2),
+            axis=1,
+        )
+        var_df['target_end'] = var_df['target_start'] + target_region_width
+
     # Create AnnData object
     adata = ad.AnnData(data_matrix, obs=obs_df, var=var_df)
 
