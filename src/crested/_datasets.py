@@ -123,6 +123,7 @@ def get_dataset(dataset: str):
     >>> adata = crested.import_beds(beds_folder=beds_folder, regions_file=regions_file)
     """
     # Mapping: "user_facing_name": ("tarball_name_in_registry.tar.gz", "cpeaks_name_in_registry.bed")
+    # THESE DATASET NAMES (KEYS) MUST BE ALL-LOWERCASE TO BE RECOGNISED!
     dataset_mapping = {
         "mouse_cortex_bed": (
             "data/mouse_biccn/beds.tar.gz",
@@ -141,10 +142,12 @@ def get_dataset(dataset: str):
             "data/mouse_biccn/consensus_peaks_biccn.bed",
         ),  # Deprecated
     }
+
+    dataset = dataset.lower()
+
     assert (
         dataset in dataset_mapping
     ), f"Dataset {dataset} is not recognised. Available datasets: {tuple(dataset_mapping.keys())}"
-
     targets_url, cregions_url = dataset_mapping[dataset]
     targets_paths = _get_dataset_index().fetch(
         targets_url, processor=pooch.Untar(), progressbar=True
