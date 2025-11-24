@@ -338,6 +338,7 @@ def contribution_scores(
     ----------
     input
         Input data to calculate the contribution scores for. Can be a (list of) sequence(s), a (list of) region name(s), a matrix of one hot encodings (N, L, 4), or an AnnData object with region names as its var_names.
+        If the input regions are stranded, will return the sequence from the proper strand; i.e. chrI:0-100:- will return a (complement) sequence from 100 to 0, as it's reversed compared to the positive strand.
     target_idx
         Index/indices of the target class(es) to calculate the contribution scores for.
         If this is an empty list, the contribution scores for the 'combined' class will be calculated.
