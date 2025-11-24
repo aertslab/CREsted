@@ -235,6 +235,7 @@ def get_model(model: str) -> tuple[str, list[str]]:
     >>> model_file, output_names = crested.get_model("DeepFlyBrain")
     """
     # Mapping: "user_facing_name": ("model_folder_in_registry.tar.gz")
+    # THESE MODEL NAMES (KEYS) MUST BE ALL-LOWERCASE TO BE RECOGNISED!
     model_mapping = {
         "deepbiccn": ("models/biccn.tar.gz"),
         "deepbiccn2": ("models/deepbiccn2.tar.gz"),
