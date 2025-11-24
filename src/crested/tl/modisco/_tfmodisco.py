@@ -29,9 +29,9 @@ def _calculate_window_offsets(center: int, window_size: int) -> tuple:
 
 @log_and_raise(Exception)
 def tfmodisco(
-    contrib_dir: os.PathLike = "modisco_results",
+    contrib_dir: str | os.PathLike = "modisco_results",
     class_names: list[str] | None = None,
-    output_dir: os.PathLike = "modisco_results",
+    output_dir: str | os.PathLike = "modisco_results",
     max_seqlets: int = 5000,
     min_metacluster_size: int = 100,
     min_final_cluster_size: int = 20,
