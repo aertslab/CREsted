@@ -363,7 +363,7 @@ def import_beds(
     ----------
     beds_folder
         List of bed file paths, dict of bed paths with class name keys, or folder path containing the bed files.
-        If a path to a folder, assumed all bed files have the *.bed extension.
+        If a path to a folder, assumed all bed files have the .bed extension.
     regions_file
         File path of the consensus regions BED file to use as columns in the AnnData object.
         If None, the regions will be extracted from the files.
