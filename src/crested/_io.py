@@ -21,7 +21,7 @@ from scipy.sparse import csr_matrix
 from crested import _conf as conf
 
 
-def _sort_files(filename: PathLike):
+def _sort_files(filename: str | PathLike):
     """Sorts files.
 
     Prioritizes numeric extraction from filenames of the format 'Class_X.bed' (X=int).
@@ -59,7 +59,7 @@ def _custom_region_sort(region: str) -> tuple[int, int, int]:
         return (1, chrom, start)
 
 
-def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
+def _read_chromsizes(chromsizes_file: str | PathLike) -> dict[str, int]:
     """Read chromsizes file into a dictionary."""
     chromsizes = pd.read_csv(
         chromsizes_file, sep="\t", header=None, names=["chr", "size"]
@@ -69,7 +69,7 @@ def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
 
 
 def _extract_values_from_bigwig(
-    bw_file: PathLike, bed_file: PathLike, target: str
+    bw_file: str | PathLike, bed_file: str | PathLike, target: str
 ) -> np.ndarray:
     """Extract target values from a bigWig file for regions specified in a BED file."""
     if isinstance(bed_file, Path):
@@ -149,7 +149,7 @@ def _extract_values_from_bigwig(
 
 
 def _extract_tracks_from_bigwig(
-    bw_file: PathLike,
+    bw_file: str | PathLike,
     coordinates: list[tuple[str, int, int]],
     bin_size: int | None = None,
     target: str = "mean",
@@ -249,7 +249,7 @@ def _extract_tracks_from_bigwig(
 
 
 def _read_consensus_regions(
-    regions_file: PathLike, chromsizes_file: PathLike | None = None
+    regions_file: str | PathLike, chromsizes_file: str | PathLike | None = None
 ) -> pd.DataFrame:
     """Read consensus regions BED file and filter out regions not within chromosomes."""
     if chromsizes_file is not None:
@@ -319,7 +319,7 @@ def _create_temp_bed_file(
     return temp_bed_file
 
 
-def _check_bed_file_format(bed_file: PathLike) -> None:
+def _check_bed_file_format(bed_file: str | PathLike) -> None:
     """Check if the BED file is in the correct format."""
     with open(bed_file) as f:
         first_line = f.readline().strip()

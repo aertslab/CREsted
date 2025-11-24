@@ -40,7 +40,7 @@ def extract_layer_embeddings(
     input: str | list[str] | np.ndarray | AnnData,
     model: keras.Model,
     layer_name: str,
-    genome: Genome | os.PathLike | None = None,
+    genome: Genome | str | os.PathLike | None = None,
     **kwargs,
 ) -> np.ndarray:
     """
@@ -131,7 +131,7 @@ class PredictPyDataset(keras.utils.PyDataset):
 def predict(
     input: str | list[str] | np.array | AnnData,
     model: keras.Model | list[keras.Model],
-    genome: Genome | os.PathLike | None = None,
+    genome: Genome | str | os.PathLike | None = None,
     batch_size: int = 128,
     **kwargs,
 ) -> None | np.ndarray:
@@ -188,7 +188,7 @@ def score_gene_locus(
     gene_end: int,
     target_idx: int,
     model: keras.Model | list[keras.Model],
-    genome: Genome | os.PathLike | None = None,
+    genome: Genome | str | os.PathLike | None = None,
     strand: str = "+",
     upstream: int = 50000,
     downstream: int = 10000,
@@ -318,11 +318,11 @@ def contribution_scores(
     method: str = "expected_integrated_grad",
     window_size: int | None = 7,
     n_shuffles: int | None = 24,
-    genome: Genome | os.PathLike | None = None,
+    genome: Genome | str | os.PathLike | None = None,
     transpose: bool = False,
     all_class_names: list[str] | None = None,
     batch_size: int = 128,
-    output_dir: os.PathLike | None = None,
+    output_dir: str | os.PathLike | None = None,
     seed: int | None = 42,
     verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -497,11 +497,11 @@ def contribution_scores_specific(
     input: AnnData,
     target_idx: int | list[int] | None,
     model: keras.Model | list[keras.Model],
-    genome: Genome | os.PathLike | None = None,
+    genome: Genome | str | os.PathLike | None = None,
     method: str = "expected_integrated_grad",
     transpose: bool = True,
     batch_size: int = 128,
-    output_dir: os.PathLike | None = None,
+    output_dir: str | os.PathLike | None = None,
     verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
     """

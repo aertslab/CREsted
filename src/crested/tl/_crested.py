@@ -119,7 +119,7 @@ class Crested:
 
     @staticmethod
     def _initialize_callbacks(
-        save_dir: os.PathLike,
+        save_dir: str | os.PathLike,
         model_checkpointing: bool,
         model_checkpointing_best_only: bool,
         model_checkpointing_metric: str,
@@ -208,7 +208,7 @@ class Crested:
 
         return run, callbacks
 
-    def load_model(self, model_path: os.PathLike, compile: bool = True) -> None:
+    def load_model(self, model_path: str | os.PathLike, compile: bool = True) -> None:
         """
         Load a (pretrained) model from a file.
 
@@ -1298,7 +1298,7 @@ class Crested:
         self,
         adata: AnnData,
         sequences: list[str],
-        output_dir: os.PathLike = "modisco_results",
+        output_dir: str | os.PathLike = "modisco_results",
         method: str = "expected_integrated_grad",
         class_names: list[str] | None = None,
     ):
@@ -1379,7 +1379,7 @@ class Crested:
     def tfmodisco_calculate_and_save_contribution_scores(
         self,
         adata: AnnData,
-        output_dir: os.PathLike = "modisco_results",
+        output_dir: str | os.PathLike = "modisco_results",
         method: str = "expected_integrated_grad",
         class_names: list[str] | None = None,
     ):

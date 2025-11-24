@@ -62,8 +62,8 @@ class AnnDataModule:
     def __init__(
         self,
         adata,
-        genome: PathLike | Genome | None = None,
-        chromsizes_file: PathLike | None = None,
+        genome: str | PathLike | Genome | None = None,
+        chromsizes_file: str | PathLike | None = None,
         in_memory: bool = True,
         always_reverse_complement=True,
         random_reverse_complement: bool = False,
