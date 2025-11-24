@@ -169,7 +169,7 @@ def class_density(
             scatter.set_rasterized(True)  # Rasterize only the scatter points
             plt.colorbar(scatter, ax=ax, label="Density")
         else:
-            scatter = ax.scatter(x, y, edgecolor="k", alpha=alpha)
+            scatter = ax.scatter(x, y, edgecolor="k", alpha=alpha, rasterized=True)
 
         ax.annotate(
             f"Pearson: {pearson_corr:.2f}",

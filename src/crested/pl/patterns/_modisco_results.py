@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from loguru import logger
+from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.patches import Patch
 from scipy.cluster.hierarchy import dendrogram, leaves_list, linkage
 
@@ -724,6 +725,7 @@ def clustermap_with_pwm_logos(
 def selected_instances(
     pattern_dict: dict,
     idcs: list[int],
+    save_path: str = None,
 ) -> None:
     """
     Plot the patterns specified by the indices in `idcs` from the `pattern_dict`.
@@ -735,6 +737,8 @@ def selected_instances(
         contribution scores and metadata for the pattern. Refer to the output of `crested.tl.modisco.process_patterns`.
     idcs
         A list of indices specifying which patterns to plot. The indices correspond to keys in the `pattern_dict`.
+    save_path
+        File to save plot to.
 
     See Also
     --------
@@ -761,11 +765,13 @@ def selected_instances(
         ax.set_title(pattern_dict[str(idx)]["pattern"]["id"])
 
     plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight')
     plt.show()
 
 
 def class_instances(
-    pattern_dict: dict, idx: int, class_representative: bool = False
+    pattern_dict: dict, idx: int, class_representative: bool = False, save_path: str = None,
 ) -> None:
     """
     Plot instances of a specific pattern, either the representative pattern per class or all instances for a given pattern index.
@@ -780,6 +786,8 @@ def class_instances(
     class_representative
         If True, only the best representative instance of each class is plotted. If False (default), all instances of the pattern
         within each class are plotted.
+    save_path
+        File to save plot to.
 
     See Also
     --------
@@ -814,6 +822,8 @@ def class_instances(
         ax.set_title(pattern_dict[str(idx)][key][cl]["id"])
 
     plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight')
     plt.show()
 
 
@@ -932,6 +942,7 @@ def clustermap_tf_motif(
     save_path: str | None = None,
     cluster_rows: bool = True,
     cluster_columns: bool = True,
+    cbar_pad: float = 0.05,
 ) -> None:
     """
     Generate a heatmap where one modality is represented as color, and the other as dot size.
@@ -958,6 +969,8 @@ def clustermap_tf_motif(
         Whether to cluster the rows (classes). Default is True.
     cluster_columns : bool
         Whether to cluster the columns (patterns). Default is True.
+    cbar_pad : float
+        Horizontal padding between heatmap and colorbar in figure coordinates.
 
     Examples
     --------
@@ -1055,11 +1068,17 @@ def clustermap_tf_motif(
         vmax=max(np.abs(heatmap_data.min()), np.abs(heatmap_data.max())),
     )
 
+
+    # Define custom light-centered colormap
+    light_centered_cmap = LinearSegmentedColormap.from_list(
+        "light_coolwarm", ["blue", "#f0f0f0", "red"]
+    )
+
     # Plot heatmap
     heatmap = ax_heatmap.imshow(
         heatmap_data,
         aspect="auto",
-        cmap="coolwarm",
+        cmap=light_centered_cmap,
         norm=norm,
     )
 
@@ -1075,14 +1094,23 @@ def clustermap_tf_motif(
                 edgecolor="none",
             )
 
-    # Add colorbar
-    cbar = plt.colorbar(heatmap, ax=ax_heatmap)
+    # Colorbar manual position
+    heat_pos = ax_heatmap.get_position()
+    cbar_width = 0.005
+    cbar_height = 0.25
+    cbar_x = heat_pos.x1 + cbar_pad
+    cbar_y = heat_pos.y0 + (heat_pos.height - cbar_height) / 2
+    cax = fig.add_axes([cbar_x, cbar_y, cbar_width, cbar_height])
+
+    # Colorbar draw
+    cbar = fig.colorbar(heatmap, cax=cax)
     label = (
         "Average pattern contribution score"
         if heatmap_dim == "contrib"
         else "Average TF expression, signed by activation/repression"
     )
-    cbar.set_label(label)
+    cbar.set_label(label, labelpad=10)
+    cbar.ax.yaxis.set_tick_params(pad=5)
 
     # Set axis labels and ticks
     ax_heatmap.set_xticks(np.arange(data.shape[1]))
