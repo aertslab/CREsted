@@ -239,9 +239,9 @@ def register_genome(genome: Genome):
 
 
 def _resolve_genome(
-    genome: os.PathLike | Genome | None,
-    chromsizes_file: os.PathLike | None = None,
-    annotation: os.PathLike | None = None,
+    genome: str | os.PathLike | Genome | None,
+    chromsizes_file: str | os.PathLike | None = None,
+    annotation: str | os.PathLike | None = None,
 ) -> Genome:
     """Resolve the input to a Genome object. Required to keep backwards compatibility with fasta and chromsizes paths as inputs."""
     if isinstance(genome, Genome):

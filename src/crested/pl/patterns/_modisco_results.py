@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import h5py
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
@@ -16,6 +18,7 @@ from crested.tl.modisco._modisco_utils import (
     _trim_pattern_by_ic,
     compute_ic,
 )
+from crested.utils._logging import log_and_raise
 
 from ._utils import _plot_attribution_map
 
@@ -90,6 +93,25 @@ def modisco_results(
 
     .. image:: ../../../../docs/_static/img/examples/genomic_contributions.png
     """
+
+    @log_and_raise(ValueError)
+    def _check_input_params():
+        if contribution not in ['positive', 'negative']:
+            raise ValueError("Argument 'contribution' must be either 'positive' or 'negative'.")
+        if viz not in ['contrib', 'pwm']:
+            raise ValueError("Argument 'viz' must be either' 'contrib' or 'pwm'.")
+
+    @log_and_raise(FileNotFoundError)
+    def _check_file_params():
+        if not os.isdir(contribution_dir):
+            raise FileNotFoundError(f"contribution_dir {contribution_dir} is not a directory.")
+        for class_name in classes:
+            if not os.path.exists(os.path.join(contribution_dir, f"{class_name}_modisco_results.h5")):
+                raise FileNotFoundError(f"Could not find modisco output file {class_name}_modisco_results.h5 in contribution_dir {contribution_dir}.")
+
+    _check_input_params()
+    _check_file_params()
+
     if background is None:
         background = [0.27, 0.23, 0.23, 0.27]
     background = np.array(background)
@@ -104,7 +126,7 @@ def modisco_results(
         if verbose:
             logger.info(cell_type)
         hdf5_results = h5py.File(
-            f"{contribution_dir}/{cell_type}_modisco_results.h5", "r"
+            os.path.join(contribution_dir, f"{cell_type}_modisco_results.h5"), "r"
         )
         metacluster_names = list(hdf5_results.keys())
 
@@ -130,7 +152,7 @@ def modisco_results(
 
     for idx, cell_type in enumerate(classes):
         hdf5_results = h5py.File(
-            f"{contribution_dir}/{cell_type}_modisco_results.h5", "r"
+            os.path.join(contribution_dir, f"{cell_type}_modisco_results.h5"), "r"
         )
         metacluster_names = list(hdf5_results.keys())
 

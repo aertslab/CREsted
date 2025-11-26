@@ -29,9 +29,9 @@ def _calculate_window_offsets(center: int, window_size: int) -> tuple:
 
 @log_and_raise(Exception)
 def tfmodisco(
-    contrib_dir: os.PathLike = "modisco_results",
+    contrib_dir: str | os.PathLike = "modisco_results",
     class_names: list[str] | None = None,
-    output_dir: os.PathLike = "modisco_results",
+    output_dir: str | os.PathLike = "modisco_results",
     max_seqlets: int = 5000,
     min_metacluster_size: int = 100,
     min_final_cluster_size: int = 20,
@@ -1082,7 +1082,7 @@ def generate_image_paths(
     classes
         List of class labels.
     contribution_dir
-        Directory containing contribution scores and images.
+        Modisco output directory, containing folders with per-class reports that have a trimmed_logos directory.
 
     Returns
     -------
@@ -1101,8 +1101,7 @@ def generate_image_paths(
 
         id_split = pattern_id.split("_")
         pos_neg = "pos_patterns." if id_split[-4] == "pos" else "neg_patterns."
-        im_dir = contribution_dir
-        im_path = f"{im_dir}{pattern_class}_report/trimmed_logos/{pos_neg}pattern_{id_split[-1]}.cwm.fwd.png"
+        im_path = os.path.join(contribution_dir, f"{pattern_class}_report/trimmed_logos/{pos_neg}pattern_{id_split[-1]}.cwm.fwd.png")
         image_paths.append(im_path)
 
     return image_paths
@@ -1123,7 +1122,7 @@ def generate_html_paths(
     classes
         list of class labels.
     contribution_dir
-        Directory containing contribution scores and images.
+        Modisco output directory, containing folders with per-class reports.
 
     Returns
     -------
