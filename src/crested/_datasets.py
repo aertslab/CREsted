@@ -123,6 +123,7 @@ def get_dataset(dataset: str):
     >>> adata = crested.import_beds(beds_folder=beds_folder, regions_file=regions_file)
     """
     # Mapping: "user_facing_name": ("tarball_name_in_registry.tar.gz", "cpeaks_name_in_registry.bed")
+    # THESE DATASET NAMES (KEYS) MUST BE ALL-LOWERCASE TO BE RECOGNISED!
     dataset_mapping = {
         "mouse_cortex_bed": (
             "data/mouse_biccn/beds.tar.gz",
@@ -141,10 +142,12 @@ def get_dataset(dataset: str):
             "data/mouse_biccn/consensus_peaks_biccn.bed",
         ),  # Deprecated
     }
+
+    dataset = dataset.lower()
+
     assert (
         dataset in dataset_mapping
     ), f"Dataset {dataset} is not recognised. Available datasets: {tuple(dataset_mapping.keys())}"
-
     targets_url, cregions_url = dataset_mapping[dataset]
     targets_paths = _get_dataset_index().fetch(
         targets_url, processor=pooch.Untar(), progressbar=True
@@ -235,43 +238,45 @@ def get_model(model: str) -> tuple[str, list[str]]:
     >>> model_file, output_names = crested.get_model("DeepFlyBrain")
     """
     # Mapping: "user_facing_name": ("model_folder_in_registry.tar.gz")
+    # THESE MODEL NAMES (KEYS) MUST BE ALL-LOWERCASE TO BE RECOGNISED!
     model_mapping = {
-        "DeepBICCN": ("models/biccn.tar.gz"),
-        "DeepBICCN2": ("models/deepbiccn2.tar.gz"),
-        "DeepCCL": ("models/deepccl.tar.gz"),
-        "DeepChickenBrain1": ("models/deepchickenbrain1.tar.gz"),
-        "DeepChickenBrain2": ("models/deepchickenbrain2.tar.gz"),
-        "DeepFlyBrain": ("models/deepflybrain.tar.gz"),
-        "DeepGlioma": ("models/deepglioma.tar.gz"),
-        "DeepHumanBrain": ("models/deephumanbrain.tar.gz"),
-        "DeepHumanCortex1": ("models/deephumancortex1.tar.gz"),
-        "DeepHumanCortex2": ("models/deephumancortex2.tar.gz"),
-        "DeepLiver_accessibility": ("models/deepliver_accessibility.tar.gz"),
-        "DeepLiver_activity": ("models/deepliver_activity.tar.gz"),
-        "DeepLiver_zonation": ("models/deepliver_zonation.tar.gz"),
-        "DeepPBMC": ("models/deeppbmc.tar.gz"),
-        "DeepMEL1": ("models/deepmel1.tar.gz"),
-        "DeepMEL2": ("models/deepmel2.tar.gz"),
-        "DeepMEL2_gabpa": ("models/deepmel2_gabpa.tar.gz"),
-        "DeepMouseBrain1": ("models/deepmousebrain1.tar.gz"),
-        "DeepMouseBrain2": ("models/deepmousebrain2.tar.gz"),
-        "DeepMouseBrain3": ("models/deepmousebrain3.tar.gz"),
-        "DeepZebraFish": ("models/deepzebrafish.tar.gz"),
-        "Enformer_human": ("models/enformer_human.tar.gz"),
-        "Enformer_mouse": ("models/enformer_mouse.tar.gz"),
-        "BorzoiBICCN": ("models/borzoi_biccn.tar.gz"),
-        "Borzoi_human_rep0": ("models/borzoi_human_rep0.tar.gz"),
-        "Borzoi_human_rep1": ("models/borzoi_human_rep1.tar.gz"),
-        "Borzoi_human_rep2": ("models/borzoi_human_rep2.tar.gz"),
-        "Borzoi_human_rep3": ("models/borzoi_human_rep3.tar.gz"),
-        "Borzoi_mouse_rep0": ("models/borzoi_mouse_rep0.tar.gz"),
-        "Borzoi_mouse_rep1": ("models/borzoi_mouse_rep1.tar.gz"),
-        "Borzoi_mouse_rep2": ("models/borzoi_mouse_rep2.tar.gz"),
-        "Borzoi_mouse_rep3": ("models/borzoi_mouse_rep3.tar.gz"),
-        "Embryo10x": ("models/embryo_10x.tar.gz"),
-        "EmbryoHydrop": ("models/embryo_hydrop.tar.gz"),
-        "MouseCortexHydrop": ("models/mousecortex_hydrop.tar.gz"),
+        "deepbiccn": ("models/biccn.tar.gz"),
+        "deepbiccn2": ("models/deepbiccn2.tar.gz"),
+        "deepccl": ("models/deepccl.tar.gz"),
+        "deepchickenbrain1": ("models/deepchickenbrain1.tar.gz"),
+        "deepchickenbrain2": ("models/deepchickenbrain2.tar.gz"),
+        "deepflybrain": ("models/deepflybrain.tar.gz"),
+        "deepglioma": ("models/deepglioma.tar.gz"),
+        "deephumanbrain": ("models/deephumanbrain.tar.gz"),
+        "deephumancortex1": ("models/deephumancortex1.tar.gz"),
+        "deephumancortex2": ("models/deephumancortex2.tar.gz"),
+        "deepliver_accessibility": ("models/deepliver_accessibility.tar.gz"),
+        "deepliver_activity": ("models/deepliver_activity.tar.gz"),
+        "deepliver_zonation": ("models/deepliver_zonation.tar.gz"),
+        "deeppbmc": ("models/deeppbmc.tar.gz"),
+        "deepmel1": ("models/deepmel1.tar.gz"),
+        "deepmel2": ("models/deepmel2.tar.gz"),
+        "deepmel2_gabpa": ("models/deepmel2_gabpa.tar.gz"),
+        "deepmousebrain1": ("models/deepmousebrain1.tar.gz"),
+        "deepmousebrain2": ("models/deepmousebrain2.tar.gz"),
+        "deepmousebrain3": ("models/deepmousebrain3.tar.gz"),
+        "deepzebrafish": ("models/deepzebrafish.tar.gz"),
+        "enformer_human": ("models/enformer_human.tar.gz"),
+        "enformer_mouse": ("models/enformer_mouse.tar.gz"),
+        "borzoibiccn": ("models/borzoi_biccn.tar.gz"),
+        "borzoi_human_rep0": ("models/borzoi_human_rep0.tar.gz"),
+        "borzoi_human_rep1": ("models/borzoi_human_rep1.tar.gz"),
+        "borzoi_human_rep2": ("models/borzoi_human_rep2.tar.gz"),
+        "borzoi_human_rep3": ("models/borzoi_human_rep3.tar.gz"),
+        "borzoi_mouse_rep0": ("models/borzoi_mouse_rep0.tar.gz"),
+        "borzoi_mouse_rep1": ("models/borzoi_mouse_rep1.tar.gz"),
+        "borzoi_mouse_rep2": ("models/borzoi_mouse_rep2.tar.gz"),
+        "borzoi_mouse_rep3": ("models/borzoi_mouse_rep3.tar.gz"),
+        "embryo10x": ("models/embryo_10x.tar.gz"),
+        "embryohydrop": ("models/embryo_hydrop.tar.gz"),
+        "mousecortexhydrop": ("models/mousecortex_hydrop.tar.gz"),
     }
+    model = model.lower()
     assert (
         model in model_mapping
     ), f"Model {model} is not recognised. Available models: {tuple(model_mapping.keys())}"
