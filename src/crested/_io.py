@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 import tempfile
+from collections.abc import Mapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from os import PathLike
 from pathlib import Path
@@ -96,6 +97,10 @@ def _extract_values_from_bigwig(
     total_bed_entries = idx + 1
     bed_entries_to_keep_idx = np.array(bed_entries_to_keep_idx, np.intp)
 
+    # Warn if we filtered out a significant amount of regions
+    if (len(bed_entries_to_keep_idx)/total_bed_entries) < 0.25:
+        logger.warning(f"{(1-len(bed_entries_to_keep_idx)/total_bed_entries)*100:.2f}% of BED regions' chromosomes did not match chromosomes in BigWig file {bw_file} and were filtered out.")
+
     if target == "mean":
         with pybigtools.open(bw_file, "r") as bw:
             values = np.fromiter(
@@ -129,6 +134,13 @@ def _extract_values_from_bigwig(
 
     # Remove temporary BED file.
     temp_bed_file.close()
+
+    # Check for negative values
+    if any(values < 0):
+        logger.warning(f"Peak heights from bigwig {bw_file} contain negative values, which most models in CREsted don't support. Proceed with caution.")
+
+    if np.isnan(values).all():
+        raise ValueError(f"All read-in values are NaNs. Your region chromosomes most likely don't match your bigwig dataset for bigWig {bw_file}.")
 
     if values.shape[0] != total_bed_entries:
         # Set all values for BED entries for which the chromosome was not in in the bigWig file to NaN.
@@ -193,31 +205,45 @@ def _extract_tracks_from_bigwig(
     binned_length = region_length // bin_size if bin_size else region_length
     bins = region_length // bin_size if bin_size else None
 
+    # Get region total chromosome set
+    coordinate_chroms = {region[0] for region in coordinates}
+
     # Open the bigWig file
     with pybigtools.open(bw_file, "r") as bw:
-        results = []
-        for region in coordinates:
-            arr = np.empty(
-                binned_length, dtype="float64"
-            )  # pybigtools returns values in float64
+        # Check chromosome match
+        bw_chroms = set(bw.chroms().keys())
+        if all(coord_chrom not in bw_chroms for coord_chrom in coordinate_chroms):
+            raise ValueError(
+                f"None of the data chromosomes match BigWig {bw_file}'s chromosomes.",
+                f"Data chromosomes: {coordinate_chroms}",
+                f"BigWig chromosomes: {bw_chroms}"
+            )
+        # Read out values
+        results = np.empty(
+            (len(coordinates), binned_length), dtype="float64"
+        )  # pybigtools returns values in float64
+        for i, region in enumerate(coordinates):
             chrom, start, end = region
-
             # Extract values
-            results.append(
-                bw.values(
-                    chrom,
-                    start,
-                    end,
-                    bins=bins,
-                    summary=target,
-                    exact=exact,
-                    missing=missing,
-                    oob=oob,
-                    arr=arr,
-                )
+            bw.values(
+                chrom,
+                start,
+                end,
+                bins=bins,
+                summary=target,
+                exact=exact,
+                missing=missing,
+                oob=oob,
+                arr=results[i, ...],
             )
 
-    return np.vstack(results)
+    if (results < 0).any():
+        logger.warning(f"Tracks from bigWig {bw_file} contain negative values, which most models in CREsted don't support. Proceed with caution.")
+
+    if np.isnan(results).all():
+        raise ValueError(f"All read-in values are NaNs. Your region chromosomes most likely don't match your bigwig dataset for bigWig {bw_file}.")
+
+    return results
 
 
 def _read_consensus_regions(
@@ -266,6 +292,8 @@ def _read_consensus_regions(
         logger.warning(
             f"Filtered {len(consensus_peaks) - len(consensus_peaks_filtered)} consensus regions (not within chromosomes)",
         )
+    if len(consensus_peaks_filtered) == 0:
+        raise ValueError(f"None of the consensus regions in {regions_file} fell within known chromosomes. Your registered genome likely doesn't match your consensus region's chromosome names (e.g. chrI vs I).")
     return consensus_peaks_filtered
 
 
@@ -308,9 +336,9 @@ def _check_bed_file_format(bed_file: str | PathLike) -> None:
 
 
 def import_beds(
-    beds_folder: PathLike,
-    regions_file: PathLike | None = None,
-    chromsizes_file: PathLike | None = None,
+    beds_folder: list[str] | dict[str, str] | str | PathLike,
+    regions_file: str | PathLike | None = None,
+    chromsizes_file: str | PathLike | None = None,
     classes_subset: list | None = None,
     remove_empty_regions: bool = True,
     compress: bool = False,
@@ -332,13 +360,13 @@ def import_beds(
     Parameters
     ----------
     beds_folder
-        Folder path containing the BED files.
+        List of bed file paths, dict of bed paths with class name keys, or folder path containing the bed files.
+        If a path to a folder, assumed all bed files have the .bed extension.
     regions_file
         File path of the consensus regions BED file to use as columns in the AnnData object.
         If None, the regions will be extracted from the files.
     classes_subset
-        List of classes to include in the AnnData object. If None, all files
-        will be included.
+        List of classes to include in the AnnData object when providing a folder to read. If None, all files will be included.
         Classes should be named after the file name without the extension.
     chromsizes_file
         File path of the chromsizes file.  Used for checking if the new regions are within the chromosome boundaries.
@@ -365,18 +393,41 @@ def import_beds(
     ...     classes_subset=["Topic_1", "Topic_2"],
     ... )
     """
-    beds_folder = Path(beds_folder)
     regions_file = Path(regions_file) if regions_file else None
 
     # Input checks
-    if not beds_folder.is_dir():
-        raise FileNotFoundError(f"Directory '{beds_folder}' not found")
     if (regions_file is not None) and (not regions_file.is_file()):
         raise FileNotFoundError(f"File '{regions_file}' not found")
-    if classes_subset is not None:
-        for classname in classes_subset:
-            if not any(beds_folder.glob(f"{classname}.bed")):
-                raise FileNotFoundError(f"'{classname}' not found in '{beds_folder}'")
+
+    # Get list of files with their associated names
+    if isinstance(beds_folder, str) or isinstance(beds_folder, PathLike):
+        beds_folder = Path(beds_folder)
+        if not beds_folder.is_dir():
+            raise FileNotFoundError(f"Directory '{beds_folder}' not found or not a directory.")
+        bed_files = {}
+        # Find the files that look like beds
+        bed_files = {bed_file.stem: bed_file for bed_file in sorted(beds_folder.glob("*.bed"), key=_sort_files)}
+        if len(bed_files) == 0:
+            raise FileNotFoundError(f"No bed files found in '{beds_folder}'")
+        if classes_subset is not None:
+            bed_files = {class_name: bed_path for class_name, bed_path in bed_files.items() if class_name in classes_subset}
+            if len(bed_files) == 0:
+                raise FileNotFoundError(f"No bed files matching classes_subset classes ({classes_subset}) found in beds_folder ({beds_folder}).")
+    elif isinstance(beds_folder, Sequence):
+        if classes_subset is not None:
+            raise ValueError("Argument classes_subset only works if beds_folder is a folder. To subset classes, simply remove them from your list of files.")
+        bed_files = {os.path.basename(file_path).rpartition(".")[0].replace(".", "_"): file_path for file_path in beds_folder}
+    elif isinstance(beds_folder, Mapping):
+        if classes_subset is not None:
+            raise ValueError("Argument classes_subset only works if beds_folder is a folder. To subset classes, simply remove them from your dict of files.")
+        bed_files = dict(beds_folder)
+    else:
+        raise ValueError("Could not recognise argument beds_folder as a path, a list of paths, or a dict of paths.")
+
+    # Check if all files exist
+    for file_path in bed_files.values():
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Could not find file {file_path}.")
 
     if regions_file:
         # Read consensus regions BED file and filter out regions not within chromosomes
@@ -384,67 +435,60 @@ def import_beds(
         consensus_peaks = _read_consensus_regions(regions_file, chromsizes_file)
 
         binary_matrix = pd.DataFrame(0, index=[], columns=consensus_peaks["region"])
-        file_paths = []
 
         # Which regions are present in the consensus regions
         logger.info(
             f"Reading bed files from {beds_folder} and using {regions_file} as var_names..."
         )
-        for file in sorted(beds_folder.glob("*.bed"), key=_sort_files):
-            class_name = file.stem
-            if classes_subset is None or class_name in classes_subset:
-                class_regions = pd.read_csv(
-                    file, sep="\t", header=None, usecols=[0, 1, 2]
-                )
-                class_regions["region"] = (
-                    class_regions[0].astype(str)
-                    + ":"
-                    + class_regions[1].astype(str)
-                    + "-"
-                    + class_regions[2].astype(str)
-                )
+        for class_name, bed_file in bed_files.items():
+            class_regions = pd.read_csv(
+                bed_file, sep="\t", header=None, usecols=[0, 1, 2]
+            )
+            class_regions["region"] = (
+                class_regions[0].astype(str)
+                + ":"
+                + class_regions[1].astype(str)
+                + "-"
+                + class_regions[2].astype(str)
+            )
 
-                # Create binary row for the current topic
-                binary_row = binary_matrix.columns.isin(class_regions["region"]).astype(
-                    int
-                )
-                binary_matrix.loc[class_name] = binary_row
-                file_paths.append(str(file))
+            # Create binary row for the current topic
+            binary_row = binary_matrix.columns.isin(class_regions["region"]).astype(
+                int
+            )
+            binary_matrix.loc[class_name] = binary_row
 
     # else, get regions from the bed files
     else:
-        file_paths = []
         all_regions = set()
 
         # Collect all regions from the BED files
         logger.info(
             f"Reading bed files from {beds_folder} without consensus regions..."
         )
-        for file in sorted(beds_folder.glob("*.bed"), key=_sort_files):
-            class_name = file.stem
-            if classes_subset is None or class_name in classes_subset:
-                _check_bed_file_format(file)
-                class_regions = pd.read_csv(
-                    file, sep="\t", header=None, usecols=[0, 1, 2]
-                )
-                class_regions["region"] = (
-                    class_regions[0].astype(str)
-                    + ":"
-                    + class_regions[1].astype(str)
-                    + "-"
-                    + class_regions[2].astype(str)
-                )
-                all_regions.update(class_regions["region"].tolist())
-                file_paths.append(str(file))
+        # Construct total set of region names
+        for _, bed_file in bed_files.values():
+            _check_bed_file_format(bed_file)
+            class_regions = pd.read_csv(
+                bed_file, sep="\t", header=None, usecols=[0, 1, 2]
+            )
+            class_regions["region"] = (
+                class_regions[0].astype(str)
+                + ":"
+                + class_regions[1].astype(str)
+                + "-"
+                + class_regions[2].astype(str)
+            )
+            all_regions.update(class_regions["region"].tolist())
 
+        # Save presence for each file
         # Convert set to sorted list
         all_regions = sorted(all_regions, key=_custom_region_sort)
         binary_matrix = pd.DataFrame(0, index=[], columns=all_regions)
 
         # Populate the binary matrix
-        for file in file_paths:
-            class_name = Path(file).stem
-            class_regions = pd.read_csv(file, sep="\t", header=None, usecols=[0, 1, 2])
+        for class_name, bed_file in bed_files.values():
+            class_regions = pd.read_csv(bed_file, sep="\t", header=None, usecols=[0, 1, 2])
             class_regions["region"] = (
                 class_regions[0].astype(str)
                 + ":"
@@ -455,45 +499,45 @@ def import_beds(
             binary_row = binary_matrix.columns.isin(class_regions["region"]).astype(int)
             binary_matrix.loc[class_name] = binary_row
 
-    ann_data = AnnData(
+    adata = AnnData(
         binary_matrix,
     )
 
-    ann_data.obs["file_path"] = file_paths
-    ann_data.obs["n_open_regions"] = ann_data.X.sum(axis=1)
-    ann_data.var["n_classes"] = ann_data.X.sum(axis=0)
-    ann_data.var["chr"] = ann_data.var.index.str.split(":").str[0]
-    ann_data.var["start"] = (
-        ann_data.var.index.str.split(":").str[1].str.split("-").str[0]
+    adata.obs["file_path"] = list(bed_files.values())
+    adata.obs["n_open_regions"] = adata.X.sum(axis=1)
+    adata.var["n_classes"] = adata.X.sum(axis=0)
+    adata.var["chr"] = adata.var.index.str.split(":").str[0]
+    adata.var["start"] = (
+        adata.var.index.str.split(":").str[1].str.split("-").str[0]
     ).astype(int)
-    ann_data.var["end"] = (
-        ann_data.var.index.str.split(":").str[1].str.split("-").str[1]
+    adata.var["end"] = (
+        adata.var.index.str.split(":").str[1].str.split("-").str[1]
     ).astype(int)
 
     if compress:
-        ann_data.X = csr_matrix(ann_data.X)
+        adata.X = csr_matrix(adata.X)
 
     # Output checks
-    classes_no_open_regions = ann_data.obs[ann_data.obs["n_open_regions"] == 0]
+    classes_no_open_regions = adata.obs[adata.obs["n_open_regions"] == 0]
     if not classes_no_open_regions.empty:
         raise ValueError(
             f"{classes_no_open_regions.index} have 0 open regions in the consensus peaks"
         )
-    regions_no_classes = ann_data.var[ann_data.var["n_classes"] == 0]
+    regions_no_classes = adata.var[adata.var["n_classes"] == 0]
     if not regions_no_classes.empty:
         if remove_empty_regions:
             logger.warning(
                 f"{len(regions_no_classes.index)} consensus regions are not open in any class. Removing them from the AnnData object. Disable this behavior by setting 'remove_empty_regions=False'",
             )
-            ann_data = ann_data[:, ann_data.var["n_classes"] > 0]
+            adata = adata[:, adata.var["n_classes"] > 0].copy()
 
-    return ann_data
+    return adata
 
 
 def import_bigwigs(
-    bigwigs_folder: PathLike,
-    regions_file: PathLike,
-    chromsizes_file: PathLike | None = None,
+    bigwigs_folder: list[str] | dict[str, str] | str | PathLike,
+    regions_file: str | PathLike,
+    chromsizes_file: str | PathLike | None = None,
     target: str = "mean",
     target_region_width: int | None = None,
     compress: bool = False,
@@ -511,7 +555,7 @@ def import_bigwigs(
     Parameters
     ----------
     bigwigs_folder
-        Folder name containing the bigWig files.
+        List of bigWig file paths, dict of bigWig paths with class name keys, or folder path containing the bigWig files.
     regions_file
         File name of the consensus regions BED file.
     chromsizes_file
@@ -540,12 +584,45 @@ def import_bigwigs(
     ...     target_region_width=500,
     ... )
     """
-    bigwigs_folder = Path(bigwigs_folder)
-    regions_file = Path(regions_file)
+    # Gather bigwig paths
+    if isinstance(bigwigs_folder, str) or isinstance(bigwigs_folder, PathLike):
+        bigwigs_folder = Path(bigwigs_folder)
+        if not bigwigs_folder.is_dir():
+            raise FileNotFoundError(f"Directory '{bigwigs_folder}' not found or not a directory.")
+        bw_files = {}
+        # Find the files that look like bigwigs
+        for file in os.listdir(bigwigs_folder):
+            file_path = os.path.join(bigwigs_folder, file)
+            try:
+                # Validate using pyBigTools (add specific validation if available)
+                bw = pybigtools.open(file_path, "r")
+                bw_name = os.path.basename(file_path).rpartition(".")[0].replace(".", "_")
+                bw_files[bw_name] = file_path
+                bw.close()
+            except ValueError:
+                pass
+            except pybigtools.BBIReadError:
+                pass
+        if len(bw_files) == 0:
+            raise FileNotFoundError(f"No valid bigWig files found in '{bigwigs_folder}'")
+    elif isinstance(bigwigs_folder, Sequence):
+        bw_files = {os.path.basename(file_path).rpartition(".")[0].replace(".", "_"): file_path for file_path in bigwigs_folder}
+    elif isinstance(bigwigs_folder, Mapping):
+        bw_files = dict(bigwigs_folder)
+    else:
+        raise ValueError("Could not recognise argument bigwigs_folder as a path, a list of paths, or a dict of paths.")
 
-    # Input checks
-    if not bigwigs_folder.is_dir():
-        raise FileNotFoundError(f"Directory '{bigwigs_folder}' not found")
+    for file_path in bw_files.values():
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Could not find file {file_path}.")
+        with pybigtools.open(file_path, "r") as bw:
+            if not bw.is_bigwig:
+                raise pybigtools.BBIReadError(f"File {file_path} does not seem to be a bigwig file.")
+
+    bw_files = {bw_name: bw_files[bw_name] for bw_name in sorted(bw_files)}
+
+    # Process regions file
+    regions_file = Path(regions_file)
     if not regions_file.is_file():
         raise FileNotFoundError(f"File '{regions_file}' not found")
 
@@ -554,23 +631,6 @@ def import_bigwigs(
     consensus_peaks = _read_consensus_regions(regions_file, chromsizes_file)
 
     bed_file = _create_temp_bed_file(consensus_peaks, target_region_width)
-
-    bw_files = []
-    for file in os.listdir(bigwigs_folder):
-        file_path = os.path.join(bigwigs_folder, file)
-        try:
-            # Validate using pyBigTools (add specific validation if available)
-            bw = pybigtools.open(file_path, "r")
-            bw_files.append(file_path)
-            bw.close()
-        except ValueError:
-            pass
-        except pybigtools.BBIReadError:
-            pass
-
-    bw_files = sorted(bw_files)
-    if not bw_files:
-        raise FileNotFoundError(f"No valid bigWig files found in '{bigwigs_folder}'")
 
     # Process bigWig files in parallel and collect the results
     logger.info(f"Extracting values from {len(bw_files)} bigWig files...")
@@ -583,7 +643,7 @@ def import_bigwigs(
                 bed_file,
                 target,
             )
-            for bw_file in bw_files
+            for bw_file in bw_files.values()
         ]
         for future in futures:
             all_results.append(future.result())
@@ -594,11 +654,8 @@ def import_bigwigs(
 
     # Prepare obs and var for AnnData
     obs_df = pd.DataFrame(
-        data={"file_path": bw_files},
-        index=[
-            os.path.basename(file).rpartition(".")[0].replace(".", "_")
-            for file in bw_files
-        ],
+        index=list(bw_files.keys()),
+        data={"file_path": list(bw_files.values())},
     )
     var_df = pd.DataFrame(
         {
@@ -612,6 +669,13 @@ def import_bigwigs(
             ).astype(int),
         }
     ).set_index("region")
+
+    if target_region_width:
+        var_df['target_start'] = var_df.apply(
+            lambda row: max(0, row['start'] - (target_region_width - (row['end'] - row['start'])) // 2),
+            axis=1,
+        )
+        var_df['target_end'] = var_df['target_start'] + target_region_width
 
     # Create AnnData object
     adata = ad.AnnData(data_matrix, obs=obs_df, var=var_df)
