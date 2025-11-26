@@ -10,7 +10,7 @@ MouseCortexHydrop
    - **Input shape**: (2114, 4)
    - **Output shape**: (17,)
 
-The **MouseCortexHydrop** model is a peak regression model fine-tuned to cell type-specific regions for cell types in the mouse cortex. It was trained in the same way and on the same cell types as the **DeepBICCN** model to show similarities between the Hydrop and 10x technologies.
+The **MouseCortexHydrop** model is a peak regression model fine-tuned to cell type-specific regions for cell types in the mouse cortex. It was trained in the same way and on the same cell types as the **DeepBICCN** model to show similarities between the HyDrop and 10x technologies.
 
 After pretraining on all consensus peaks, the model was fine-tuned to specific peaks. Specific peaks were determined through the ratio of highest and second highest peak, and the ratio of the second and third highest peak. These sets of regions were then used as input to the model, where 2114bp one-hot encoded DNA sequences were used to per cell type predict the Tn5 cut-site counts over the center 1000 bp of the peak.
 
@@ -22,7 +22,7 @@ Details of the data and the model can be found in the original publication.
 
 .. admonition:: Citation
 
-   Dickmanken, H., Wojno, M., Theunis, K., Eksi, E. C., Mahieu, L., Christiaens, V., Kempynck, N., De Rop, F., Roels, N., Spanier, K. I., Vandepoel, R., Hulselmans, G., Poovathingal, S., Aerts, S. HyDrop v2: Scalable atlas construction for training sequence-to-function models. bioRxiv doi: 10.1101/2025.04.02.646792
+   Dickmanken, H., Wojno, M., Theunis, K., Eksi, E. C., Mahieu, L., Christiaens, V., Kempynck, N., De Rop, F., Roels, N., Spanier, K. I., Vandepoel, R., Hulselmans, G., Poovathingal, S., Aerts, S. HyDrop v2: Scalable atlas construction for training sequence-to-function models. bioRxiv (2025). https://doi.org/10.1101/2025.04.02.646792
 
 Usage
 -------------------

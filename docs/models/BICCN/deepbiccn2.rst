@@ -14,7 +14,7 @@ The **DeepBICCN2** model is a peak regression model fine-tuned to cell type-spec
 
 After pretraining on all consensus peaks, the model was fine-tuned to specific peaks. Specific peaks were determined through the ratio of highest and second highest peak, and the ratio of the second and third highest peak. These sets of regions were then used as input to the model, where 2114bp one-hot encoded DNA sequences were used to per cell type predict the Tn5 cut-site counts over the center 1000 bp of the peak.
 
-The model is a CNN multiclass regression model using the :func:`~crested.tl.zoo.dilated_cnn` architecture.
+The model is a CNN multiclass regression model using the :func:`~crested.tl.zoo.dilated_cnn` architecture. The training data can be downloaded with `crested.get_dataset('mouse_cortex_bigwig_cut_sites')`.
 
 Details of the data and the model can be found in the original publication.
 
@@ -22,7 +22,11 @@ Details of the data and the model can be found in the original publication.
 
 .. admonition:: Citation
 
-   Kempynck, N., De Winter, S., et al. CREsted: modeling genomic and synthetic cell type-specific enhancers across tissues and species. Zenodo. https://doi.org/10.5281/zenodo.13918932
+   Kempynck, N., De Winter, S., et al. CREsted: modeling genomic and synthetic cell type-specific enhancers across tissues and species. bioRxiv (2025). https://doi.org/10.1101/2025.04.02.646812
+
+.. admonition:: Data source
+
+   Zemke, N.R., Armand, E.J., et al. Conserved and divergent gene regulatory programs of the mammalian neocortex. Nature (2023). https://doi.org/10.1038/s41586-023-06819-6
 
 Usage
 -------------------

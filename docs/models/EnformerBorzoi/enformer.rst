@@ -23,9 +23,17 @@ Details of the data and the model can be found in the original publication.
 
 -------------------
 
+.. warning::
+
+    The Enformer architecture uses custom layers that are serialized inside the CREsted package. To ensure that the model is loaded correctly, make sure that CREsted is imported before loading the model.
+
 .. admonition:: Citation
 
     Avsec, Ž., Agarwal, V., Visentin, D. et al. Effective gene expression prediction from sequence by integrating long-range interactions. Nat Methods 18, 1196–1203 (2021). https://doi.org/10.1038/s41592-021-01252-x
+
+.. admonition:: License
+
+    The original model is licensed under the `Apache License, version 2.0 <https://github.com/google-deepmind/deepmind-research/blob/master/LICENSE>`_.
 
 Usage
 -------------------

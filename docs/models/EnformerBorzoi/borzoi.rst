@@ -23,9 +23,17 @@ Details of the data and the model can be found in the original publication.
 
 -------------------
 
+.. warning::
+
+    The Borzoi architecture uses custom layers that are serialized inside the CREsted package. To ensure that the model is loaded correctly, make sure that CREsted is imported before loading the model.
+
 .. admonition:: Citation
 
     Linder, J., Srivastava, D., Yuan, H. et al. Predicting RNA-seq coverage from DNA sequence as a unifying model of gene regulation. Nat Genet (2025). https://doi.org/10.1038/s41588-024-02053-6
+
+.. admonition:: License
+
+    The original model is licensed under the `Apache License, version 2.0 <https://github.com/calico/borzoi/blob/main/LICENSE>`_.
 
 Usage
 -------------------
