@@ -31,6 +31,10 @@ Details of the data and the model can be found in the original publication. The 
 
    Zemke, N.R., Armand, E.J., et al. Conserved and divergent gene regulatory programs of the mammalian neocortex. Nature (2023). https://doi.org/10.1038/s41586-023-06819-6
 
+.. admonition:: License
+
+    The original Borzoi model is licensed under the `Apache License, version 2.0 <https://github.com/calico/borzoi/blob/main/LICENSE>`_.
+
 Usage
 -------------------
 

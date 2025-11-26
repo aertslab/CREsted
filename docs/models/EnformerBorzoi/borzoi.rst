@@ -31,6 +31,10 @@ Details of the data and the model can be found in the original publication.
 
     Linder, J., Srivastava, D., Yuan, H. et al. Predicting RNA-seq coverage from DNA sequence as a unifying model of gene regulation. Nat Genet (2025). https://doi.org/10.1038/s41588-024-02053-6
 
+.. admonition:: License
+
+    The original model is licensed under the `Apache License, version 2.0 <https://github.com/calico/borzoi/blob/main/LICENSE>`_.
+
 Usage
 -------------------
 
