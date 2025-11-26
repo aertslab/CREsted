@@ -95,7 +95,7 @@ def correlations_self(
 
 def correlations_predictions(
     adata: AnnData,
-    model_names: list[str] | None = None,
+    model_names: str | list[str] | None = None,
     split: str | None = "test",
     log_transform: bool = False,
     vmin: float | None = None,
@@ -111,7 +111,7 @@ def correlations_predictions(
     adata
         AnnData object containing the data in `X` and predictions in `layers`.
     model_names
-        List of model names (adata.layers) to plot for predictions heatmap. Default is to plot all models in `adata.layers`.
+        Model name or list of model names (adata.layers) to plot for predictions heatmap. Default is to plot all models in `adata.layers`.
     split
         'train', 'val', 'test' subset or None. If None, will use all targets. If not None, expects a "split" column in adata.var.
     log_transform
@@ -164,12 +164,14 @@ def correlations_predictions(
             if split not in ["train", "val", "test", None]:
                 raise ValueError("Split must be 'train', 'val', 'test', or None.")
 
-    _check_input_params()
-
     classes = list(adata.obs_names)
 
-    if model_names is None:
+    if isinstance(model_names, str):
+        model_names = [model_names]
+    elif model_names is None:
         model_names = list(adata.layers.keys())
+
+    _check_input_params()
 
     logger.info(
         f"Plotting heatmap correlations for split: {split}, models: {model_names}"
