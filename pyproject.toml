@@ -35,10 +35,13 @@ dependencies = [
     "pooch",
     "scanpy",
     "biothings_client<0.4.0",
-    "memelite",
 ]
 
 [project.optional-dependencies]
+motif = [
+    "modisco-lite>=2.2.1",
+    "memelite; python_version < '3.13'",
+]
 dev = [
     "pre-commit",
     "twine>=4.0.2",

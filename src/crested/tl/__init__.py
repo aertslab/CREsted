@@ -32,7 +32,8 @@ if MODISCOLITE_AVAILABLE:
         raise
 else:
     logger.warning(
-        "modiscolite is not installed, 'crested.tl.modisco' module will not be available."
+        "modiscolite is not installed, 'crested.tl.modisco' module will not be available. "
+        "Install with: pip install crested[motif]"
     )
 
 
