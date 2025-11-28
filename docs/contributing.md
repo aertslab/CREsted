@@ -10,12 +10,47 @@ to the [scanpy developer guide][].
 ## Installing dev dependencies
 
 In addition to the packages needed to _use_ this package, you need additional python packages to _run tests_ and _build
-the documentation_. It's easy to install them using `pip`:
+the documentation_.
+
+We strongly recommend using [Hatch][] as a project manager, which will manage separate virtual environments for development, testing, and documentation to avoid dependency conflicts.
+
+### With Hatch (Recommended)
+
+```bash
+hatch test
+hatch run docs:build
+```
+
+If you need to use a specific environment with your IDE, you can find out which environment hatch uses with
+
+```bash
+hatch env show -i
+```
+
+and then create and locate it with
+
+```bash
+hatch env create hatch-test.py3.14-stable  # or the name of the environment you want to use
+hatch env find hatch-test.py3.14-stable
+```
+
+### With uv
+
+Alternatively, you can use [uv][] to set up a single environment:
+
+```bash
+uv sync --all-extras
+```
+
+### With pip
 
 ```bash
 cd CREsted
 pip install -e ".[dev,test,doc]"
 ```
+
+[hatch]: https://hatch.pypa.io/
+[uv]: https://docs.astral.sh/uv/
 
 ## Code-style
 
@@ -43,16 +78,12 @@ to integrate the changes into yours.
 While the [pre-commit.ci][] is useful, we strongly encourage installing and running pre-commit locally first to understand its usage.
 
 Finally, most editors have an _autoformat on save_ feature. Consider enabling this option for [ruff][ruff-editors]
-and [prettier][prettier-editors].
+and [biome][biome-editors].
 
 [ruff-editors]: https://docs.astral.sh/ruff/integrations/
-[prettier-editors]: https://prettier.io/docs/en/editors.html
+[biome-editors]: https://biomejs.dev/guides/integrate-in-editor/
 
 ## Writing tests
-
-```{note}
-Remember to first install the package with `pip install '-e[dev,test]'`
-```
 
 This package uses the [pytest][] for automated testing. Please [write tests][scanpy-test-docs] for every function added
 to the package.
@@ -60,11 +91,35 @@ to the package.
 Most IDEs integrate with pytest and provide a GUI to run tests. Alternatively, you can run all tests from the
 command line by executing
 
+### With Hatch (Recommended)
+
+CREsted supports both TensorFlow and PyTorch backends. The test environment matrix tests across Python versions (3.11, 3.12, 3.13) and backends (tensorflow, pytorch):
+
 ```bash
-pytest
+hatch test                                      # Quick test (auto-selects compatible environment)
+hatch test --all                                # Run tests on all Python versions and backends
+hatch test -i backend=tensorflow                # Test only with TensorFlow backend
+hatch test -i backend=pytorch                   # Test only with PyTorch backend
+hatch run hatch-test.py3.11-tensorflow:run      # Specific Python + backend combination
 ```
 
-in the root of the repository.
+### With uv
+
+First install a backend, then run tests:
+
+```bash
+uv pip install --system tensorflow  # or torch
+uv run pytest
+```
+
+### With pip
+
+First install a backend, then run tests:
+
+```bash
+pip install tensorflow  # or torch
+pytest
+```
 
 ### Continuous integration
 
@@ -126,6 +181,15 @@ repository.
     the `nitpick_ignore` list in `docs/conf.py`
 
 #### Building the docs locally
+
+### With Hatch
+
+```bash
+hatch run docs:build
+open docs/_build/html/index.html
+```
+
+### With uv or pip
 
 ```bash
 cd docs

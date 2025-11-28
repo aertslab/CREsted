@@ -58,12 +58,6 @@ uv pip install crested
 uv pip install "crested[motif]"
 ```
 
-Or if you already installed crested:
-
-```bash
-uv pip install "modisco-lite>=2.2.1" memelite
-```
-
 **Note:** TOMTOM motif matching (via memelite) is only available for Python 3.12 and earlier due to numpy compatibility constraints. Python 3.13 users can still use all other modisco features.
 
 Modiscolite may require a cmake installation on your system. If you don't have it, you can install it with:
