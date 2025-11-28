@@ -25,15 +25,29 @@ Please refer to the [documentation][link-docs]. In particular, the
 
 ## Installation
 
-You need to have Python 3.11 or newer installed on your system and a deep learning backend to be able to use CREsted. Installation takes around five minutes.
+You need to have Python 3.11 or newer installed on your system. Installation takes around five minutes.
 
-CREsted is build on top of keras 3 and can therefore be used with your deep learning backend of choice (Tensorflow or Pytorch).
+**Note:** CREsted's preprocessing, data import, plotting, and analysis functions (e.g., `crested.import_bigwigs()`, `crested.pp.*`) work without a deep learning backend. You only need to install TensorFlow or PyTorch if you plan to train models or use the `crested.tl` module for predictions and model-related tasks.
+
+CREsted is built on top of Keras 3 and can therefore be used with your deep learning backend of choice (TensorFlow or PyTorch).
 
 We recommend using [uv](https://docs.astral.sh/uv/) for package installation, which is significantly faster than pip and has better dependency resolution:
 
 ```bash
 pip install uv
 ```
+
+### Basic Installation (preprocessing and data import only)
+
+If you only need data preprocessing and import functionality:
+
+```bash
+uv pip install crested
+```
+
+### Full Installation (with deep learning backend)
+
+For training models and using the full feature set:
 
 1. Install either [Tensorflow](https://www.tensorflow.org/install) or [Pytorch](https://pytorch.org/get-started/locally/) for GPU.
    Refer to the installation instructions on those pages to ensure you have the correct version of CUDA and cuDNN installed.
