@@ -1,5 +1,41 @@
 # Release Notes
 
+## 1.6.0
+
+From now on, crested requires a python>=3.11 installation.
+
+### Features
+
+- It's now possible to import crested without having a tf or torch installation. This is useful if you only need the pp, io, datasets, or plotting functionality.
+  A missing backend error is only shown on `crested.tl` import.
+- crested now imports lazily, meaning that the required functions only get imported when accessing them (as well as the torch/tf backend).
+  This makes crested import much faster if you don't need its predicting or training functions.
+- Now matches the latest scverse cookiecutter template (e.g. using "hatch" for running unittests)
+- memelite dependency is moved out of default installation to an optional dependency (see README.md), as this is only used in tfmodisco with tomtom
+- Store target start/end if using target_region_widths (so that there's a record in the anndata where the output values are from)
+- Allow for a list/dict of files in import_bigwigs and import_beds rather than only a direct dir (to let you use files scattered across multiple directories, or a subset of bigwigs in a directory, or custom class names w/ a dict)
+- Add point downsampling and parallelization to scatter.class_density()
+
+### Bugfixes
+
+- now use public function keras.config.backend() rather than keras.src.backend.config.backend() everywhere
+- Always use region names in crested.tl.predict to unify with model training side
+- Make get_model() and get_dataset() case-insensitive
+- Check for mismatches between genome, bed file, and bigwig files when reading in peak heights or tracks from bigwigs.
+- Raise warning if negative values are detected when reading in tracks or peak heights
+- Allow for use of a single string for a single model name in all plotting functions that take model_name (this previously gave a hard-to-parse error, since it looped over the individual letters in the string)
+- Add serialisation decorators to custom attention classes
+
+### Documentation
+
+- Updated preprint citations to published papers
+- Updated CREsted citation from Zenodo to preprint
+- Added explicit data source block for models trained pretty directly on external datasets
+- Clarified tissue of BICCN models
+- Removed Chrombpnet citation in dilatedCNN documentation (by request of the authors)
+- Add tutorial for working with custom models and explain keras 3 flexibility in CREsted.
+- Fixed other small typos etc
+
 ## 1.5.0
 
 ### Features
