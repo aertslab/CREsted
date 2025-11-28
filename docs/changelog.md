@@ -15,6 +15,7 @@ From now on, crested requires a python>=3.11 installation.
 - Store target start/end if using target_region_widths (so that there's a record in the anndata where the output values are from)
 - Allow for a list/dict of files in import_bigwigs and import_beds rather than only a direct dir (to let you use files scattered across multiple directories, or a subset of bigwigs in a directory, or custom class names w/ a dict)
 - Add point downsampling and parallelization to scatter.class_density()
+- Change temp file creation while importing bigwigs (allows for importing bigwigs in parallel)
 
 ### Bugfixes
 
