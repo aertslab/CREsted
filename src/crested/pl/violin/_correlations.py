@@ -17,7 +17,7 @@ def correlations(
     model_names: str | list[str] | None = None,
     split: str | None = "test",
     log_transform: bool = False,
-    ylim: tuple(float, float) | None = (0., 1.),
+    ylim: tuple(float, float) | None = (0.0, 1.0),
     title: str = "Class-wise prediction vs ground truth correlations",
     **kwargs,
 ) -> plt.Figure:
@@ -51,10 +51,10 @@ def correlations(
     --------
     >>> crested.pl.violin.correlations(
     ...     adata,
-    ...     model_names=['Base DilatedCNN', 'Fine-tuned DilatedCNN'],
+    ...     model_names=["Base DilatedCNN", "Fine-tuned DilatedCNN"],
     ...     split="test",
     ...     log_transform=True,
-    ...     ylim=(0., 1.),
+    ...     ylim=(0.0, 1.0),
     ...     title="Class-wise prediction vs ground truth correlations",
     ... )
 
@@ -105,19 +105,40 @@ def correlations(
     # Calculate correlations
     correlations = {}
     for model_name, y in predicted_values.items():
-        correlations[model_name] = [pearsonr(x[class_idx, :], y[class_idx])[0] for class_idx in range(adata.n_obs)]
+        correlations[model_name] = [
+            pearsonr(x[class_idx, :], y[class_idx])[0]
+            for class_idx in range(adata.n_obs)
+        ]
 
     # Plot
     fig, ax = plt.subplots(sharey=False)
-    ax.grid(visible=True, which='major', axis='y', color = '.85')
-    sns.violinplot(correlations, inner = 'point', ax = ax, zorder = 2.05, orient = 'v', inner_kws={'s': 20, 'marker': '.', 'edgecolor': '0', 'color': '0.01', 'alpha': 1})
+    ax.grid(visible=True, which="major", axis="y", color=".85")
+    sns.violinplot(
+        correlations,
+        inner="point",
+        ax=ax,
+        zorder=2.05,
+        orient="v",
+        inner_kws={
+            "s": 20,
+            "marker": ".",
+            "edgecolor": "0",
+            "color": "0.01",
+            "alpha": 1,
+        },
+    )
     if ylim is not None:
         ax.set_ylim(ylim)
 
     # Set layout options
-    default_width = 6 + max(0, len(predicted_values)-5) # 1-5 models: 6 wide, 5+ models: add 1 extra width per model
+    default_width = 6 + max(
+        0, len(predicted_values) - 5
+    )  # 1-5 models: 6 wide, 5+ models: add 1 extra width per model
     default_height = 8
-    if any(len(model_name) > 8 for model_name in model_names) and "x_label_rotation" not in kwargs:
+    if (
+        any(len(model_name) > 8 for model_name in model_names)
+        and "x_label_rotation" not in kwargs
+    ):
         kwargs["x_label_rotation"] = 55
 
     if "width" not in kwargs:

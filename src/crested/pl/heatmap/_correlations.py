@@ -198,7 +198,7 @@ def correlations_predictions(
     if n_models == 1:
         axes = [axes]
 
-    for ax, (model_name, y) in zip(axes, predicted_values.items()):
+    for ax, (model_name, y) in zip(axes, predicted_values.items(), strict=False):
         # this is the same as
         # c = np.corrcoef(np.vstack([x, y]))
         # so c[0, 0] in the old funciton would correspond to

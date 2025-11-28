@@ -89,7 +89,9 @@ def region_predictions(
         sharey=share_y,
     )
 
-    for _, (ax, (model_name, y)) in enumerate(zip(axes[:-1], predicted_values.items())):
+    for _, (ax, (model_name, y)) in enumerate(
+        zip(axes[:-1], predicted_values.items(), strict=False)
+    ):
         ax.bar(list(adata.obs_names), y, alpha=0.8, label=model_name)
         ax.set_ylabel(model_name)
         ax.grid(True)

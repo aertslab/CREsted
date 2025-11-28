@@ -15,7 +15,7 @@ def track(
     range: tuple[chr, int, int] | tuple[int, int] | None = None,
     title: str | None = None,
     ylim: tuple(float, float) | None = None,
-    **kwargs
+    **kwargs,
 ) -> plt.Figure:
     """Plot a predicted locus track, like a Borzoi prediction or BigWig track.
 
@@ -47,14 +47,16 @@ def track(
     >>> crested.pl.locus.track(
     ...     preds[0, :, class_idx],
     ...     range=(chrom, start, end),
-    ...     title="Mouse Borzoi ATAC:MGL predictions around the FIRE enhancer"
+    ...     title="Mouse Borzoi ATAC:MGL predictions around the FIRE enhancer",
     ... )
 
     .. image:: ../../../../docs/_static/img/examples/locus_track.png
     """
     # Temp shape handling - goal is to make this variable depending on scores shape to track multiple classes/sequences
     if scores.ndim != 1:
-        raise ValueError("crested.pl.locus.track() currently only supports one-dimensional data.")
+        raise ValueError(
+            "crested.pl.locus.track() currently only supports one-dimensional data."
+        )
     n_subplots = 1
     n_bins = scores.shape[0]
 
@@ -67,7 +69,9 @@ def track(
         elif len(range) == 3:
             chrom, start, end = range
         else:
-            raise ValueError(f"range must be (start, end) or (chrom, start, end), not {range} (len {len(range)}).")
+            raise ValueError(
+                f"range must be (start, end) or (chrom, start, end), not {range} (len {len(range)})."
+            )
         x = np.linspace(start, end, num=n_bins)
     else:
         x = np.arange(n_bins)
@@ -82,14 +86,14 @@ def track(
         ax.set_title(title)
 
     if range is not None:
-        default_xlabel = f"{start:,.0f}-{end:,.0f} ({end-start} bp)"
+        default_xlabel = f"{start:,.0f}-{end:,.0f} ({end - start} bp)"
         if chrom is not None:
             default_xlabel = chrom + ":" + default_xlabel
         if "xlabel" not in kwargs:
             kwargs["xlabel"] = default_xlabel
 
     default_width = 20
-    default_height = 3*n_subplots
+    default_height = 3 * n_subplots
 
     if "width" not in kwargs:
         kwargs["width"] = default_width
@@ -103,4 +107,3 @@ def track(
         ax.set_ylim(min(scores), None)
 
     return render_plot(fig, **kwargs)
-

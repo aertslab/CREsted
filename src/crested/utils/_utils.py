@@ -5,7 +5,8 @@ from __future__ import annotations
 import os
 import random
 import re
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -138,7 +139,9 @@ def _detect_input_type(input: str | list[str] | np.array | AnnData) -> str:
         )
 
 
-def _transform_input(input, genome: Genome | str | os.PathLike | None = None) -> np.ndarray:
+def _transform_input(
+    input, genome: Genome | str | os.PathLike | None = None
+) -> np.ndarray:
     """
     Transform the input into a one-hot encoded matrix based on its type.
 

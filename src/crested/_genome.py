@@ -124,7 +124,9 @@ class Genome:
         A dictionary of chromosome sizes.
         """
         if self._chrom_sizes is None:
-            self._chrom_sizes = dict(zip(self.fasta.references, self.fasta.lengths))
+            self._chrom_sizes = dict(
+                zip(self.fasta.references, self.fasta.lengths, strict=False)
+            )
         elif isinstance(self._chrom_sizes, Path):
             from crested._io import _read_chromsizes
 

@@ -96,18 +96,26 @@ def modisco_results(
 
     @log_and_raise(ValueError)
     def _check_input_params():
-        if contribution not in ['positive', 'negative']:
-            raise ValueError("Argument 'contribution' must be either 'positive' or 'negative'.")
-        if viz not in ['contrib', 'pwm']:
+        if contribution not in ["positive", "negative"]:
+            raise ValueError(
+                "Argument 'contribution' must be either 'positive' or 'negative'."
+            )
+        if viz not in ["contrib", "pwm"]:
             raise ValueError("Argument 'viz' must be either' 'contrib' or 'pwm'.")
 
     @log_and_raise(FileNotFoundError)
     def _check_file_params():
         if not os.isdir(contribution_dir):
-            raise FileNotFoundError(f"contribution_dir {contribution_dir} is not a directory.")
+            raise FileNotFoundError(
+                f"contribution_dir {contribution_dir} is not a directory."
+            )
         for class_name in classes:
-            if not os.path.exists(os.path.join(contribution_dir, f"{class_name}_modisco_results.h5")):
-                raise FileNotFoundError(f"Could not find modisco output file {class_name}_modisco_results.h5 in contribution_dir {contribution_dir}.")
+            if not os.path.exists(
+                os.path.join(contribution_dir, f"{class_name}_modisco_results.h5")
+            ):
+                raise FileNotFoundError(
+                    f"Could not find modisco output file {class_name}_modisco_results.h5 in contribution_dir {contribution_dir}."
+                )
 
     _check_input_params()
     _check_file_params()
@@ -292,8 +300,10 @@ def clustermap_tomtom_similarities(
     # --- Step 0: Filter by min_seqlets and class_names ---
     ids_filtered = []
     for i in ids_arr:
-        ct = '_'.join(i.split('_')[:-3])
-        if pattern_dict[i]['n_seqlets'] >= min_seqlets and (class_names is None or ct in class_names):
+        ct = "_".join(i.split("_")[:-3])
+        if pattern_dict[i]["n_seqlets"] >= min_seqlets and (
+            class_names is None or ct in class_names
+        ):
             ids_filtered.append(i)
 
     keep_idx = [i for i, x in enumerate(ids_arr) if x in ids_filtered]
@@ -306,12 +316,16 @@ def clustermap_tomtom_similarities(
         assert query_id in ids_arr, f"{query_id} not in filtered IDs"
         idx = np.where(ids_arr == query_id)[0][0]
         scores = sim_matrix[idx]
-        keep_indices = np.where((scores > threshold) & (np.arange(len(scores)) != idx))[0]
+        keep_indices = np.where((scores > threshold) & (np.arange(len(scores)) != idx))[
+            0
+        ]
         keep_indices = np.append(keep_indices, idx)
 
         sim_matrix = sim_matrix[np.ix_(keep_indices, keep_indices)]
         ids_arr = ids_arr[keep_indices]
-        group_info = [([g[i] for i in keep_indices], colors) for g, colors in group_info]
+        group_info = [
+            ([g[i] for i in keep_indices], colors) for g, colors in group_info
+        ]
 
     # --- Step 2: Build row_colors matrix ---
     row_colors = []
@@ -327,7 +341,7 @@ def clustermap_tomtom_similarities(
     # --- Step 3: Clustermap ---
     g = sns.clustermap(
         sim_matrix,
-        cmap='viridis',
+        cmap="viridis",
         xticklabels=ids_arr,
         yticklabels=ids_arr,
         row_colors=row_colors,
@@ -354,7 +368,7 @@ def clustermap_tomtom_similarities(
         for i, motif_id in enumerate(reordered_ids):
             y_start = heatmap_pos.y0 + (len(reordered_ids) - 1 - i) * logo_height
             x_start = heatmap_pos.x0 - logo_width - logo_width * logo_x_padding
-            ppm = pattern_dict[motif_id]['contrib_scores']
+            ppm = pattern_dict[motif_id]["contrib_scores"]
 
             pwm_ax = fig.add_axes([x_start, y_start, logo_width, logo_height])
             _plot_attribution_map(
@@ -380,20 +394,20 @@ def clustermap_tomtom_similarities(
     if group_info:
         group_labels, group_colors = group_info[0]
         legend_elements = [
-            Patch(facecolor=color, edgecolor='black', label=label)
+            Patch(facecolor=color, edgecolor="black", label=label)
             for label, color in group_colors.items()
         ]
         fig = g.fig
         fig.legend(
             handles=legend_elements,
             title="Class",
-            loc='lower left',
+            loc="lower left",
             bbox_to_anchor=(-0.06, 0.05),
             frameon=True,
             framealpha=0.9,
             borderpad=0.6,
             fontsize=11,
-            title_fontsize=11
+            title_fontsize=11,
         )
 
     if save_path is not None:
@@ -525,7 +539,7 @@ def clustermap(
         for i, (letters, scores) in enumerate(reordered_pat_seqs):
             previous_spacing = 0
             for _, (letter, score) in enumerate(
-                zip(reversed(letters), reversed(scores))
+                zip(reversed(letters), reversed(scores), strict=False)
             ):
                 fontsize = score * 10
                 vertical_spacing = max(

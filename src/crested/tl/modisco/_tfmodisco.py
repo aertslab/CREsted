@@ -242,8 +242,7 @@ def get_pwms_from_modisco_file(
     # Issue a warning if pattern_indices are provided without a metacluster_name
     if pattern_indices and not metacluster_name:
         logger.info(
-            "Pattern indices are specified, but no metacluster name is provided. "
-            "Pattern indices will be ignored."
+            "Pattern indices are specified, but no metacluster name is provided. Pattern indices will be ignored."
         )
         pattern_indices = None
 
@@ -409,7 +408,7 @@ def match_to_patterns(
 
     if verbose:
         print(
-            f'Match between {pattern_id} and {all_patterns[str(match_idx)]["pattern"]["id"]} with similarity score {max_sim:.2f}'
+            f"Match between {pattern_id} and {all_patterns[str(match_idx)]['pattern']['id']} with similarity score {max_sim:.2f}"
         )
 
     all_patterns[str(match_idx)]["instances"][pattern_id] = p
@@ -499,7 +498,7 @@ def post_hoc_merging(
                     any_merged = True
                     if verbose:
                         print(
-                            f'Merged patterns {pattern1["pattern"]["id"]} and {pattern2["pattern"]["id"]} with similarity {similarity}'
+                            f"Merged patterns {pattern1['pattern']['id']} and {pattern2['pattern']['id']} with similarity {similarity}"
                         )
             # Add the merged pattern to the new set of patterns
             merged_patterns[str(new_index)] = merged_pattern
@@ -711,11 +710,9 @@ def match_h5_files_to_classes(
 
     return matched_files
 
+
 def _read_and_trim_patterns(
-    cell_type: str,
-    file_list: str | list[str],
-    trim_ic_threshold: float,
-    verbose: bool
+    cell_type: str, file_list: str | list[str], trim_ic_threshold: float, verbose: bool
 ) -> tuple[list[dict], list[str], list[bool]]:
     """
     Read and trim patterns from HDF5 files for a specific cell type.
@@ -778,6 +775,7 @@ def _read_and_trim_patterns(
 
     return trimmed_patterns, pattern_ids, is_pattern_pos
 
+
 def calculate_tomtom_similarity_per_pattern(
     matched_files: dict[str, str | list[str] | None],
     trim_ic_threshold: float = 0.05,
@@ -835,10 +833,7 @@ def calculate_tomtom_similarity_per_pattern(
 
     for cell_type in matched_files:
         trimmed_patterns, pattern_ids, is_pattern_pos = _read_and_trim_patterns(
-            cell_type,
-            matched_files[cell_type],
-            trim_ic_threshold,
-            verbose
+            cell_type, matched_files[cell_type], trim_ic_threshold, verbose
         )
         all_trimmed_patterns += trimmed_patterns
         all_pattern_ids += pattern_ids
@@ -846,24 +841,30 @@ def calculate_tomtom_similarity_per_pattern(
     # Add PPMs to each pattern
     pattern_ppms = [_pattern_to_ppm(p) for p in all_trimmed_patterns]
     for i, pat in enumerate(all_trimmed_patterns):
-        pat['ppm'] = pattern_ppms[i]
+        pat["ppm"] = pattern_ppms[i]
 
     if verbose:
-        print('Total patterns:', len(all_trimmed_patterns))
+        print("Total patterns:", len(all_trimmed_patterns))
 
     # Compute pairwise TOMTOM similarity
-    similarity_matrix = match_score_patterns(all_trimmed_patterns, all_trimmed_patterns, use_ppm=use_ppm, background_freqs=background_freqs)
+    similarity_matrix = match_score_patterns(
+        all_trimmed_patterns,
+        all_trimmed_patterns,
+        use_ppm=use_ppm,
+        background_freqs=background_freqs,
+    )
 
     # Construct output metadata dictionary
     pattern_dict = {
         pid: {
-            'contrib_scores': all_trimmed_patterns[i]['contrib_scores'],
-            'n_seqlets': all_trimmed_patterns[i]['seqlets']['n_seqlets']
+            "contrib_scores": all_trimmed_patterns[i]["contrib_scores"],
+            "n_seqlets": all_trimmed_patterns[i]["seqlets"]["n_seqlets"],
         }
         for i, pid in enumerate(all_pattern_ids)
     }
 
     return similarity_matrix, all_pattern_ids, pattern_dict
+
 
 def process_patterns(
     matched_files: dict[str, str | list[str] | None],
@@ -899,12 +900,8 @@ def process_patterns(
     all_patterns = {}
 
     for cell_type in matched_files:
-
         trimmed_patterns, pattern_ids, is_pattern_pos = _read_and_trim_patterns(
-            cell_type,
-            matched_files[cell_type],
-            trim_ic_threshold,
-            verbose
+            cell_type, matched_files[cell_type], trim_ic_threshold, verbose
         )
 
         for idx, p in enumerate(trimmed_patterns):
@@ -1101,7 +1098,10 @@ def generate_image_paths(
 
         id_split = pattern_id.split("_")
         pos_neg = "pos_patterns." if id_split[-4] == "pos" else "neg_patterns."
-        im_path = os.path.join(contribution_dir, f"{pattern_class}_report/trimmed_logos/{pos_neg}pattern_{id_split[-1]}.cwm.fwd.png")
+        im_path = os.path.join(
+            contribution_dir,
+            f"{pattern_class}_report/trimmed_logos/{pos_neg}pattern_{id_split[-1]}.cwm.fwd.png",
+        )
         image_paths.append(im_path)
 
     return image_paths
@@ -1374,7 +1374,7 @@ def create_tf_ct_matrix(
     tf_ct_matrix = np.zeros((len(classes), total_tf_patterns, 2))
     tf_pattern_annots = []
 
-    df = df.reindex(classes) # Ensure they are in same order.
+    df = df.reindex(classes)  # Ensure they are in same order.
 
     if pattern_parameter not in ["contrib", "seqlet_count", "seqlet_count_log"]:
         logger.info("Pattern parameter not valid. Setting to default ('seqlet_count').")
