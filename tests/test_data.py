@@ -64,12 +64,12 @@ def test_import_beds_with_genome(genome_path):
         "Chromsizes file not provided. Will not check if regions are within chromosomes"
     )
     warning_text_filtered = "Filtered 1 consensus regions (not within chromosomes)"
-    assert all(
-        warning_text_chromsizes not in msg for msg in warning_messages
-    ), "Warning about missing chromsizes was unexpectedly raised."
-    assert any(
-        warning_text_filtered in msg for msg in warning_messages
-    ), "Expected warning about filtered regions was not raised."
+    assert all(warning_text_chromsizes not in msg for msg in warning_messages), (
+        "Warning about missing chromsizes was unexpectedly raised."
+    )
+    assert any(warning_text_filtered in msg for msg in warning_messages), (
+        "Expected warning about filtered regions was not raised."
+    )
 
     # Scenario 2: Chromsizes provided via parameter, no genome registered
     crested._conf.genome = None
@@ -81,12 +81,12 @@ def test_import_beds_with_genome(genome_path):
         )
 
     warning_messages = list(messages)
-    assert all(
-        warning_text_chromsizes not in msg for msg in warning_messages
-    ), "Warning about missing chromsizes was unexpectedly raised."
-    assert any(
-        warning_text_filtered in msg for msg in warning_messages
-    ), "Expected warning about filtered regions was not raised."
+    assert all(warning_text_chromsizes not in msg for msg in warning_messages), (
+        "Warning about missing chromsizes was unexpectedly raised."
+    )
+    assert any(warning_text_filtered in msg for msg in warning_messages), (
+        "Expected warning about filtered regions was not raised."
+    )
 
     # Scenario 3: No chromsizes provided via genome or parameter
     with log_capture(level="WARNING") as messages:
@@ -97,12 +97,12 @@ def test_import_beds_with_genome(genome_path):
         )
 
     warning_messages = list(messages)
-    assert any(
-        warning_text_chromsizes in msg for msg in warning_messages
-    ), "Expected warning about missing chromsizes was not raised."
-    assert all(
-        warning_text_filtered not in msg for msg in warning_messages
-    ), "Warning about filtered regions was unexpectedly raised."
+    assert any(warning_text_chromsizes in msg for msg in warning_messages), (
+        "Expected warning about missing chromsizes was not raised."
+    )
+    assert all(warning_text_filtered not in msg for msg in warning_messages), (
+        "Warning about filtered regions was unexpectedly raised."
+    )
 
 
 def test_genome_fetch(genome_path):

@@ -8,11 +8,20 @@ import numpy as np
 import pytest
 
 import crested
+import crested._conf as conf
 
 from ._utils import create_anndata_with_regions
 
 np.random.seed(42)
 keras.utils.set_random_seed(42)
+
+
+@pytest.fixture(autouse=True)
+def reset_genome():
+    """Reset global genome state before each test to ensure test isolation."""
+    conf.genome = None
+    yield
+    conf.genome = None
 
 
 @pytest.fixture(scope="module")
