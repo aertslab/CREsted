@@ -1,40 +1,14 @@
-"""Import all submodules, set the backend, and setup logging."""
+"""Import all submodules and setup logging."""
 
-import os
-import sys
-import warnings
 from importlib.metadata import version
-from importlib.util import find_spec
-
-
-def _setup_backend():
-    """Set up Keras backend. Only called when actually needed."""
-    if "KERAS_BACKEND" in os.environ:
-        return  # Already set by user or previous call
-
-    # Check which backend is available without importing
-    if find_spec("tensorflow") is not None:
-        os.environ["KERAS_BACKEND"] = "tensorflow"
-        os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-        os.environ["AUTOGRAPH_VERBOSITY"] = "0"
-    elif find_spec("torch") is not None:
-        os.environ["KERAS_BACKEND"] = "torch"
-    else:
-        raise ImportError(
-            "No backend found. Please install either tensorflow or pytorch."
-        )
-
-
-# Set backend early, but don't import TensorFlow/PyTorch yet
-_setup_backend()
 
 # Import utils eagerly (needed for logging setup)
-from . import utils  # noqa: E402
+from . import utils
 
 # Import lightweight modules
-from ._datasets import get_dataset, get_model, get_motif_db  # noqa: E402
-from ._genome import Genome, register_genome  # noqa: E402
-from ._io import import_beds, import_bigwigs  # noqa: E402
+from ._datasets import get_dataset, get_model, get_motif_db
+from ._genome import Genome, register_genome
+from ._io import import_beds, import_bigwigs
 
 __version__ = version("crested")
 

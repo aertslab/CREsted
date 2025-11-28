@@ -4,10 +4,15 @@ from importlib.util import find_spec
 
 from loguru import logger
 
-from . import data, losses, metrics, zoo
-from ._configs import TaskConfig, default_configs
-from ._crested import Crested
-from ._tools import (
+# Setup backend before importing any keras-dependent modules
+from crested._backend import setup_backend
+
+setup_backend()
+
+from . import data, losses, metrics, zoo  # noqa: E402
+from ._configs import TaskConfig, default_configs  # noqa: E402
+from ._crested import Crested  # noqa: E402
+from ._tools import (  # noqa: E402
     contribution_scores,
     contribution_scores_specific,
     enhancer_design_in_silico_evolution,
