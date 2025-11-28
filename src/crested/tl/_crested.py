@@ -18,6 +18,12 @@ from tqdm import tqdm
 
 from crested.tl import TaskConfig
 from crested.tl._explainer import integrated_grad, mutagenesis
+
+if os.environ["KERAS_BACKEND"] == "tensorflow":
+    from crested.tl._explainer_tf import _from_tensor, _is_tensor
+elif os.environ["KERAS_BACKEND"] == "torch":
+    from crested.tl._explainer_torch import _from_tensor, _is_tensor
+
 from crested.tl.data import AnnDataModule
 from crested.tl.data._dataset import SequenceLoader
 from crested.utils import (
@@ -441,9 +447,9 @@ class Crested:
         logger.info(
             f"First phase of transfer learning. Freezing all layers before the specified layer and adding a new Dense Layer. Training with learning rate {learning_rate_first_phase}..."
         )
-        assert (
-            self.model is not None
-        ), "Model is not loaded. Load a model first using Crested.load_model()."
+        assert self.model is not None, (
+            "Model is not loaded. Load a model first using Crested.load_model()."
+        )
 
         # Get the current optimizer configuration
         old_optimizer = self.model.optimizer
@@ -873,15 +879,19 @@ class Crested:
 
         # Map predictions to the score array
         for _, (pos, prediction) in enumerate(
-            zip(range(start_position, end_position, step_size), predictions)
+            zip(
+                range(start_position, end_position, step_size),
+                predictions,
+                strict=False,
+            )
         ):
             window_start = pos
             central_start = pos + (window_size - central_size) // 2
             central_end = central_start + central_size
 
-            scores[
-                central_start - start_position : central_end - start_position
-            ] += prediction[idx]
+            scores[central_start - start_position : central_end - start_position] += (
+                prediction[idx]
+            )
             # if strand == '+':
             #    scores[central_start - start_position:central_end - start_position] += prediction[idx]
             # else:
@@ -975,7 +985,9 @@ class Crested:
                 total=len(predict_loader),
             ),
         ):
-            all_one_hot_sequences.append(x)
+            # Convert tensor to numpy if needed (for PyTorch/TensorFlow backends)
+            x_numpy = _from_tensor(x) if _is_tensor(x) else x
+            all_one_hot_sequences.append(x_numpy)
 
             scores = np.zeros(
                 (x.shape[0], n_classes, x.shape[1], x.shape[2])

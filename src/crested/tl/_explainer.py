@@ -3,6 +3,7 @@ Model explanation functions using 'gradient x input'-based or mutagenesis-based 
 
 Loosely adapted from: https://github.com/p-koo/tfomics/blob/master/tfomics/
 """
+
 from __future__ import annotations
 
 import os
@@ -112,6 +113,9 @@ def integrated_grad(
     seed
         Seed to use for shuffling sequences when using baseline_type "random".
     """
+    # Convert tensor to numpy if needed (for PyTorch/TensorFlow backends)
+    if _is_tensor(X):
+        X = _from_tensor(X)
 
     def interpolate_data(
         x: np.ndarray, baseline: np.ndarray, steps: np.ndarray
@@ -211,6 +215,9 @@ def mutagenesis(
         Batch size to use when predicting values with the model. Note that mutagenesis requires (seq_len*3+1) predictions to explain one sequence.
         Default is 256.
     """
+    # Convert tensor to numpy if needed (for PyTorch/TensorFlow backends)
+    if _is_tensor(X):
+        X = _from_tensor(X)
 
     def reconstruct_map(predictions):
         _, L, A = x.shape
