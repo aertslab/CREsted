@@ -162,7 +162,7 @@ def borzoi(
             bn_sync=bn_sync,
             bn_epsilon=1e-3,
             kernel_initializer="he_normal",
-            name_prefix=f"tower_conv_{cidx+1}",
+            name_prefix=f"tower_conv_{cidx + 1}",
         )
         if cidx + 1 in unet_connections:
             unet_skips.append(
@@ -180,7 +180,7 @@ def borzoi(
                     bn_sync=bn_sync,
                     bn_epsilon=1e-3,
                     kernel_initializer="he_normal",
-                    name_prefix=f"unet_skip_{len(unet_skips)+1}",
+                    name_prefix=f"unet_skip_{len(unet_skips) + 1}",
                 )
             )
 
@@ -190,7 +190,7 @@ def borzoi(
             pool_type=pool_type,
             pool_size=2,
             padding="same",
-            name=f"tower_conv_{cidx+1}_pool",
+            name=f"tower_conv_{cidx + 1}_pool",
         )
 
     # Build transformer tower
@@ -211,7 +211,7 @@ def borzoi(
             zero_init=True,
             residual=True,
             ln_epsilon=1e-3,
-            name_prefix=f"transformer_mha_{tidx+1}",
+            name_prefix=f"transformer_mha_{tidx + 1}",
         )
         current = ffn_block_enf(
             inputs=current,
@@ -220,7 +220,7 @@ def borzoi(
             activation=transformer_activation,
             residual=True,
             ln_epsilon=1e-3,
-            name_prefix=f"transformer_ff_{tidx+1}",
+            name_prefix=f"transformer_ff_{tidx + 1}",
         )
 
     # Build upsampling tower
@@ -234,10 +234,10 @@ def borzoi(
             epsilon=1e-3,
             gamma_initializer="ones",
             synchronized=bn_sync,
-            name=f"upsampling_conv_{uidx+1}_batchnorm"
+            name=f"upsampling_conv_{uidx + 1}_batchnorm",
         )(current)
         current = activate(
-            current, conv_activation, name=f"upsampling_conv_{uidx+1}_activation"
+            current, conv_activation, name=f"upsampling_conv_{uidx + 1}_activation"
         )
         if upsample_conv:
             current = keras.layers.Conv1D(
@@ -249,7 +249,7 @@ def borzoi(
                 dilation_rate=1,
                 kernel_initializer="he_normal",
                 kernel_regularizer=keras.regularizers.l2(0),
-                name=f"upsampling_conv_{uidx+1}_conv"
+                name=f"upsampling_conv_{uidx + 1}_conv",
             )(current)
         # Upsample
         current = keras.layers.UpSampling1D(size=2)(current)
@@ -262,7 +262,7 @@ def borzoi(
             filters=filters,
             kernel_size=3,
             padding="same",
-            name=f"upsampling_separable_{uidx+1}",
+            name=f"upsampling_separable_{uidx + 1}",
         )(current)
 
     # Crop outputs

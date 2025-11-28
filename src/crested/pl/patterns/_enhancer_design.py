@@ -163,7 +163,7 @@ def enhancer_design_steps_contribution_scores(
 
     # Plot
     for intermediate_idx, (scores, seqs_one_hot) in enumerate(
-        zip(scores_all, seqs_one_hot_all)
+        zip(scores_all, seqs_one_hot_all, strict=False)
     ):
         intermediate_current = intermediate[intermediate_idx]
         if global_ylim == "per_design":

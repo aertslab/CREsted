@@ -59,7 +59,7 @@ class AnnDataLoader:
 
     def _collate_fn(self, batch):
         """Collate function to move tensors to the specified device if backend is torch."""
-        inputs, targets = zip(*batch)
+        inputs, targets = zip(*batch, strict=False)
         inputs = torch.stack([torch.tensor(input) for input in inputs]).to(self.device)
         targets = torch.stack([torch.tensor(target) for target in targets]).to(
             self.device

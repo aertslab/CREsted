@@ -130,9 +130,9 @@ class SequenceLoader:
 
                 # Add reverse-complemented region to self.sequences if always_reverse_complement
                 if self.always_reverse_complement:
-                    self.sequences[
-                        _flip_region_strand(region)
-                    ] = self._reverse_complement(extended_sequence)
+                    self.sequences[_flip_region_strand(region)] = (
+                        self._reverse_complement(extended_sequence)
+                    )
 
     def _get_extended_sequence(
         self, chrom: str, start: int, end: int, strand: str
@@ -262,9 +262,9 @@ class IndexManager:
                     augmented_indices_map[shifted_region] = region
                     if self.always_reverse_complement:
                         augmented_indices.append(_flip_region_strand(shifted_region))
-                        augmented_indices_map[
-                            _flip_region_strand(shifted_region)
-                        ] = region
+                        augmented_indices_map[_flip_region_strand(shifted_region)] = (
+                            region
+                        )
             else:
                 augmented_indices.append(stranded_region)
                 augmented_indices_map[stranded_region] = region

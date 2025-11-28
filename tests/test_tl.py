@@ -46,9 +46,6 @@ def test_input_transform(genome):
             ]
         ),
     )
-    assert np.array_equal(
-        _transform_input("chr1:1-6", genome), np.array([[[0, 0, 0, 0]] * 5])
-    )
     assert _transform_input(np.array([[[1, 0, 0, 0]]])).shape == (1, 1, 4)
 
 

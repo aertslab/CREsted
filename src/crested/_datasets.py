@@ -145,9 +145,9 @@ def get_dataset(dataset: str):
 
     dataset = dataset.lower()
 
-    assert (
-        dataset in dataset_mapping
-    ), f"Dataset {dataset} is not recognised. Available datasets: {tuple(dataset_mapping.keys())}"
+    assert dataset in dataset_mapping, (
+        f"Dataset {dataset} is not recognised. Available datasets: {tuple(dataset_mapping.keys())}"
+    )
     targets_url, cregions_url = dataset_mapping[dataset]
     targets_paths = _get_dataset_index().fetch(
         targets_url, processor=pooch.Untar(), progressbar=True
@@ -277,9 +277,9 @@ def get_model(model: str) -> tuple[str, list[str]]:
         "mousecortexhydrop": ("models/mousecortex_hydrop.tar.gz"),
     }
     model = model.lower()
-    assert (
-        model in model_mapping
-    ), f"Model {model} is not recognised. Available models: {tuple(model_mapping.keys())}"
+    assert model in model_mapping, (
+        f"Model {model} is not recognised. Available models: {tuple(model_mapping.keys())}"
+    )
 
     model_folder = model_mapping[model]
     model_folder_paths = _get_dataset_index().fetch(

@@ -146,7 +146,7 @@ def class_density(
     if n_models == 1:
         axes = [axes]
 
-    for ax, (model_name, y) in zip(axes, predicted_values.items()):
+    for ax, (model_name, y) in zip(axes, predicted_values.items(), strict=False):
         pearson_corr, _ = pearsonr(x, y)
         spearman_corr, _ = spearmanr(x, y)
 
@@ -154,7 +154,9 @@ def class_density(
             xy = np.vstack([x, y])
             # Fit KDE to data
             if downsample_density and downsample_density < xy.shape[1]:
-                downsample_idxs = np.random.randint(xy.shape[1], size = downsample_density)
+                downsample_idxs = np.random.randint(
+                    xy.shape[1], size=downsample_density
+                )
                 kde = gaussian_kde(xy[:, downsample_idxs])
             else:
                 kde = gaussian_kde(xy)

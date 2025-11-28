@@ -75,6 +75,7 @@ def extract_layer_embeddings(
 
     return embeddings
 
+
 class PredictPyDataset(keras.utils.PyDataset):
     """
     A Keras-compatible dataset for batched prediction.
@@ -182,6 +183,7 @@ def predict(
             raise ValueError("Model must be a Keras model or a list of Keras models.")
         return model.predict(dataset, **kwargs)
 
+
 def score_gene_locus(
     chr_name: str,
     gene_start: int,
@@ -285,7 +287,7 @@ def score_gene_locus(
 
     # Map predictions to the score array
     scores = np.zeros(total_length)
-    for _, (pos, pred) in enumerate(zip(positions, predictions_class)):
+    for _, (pos, pred) in enumerate(zip(positions, predictions_class, strict=False)):
         central_start = pos + (window_size - central_size) // 2
         central_end = central_start + central_size
 
@@ -299,7 +301,7 @@ def score_gene_locus(
     window_starts = positions
     window_ends = positions + window_size
     coordinates = np.array(
-        list(zip([chr_name] * len(positions), window_starts, window_ends))
+        list(zip([chr_name] * len(positions), window_starts, window_ends, strict=False))
     )
     # Normalize the scores based on the number of times each position is included in the central window
     return (

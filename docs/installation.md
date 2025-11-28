@@ -1,8 +1,28 @@
 # Installation
 
-You need to have Python 3.9 or newer installed on your system and a deep learning backend to be able to use CREsted.
+You need to have Python 3.11 or newer installed on your system. Installation takes around five minutes.
 
-CREsted is build on top of keras 3.0 and can therefore be used with your deep learning backend of choice (Tensorflow or Pytorch).
+**Note:** CREsted's preprocessing, data import, plotting, and analysis functions (e.g., `crested.import_bigwigs()`, `crested.pp.*`) work without a deep learning backend. You only need to install TensorFlow or PyTorch if you plan to train models or use the `crested.tl` module for predictions and model-related tasks.
+
+CREsted is built on top of Keras 3 and can therefore be used with your deep learning backend of choice (TensorFlow or PyTorch).
+
+We recommend using [uv](https://docs.astral.sh/uv/) for package installation, which is significantly faster than pip and has better dependency resolution:
+
+```bash
+pip install uv
+```
+
+## Basic Installation (preprocessing and data import only)
+
+If you only need data preprocessing and import functionality:
+
+```bash
+uv pip install crested
+```
+
+## Full Installation (with deep learning backend)
+
+For training models and using the full feature set:
 
 1. Install either [Tensorflow](https://www.tensorflow.org/install) or [Pytorch](https://pytorch.org/get-started/locally/) for GPU.
    Refer to the installation instructions on those pages to ensure you have the correct version of CUDA and cuDNN installed.
@@ -10,27 +30,29 @@ CREsted is build on top of keras 3.0 and can therefore be used with your deep le
    If you have all the latest drivers installed, this installation boils down to doing:
 
 ```bash
-pip install tensorflow[and-cuda]
+uv pip install tensorflow[and-cuda]
 # or
-pip install torch
+uv pip install torch
 ```
 
 2. Install the latest release of `crested` from [PyPI](https://pypi.org/project/CREsted/)
 
 ```bash
-pip install crested
+uv pip install crested
 ```
 
-3. If you plan on doing motif analysis using tf-modisco (lite) inside CREsted, you will need to run the following additional install:
+3. If you plan on doing motif analysis using tf-modisco (lite) inside CREsted, you will need to install with the motif extra:
 
 ```bash
-pip install "modisco-lite>=2.2.1"
+uv pip install "crested[motif]"
 ```
+
+**Note:** TOMTOM motif matching (via memelite) is only available for Python 3.12 and earlier due to numpy compatibility constraints. Python 3.13 users can still use all other modisco features.
 
 Modiscolite may require a cmake installation on your system. If you don't have it, you can install it with:
 
 ```bash
-pip install cmake
+uv pip install cmake
 ```
 
 ## Choosing your backend

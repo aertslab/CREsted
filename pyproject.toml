@@ -1,157 +1,185 @@
 [build-system]
 build-backend = "hatchling.build"
-requires = ["hatchling"]
+requires = [ "hatchling" ]
 
 [project]
 name = "crested"
 version = "1.5.0"
 description = "CREsted: Cis-Regulatory Element Sequence Training, Explanation, and Design"
 readme = "README.md"
-requires-python = ">=3.9"
-license = {file = "LICENSE"}
-authors = [
-    {name = "Stein Aerts Lab"},
-]
+license = { file = "LICENSE" }
 maintainers = [
-    {name = "Lukas Mahieu", email = "lukas.mahieu@kuleuven.be"},
+  { name = "Lukas Mahieu", email = "lukas.mahieu@kuleuven.be" },
+]
+authors = [
+  { name = "Stein Aerts Lab" },
+]
+requires-python = ">=3.11"
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+  "anndata",
+  "biothings-client<0.4",
+  "keras>=3.4",
+  "logomaker",
+  "loguru",
+  "numpy",
+  "pandas",
+  "pooch",
+  "pybigtools>=0.2",
+  "pysam",
+  "scanpy",
+  "scikit-learn",
+  "seaborn",
+  "tqdm",
+  "wandb>=0.12.10",
+]
+
+optional-dependencies.dev = [
+  "pre-commit",
+  "pytest",
+  "twine>=4.0.2",
+]
+optional-dependencies.doc = [
+  "docutils>=0.8,!=0.18.*,!=0.19.*",
+  # For notebooks
+  "ipykernel",
+  "ipython",
+  "modisco-lite",
+  "myst-nb",
+  "pandas",
+  "ruff",
+  "sphinx>=4",
+  "sphinx-autodoc-typehints",
+  "sphinx-book-theme>=1",
+  "sphinx-copybutton",
+  "sphinxcontrib-bibtex>=1",
+  "sphinxext-opengraph",
+  "tensorflow",
+]
+optional-dependencies.motif = [
+  "memelite; python_version<'3.13'",
+  "modisco-lite>=2.2.1",
+]
+optional-dependencies.test = [
+  "anndata",
+  "coverage",
+  "pytest",
+  "pytest-cov",
 ]
 urls.Documentation = "https://crested.readthedocs.io/"
-urls.Source = "https://github.com/aertslab/crested/"
 urls.Home-page = "https://github.com/aertslab/crested/"
-dependencies = [
-    "keras>=3.4.0",
-    "anndata",
-    "pandas",
-    "tqdm",
-    "wandb>=0.12.10",
-    "pysam",
-    "numpy",
-    "scikit-learn",
-    "tqdm",
-    "loguru",
-    "logomaker",
-    "pybigtools>=0.2.0",
-    "seaborn",
-    "pooch",
-    "scanpy",
-    "biothings_client<0.4.0",
-    "memelite",
-]
+urls.Source = "https://github.com/aertslab/crested/"
 
-[project.optional-dependencies]
-dev = [
-    "pre-commit",
-    "twine>=4.0.2",
-    "pytest",
-    "pydocstyle",
-]
-doc = [
-    "docutils>=0.8,!=0.18.*,!=0.19.*",
-    "sphinx>=4",
-    "sphinx-book-theme>=1.0.0",
-    "myst-nb",
-    "sphinxcontrib-bibtex>=1.0.0",
-    "sphinx-autodoc-typehints",
-    "sphinxext-opengraph",
-    # For notebooks
-    "ipykernel",
-    "ipython",
-    "sphinx-copybutton",
-    "pandas",
-    "tensorflow",
-    "ruff",
-    "modisco-lite",
-]
-test = [
-    "pytest",
-    "coverage",
-    "anndata",
-    "genomepy",
-]
+[tool.hatch.envs.default]
+installer = "uv"
+features = [ "dev" ]
 
-[tool.coverage.run]
-source = ["crested"]
-omit = [
-    "**/test_*.py",
-]
+[tool.hatch.envs.docs]
+features = [ "doc" ]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-xfail_strict = true
-addopts = [
-    "--import-mode=importlib",  # allow using test files with same name
-]
-filterwarnings = [
-    "ignore::UserWarning",
-    "ignore::DeprecationWarning"
+[tool.hatch.envs.docs.scripts]
+build = "sphinx-build -M html docs docs/_build -W {args}"
+open = "python -m webbrowser -t docs/_build/html/index.html"
+clean = "git clean -fdX -- {args:docs}"
+
+[tool.hatch.envs.hatch-test]
+features = [ "dev", "test" ]
+
+[tool.hatch.envs.hatch-test.scripts]
+run = "pytest -v --cov --color=yes {args}"
+
+[[tool.hatch.envs.hatch-test.matrix]]
+python = [ "3.11", "3.12", "3.13" ]
+backend = [ "tensorflow", "pytorch" ]
+
+[tool.hatch.envs.hatch-test.overrides]
+matrix.backend.extra-dependencies = [
+  { value = "tensorflow", if = [ "tensorflow" ] },
+  { value = "torch", if = [ "pytorch" ] },
 ]
 
 [tool.ruff]
-line-length = 88
-src = ["src"]
-extend-include = ["*.ipynb"]
+line-length = 120
+src = [ "src" ]
+extend-include = [ "*.ipynb" ]
 
-[tool.ruff.format]
-docstring-code-format = true
-
-[tool.ruff.lint]
-select = [
-    "F",  # Errors detected by Pyflakes
-    "E",  # Error detected by Pycodestyle
-    "W",  # Warning detected by Pycodestyle
-    "I",  # isort
-    "D",  # pydocstyle
-    "B",  # flake8-bugbear
-    "TID",  # flake8-tidy-imports
-    "C4",  # flake8-comprehensions
-    "BLE",  # flake8-blind-except
-    "UP",  # pyupgrade
-    "RUF100",  # Report unused noqa directives
+format.docstring-code-format = true
+lint.select = [
+  "B",      # flake8-bugbear
+  "BLE",    # flake8-blind-except
+  "C4",     # flake8-comprehensions
+  "D",      # pydocstyle
+  "E",      # Error detected by Pycodestyle
+  "F",      # Errors detected by Pyflakes
+  "I",      # isort
+  "RUF100", # Report unused noqa directives
+  "TID",    # flake8-tidy-imports
+  "UP",     # pyupgrade
+  "W",      # Warning detected by Pycodestyle
 ]
-ignore = [
-    # line too long -> we accept long comment lines; formatter gets rid of long code lines
-    "E501",
-    # Do not assign a lambda expression, use a def -> lambda expression assignments are convenient
-    "E731",
-    # allow I, O, l as variable names -> I is the identity matrix
-    "E741",
-    # Missing docstring in public package
-    "D104",
-    # Missing docstring in public module
-    "D100",
-    # Missing docstring in __init__
-    "D107",
-    # Errors from function calls in argument defaults. These are fine when the result is immutable.
-    "B008",
-    # __magic__ methods are are often self-explanatory, allow missing docstrings
-    "D105",
-    # first line should end with a period [Bug: doesn't work with single-line docstrings]
-    "D400",
-    # First line should be in imperative mood; try rephrasing
-    "D401",
-    ## Disable one in each pair of mutually incompatible rules
-    # We don’t want a blank line before a class docstring
-    "D203",
-    # We want docstrings to start immediately after the opening triple quote
-    "D213",
+lint.ignore = [
+  # Errors from function calls in argument defaults. These are fine when the result is immutable.
+  "B008",
+  # Missing docstring in public module
+  "D100",
+  # Missing docstring in public package
+  "D104",
+  # __magic__ methods are are often self-explanatory, allow missing docstrings
+  "D105",
+  # Missing docstring in __init__
+  "D107",
+  ## Disable one in each pair of mutually incompatible rules
+  # We don’t want a blank line before a class docstring
+  "D203",
+  # We want docstrings to start immediately after the opening triple quote
+  "D213",
+  # first line should end with a period [Bug: doesn't work with single-line docstrings]
+  "D400",
+  # First line should be in imperative mood; try rephrasing
+  "D401",
+  # line too long -> we accept long comment lines; formatter gets rid of long code lines
+  "E501",
+  # Do not assign a lambda expression, use a def -> lambda expression assignments are convenient
+  "E731",
+  # allow I, O, l as variable names -> I is the identity matrix
+  "E741",
+]
+lint.per-file-ignores."*/__init__.py" = [ "F401" ]
+lint.per-file-ignores."docs/*" = [ "I" ]
+lint.per-file-ignores."tests/*" = [ "D" ]
+lint.pydocstyle.convention = "numpy"
+
+[tool.pytest.ini_options]
+testpaths = [ "tests" ]
+xfail_strict = true
+addopts = [
+  "--import-mode=importlib", # allow using test files with same name
+]
+filterwarnings = [
+  "ignore::UserWarning",
+  "ignore::DeprecationWarning",
 ]
 
-[tool.ruff.lint.pydocstyle]
-convention = "numpy"
-
-[tool.ruff.lint.per-file-ignores]
-"docs/*" = ["I"]
-"tests/*" = ["D"]
-"*/__init__.py" = ["F401"]
+[tool.coverage.run]
+source = [ "crested" ]
+omit = [
+  "**/test_*.py",
+]
 
 [tool.cruft]
 skip = [
-    "tests",
-    "src/**/__init__.py",
-    "src/**/basic.py",
-    "docs/api/",
-    "docs/changelog.md",
-    "docs/references.bib",
-    "docs/references.md",
-    "docs/notebooks/example.ipynb",
+  "tests",
+  "src/**/__init__.py",
+  "src/**/basic.py",
+  "docs/api/",
+  "docs/changelog.md",
+  "docs/references.bib",
+  "docs/references.md",
+  "docs/notebooks/example.ipynb",
 ]
