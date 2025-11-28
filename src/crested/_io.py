@@ -324,7 +324,7 @@ def _create_temp_bed_file(
     adjusted_peaks[2] = adjusted_peaks[2].astype(int)
 
     # Create a temporary BED file
-    temp_bed_file = "temp_adjusted_regions.bed"
+    temp_bed_file = tempfile.NamedTemporaryFile(delete=False, mode="w+t").name
     adjusted_peaks.to_csv(temp_bed_file, sep="\t", header=False, index=False)
     return temp_bed_file
 
