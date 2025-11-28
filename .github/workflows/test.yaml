@@ -20,13 +20,7 @@ jobs:
         os: [ubuntu-latest]
         python: ["3.11", "3.12", "3.13"]
         backend: ["tensorflow", "pytorch"]
-        include:
-          # Add one pre-release test
-          - os: ubuntu-latest
-            python: "3.13"
-            backend: "tensorflow"
-            pre-release: true
-    name: Python ${{ matrix.python }} - ${{ matrix.backend }}${{ matrix.pre-release && ' (PRE-RELEASE)' || '' }}
+    name: Python ${{ matrix.python }} - ${{ matrix.backend }}
     runs-on: ${{ matrix.os }}
     env:
       MPLBACKEND: agg
@@ -38,37 +32,16 @@ jobs:
           filter: blob:none
           fetch-depth: 0
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
 
-      - name: Install backend
-        run: |
-          if [ "${{ matrix.backend }}" = "tensorflow" ]; then
-            if [ "${{ matrix.pre-release }}" = "true" ]; then
-              uv pip install --system --pre tensorflow
-            else
-              uv pip install --system tensorflow
-            fi
-          else
-            if [ "${{ matrix.pre-release }}" = "true" ]; then
-              uv pip install --system --pre torch
-            else
-              uv pip install --system torch
-            fi
-          fi
+      - name: Install Hatch
+        run: pip install hatch
 
-      - name: Install package with test dependencies
-        run: |
-          if [ "${{ matrix.pre-release }}" = "true" ]; then
-            uv pip install --system --pre -e .[test]
-          else
-            uv pip install --system -e .[test]
-          fi
-
-      - name: Run tests
-        run: uv run --no-sync pytest -v --cov --color=yes
+      - name: Run tests with Hatch
+        run: hatch test -i python=${{ matrix.python }} -i backend=${{ matrix.backend }}
 
       - name: Upload coverage
         uses: codecov/codecov-action@v5
