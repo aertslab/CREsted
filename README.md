@@ -7,10 +7,13 @@
 
 [![Tests][badge-tests]][link-tests]
 [![Documentation][badge-docs]][link-docs]
+![Downloads][badge-downloads]
 
 [badge-tests]: https://img.shields.io/github/actions/workflow/status/aertslab/CREsted/test.yaml?branch=main
 [link-tests]: https://github.com/aertslab/CREsted/actions/workflows/test.yaml
 [badge-docs]: https://img.shields.io/readthedocs/crested
+[badge-downloads]: https://static.pepy.tech/personalized-badge/crested?period=total&units=INTERNATIONAL_SYSTEM&left_color=GRAY&right_color=GREEN&left_text=downloads
+
 
 ## Introduction
 
