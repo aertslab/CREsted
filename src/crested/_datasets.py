@@ -198,7 +198,7 @@ def get_model(model: str) -> tuple[str, list[str]]:
     Parameters
     ----------
     model
-        The name of the model to fetch. Available options:
+        The name of the model to fetch, case-insensitive. Available options:
           - 'DeepBICCN'
           - 'DeepBICCN2'
           - 'DeepCCL'
@@ -228,6 +228,8 @@ def get_model(model: str) -> tuple[str, list[str]]:
           - 'Embryo10x"
           - 'EmbryoHydrop'
           - 'MouseCortexHydrop'
+          - 'BorzoiPrime_human_rep[0-3]'
+          - 'BorzoiPrime_mouse_rep[0-3]'
 
     Returns
     -------
@@ -275,6 +277,14 @@ def get_model(model: str) -> tuple[str, list[str]]:
         "embryo10x": ("models/embryo_10x.tar.gz"),
         "embryohydrop": ("models/embryo_hydrop.tar.gz"),
         "mousecortexhydrop": ("models/mousecortex_hydrop.tar.gz"),
+        "borzoiprime_human_rep0": ("models/borzoiprime_human_rep0.tar.gz"),
+        "borzoiprime_human_rep1": ("models/borzoiprime_human_rep1.tar.gz"),
+        "borzoiprime_human_rep2": ("models/borzoiprime_human_rep2.tar.gz"),
+        "borzoiprime_human_rep3": ("models/borzoiprime_human_rep3.tar.gz"),
+        "borzoiprime_mouse_rep0": ("models/borzoiprime_mouse_rep0.tar.gz"),
+        "borzoiprime_mouse_rep1": ("models/borzoiprime_mouse_rep1.tar.gz"),
+        "borzoiprime_mouse_rep2": ("models/borzoiprime_mouse_rep2.tar.gz"),
+        "borzoiprime_mouse_rep3": ("models/borzoiprime_mouse_rep3.tar.gz"),
     }
     model = model.lower()
     assert model in model_mapping, (
