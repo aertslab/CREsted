@@ -23,7 +23,7 @@ def class_density(
     exclude_zeros: bool = True,
     density_indication: bool = False,
     downsample_density: int = 10000,
-    max_threads: int = 1,
+    max_threads: int = 8,
     alpha: float = 0.25,
     **kwargs,
 ) -> plt.Figure:
