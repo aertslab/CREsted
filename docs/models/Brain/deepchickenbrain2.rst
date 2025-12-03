@@ -4,7 +4,7 @@ DeepChickenBrain2
 .. sidebar:: Model Features
 
    - **Genome**: *galGal6*
-   - **Type**: Peak Regression
+   - **Type**: Peak regression
    - **Parameters**: 6.3M
    - **Size**: 23MB
    - **Input shape**: (2114, 4)

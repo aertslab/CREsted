@@ -4,7 +4,7 @@ Enformer
 .. sidebar:: Model Features
 
    - **Genome**: *hg38/mm10*
-   - **Type**: Track Prediction
+   - **Type**: Track prediction
    - **Parameters**: 236M
    - **Size**: 873MB
    - **Input shape**: (196608, 4)

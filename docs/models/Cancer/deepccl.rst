@@ -4,7 +4,7 @@ DeepCCL
 .. sidebar:: Model Features
 
    - **Genome**: *hg38*
-   - **Type**: Peak Regression
+   - **Type**: Peak regression
    - **Parameters**: 12.6M
    - **Size**: 47MB
    - **Input shape**: (2114, 4)

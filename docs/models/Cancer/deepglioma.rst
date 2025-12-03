@@ -4,7 +4,7 @@ DeepGlioma
 .. sidebar:: Model Features
 
    - **Genome**: *hg38*
-   - **Type**: Topic Classification
+   - **Type**: Topic classification
    - **Parameters**: 34.9M
    - **Size**: 78MB
    - **Input shape**: (500, 4)

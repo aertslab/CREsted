@@ -4,7 +4,7 @@ DeepBICCN
 .. sidebar:: Model Features
 
    - **Genome**: *mm10*
-   - **Type**: Peak Regression
+   - **Type**: Peak regression
    - **Parameters**: 6.3M
    - **Size**: 23MB
    - **Input shape**: (2114, 4)

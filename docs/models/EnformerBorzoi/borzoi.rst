@@ -4,7 +4,7 @@ Borzoi
 .. sidebar:: Model Features
 
    - **Genome**: *hg38/mm10*
-   - **Type**: Track Prediction
+   - **Type**: Track prediction
    - **Parameters**: 235M
    - **Size**: 666MB
    - **Input shape**: (524288, 4)
