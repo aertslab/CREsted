@@ -98,7 +98,7 @@ def contribution_scores(
         sequence_labels = [sequence_labels]
     if isinstance(class_labels, str):
         class_labels = [class_labels]
-    
+
     _check_contrib_params(zoom_n_bases, scores, class_labels, sequence_labels)
 
     if zoom_n_bases is None:
