@@ -4,7 +4,7 @@ DeepPBMC
 .. sidebar:: Model Features
 
    - **Genome**: *hg38*
-   - **Type**: Peak Regression
+   - **Type**: Peak regression
    - **Parameters**: 18.9M
    - **Size**: 49MB
    - **Input shape**: (2114, 4)

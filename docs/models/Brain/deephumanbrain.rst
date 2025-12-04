@@ -4,7 +4,7 @@ DeepHumanBrain
 .. sidebar:: Model Features
 
    - **Genome**: *hg38*
-   - **Type**: Peak Regression
+   - **Type**: Peak regression
    - **Parameters**: 25.3M
    - **Size**: 91MB
    - **Input shape**: (2114, 4)

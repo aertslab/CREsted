@@ -112,6 +112,7 @@ class AttentionPool1D(keras.layers.Layer):
 
 
 # Multi-head attention block from baskerville
+# Copyright DeepMind Technologies 2021 (Enformer)/Calico LLC 2023 (Borzoi)
 @keras.saving.register_keras_serializable(package="crested", name="MultiheadAttention")
 class MultiheadAttention(keras.layers.Layer):
     """

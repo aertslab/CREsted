@@ -4,7 +4,7 @@ DeepZebraFish
 .. sidebar:: Model Features
 
    - **Genome**: *GRCz11*
-   - **Type**: Peak Regression
+   - **Type**: Peak regression
    - **Parameters**: 77.6M
    - **Size**: 207MB
    - **Input shape**: (2114, 4)

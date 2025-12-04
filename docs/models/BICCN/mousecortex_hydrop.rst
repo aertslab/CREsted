@@ -4,7 +4,7 @@ MouseCortexHydrop
 .. sidebar:: Model Features
 
    - **Genome**: *mm10*
-   - **Type**: Peak Regression
+   - **Type**: Peak regression
    - **Parameters**: 18.9M
    - **Size**: 44MB
    - **Input shape**: (2114, 4)

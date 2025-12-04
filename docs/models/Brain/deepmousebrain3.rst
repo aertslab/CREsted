@@ -4,7 +4,7 @@ DeepMouseBrain3
 .. sidebar:: Model Features
 
    - **Genome**: *mm10*
-   - **Type**: Peak Regression
+   - **Type**: Peak regression
    - **Parameters**: 25.4M
    - **Size**: 92MB
    - **Input shape**: (2114, 4)

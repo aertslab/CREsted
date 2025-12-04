@@ -1,4 +1,7 @@
-"""Borzoi model architecture."""
+"""Borzoi model architecture.
+
+Borzoi architecture: copyright 2023 Calico LLC
+"""
 
 from __future__ import annotations
 

@@ -4,13 +4,13 @@ BorzoiBICCN
 .. sidebar:: Model Features
 
    - **Genome**: *mm10*
-   - **Type**: Peak Regression
+   - **Type**: Peak regression
    - **Parameters**: 511M
    - **Size**: 1.6GB
    - **Input shape**: (2048, 4)
    - **Output shape**: (19,)
 
-The **BorzoiBICCN** model is Borzoi model (Linder et al., 2025) that is (double) fine-tuned to perform peak regression on motor cortex cell types from the BICCN dataset. The model was first fine-tuned on all consensus peaks (440K regions),
+The **BorzoiBICCN** model is a Borzoi model (Linder et al., 2025) that is (double) fine-tuned to perform peak regression on motor cortex cell types from the BICCN dataset. The model was first fine-tuned on all consensus peaks (440K regions),
 and further fine-tuned on a training set of cell type-specific peaks (73K regions).
 
 The model is a CNN multiclass regression model using the :func:`~crested.tl.zoo.borzoi` architecture, with a shrunk input size (2048bp) and an added dense layer after the final embedding layer to predict peak heights over cell types.
