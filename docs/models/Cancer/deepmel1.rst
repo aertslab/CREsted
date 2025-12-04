@@ -4,7 +4,7 @@ DeepMEL1
 .. sidebar:: Model Features
 
    - **Genome**: hg38
-   - **Type**: Topic Classification
+   - **Type**: Topic classification
    - **Parameters**: 3.4M
    - **Size**: 13MB
    - **Input shape**: (500, 4)

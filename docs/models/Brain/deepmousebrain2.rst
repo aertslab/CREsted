@@ -4,7 +4,7 @@ DeepMouseBrain2
 .. sidebar:: Model Features
 
    - **Genome**: *mm10*
-   - **Type**: Topic Classification
+   - **Type**: Topic classification
    - **Parameters**: 11.1M
    - **Size**: 37MB
    - **Input shape**: (500, 4)

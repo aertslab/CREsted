@@ -4,7 +4,7 @@ DeepHumanCortex2
 .. sidebar:: Model Features
 
    - **Genome**: *hg38*
-   - **Type**: Topic Classification
+   - **Type**: Topic classification
    - **Parameters**: 13.9M
    - **Size**: 47MB
    - **Input shape**: (500, 4)

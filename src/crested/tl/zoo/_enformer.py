@@ -1,4 +1,7 @@
-"""Enformer model architecture. Adapted from github.com/casblaauw/enformer_keras."""
+"""Enformer model architecture. Adapted from github.com/casblaauw/enformer_keras.
+
+Enformer architecture: copyright 2021 DeepMind Technologies Limited
+"""
 
 from __future__ import annotations
 

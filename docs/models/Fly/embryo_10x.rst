@@ -4,7 +4,7 @@ Embryo10x
 .. sidebar:: Model Features
 
    - **Genome**: *dm6*
-   - **Type**: Peak Regression
+   - **Type**: Peak regression
    - **Parameters**: 9.6M
    - **Size**: 34MB
    - **Input shape**: (500, 4)

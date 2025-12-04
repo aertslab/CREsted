@@ -4,7 +4,7 @@ DeepChickenBrain1
 .. sidebar:: Model Features
 
    - **Genome**: *galGal6*
-   - **Type**: Topic Classification
+   - **Type**: Topic classification
    - **Parameters**: 11.1M
    - **Size**: 38MB
    - **Input shape**: (500, 4)
