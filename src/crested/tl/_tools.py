@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import os
+from collections.abc import Sequence
 from typing import Any
 
 import keras
@@ -24,6 +25,7 @@ from crested.tl._utils import (
     generate_motif_insertions,
     parse_starting_sequences,
 )
+from crested.utils._logging import log_and_raise
 from crested.utils._seq_utils import (
     generate_mutagenesis,
     hot_encoding_to_sequence,
@@ -251,7 +253,7 @@ def score_gene_locus(
     # Detect window size from the model input shape
     if not isinstance(target_idx, int):
         raise ValueError("Target index must be an integer.")
-    if isinstance(model, list):
+    if isinstance(model, Sequence):
         input_shape = model[0].input_shape
     else:
         input_shape = model.input_shape
@@ -381,9 +383,22 @@ def contribution_scores(
     --------
     crested.pl.patterns.contribution_scores
     """
-    if not isinstance(model, list):
+
+    @log_and_raise(ValueError)
+    def _check_input_params(
+        target_idx: Sequence[int]
+    ):
+        """Check contribution scores parameters."""
+        if isinstance(target_idx, str):
+            raise ValueError(
+                "target_idx must be an integer or list of integers, not a string.",
+                "You can get this index with `list(anndata.obs_names).index(class_name)` or `list(adata.obs_names.get_indexer(classes_of_interest))`"
+            )
+
+    # Infer/repackage input values
+    if not isinstance(model, Sequence):
         model = [model]
-    if isinstance(target_idx, int):
+    if not isinstance(target_idx, Sequence):
         target_idx = [target_idx]
     elif target_idx is None:
         target_idx = list(range(0, model[0].output_shape[-1]))
@@ -393,8 +408,11 @@ def contribution_scores(
                 "No class indices provided. Calculating contribution scores for the 'combined' class."
             )
         target_idx = [None]
-    n_classes = len(target_idx)
 
+    # Check inputs for correctness
+    _check_input_params(target_idx=target_idx)
+
+    n_classes = len(target_idx)
     input_sequences = _transform_input(input, genome)
 
     if verbose:
@@ -567,7 +585,7 @@ def contribution_scores_specific(
         raise ValueError("Can't calculate 'combined' scores for specific regions.")
     if target_idx is None:
         target_idx = list(range(0, len(all_class_names)))
-    if not isinstance(target_idx, list):
+    if not isinstance(target_idx, Sequence):
         target_idx = [target_idx]
     all_scores = []
     all_one_hots = []
