@@ -84,6 +84,14 @@ def _get_dataset_index():
                 "models/embryo_10x.tar.gz": "sha256:3de62e6913ea491ebdad4bc2ef4e9f404250531093b29e67b5a1fa907f5cf41b",
                 "models/embryo_hydrop.tar.gz": "sha256:9036ef2f18ab894016c8adcd3bba5f1985b74bd2432f4e9b07e6128e43833636",
                 "models/mousecortex_hydrop.tar.gz": "sha256:a850edcd6f9cabd0efb7ea66f48287c1c05ff7c3466363259dfb9229a076c53c",
+                "models/borzoiprime_human_rep0.tar.gz": "sha256:c7a3c56fc8d95c33a01e08eee04ce88f57d2967f19c7cab175664d4fc87cc42c",
+                "models/borzoiprime_human_rep1.tar.gz": "sha256:cd8b2efec9399c575d255c5f775aa8a6881371865914ba024bc35042cb628be1",
+                "models/borzoiprime_human_rep2.tar.gz": "sha256:22d01951089c16b9c57780a707d8b755e300cd4c942265706c65974933ab3357",
+                "models/borzoiprime_human_rep3.tar.gz": "sha256:b64e58d16018dd0302eacbf33c63c95b88347c465f35649a2743628155c98277",
+                "models/borzoiprime_mouse_rep0.tar.gz": "sha256:71845dc7951c36bab3e8311fe6359a7dc1345b0232000d0986c74a1900c8f948",
+                "models/borzoiprime_mouse_rep1.tar.gz": "sha256:43b93701571210f61c09ae9b8ba89dc7e398262fe7deb5c740b330bac15ce0d8",
+                "models/borzoiprime_mouse_rep2.tar.gz": "sha256:9c14e38a1d54612ca0d6e7709609fefa5c770357fc7177941b2da5169b50a49d",
+                "models/borzoiprime_mouse_rep3.tar.gz": "sha256:a87f527226e4773cfca8a8804fdd1bd2210001cdce39baaa17b79b996903e6fa",
             },
         )
     return _datasets
