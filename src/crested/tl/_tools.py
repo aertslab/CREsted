@@ -391,18 +391,21 @@ def contribution_scores(
         """Check contribution scores parameters."""
         if isinstance(target_idx, str):
             raise ValueError(
-                "target_idx must be an integer or list of integers, not a string.",
+                "target_idx must be an integer, list of integers, None, or empty list, but not a string. "
                 "You can get this index with `list(anndata.obs_names).index(class_name)` or `list(adata.obs_names.get_indexer(classes_of_interest))`"
             )
+        if not isinstance(target_idx[0], (int, np.integer)) and target_idx[0] is not None:
+            raise ValueError(f"target_idx must be an integer, list of integers, None, or empty list, not {type(target_idx[0])}")
 
     # Infer/repackage input values
     if not isinstance(model, Sequence):
         model = [model]
+
+    if target_idx is None:
+        target_idx = list(range(0, model[0].output_shape[-1]))
     if not isinstance(target_idx, Sequence):
         target_idx = [target_idx]
-    elif target_idx is None:
-        target_idx = list(range(0, model[0].output_shape[-1]))
-    elif target_idx == []:
+    if target_idx == []:
         if verbose:
             logger.info(
                 "No class indices provided. Calculating contribution scores for the 'combined' class."
