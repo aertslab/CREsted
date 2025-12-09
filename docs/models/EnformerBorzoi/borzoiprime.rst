@@ -18,7 +18,7 @@ The model was trained on sequences tiled across the genome, which can be found i
 Note that the original human training used a modified hg38 genome, where the allele with maximum frequency in gnomAD was substituted at each position.
 The original model has a shared trunk and two organism-specific heads, which are provided as two specific models for human and mouse here, resulting in models `borzoiprime_human_rep0`-`borzoiprime_human_rep3` and `borzoiprime_mouse_rep0`-`borzoiprime_mouse_rep3`.
 
-The model is a CNN+Transformer+Upsampling model using the :func:`~crested.tl.zoo.borzoiprime` architecture.
+The model is a CNN+Transformer+Upsampling model using the :func:`~crested.tl.zoo.borzoi_prime` architecture.
 
 Details of the data and the model can be found in the original publication.
 
