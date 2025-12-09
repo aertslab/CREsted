@@ -10,7 +10,7 @@ Borzoi Prime
    - **Input shape**: (524288, 4)
    - **Output shape**: (12288, 5431)/(12288, 1774)
 
-The **Borzoi Prime** model is a large model trained on single-cell RNA tracks as well as base Borzoi bulk ENCODE and FANTOM DNase, ChIP-seq, CAGE and RNA-seq data from a wide variety of human and mouse tissues.
+The **Borzoi Prime** model is a large model trained on pseudobulked scRNA tracks as well as base Borzoi bulk ENCODE and FANTOM DNase, CAGE and RNA-seq data from a wide variety of human and mouse tissues.
 It predicts 12288 bins of 16bp, corresponding to the core 196608 bp of the input sequence.
 
 It was originally provided based on the Baskerville package, and its weights and architecture have been ported to CREsted.
