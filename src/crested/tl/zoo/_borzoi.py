@@ -321,6 +321,122 @@ def borzoi(
     return m
 
 
+def borzoi_prime(
+    seq_len: int,
+    num_classes: int | cabc.Sequence[int],
+    num_conv_blocks: int = 6,
+    num_transformer_blocks: int = 8,
+    num_transformer_heads: int = 8,
+    target_length: int = 12288,
+    start_filters: int = 512,
+    tower_start_filters: int | None = None,
+    filters: int = 1536,
+    pointwise_filters: int | None = None,
+    unet_connections: cabc.Sequence[int] = [4, 5, 6],
+    unet_filters: int = 1536,
+    upsample_conv: bool = True,
+    conv_activation: str = "gelu_approx",
+    transformer_activation: str = "relu",
+    output_activation: str = "softplus",
+    pool_type: str = "max",
+    first_kernel_size: int = 15,
+    kernel_size: int = 5,
+    transformer_dropout=0.2,
+    pointwise_dropout: float = 0.1,
+    bn_sync: bool = False,
+    name: str = "Borzoi_prime"
+):
+    """Construct an fully replicated Borzoi Prime model.
+
+    Borzoi Prime is effectively the Borzoi architecture, except with one more upsampling layer, no pointwise filters and a larger target length to account for the higher resolution.
+
+    Note that unlike other CREsted model zoo architectures, this architecture is not suited for
+    predicting individual regions out of the box.
+
+    Parameters
+    ----------
+    seq_len
+        Width of the input region.
+        Borzoi default is 524288.
+    num_classes
+        Number of classes to predict.
+        If an int, creates a single head with num_classes classes.
+        If a list of integers, creates multiple heads in a list.
+    num_conv_blocks
+        Number of convolution blocks to include in the tower, after the stem block.
+    num_transformer_blocks
+        Number of transformer blocks to include in the transformer stack.
+    target_length
+        The target length in bins to crop to. Default is 12288, cropping away 10240 bins (164kb) on each side.
+    start_filters
+        Starting number of filters for the first DNA-facing block, exponentially increasing towards `filters` through the conv tower.
+    tower_start_filters
+        Optional: Different number of filters to start the conv tower with after the stem conv.
+        By default, inferred starting from start_filters to filters.
+    filters
+        Number of filters at the end of the conv tower and in the upsampling.
+    pointwise_filters
+        Number of filters of the post-transformer/upsampling final pointwise convolution.
+        If None, block is not included.
+    unet_connections
+        Levels in the convolution tower to add U-net skip connections past the transformer tower.
+        1-indexed, so [5, 6] means after the 5th and 6th block.
+    unet_filters
+        Number of filters to use for the U-net connection skip blocks.
+    upsample_conv
+        Whether to include an extra convolution during the upsampling.
+        Used in release Borzoi, removed later.
+    conv_activation
+        Activation function to use in the conv tower, in the upsampling, and in the final pointwise block.
+    transformer_activation
+        Activation function to use in the feedforward section of the transformer blocks.
+    output_activation
+        Final activation to use on the output heads, just before predicting the tracks.
+    pool_type
+        What kind of pooling type to use, one of 'max' or 'attention'.
+    first_kernel_size
+        Kernel size of the first conv layer, directly interfacing the sequence.
+    kernel_size
+        Kernel size of the convolutions in the conv tower.
+    transformer_dropout
+        Dropout rate used in the transformer blocks, both MHA and feed-forward.
+    pointwise_dropout
+        Dropout rate of the post-transformer final pointwise layer.
+    bn_sync
+        Whether to use synchronized cross-GPU BatchNormalisations.
+        Default is False to preserve TensorFlow-PyTorch compatibility.
+
+    Returns
+    -------
+    A Keras model.
+    """
+    return borzoi(
+        seq_len=seq_len,
+        num_classes=num_classes,
+        num_conv_blocks=num_conv_blocks,
+        num_transformer_blocks=num_transformer_blocks,
+        num_transformer_heads=num_transformer_heads,
+        target_length=target_length,
+        start_filters=start_filters,
+        tower_start_filters=tower_start_filters,
+        filters=filters,
+        pointwise_filters=pointwise_filters,
+        unet_connections=unet_connections,
+        unet_filters=unet_filters,
+        upsample_conv=upsample_conv,
+        conv_activation=conv_activation,
+        transformer_activation=transformer_activation,
+        output_activation=output_activation,
+        pool_type=pool_type,
+        first_kernel_size=first_kernel_size,
+        kernel_size=kernel_size,
+        transformer_dropout=transformer_dropout,
+        pointwise_dropout=pointwise_dropout,
+        bn_sync=bn_sync,
+        name=name,
+    )
+
+
 def exp_linspace_int(start, end, num_modules, divisible_by=1):
     """Get an exponentially rising set of values, guaranteed to be integers."""
 
