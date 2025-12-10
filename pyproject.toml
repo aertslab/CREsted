@@ -38,6 +38,7 @@ dependencies = [
   "seaborn",
   "tqdm",
   "wandb>=0.12.10",
+  "scipy",
 ]
 
 optional-dependencies.dev = [
