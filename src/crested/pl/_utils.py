@@ -2,19 +2,24 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 import matplotlib.pyplot as plt
 import numpy as np
+
+from crested.utils._logging import log_and_raise
 
 
 def render_plot(
     fig: plt.Figure,
     axs: plt.Axes | list[plt.Axes],
-    title: str | None = None,
+    title: str | list[str] | None = None,
     suptitle: str | None = None,
-    xlabel: str | None = None,
-    ylabel: str | None = None,
+    xlabel: str | list[str] | None = None,
+    ylabel: str | list[str] | None = None,
     supxlabel: str | None = None,
     supylabel: str | None = None,
+    grid: Literal[False, 'x', 'y', 'both'] = False,
     tight_rect: tuple | None = None,
     title_fontsize: int = 16,
     suptitle_fontsize: int = 20,
@@ -43,15 +48,17 @@ def render_plot(
     axs
         The axis object or list of axis objects to render.
     title
-        Title of the plot.
+        Axis-level title of the plot. If a list, matched to each axis in axs; if a string, applied to all axes.
     xlabel
-        Label for the X-axis.
+        Label for the X-axis. If a list, matched to each axis in axs; if a string, applied to all axes.
     ylabel
-        Label for the Y-axis.
+        Label for the Y-axis.  If a list, matched to each axis in axs; if a string, applied to all axes.
     supxlabel
         Suplabel for the X-axis.
     supylabel
         Suplabel for the Y-axis.
+    grid
+        Add a major tick grid. Can be 'x', 'y', or 'both' to determine axis, True as alias for 'all', or False to disable.
     tight_rect
         Normalized coordinates in which subplots will fit.
     title_fontsize
@@ -77,6 +84,37 @@ def render_plot(
     save_path
         Optional path to save the figure. If None, the figure is displayed but not saved.
     """
+    @log_and_raise(ValueError)
+    def _check_input_lengths():
+        if xlabel is not None and not isinstance(xlabel, str):
+            if len(xlabel) != n_axes:
+                raise ValueError(f"List of x labels provided, but number of x labels {len(xlabel)} does not match number of axes ({n_axes}).")
+        if ylabel is not None and not isinstance(ylabel, str):
+            if len(ylabel) != n_axes:
+                raise ValueError(f"List of y labels provided, but number of y labels {len(ylabel)} does not match number of axes ({n_axes}).")
+        if title is not None and not isinstance(title, str):
+            if len(title) != n_axes:
+                raise ValueError(f"List of axis titles provided, but number of titles {len(title)} does not match number of axes ({n_axes}).")
+
+    # Handle axes
+    if isinstance(axs, plt.Axes):
+        axs = [axs]
+    elif isinstance(axs, np.ndarray):
+        axs = axs.ravel()
+    n_axes = len(axs)
+
+    # Check input
+    _check_input_lengths()
+
+    # Handle single-string inputs
+    if isinstance(xlabel, str):
+        xlabel = [xlabel]*n_axes
+    if isinstance(ylabel, str):
+        ylabel = [ylabel]*n_axes
+    if isinstance(title, str):
+        title = [title]*n_axes
+
+    # Infer downstream x rotation parameters
     if x_label_ha is None:
         if 0 < (x_label_rotation % 180) < 90:
             x_label_ha = 'right'
@@ -87,6 +125,11 @@ def render_plot(
     if x_label_rotationmode is None:
         x_label_rotationmode =  'anchor' if (35 <= x_label_rotation <= 55) else 'default'
 
+    # Handle grid alias
+    if grid is True:
+        grid = 'all'
+
+    # Set figure labels
     if suptitle:
         fig.suptitle(suptitle, fontsize=suptitle_fontsize)
     if supxlabel:
@@ -94,18 +137,14 @@ def render_plot(
     if supylabel:
         fig.supylabel(supylabel)
 
-    # TODO: handle lists of labels?
-    if isinstance(axs, plt.Axes):
-        axs = [axs]
-    elif isinstance(axs, np.ndarray):
-        axs = axs.ravel()
-    for ax in axs:
-        if xlabel:
+    # Set axis traits
+    for i, ax in enumerate(axs):
+        if xlabel[i]:
             ax.set_xlabel(xlabel, fontsize=x_label_fontsize)
-        if ylabel:
+        if ylabel[i]:
             ax.set_ylabel(ylabel, fontsize=y_label_fontsize)
-        if title:
-            ax.set_title(title, fontsize = title_fontsize)
+        if title[i]:
+            ax.set_title(title[i], fontsize = title_fontsize)
         for label in ax.get_xticklabels():
             label.set_rotation(x_label_rotation)
             label.set_fontsize(x_tick_fontsize)
@@ -114,16 +153,20 @@ def render_plot(
         for label in ax.get_yticklabels():
             label.set_fontsize(y_tick_fontsize)
             label.set_rotation(y_label_rotation)
+        if grid:
+            ax.grid(axis=grid)
+
+    # Set figure resizing
     if tight_rect:
         fig.tight_layout(rect=tight_rect)
     else:
         fig.tight_layout()
+
+    # Save and/or show and/or return
     if save_path:
         fig.savefig(save_path, bbox_inches="tight")
-
     if show:
         plt.show()
-
     if not show and not save_path:
         return fig, axs
 
