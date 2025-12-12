@@ -253,15 +253,18 @@ def correlations_predictions(
         kwargs['x_label_rotation'] = 90
     plot_kws = {} if plot_kws is None else plot_kws.copy()
 
-    # Gather data
-    correlation_matrices = {}
     # Prepare ground truth values
     x = adata[:, adata.var["split"] == split].X if split is not None else adata.X
     if log_transform:
         x = np.log1p(x)
 
-    # Calculate correlation coefficients with predictions
-    for model in model_names:
+    # Create plots
+    fig, axs = create_plot(ax=ax, width=plot_width, height=plot_height, ncols=n_models)
+    if n_models == 1:
+        axs = [axs]
+
+    # Calculate correlation coefficients with predictions and plot
+    for i, model in enumerate(model_names):
         y = adata[:, adata.var["split"] == split].layers[model] if split is not None else adata.layers[model]
         if log_transform:
             y = np.log1p(y)
@@ -272,15 +275,10 @@ def correlations_predictions(
         correlation_matrix = np.corrcoef(x, y)
         # reformat the array to only get correlations between x and y
         # and no self correlations
-        correlation_matrices[model] = np.hsplit(np.vsplit(correlation_matrix, 2)[1], 2)[0].T
+        correlation_matrix = np.hsplit(np.vsplit(correlation_matrix, 2)[1], 2)[0].T
 
-    # Create plots
-    fig, axs = create_plot(ax=ax, width=plot_width, height=plot_height, ncols=n_models)
-    if n_models == 1:
-        axs = [axs]
-
-    for i, model in enumerate(model_names):
-        ax = _generate_heatmap(ax=axs[i], correlation_matrix=correlation_matrices[model], classes=classes, vmin=vmin, vmax=vmax, reorder=reorder, cmap=cmap, **plot_kws)
+        ax = _generate_heatmap(ax=axs[i], correlation_matrix=correlation_matrix, classes=classes, vmin=vmin, vmax=vmax, reorder=reorder, cmap=cmap, **plot_kws)
         ax.set_title(model)
+
 
     return render_plot(fig, axs, **kwargs)
