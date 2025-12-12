@@ -275,7 +275,6 @@ def prediction(
     plot_kws = {} if plot_kws is None else plot_kws.copy()
     if 'alpha' not in plot_kws:
         plot_kws['alpha'] = 0.8
-    
 
     # Create plot
     fig, ax = create_plot(ax=ax, width=plot_width, height=plot_height)
