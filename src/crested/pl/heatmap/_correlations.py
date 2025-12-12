@@ -251,6 +251,8 @@ def correlations_predictions(
     plot_height = kwargs.pop('height') if 'height' in kwargs else 8
     if 'x_label_rotation' not in kwargs:
         kwargs['x_label_rotation'] = 90
+    if 'title' not in kwargs:
+        kwargs['title'] = list(model_names)
     plot_kws = {} if plot_kws is None else plot_kws.copy()
 
     # Prepare ground truth values
@@ -278,7 +280,5 @@ def correlations_predictions(
         correlation_matrix = np.hsplit(np.vsplit(correlation_matrix, 2)[1], 2)[0].T
 
         ax = _generate_heatmap(ax=axs[i], correlation_matrix=correlation_matrix, classes=classes, vmin=vmin, vmax=vmax, reorder=reorder, cmap=cmap, **plot_kws)
-        ax.set_title(model)
-
 
     return render_plot(fig, axs, **kwargs)
