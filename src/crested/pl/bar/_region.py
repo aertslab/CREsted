@@ -7,7 +7,8 @@ import numpy as np
 from anndata import AnnData
 from loguru import logger
 
-from crested.pl._utils import render_plot
+import crested
+from crested.pl._utils import create_plot, render_plot
 from crested.utils._logging import log_and_raise
 
 
@@ -15,11 +16,11 @@ def region_predictions(
     adata: AnnData,
     region: str,
     model_names: str | list[str] | None = None,
-    share_y: bool = True,
+    plot_kws: dict | None = None,
     **kwargs,
-) -> plt.Figure:
+) -> tuple[plt.Figure, list[plt.Axes]] | None:
     """
-    Barplots of all predictions in .layers vs the groundtruth for a specific region across comparing classes.
+    Barplots of all predictions in .layers vs the ground truth for a specific region across comparing classes.
 
     Parameters
     ----------
@@ -29,12 +30,15 @@ def region_predictions(
         String in the format 'chr:start-end' representing the genomic location.
     model_names
         Single model name or list of model names in `adata.layers`. If None, will create a plot per model in `adata.layers`.
-    share_y
-        Whether to rescale the y-axis to be the same across plots. Default is True.
+    plot_kws
+        Extra keyword arguments passed to :func:`~matplotlib.Axes.bar`.
+    width, height
+        Dimensions of the newly created figure if `ax=None`. Default is (20, 3*(n_plots)).
+    sharex, sharey
+        Whether to share x and y axes of the created plots. Default is True for both.
     kwargs
-        Additional arguments passed to :func:`~crested.pl.render_plot` to
-        control the final plot output. Please see :func:`~crested.pl.render_plot`
-        for details.
+        Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
+        Please see :func:`~crested.pl.render_plot` for details.
 
     See Also
     --------
@@ -52,7 +56,12 @@ def region_predictions(
 
     .. image:: ../../../../docs/_static/img/examples/bar_region_predictions.png
     """
+    # Handle deprecated arguments
+    if 'share_y' in kwargs:
+        kwargs['sharey'] = kwargs.pop('share_y')
+        logger.warning("Argument `share_y` is deprecated; please use sharey instead to align with matplotlib.")
 
+    # Check inputs
     @log_and_raise(ValueError)
     def _check_input_params():
         if region not in list(adata.var_names):
@@ -70,131 +79,151 @@ def region_predictions(
 
     _check_input_params()
 
-    logger.info(f"Plotting bar plots for region: {region}, models: {model_names}")
+    n_models = len(model_names)
 
-    region_idx = adata.var_names.get_loc(region)
+    # Set defaults
+    plot_width = kwargs.pop('width') if 'width' in kwargs else 20
+    plot_height = kwargs.pop('height') if 'height' in kwargs else 3*(n_models+1)
+    sharex = kwargs.pop('sharex') if 'sharex' in kwargs else True
+    sharey = kwargs.pop('sharey') if 'sharey' in kwargs else True
+    if 'grid' not in kwargs:
+        kwargs['grid'] = 'y'
+    plot_kws = {} if plot_kws is None else plot_kws.copy()
 
-    x = adata.X[:, region_idx]
-    predicted_values = {
-        model: adata.layers[model][:, region_idx] for model in model_names
-    }
-
-    n_models = len(predicted_values)
-
-    fig, axes = plt.subplots(
-        n_models + 1,
+    # Create figure scaffold
+    fig, axs = plt.subplots(
+        n_models+1,
         1,
-        figsize=(kwargs.get("width", 20), kwargs.get("height", 3 * (n_models + 1))),
-        sharex=True,
-        sharey=share_y,
+        figsize=(plot_width, plot_height),
+        sharex=sharex,
+        sharey=sharey,
     )
 
-    for _, (ax, (model_name, y)) in enumerate(
-        zip(axes[:-1], predicted_values.items(), strict=False)
-    ):
-        ax.bar(list(adata.obs_names), y, alpha=0.8, label=model_name)
-        ax.set_ylabel(model_name)
-        ax.grid(True)
-        ax.set_xticks(np.arange(len(adata.obs_names)))
-        ax.set_xticklabels(list(adata.obs_names))
+    # Plot predictions
+    for i in range(n_models):
+        _ = crested.pl.bar.region(
+            adata=adata,
+            region=region,
+            target=model_names[i],
+            show=False,
+            plot_kws=plot_kws,
+            ax=axs[i],
+        )
 
-    axes[-1].bar(
-        list(adata.obs_names), x, color="green", alpha=0.7, label="Ground Truth"
+    # Plot ground truth
+    plot_kws_truth = plot_kws.copy()
+    if 'color' not in plot_kws_truth:
+        plot_kws_truth['color'] = 'green'
+
+    _ = crested.pl.bar.region(
+        adata=adata,
+        region=region,
+        target=None,
+        show=False,
+        plot_kws=plot_kws_truth,
+        ax=axs[-1],
     )
-    axes[-1].set_ylabel("Ground truth")
-    axes[-1].grid(True)
-
-    default_height = 6 * n_models
-    default_width = 18
-
-    if "width" not in kwargs:
-        kwargs["width"] = default_width
-    if "height" not in kwargs:
-        kwargs["height"] = default_height
-
-    return render_plot(fig, **kwargs)
-
+    return render_plot(fig, axs, **kwargs)
 
 def region(
-    adata: AnnData, region: str, target: str = "groundtruth", **kwargs
-) -> plt.Figure:
+    adata: AnnData,
+    region: str,
+    target: str | None = None,
+    plot_kws: dict | None = None,
+    ax: plt.Axes | None = None,
+    **kwargs
+) -> tuple[plt.Figure, plt.Axes] | None:
     """
-    Barplot of groundtruths or predictions for a specific region comparing classes.
+    Barplot of ground truths or predictions for a specific region in your data, comparing different classes.
 
     Parameters
     ----------
     adata
         AnnData object containing the genomic data in `var`.
     region
-        String in the format 'chr:start-end' representing the genomic location.
+        Region name from the AnnData, generally in format 'chr:start-end'.
     target
-        The target to plot the distribution for, either "groundtruth" or the name of a prediction layer in adata.layers.
+        The target to plot the distribution for, either None (for the ground truth from adata.X) or the name of a prediction layer in adata.layers.
+    plot_kws
+        Extra keyword arguments passed to :func:`~matplotlib.Axes.bar`.
+    ax
+        Axis to plot values on. If not supplied, creates a figure from scratch.
+    width, height
+        Dimensions of the newly created figure if `ax=None`. Default is (18, 6).
     kwargs
-        Additional arguments passed to :func:`~crested.pl.render_plot` to
-        control the final plot output. Please see :func:`~crested.pl.render_plot`
-        for details.
+        Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
+        Please see :func:`~crested.pl.render_plot` for details.
 
     See Also
     --------
     crested.pl.render_plot
+    crested.pl.bar.region_predictions
+    crested.pl.bar.prediction
 
     Example
     -------
     >>> crested.pl.bar.region(
     ...     adata,
     ...     region="chr1:3094805-3095305",
-    ...     target="groundtruth",
-    ...     xlabel="Cell Type",
+    ...     target=None,
+    ...     xlabel="Cell type",
     ...     ylabel="Peak height",
-    ...     figsize=(20, 3),
+    ...     width=20,
+    ...     height=3,
     ...     figtitle="chr1:3094805-3095305",
     ... )
 
     .. image:: ../../../../docs/_static/img/examples/bar_region.png
     """
-
+    # Check inputs
     @log_and_raise(ValueError)
     def _check_input_params():
-        if target not in ["groundtruth"] + list(adata.layers.keys()):
+        if target is not None and target not in adata.layers:
             raise ValueError(f"Target {target} not found in adata.layers.")
-
         if region not in list(adata.var_names):
             raise ValueError(f"{region} not found in adata.var_names.")
 
+    if target == "groundtruth":
+        target = None
+
     _check_input_params()
 
-    if target == "groundtruth":
+    # Gather inputs
+    classes = list(adata.obs_names)
+    if target is None:
         data = adata.X[:, adata.var_names.get_loc(region)]
     else:
         data = adata.layers[target][:, adata.var_names.get_loc(region)]
 
-    logger.info(f"Plotting bar plot for region: {region}, target: {target}")
+    # Set defaults
+    plot_width = kwargs.pop('width') if 'width' in kwargs else 18
+    plot_height = kwargs.pop('height') if 'height' in kwargs else 6
+    if 'xlabel' not in kwargs:
+        kwargs['xlabel'] = None
+    if 'ylabel' not in kwargs:
+        kwargs['ylabel'] = 'Ground truth' if target is None else target
+    if 'grid' not in kwargs:
+        kwargs['grid'] = 'y'
+    plot_kws = {} if plot_kws is None else plot_kws.copy()
+    if 'alpha' not in plot_kws:
+        plot_kws['alpha'] = 0.8
 
-    fig, ax = plt.subplots()
-    ax.bar(list(adata.obs_names), data, alpha=0.8)
-
-    default_height = 6
-    default_width = 18
-
-    if "width" not in kwargs:
-        kwargs["width"] = default_width
-    if "height" not in kwargs:
-        kwargs["height"] = default_height
-
-    return render_plot(fig, **kwargs)
+    # Create plot
+    fig, ax = create_plot(ax=ax, width=plot_width, height=plot_height)
+    ax.bar(classes, data, **plot_kws)
+    return render_plot(fig, ax, **kwargs)
 
 
 def prediction(
     prediction: np.array,
-    classes: list,
-    ylabel: str = "Prediction",
-    xlabel: str = "Cell types",
-    title: str = "Prediction plot",
+    classes: list[str],
     ylim: tuple(float, float) | None = None,
+    plot_kws: dict | None = None,
+    ax: plt.Axes | None = None,
     **kwargs,
-) -> plt.Figure:
+) -> tuple[plt.Figure, plt.Axes] | None:
     """
-    Bar plot for predictions comparing different classes or cell types.
+    Bar plot for a single prediction, comparing different classes.
 
     Parameters
     ----------
@@ -202,55 +231,58 @@ def prediction(
         An array containing the prediction values for each class or cell type. It is reshaped if necessary.
     classes
         A list of class or cell type labels corresponding to the predictions.
-    ylabel
-        Label for the y-axis. Default is 'prediction'.
-    xlabel
-        Label for the x-axis. Default is 'cell types'.
-    title
-        Title of the plot. Default is 'Prediction plot'.
     ylim
         Manually set the y-axis limits.
+    plot_kws
+        Extra keyword arguments passed to :func:`~matplotlib.Axes.bar`.
+    ax
+        Axis to plot values on. If not supplied, creates a figure from scratch.
+    width, height
+        Dimensions of the newly created figure if `ax=None`. Default is (18, 3).
     kwargs
-        Additional keyword arguments to pass to `render_plot`.
+        Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
+        Please see :func:`~crested.pl.render_plot` for details.
+
+    See Also
+    --------
+    crested.pl.render_plot
+    crested.pl.bar.region
+    crested.pl.bar.region_predictions
 
     Returns
     -------
     plt.Figure
         The generated bar plot figure.
     """
+    # Check inputs
     # Ensure the prediction array is 1-dimensional
-    if prediction.ndim > 1 and prediction.shape[0] == 1:
-        prediction = prediction.flatten()
+    prediction = prediction.squeeze()
 
     if len(prediction) != len(classes):
         raise ValueError(
-            "The length of prediction array must match the number of classes."
+            f"The length of prediction array ({len(prediction)}) must match the number of classes ({len(classes)})."
         )
 
-    # Create the bar plot
-    fig, ax = plt.subplots()
-    ax.bar(classes, prediction, alpha=0.8)
+    # Set defaults
+    plot_width = kwargs.pop('width') if 'width' in kwargs else 18
+    plot_height = kwargs.pop('height') if 'height' in kwargs else 3
+    if 'xlabel' not in kwargs:
+        kwargs['xlabel'] = "Cell types"
+    if 'ylabel' not in kwargs:
+        kwargs['ylabel'] = "Prediction"
+    if 'grid' not in kwargs:
+        kwargs['grid'] = 'y'
+    plot_kws = {} if plot_kws is None else plot_kws.copy()
+    if 'alpha' not in plot_kws:
+        plot_kws['alpha'] = 0.8
+    
 
-    # Set plot labels and title
-    ax.set_ylabel(ylabel)
-    ax.set_xlabel(xlabel)
-    ax.set_title(title)
-    ax.grid(True)
+    # Create plot
+    fig, ax = create_plot(ax=ax, width=plot_width, height=plot_height)
+    ax.bar(classes, prediction, **plot_kws)
 
     if ylim:
         ax.set_ylim(ylim)
 
-    # Set the x-ticks to match the number of classes
-    ax.set_xticks(range(len(classes)))
-    ax.set_xticklabels(classes, rotation=45, ha="center")
-
-    # Default figure size, can be overridden by kwargs
-    default_height = 3
-    default_width = 18
-    if "width" not in kwargs:
-        kwargs["width"] = default_width
-    if "height" not in kwargs:
-        kwargs["height"] = default_height
-
     # Use render_plot to finalize and return the figure
-    return render_plot(fig, **kwargs)
+    return render_plot(fig, ax, **kwargs)
