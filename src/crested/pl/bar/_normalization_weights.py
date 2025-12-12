@@ -31,7 +31,7 @@ def normalization_weights(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `normalization_weights`: `xlabel="Cell type"`, `ylabel="Scaling factor"`.
+        Custom defaults for `normalization_weights`: `xlabel="Cell type"`, `ylabel="Scaling factor"`, `grid='y'`.
 
     See Also
     --------
@@ -64,6 +64,8 @@ def normalization_weights(
         kwargs['xlabel'] = "Cell type"
     if 'ylabel' not in kwargs:
         kwargs['ylabel'] = "Scaling factor"
+    if 'grid' not in kwargs:
+        kwargs['grid'] = 'y'
     plot_kws = {} if plot_kws is None else plot_kws.copy()
 
     # Gather data
