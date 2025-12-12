@@ -105,7 +105,7 @@ def distribution(
     sharex = kwargs.pop('sharex') if 'sharex' in kwargs else True
     sharey = kwargs.pop('sharey') if 'sharey' in kwargs else True
     if 'grid' not in kwargs:
-        kwargs['grid'] = 'all'
+        kwargs['grid'] = 'both'
 
     plot_kws = {} if plot_kws is None else plot_kws.copy()
     if 'kde' not in plot_kws:
