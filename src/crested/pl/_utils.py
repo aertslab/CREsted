@@ -139,11 +139,11 @@ def render_plot(
 
     # Set axis traits
     for i, ax in enumerate(axs):
-        if xlabel[i]:
-            ax.set_xlabel(xlabel, fontsize=x_label_fontsize)
-        if ylabel[i]:
-            ax.set_ylabel(ylabel, fontsize=y_label_fontsize)
-        if title[i]:
+        if xlabel is not None and xlabel[i] is not None:
+            ax.set_xlabel(xlabel[i], fontsize=x_label_fontsize)
+        if ylabel is not None and ylabel[i] is not None:
+            ax.set_ylabel(ylabel[i], fontsize=y_label_fontsize)
+        if title is not None and title[i] is not None:
             ax.set_title(title[i], fontsize = title_fontsize)
         for label in ax.get_xticklabels():
             label.set_rotation(x_label_rotation)
@@ -155,6 +155,7 @@ def render_plot(
             label.set_rotation(y_label_rotation)
         if grid:
             ax.grid(axis=grid)
+            ax.set_axisbelow(True)
 
     # Set figure resizing
     if tight_rect:
