@@ -69,9 +69,9 @@ def render_plot(
     y_label_rotation
         Rotation of the Y-axis labels in degrees.
     x_label_ha
-        TODO: write
+        Horizontal alignment of the X-axis labels. If None, inferred to be appropriate for x_label_rotation.
     x_label_rotationmode
-        TODO: write
+        Rotation mode when rotating the X-axis labels. If None, inferred to be appropriate for x_label_rotation.
     show
         Whether to display the plot. Set this to False if you want to return the figure object to customize it further.
     save_path
@@ -129,13 +129,40 @@ def render_plot(
 
 
 def create_plot(
-    ax: plt.Axes,
+    ax: plt.Axes | None,
     width: int = 8,
     height: int = 8,
+    nrows: int = 1,
+    ncols: int = 1,
     **kwargs
-) -> (plt.Figure, plt.Axes):
+) -> (plt.Figure, plt.Axes) | (plt.Figure, list[plt.Axes]):
+    """
+    Create a new plot or gather the figure if already existing.
+
+    Effectively a wrapper around `plt.subplots` if there's no pre-existing axis, and a way to get the Figure object if there is.
+
+    Note
+    ----
+    This function should never be called directly. Rather, the other plotting functions call this function.
+
+    Parameters
+    ----------
+    ax
+        A single axis object, or None. If an axis, will return its associated figure.
+        If None, will create a new figure according to the other parameters.
+    width
+        The width of the figure, for `plt.subplots(figsize)`.
+    height
+        The height of the figure, for `plt.subplots(figsize)`.
+    nrows
+        The number of rows for the subplot grid.
+    ncols
+        The number of columns for the subplot grid.
+    """
     if ax is None:
-        fig, ax = plt.subplots(figsize=(width, height), **kwargs)
-    else:
+        fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(width, height), **kwargs)
+    elif isinstance(ax, plt.Axes):
         fig = ax.get_figure()
+    else:
+        raise ValueError(f"ax must be a single matplotlib ax or None, not {type(ax)}.")
     return fig, ax
