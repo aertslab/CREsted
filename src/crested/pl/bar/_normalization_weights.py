@@ -27,10 +27,11 @@ def normalization_weights(
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width, height
-        Dimensions of the newly created figure if `ax=None`. default is (11, 8).
+        Dimensions of the newly created figure if `ax=None`. Default is (11, 8).
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
+        Custom defaults for `normalization_weights`: `xlabel="Cell type"`, `ylabel="Scaling factor"`.
 
     See Also
     --------

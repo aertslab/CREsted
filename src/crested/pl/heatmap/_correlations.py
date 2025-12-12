@@ -115,6 +115,7 @@ def correlations_self(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
+        Custom defaults for `correlations_self`: `x_label_rotation=90`.
 
     See Also
     --------
@@ -191,10 +192,11 @@ def correlations_predictions(
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch. Can only be supplied if plotting a single model.
     width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (11*len(models_to_plot), 8).
+        Dimensions of the newly created figure if `ax=None`. Default is (11, 8) per model to plot.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
+        Custom defaults for `correlations_predictions`: `x_label_rotation=90`, `title=list(adata.obs_names)`.
 
     See Also
     --------

@@ -16,6 +16,8 @@ def region_predictions(
     adata: AnnData,
     region: str,
     model_names: str | list[str] | None = None,
+    pred_color: str = 'tab:blue',
+    truth_color: str = 'green',
     plot_kws: dict | None = None,
     **kwargs,
 ) -> tuple[plt.Figure, list[plt.Axes]] | None:
@@ -30,15 +32,20 @@ def region_predictions(
         String in the format 'chr:start-end' representing the genomic location.
     model_names
         Single model name or list of model names in `adata.layers`. If None, will create a plot per model in `adata.layers`.
+    pred_color
+        Plot color of the prediction barplot(s).
+    truth_color
+        Plot color of the ground truth barplot.
     plot_kws
         Extra keyword arguments passed to :func:`~matplotlib.Axes.bar`.
     width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (20, 3*(n_plots)).
+        Dimensions of the newly created figure if `ax=None`. Default is (20, 3*(1+n_models)).
     sharex, sharey
         Whether to share x and y axes of the created plots. Default is True for both.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
+        Custom defaults for `region_predictions`: `grid="y"`.
 
     See Also
     --------
@@ -100,6 +107,9 @@ def region_predictions(
     )
 
     # Plot predictions
+    plot_kws_pred = plot_kws.copy()
+    if 'color' not in plot_kws_pred:
+        plot_kws_pred['color'] = pred_color
     for i in range(n_models):
         _ = crested.pl.bar.region(
             adata=adata,
@@ -107,15 +117,14 @@ def region_predictions(
             target=model_names[i],
             grid=False, # Disable here so that final render_plot can set it
             show=False,
-            plot_kws=plot_kws,
+            plot_kws=plot_kws_pred,
             ax=axs[i],
         )
 
     # Plot ground truth
     plot_kws_truth = plot_kws.copy()
     if 'color' not in plot_kws_truth:
-        plot_kws_truth['color'] = 'green'
-
+        plot_kws_truth['color'] = truth_color
     _ = crested.pl.bar.region(
         adata=adata,
         region=region,
@@ -147,7 +156,7 @@ def region(
     target
         The target to plot the distribution for, either None (for the ground truth from adata.X) or the name of a prediction layer in adata.layers.
     plot_kws
-        Extra keyword arguments passed to :func:`~matplotlib.Axes.bar`.
+        Extra keyword arguments passed to :func:`~matplotlib.Axes.bar`. Defaults: `'alpha': 0.8`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width, height
@@ -155,6 +164,7 @@ def region(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
+        Custom defaults for `region`: `xlabel="None"`, `ylabel="Ground truth"`/`target`, `grid='y'`.
 
     See Also
     --------
@@ -236,7 +246,7 @@ def prediction(
     ylim
         Manually set the y-axis limits.
     plot_kws
-        Extra keyword arguments passed to :func:`~matplotlib.Axes.bar`.
+        Extra keyword arguments passed to :func:`~matplotlib.Axes.bar`. Defaults: `'alpha': 0.8`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width, height
@@ -244,17 +254,13 @@ def prediction(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
+        Custom defaults for `prediction`: `xlabel='Cell types'`, `ylabel='Prediction'`, `grid="y"`.
 
     See Also
     --------
     crested.pl.render_plot
     crested.pl.bar.region
     crested.pl.bar.region_predictions
-
-    Returns
-    -------
-    plt.Figure
-        The generated bar plot figure.
     """
     # Check inputs
     # Ensure the prediction array is 1-dimensional

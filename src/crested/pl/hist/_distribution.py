@@ -39,7 +39,7 @@ def distribution(
         Whether to log-transform the data before plotting.
     plot_kws
         Extra keyword arguments passed to :func:`~seaborn.histplot`.
-        Adjusted defaults compared to the base function are `square=True` and `fmt='.2f'`.
+        Defaults: `{'kde': True, 'stat': 'frequency', 'color': 'skyblue', 'binwidth': np.ptp(data)}`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch. Can only be supplied if plotting a single model.
     width, height
@@ -49,6 +49,7 @@ def distribution(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
+        Custom defaults for `distribution`: `grid='both'`.
 
     See Also
     --------
