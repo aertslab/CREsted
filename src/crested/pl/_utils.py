@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Literal
 
 import matplotlib.pyplot as plt
@@ -19,6 +20,8 @@ def render_plot(
     ylabel: str | list[str] | None = None,
     supxlabel: str | None = None,
     supylabel: str | None = None,
+    xlim: tuple[float, float]| list[tuple(float, float)] | None = None,
+    ylim: tuple[float, float]| list[tuple(float, float)] | None = None,
     grid: Literal[False, 'x', 'y', 'both'] = False,
     tight_rect: tuple | None = None,
     title_fontsize: int = 16,
@@ -57,6 +60,10 @@ def render_plot(
         Suplabel for the X-axis.
     supylabel
         Suplabel for the Y-axis.
+    xlim
+        X-axis limits. If a list of lists, matched to each axis in axs; if a single list, applied to all axes.
+    ylim
+        Y-axis limits. If a list of lists, matched to each axis in axs; if a single list, applied to all axes.
     grid
         Add a major tick grid. Can be 'x', 'y', or 'both' to determine axis, True as alias for 'all', or False to disable.
     tight_rect
@@ -95,6 +102,12 @@ def render_plot(
         if title is not None and not isinstance(title, str):
             if len(title) != n_axes:
                 raise ValueError(f"List of axis titles provided, but number of titles {len(title)} does not match number of axes ({n_axes}).")
+        if xlim is not None and isinstance(xlim[0], Sequence):
+            if len(xlim) != n_axes:
+                raise ValueError(f"List of xlims provided, but number of titles {len(xlim)} does not match number of axes ({n_axes}).")
+        if ylim is not None and isinstance(ylim[0], Sequence):
+            if len(ylim) != n_axes:
+                raise ValueError(f"List of ylims provided, but number of titles {len(ylim)} does not match number of axes ({n_axes}).")
 
     # Handle axes
     if isinstance(axs, plt.Axes):
@@ -106,13 +119,17 @@ def render_plot(
     # Check input
     _check_input_lengths()
 
-    # Handle single-string inputs
+    # Handle single-entry inputs
     if isinstance(xlabel, str):
         xlabel = [xlabel]*n_axes
     if isinstance(ylabel, str):
         ylabel = [ylabel]*n_axes
     if isinstance(title, str):
         title = [title]*n_axes
+    if xlim is not None and not isinstance(xlim[0], Sequence):
+        xlim = [xlim]*n_axes
+    if ylim is not None and not isinstance(ylim[0], Sequence):
+        ylim = [ylim]*n_axes
 
     # Infer downstream x rotation parameters
     if x_label_ha is None:
@@ -145,6 +162,10 @@ def render_plot(
             ax.set_ylabel(ylabel[i], fontsize=y_label_fontsize)
         if title is not None and title[i] is not None:
             ax.set_title(title[i], fontsize = title_fontsize)
+        if xlim is not None and xlim[i] is not None:
+            ax.set_xlim(xlim[i])
+        if ylim is not None and ylim[i] is not None:
+            ax.set_ylim(ylim[i])
         for label in ax.get_xticklabels():
             label.set_rotation(x_label_rotation)
             label.set_fontsize(x_tick_fontsize)

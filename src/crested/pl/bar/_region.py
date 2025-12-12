@@ -229,7 +229,6 @@ def region(
 def prediction(
     prediction: np.array,
     classes: list[str],
-    ylim: tuple(float, float) | None = None,
     plot_kws: dict | None = None,
     ax: plt.Axes | None = None,
     **kwargs,
@@ -243,8 +242,6 @@ def prediction(
         An array containing the prediction values for each class or cell type. It is reshaped if necessary.
     classes
         A list of class or cell type labels corresponding to the predictions.
-    ylim
-        Manually set the y-axis limits.
     plot_kws
         Extra keyword arguments passed to :func:`~matplotlib.Axes.bar`. Defaults: `'alpha': 0.8`.
     ax
@@ -287,9 +284,6 @@ def prediction(
     # Create plot
     fig, ax = create_plot(ax=ax, width=plot_width, height=plot_height)
     ax.bar(classes, prediction, **plot_kws)
-
-    if ylim:
-        ax.set_ylim(ylim)
 
     # Use render_plot to finalize and return the figure
     return render_plot(fig, ax, **kwargs)
