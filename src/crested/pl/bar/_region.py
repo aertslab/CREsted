@@ -105,6 +105,7 @@ def region_predictions(
             adata=adata,
             region=region,
             target=model_names[i],
+            grid=False, # Disable here so that final render_plot can set it
             show=False,
             plot_kws=plot_kws,
             ax=axs[i],
@@ -119,6 +120,7 @@ def region_predictions(
         adata=adata,
         region=region,
         target=None,
+        grid=False, # Disable here so that final render_plot can set it
         show=False,
         plot_kws=plot_kws_truth,
         ax=axs[-1],
