@@ -144,7 +144,7 @@ def render_plot(
 
     # Handle grid alias
     if grid is True:
-        grid = 'all'
+        grid = 'both'
 
     # Set figure labels
     if suptitle:
