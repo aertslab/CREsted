@@ -57,7 +57,7 @@ def region_predictions(
     ...     adata,
     ...     region='chr1:3094805-3095305'
     ...     model_names=["model_1", "model_2"],
-    ...     share_y=False,
+    ...     sharey=False,
     ...     title="Region chr1:3094805-3095305"
     ... )
 
@@ -239,7 +239,7 @@ def prediction(
     Parameters
     ----------
     prediction
-        An array containing the prediction values for each class or cell type. It is reshaped if necessary.
+        An array containing the prediction values for each class or cell type. It is squeezed to remove 1-wide dimensions if necessary.
     classes
         A list of class or cell type labels corresponding to the predictions.
     plot_kws
@@ -258,15 +258,27 @@ def prediction(
     crested.pl.render_plot
     crested.pl.bar.region
     crested.pl.bar.region_predictions
+
+    Example
+    -------
+    >>> crested.pl.bar.prediction(
+    ...     pred,
+    ...     classes=list(adata.obs_names),
+    ...     title="Region chr1:3094805-3095305"
+    ... )
     """
     # Check inputs
+    @log_and_raise(ValueError)
+    def _check_input_params():
+        if len(prediction) != len(classes):
+            raise ValueError(
+                f"The length of prediction array ({len(prediction)}) must match the number of classes ({len(classes)})."
+            )
+
     # Ensure the prediction array is 1-dimensional
     prediction = prediction.squeeze()
 
-    if len(prediction) != len(classes):
-        raise ValueError(
-            f"The length of prediction array ({len(prediction)}) must match the number of classes ({len(classes)})."
-        )
+    _check_input_params()
 
     # Set defaults
     plot_width = kwargs.pop('width') if 'width' in kwargs else 18
