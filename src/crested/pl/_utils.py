@@ -25,7 +25,7 @@ def render_plot(
     grid: Literal[False, 'x', 'y', 'both'] = False,
     tight_rect: tuple | None = None,
     title_fontsize: int = 16,
-    suptitle_fontsize: int = 20,
+    suptitle_fontsize: int = 18,
     x_label_fontsize: int = 14,
     y_label_fontsize: int = 14,
     x_tick_fontsize: int = 12,
