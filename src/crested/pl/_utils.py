@@ -175,7 +175,7 @@ def render_plot(
             label.set_fontsize(y_tick_fontsize)
             label.set_rotation(y_label_rotation)
         if grid:
-            ax.grid(axis=grid)
+            ax.grid(visible=True, axis=grid, color=".85")
             ax.set_axisbelow(True)
 
     # Set figure resizing
