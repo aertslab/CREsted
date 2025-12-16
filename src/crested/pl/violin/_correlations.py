@@ -98,6 +98,8 @@ def correlations(
     plot_height = kwargs.pop('height') if 'height' in kwargs else 8
     if 'ylabel' not in kwargs:
         kwargs['ylabel'] = "Pearson correlation"
+        if log_transform:
+            kwargs['ylabel'] += " of log1p-transformed values"
     if 'grid' not in kwargs:
         kwargs['grid'] = 'y'
     if 'ylim' not in kwargs:

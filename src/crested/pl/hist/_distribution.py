@@ -107,6 +107,10 @@ def distribution(
     sharey = kwargs.pop('sharey') if 'sharey' in kwargs else True
     if 'grid' not in kwargs:
         kwargs['grid'] = 'both'
+    if 'xlabel' not in kwargs:
+        kwargs['xlabel'] = 'Ground truth' if target is None else target
+        if log_transform:
+            kwargs['xlabel'] = "Log1p-transformed " + kwargs['xlabel'].lower()
 
     plot_kws = {} if plot_kws is None else plot_kws.copy()
     if 'kde' not in plot_kws:

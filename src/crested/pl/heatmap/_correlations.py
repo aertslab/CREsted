@@ -22,13 +22,14 @@ def _generate_heatmap(
     vmax: float | None = None,
     reorder: bool = False,
     cmap: str | plt.Colormap = 'coolwarm',
+    cbar_kws: None | dict = None,
     annot: bool = False,
     fmt: str = '.2f',
     square: bool = True,
     **kwargs
 ) -> plt.Axes:
     """
-    Base heatmap plotting function.
+    Base heatmap plotting function, wrapper around `:func:`~seaborn.colormap`.
 
     Parameters
     ----------
@@ -46,6 +47,9 @@ def _generate_heatmap(
         Whether to order classes by similarity.
     cmap
         Colormap to use.
+    cbar_kws
+        Extra keyword arguments passed to the colorbar through `:func:`~seaborn.colormap`.
+        Default is `{'label': "Pearson correlations (of log1p-transformed values)"}`
     annot
         Whether to write the data value in each cell.
     fmt
@@ -71,6 +75,7 @@ def _generate_heatmap(
         vmin=vmin,
         vmax=vmax,
         square=square,
+        cbar_kws=cbar_kws,
         ax=ax,
         **kwargs
     )
@@ -84,6 +89,7 @@ def correlations_self(
     vmax: float | None = None,
     reorder: bool = False,
     cmap: str | plt.Colormap = 'coolwarm',
+    cbar_kws: dict | None = None,
     plot_kws: dict | None = None,
     ax: plt.Axes | None = None,
     **kwargs,
@@ -107,7 +113,10 @@ def correlations_self(
         Colormap to use.
     plot_kws
         Extra keyword arguments passed to :func:`~seaborn.colormap`.
-        Adjusted defaults compared to the base function are `square=True` and `fmt='.2f'`.
+        Adjusted defaults compared to the base function are `{'square': True`, 'fmt': '.2f'}`.
+    cbar_kws
+        Extra keyword arguments passed to the colorbar through `:func:`~seaborn.colormap`.
+        Default is `{'label': "Pearson correlations (of log1p-transformed values)"}`
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width, height
@@ -134,7 +143,12 @@ def correlations_self(
     plot_height = kwargs.pop('height') if 'height' in kwargs else 8
     if 'x_label_rotation' not in kwargs:
         kwargs['x_label_rotation'] = 90
-    plot_kws = {} if plot_kws is None else plot_kws.copy()
+    plot_kws = {} if plot_kws is None else plot_kws.copy() # Most plot defaults handled in _generate_heatmap() defaults
+    cbar_kws = {} if cbar_kws is None else cbar_kws.copy()
+    if 'label' not in cbar_kws:
+        cbar_kws['label'] = "Pearson correlation"
+        if log_transform:
+            cbar_kws['label'] += " of log1p-transformed values"
 
     # Gather data
     x = adata.X
@@ -147,7 +161,7 @@ def correlations_self(
 
     # Plot heatmap
     fig, ax = create_plot(ax=ax, width=plot_width, height=plot_height)
-    ax = _generate_heatmap(ax=ax, correlation_matrix=correlation_matrix, classes=classes, vmin=vmin, vmax=vmax, reorder=reorder, cmap = cmap, **plot_kws)
+    ax = _generate_heatmap(ax=ax, correlation_matrix=correlation_matrix, classes=classes, vmin=vmin, vmax=vmax, reorder=reorder, cmap=cmap, cbar_kws=cbar_kws, **plot_kws)
 
     return render_plot(fig, ax, **kwargs)
 
@@ -161,6 +175,7 @@ def correlations_predictions(
     vmax: float | None = None,
     reorder: bool = False,
     cmap: str | plt.Colormap = 'coolwarm',
+    cbar_kws: dict | None = None,
     plot_kws: dict | None = None,
     ax: plt.Axes | None = None,
     **kwargs,
@@ -255,7 +270,12 @@ def correlations_predictions(
         kwargs['x_label_rotation'] = 90
     if 'title' not in kwargs:
         kwargs['title'] = list(model_names)
-    plot_kws = {} if plot_kws is None else plot_kws.copy()
+    plot_kws = {} if plot_kws is None else plot_kws.copy() # Most plot defaults handled in _generate_heatmap() defaults
+    cbar_kws = {} if cbar_kws is None else cbar_kws.copy()
+    if 'label' not in cbar_kws:
+        cbar_kws['label'] = "Pearson correlation"
+        if log_transform:
+            cbar_kws['label'] += " of log1p-transformed values"
 
     # Prepare ground truth values
     x = adata[:, adata.var["split"] == split].X if split is not None else adata.X
@@ -281,6 +301,6 @@ def correlations_predictions(
         # and no self correlations
         correlation_matrix = np.hsplit(np.vsplit(correlation_matrix, 2)[1], 2)[0].T
 
-        ax = _generate_heatmap(ax=axs[i], correlation_matrix=correlation_matrix, classes=classes, vmin=vmin, vmax=vmax, reorder=reorder, cmap=cmap, **plot_kws)
+        ax = _generate_heatmap(ax=axs[i], correlation_matrix=correlation_matrix, classes=classes, vmin=vmin, vmax=vmax, reorder=reorder, cmap=cmap, cbar_kws=cbar_kws, **plot_kws)
 
     return render_plot(fig, axs, **kwargs)

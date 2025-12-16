@@ -191,8 +191,12 @@ def class_density(
     sharey = kwargs.pop('sharey') if 'sharey' in kwargs else True
     if "xlabel" not in kwargs:
         kwargs["xlabel"] = "Ground truth"
+        if log_transform:
+            kwargs['xlabel'] = "Log1p-transformed " + kwargs['xlabel'].lower()
     if "ylabel" not in kwargs:
         kwargs["ylabel"] = "Predictions"
+        if log_transform:
+            kwargs['ylabel'] = "Log1p-transformed " + kwargs['ylabel'].lower()
     if 'title' not in kwargs:
         kwargs['title'] = model_names
         if class_name is not None:
