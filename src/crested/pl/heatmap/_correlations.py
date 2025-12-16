@@ -124,7 +124,7 @@ def correlations_self(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `correlations_self`: `x_label_rotation=90`.
+        Custom defaults for `correlations_self`: `xlabel_rotation=90`.
 
     See Also
     --------
@@ -141,8 +141,8 @@ def correlations_self(
     # Set defaults
     plot_width = kwargs.pop('width') if 'width' in kwargs else 11
     plot_height = kwargs.pop('height') if 'height' in kwargs else 8
-    if 'x_label_rotation' not in kwargs:
-        kwargs['x_label_rotation'] = 90
+    if 'xlabel_rotation' not in kwargs:
+        kwargs['xlabel_rotation'] = 90
     plot_kws = {} if plot_kws is None else plot_kws.copy() # Most plot defaults handled in _generate_heatmap() defaults
     cbar_kws = {} if cbar_kws is None else cbar_kws.copy()
     if 'label' not in cbar_kws:
@@ -211,7 +211,7 @@ def correlations_predictions(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `correlations_predictions`: `x_label_rotation=90`, `title=list(adata.obs_names)`.
+        Custom defaults for `correlations_predictions`: `xlabel_rotation=90`, `title=list(adata.obs_names)`.
 
     See Also
     --------
@@ -266,8 +266,8 @@ def correlations_predictions(
     # Set defaults
     plot_width = kwargs.pop('width') if 'width' in kwargs else 11*n_models
     plot_height = kwargs.pop('height') if 'height' in kwargs else 8
-    if 'x_label_rotation' not in kwargs:
-        kwargs['x_label_rotation'] = 90
+    if 'xlabel_rotation' not in kwargs:
+        kwargs['xlabel_rotation'] = 90
     if 'title' not in kwargs:
         kwargs['title'] = list(model_names)
     plot_kws = {} if plot_kws is None else plot_kws.copy() # Most plot defaults handled in _generate_heatmap() defaults

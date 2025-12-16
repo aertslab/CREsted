@@ -7,6 +7,7 @@ from typing import Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
+from loguru import logger
 
 from crested.utils._logging import log_and_raise
 
@@ -26,16 +27,22 @@ def render_plot(
     tight_rect: tuple | None = None,
     title_fontsize: int = 16,
     suptitle_fontsize: int = 18,
-    x_label_fontsize: int = 14,
-    y_label_fontsize: int = 14,
-    x_tick_fontsize: int = 12,
-    y_tick_fontsize: int = 12,
-    x_label_rotation: int = 0,
-    y_label_rotation: int = 0,
-    x_label_ha: str = None,
-    x_label_rotationmode: str = None,
+    xlabel_fontsize: int = 14,
+    ylabel_fontsize: int = 14,
+    xtick_fontsize: int = 12,
+    ytick_fontsize: int = 12,
+    xlabel_rotation: int = 0,
+    ylabel_rotation: int = 0,
+    xlabel_ha: str = None,
+    xlabel_rotationmode: str = None,
     show: bool = True,
     save_path: str | None = None,
+    x_label_fontsize = 'deprecated',
+    y_label_fontsize = 'deprecated',
+    x_tick_fontsize = 'deprecated',
+    y_tick_fontsize = 'deprecated',
+    x_label_rotation = 'deprecated',
+    y_label_rotation = 'deprecated',
 ) -> None | (plt.Figure, plt.Axis) | (plt.Figure, list[plt.Axis]):
     """
     Render a plot with customization options.
@@ -70,27 +77,49 @@ def render_plot(
         Normalized coordinates in which subplots will fit.
     title_fontsize
         Font size for the title.
-    x_label_fontsize
+    xlabel_fontsize
         Font size for the X-axis labels.
-    y_label_fontsize
+    ylabel_fontsize
         Font size for the Y-axis labels.
-    x_tick_fontsize
+    xtick_fontsize
         Font size for the X-axis ticks.
-    y_tick_fontsize
+    ytick_fontsize
         Font size for the Y-axis ticks
-    x_label_rotation
+    xlabel_rotation
         Rotation of the X-axis labels in degrees.
-    y_label_rotation
+    ylabel_rotation
         Rotation of the Y-axis labels in degrees.
-    x_label_ha
-        Horizontal alignment of the X-axis labels. If None, inferred to be appropriate for x_label_rotation.
-    x_label_rotationmode
-        Rotation mode when rotating the X-axis labels. If None, inferred to be appropriate for x_label_rotation.
+    xlabel_ha
+        Horizontal alignment of the X-axis labels. If None, inferred to be appropriate for xlabel_rotation.
+    xlabel_rotationmode
+        Rotation mode when rotating the X-axis labels. If None, inferred to be appropriate for xlabel_rotation.
     show
         Whether to display the plot. Set this to False if you want to return the figure object to customize it further.
     save_path
         Optional path to save the figure. If None, the figure is displayed but not saved.
+    x_label_fontsize, y_label_fontsize, x_tick_fontsize, y_tick_fontsize, x_label_rotation, y_label_rotation
+        Renamed arguments. Please use their `xlabel_*` or `ylabel_*` instead.
     """
+    # Check deprecated arguments
+    if x_label_fontsize != 'deprecated':
+        xlabel_fontsize = x_label_fontsize
+        logger.warning("Argument `x_label_fontsize` is renamed; please use xlabel_fontsize instead.")
+    if y_label_fontsize != 'deprecated':
+        ylabel_fontsize = y_label_fontsize
+        logger.warning("Argument `y_label_fontsize` is renamed; please use ylabel_fontsize instead.")
+    if x_tick_fontsize != 'deprecated':
+        xtick_fontsize = x_tick_fontsize
+        logger.warning("Argument `x_tick_fontsize` is renamed; please use xtick_fontsize instead.")
+    if y_tick_fontsize != 'deprecated':
+        ytick_fontsize = y_tick_fontsize
+        logger.warning("Argument `y_tick_fontsize` is renamed; please use ytick_fontsize instead.")
+    if x_label_rotation != 'deprecated':
+        xlabel_rotation = x_label_rotation
+        logger.warning("Argument `x_label_rotation` is renamed; please use xlabel_rotation instead.")
+    if y_label_rotation != 'deprecated':
+        ylabel_rotation = y_label_rotation
+        logger.warning("Argument `y_label_rotation` is renamed; please use ylabel_rotation instead.")
+
     @log_and_raise(ValueError)
     def _check_input_lengths():
         if xlabel is not None and not isinstance(xlabel, str):
@@ -132,15 +161,15 @@ def render_plot(
         ylim = [ylim]*n_axes
 
     # Infer downstream x rotation parameters
-    if x_label_ha is None:
-        if 0 < (x_label_rotation % 180) < 90:
+    if xlabel_ha is None:
+        if 0 < (xlabel_rotation % 180) < 90:
             x_label_ha = 'right'
-        elif 90 < (x_label_rotation % 180) < 180:
+        elif 90 < (xlabel_rotation % 180) < 180:
             x_label_ha = 'left'
         else:
             x_label_ha = 'center'
-    if x_label_rotationmode is None:
-        x_label_rotationmode =  'anchor' if (35 <= x_label_rotation <= 55) else 'default'
+    if xlabel_rotationmode is None:
+        xlabel_rotationmode =  'anchor' if (35 <= xlabel_rotation <= 55) else 'default'
 
     # Handle grid alias
     if grid is True:
@@ -162,21 +191,21 @@ def render_plot(
             ax.set_ylabel(ylabel[i])
         if title is not None and title[i] is not None:
             ax.set_title(title[i])
-        ax.set_xlabel(ax.get_xlabel(), fontsize=x_label_fontsize)
-        ax.set_ylabel(ax.get_ylabel(), fontsize=y_label_fontsize)
+        ax.set_xlabel(ax.get_xlabel(), fontsize=xlabel_fontsize)
+        ax.set_ylabel(ax.get_ylabel(), fontsize=ylabel_fontsize)
         ax.set_title(ax.get_title(), fontsize = title_fontsize)
         if xlim is not None and xlim[i] is not None:
             ax.set_xlim(xlim[i])
         if ylim is not None and ylim[i] is not None:
             ax.set_ylim(ylim[i])
         for label in ax.get_xticklabels():
-            label.set_rotation(x_label_rotation)
-            label.set_fontsize(x_tick_fontsize)
+            label.set_rotation(xlabel_rotation)
+            label.set_fontsize(xtick_fontsize)
             label.set_ha(x_label_ha)
-            label.set_rotation_mode(x_label_rotationmode)
+            label.set_rotation_mode(xlabel_rotationmode)
         for label in ax.get_yticklabels():
-            label.set_fontsize(y_tick_fontsize)
-            label.set_rotation(y_label_rotation)
+            label.set_fontsize(ytick_fontsize)
+            label.set_rotation(ylabel_rotation)
         if grid:
             ax.grid(visible=True, axis=grid, color=".85")
             ax.set_axisbelow(True)
