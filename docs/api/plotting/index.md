@@ -24,6 +24,7 @@ violin
     :toctree: _autosummary
 
     render_plot
+    create_plot
 ```
 
 ## Patterns: Contribution scores and Modisco results
