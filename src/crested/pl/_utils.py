@@ -157,11 +157,14 @@ def render_plot(
     # Set axis traits
     for i, ax in enumerate(axs):
         if xlabel is not None and xlabel[i] is not None:
-            ax.set_xlabel(xlabel[i], fontsize=x_label_fontsize)
+            ax.set_xlabel(xlabel[i])
         if ylabel is not None and ylabel[i] is not None:
-            ax.set_ylabel(ylabel[i], fontsize=y_label_fontsize)
+            ax.set_ylabel(ylabel[i])
         if title is not None and title[i] is not None:
-            ax.set_title(title[i], fontsize = title_fontsize)
+            ax.set_title(title[i])
+        ax.set_xlabel(ax.get_xlabel(), fontsize=x_label_fontsize)
+        ax.set_ylabel(ax.get_ylabel(), fontsize=y_label_fontsize)
+        ax.set_title(ax.get_title(), fontsize = title_fontsize)
         if xlim is not None and xlim[i] is not None:
             ax.set_xlim(xlim[i])
         if ylim is not None and ylim[i] is not None:
@@ -190,7 +193,7 @@ def render_plot(
     if show:
         plt.show()
     if not show and not save_path:
-        return fig, axs
+        return (fig, axs[0]) if len(axs) == 1 else (fig, axs)
 
 
 def create_plot(
