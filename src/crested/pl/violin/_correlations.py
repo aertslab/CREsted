@@ -37,7 +37,7 @@ def correlations(
     log_transform
         Whether to log-transform the data before calculating correlations.
     plot_kws
-        Extra keyword arguments passed to :func:`~seaborn.violinplot`. 
+        Extra keyword arguments passed to :func:`~seaborn.violinplot`.
         Defaults: `{'inner': 'point', 'zorder': 2.05, 'orient': 'v', 'inner_kws': {"s": 20, "marker": ".", "edgecolor": "0", "color": "0.01", "alpha": 1}}`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
