@@ -207,7 +207,6 @@ def class_density(
     if 'edgecolor' not in plot_kws:
         plot_kws['edgecolor'] = "k"
 
-    # subplot_kw = {'box_aspect': 1} if square else None
     # Create plot
     fig, axs = create_plot(
         ax=ax,
