@@ -29,6 +29,8 @@ def render_plot(
     suptitle_fontsize: int = 18,
     xlabel_fontsize: int = 14,
     ylabel_fontsize: int = 14,
+    supxlabel_fontsize: int = 16,
+    supylabel_fontsize: int = 16,
     xtick_fontsize: int = 12,
     ytick_fontsize: int = 12,
     xlabel_rotation: int = 0,
@@ -182,6 +184,9 @@ def render_plot(
         fig.supxlabel(supxlabel)
     if supylabel:
         fig.supylabel(supylabel)
+    fig.supxlabel(fig.get_supxlabel(), fontsize=supxlabel_fontsize)
+    fig.ylabel(fig.get_supylabel(), fontsize=supylabel_fontsize)
+    fig.suptitle(fig.get_suptitle(), fontsize=suptitle_fontsize)
 
     # Set axis traits
     for i, ax in enumerate(axs):
@@ -193,7 +198,7 @@ def render_plot(
             ax.set_title(title[i])
         ax.set_xlabel(ax.get_xlabel(), fontsize=xlabel_fontsize)
         ax.set_ylabel(ax.get_ylabel(), fontsize=ylabel_fontsize)
-        ax.set_title(ax.get_title(), fontsize = title_fontsize)
+        ax.set_title(ax.get_title(), fontsize=title_fontsize)
         if xlim is not None and xlim[i] is not None:
             ax.set_xlim(xlim[i])
         if ylim is not None and ylim[i] is not None:
