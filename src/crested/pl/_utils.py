@@ -185,7 +185,7 @@ def render_plot(
     if supylabel:
         fig.supylabel(supylabel)
     fig.supxlabel(fig.get_supxlabel(), fontsize=supxlabel_fontsize)
-    fig.ylabel(fig.get_supylabel(), fontsize=supylabel_fontsize)
+    fig.supylabel(fig.get_supylabel(), fontsize=supylabel_fontsize)
     fig.suptitle(fig.get_suptitle(), fontsize=suptitle_fontsize)
 
     # Set axis traits
