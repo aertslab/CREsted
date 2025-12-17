@@ -47,7 +47,7 @@ def correlations(
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
         Custom defaults for `correlations`: `ylabel='Pearson correlation'`, `grid='y'`, `ylim=(0.0, 1.0)`, `title="Class-wise prediction vs ground truth correlations"`,
-        `xlabel_rotation=55` (if any model_names > 15 characters).
+        `xtick_rotation=55` (if any model_names > 15 characters).
 
     See Also
     --------
@@ -106,9 +106,9 @@ def correlations(
         kwargs['ylim'] = (0.0, 1.0)
     if 'title' not in kwargs:
         kwargs['title'] = 'Class-wise prediction vs ground truth correlations'
-    if "xlabel_rotation" not in kwargs:
+    if "xtick_rotation" not in kwargs:
         if any(len(model_name) > 15 for model_name in model_names):
-            kwargs["xlabel_rotation"] = 55
+            kwargs["xtick_rotation"] = 55
     plot_kws = {} if plot_kws is None else plot_kws.copy()
     if 'inner' not in plot_kws:
         plot_kws['inner'] = 'point'

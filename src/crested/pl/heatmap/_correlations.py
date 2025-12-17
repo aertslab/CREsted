@@ -29,7 +29,7 @@ def _generate_heatmap(
     **kwargs
 ) -> plt.Axes:
     """
-    Base heatmap plotting function, wrapper around `:func:`~seaborn.colormap`.
+    Base heatmap plotting function, wrapper around `:func:`~seaborn.heatmap`.
 
     Parameters
     ----------
@@ -48,7 +48,7 @@ def _generate_heatmap(
     cmap
         Colormap to use.
     cbar_kws
-        Extra keyword arguments passed to the colorbar through `:func:`~seaborn.colormap`.
+        Extra keyword arguments passed to the colorbar through `:func:`~seaborn.heatmap`.
         Default is `{'label': "Pearson correlations (of log1p-transformed values)"}`
     annot
         Whether to write the data value in each cell.
@@ -112,10 +112,10 @@ def correlations_self(
     cmap
         Colormap to use.
     plot_kws
-        Extra keyword arguments passed to :func:`~seaborn.colormap`.
-        Adjusted defaults compared to the base function are `{'square': True`, 'fmt': '.2f'}`.
+        Extra keyword arguments passed to :func:`~seaborn.heatmap`.
+        Adjusted defaults compared to the base function are `{'square': True, 'fmt': '.2f'}`.
     cbar_kws
-        Extra keyword arguments passed to the colorbar through `:func:`~seaborn.colormap`.
+        Extra keyword arguments passed to the colorbar through `:func:`~seaborn.heatmap`.
         Default is `{'label': "Pearson correlations (of log1p-transformed values)"}`
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
@@ -124,7 +124,7 @@ def correlations_self(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `correlations_self`: `xlabel_rotation=90`.
+        Custom defaults for `correlations_self`: `xtick_rotation=90`.
 
     See Also
     --------
@@ -141,8 +141,8 @@ def correlations_self(
     # Set defaults
     plot_width = kwargs.pop('width') if 'width' in kwargs else 11
     plot_height = kwargs.pop('height') if 'height' in kwargs else 8
-    if 'xlabel_rotation' not in kwargs:
-        kwargs['xlabel_rotation'] = 90
+    if 'xtick_rotation' not in kwargs:
+        kwargs['xtick_rotation'] = 90
     plot_kws = {} if plot_kws is None else plot_kws.copy() # Most plot defaults handled in _generate_heatmap() defaults
     cbar_kws = {} if cbar_kws is None else cbar_kws.copy()
     if 'label' not in cbar_kws:
@@ -202,7 +202,7 @@ def correlations_predictions(
     cmap
         Colormap to use.
     plot_kws
-        Extra keyword arguments passed to :func:`~seaborn.colormap`.
+        Extra keyword arguments passed to :func:`~seaborn.heatmap`.
         Adjusted defaults compared to the base function are `square=True` and `fmt='.2f'`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch. Can only be supplied if plotting a single model.
@@ -211,7 +211,7 @@ def correlations_predictions(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `correlations_predictions`: `xlabel_rotation=90`, `title=list(adata.obs_names)`.
+        Custom defaults for `correlations_predictions`: `xtick_rotation=90`, `title=list(adata.obs_names)`.
 
     See Also
     --------
@@ -266,8 +266,8 @@ def correlations_predictions(
     # Set defaults
     plot_width = kwargs.pop('width') if 'width' in kwargs else 11*n_models
     plot_height = kwargs.pop('height') if 'height' in kwargs else 8
-    if 'xlabel_rotation' not in kwargs:
-        kwargs['xlabel_rotation'] = 90
+    if 'xtick_rotation' not in kwargs:
+        kwargs['xtick_rotation'] = 90
     if 'title' not in kwargs:
         kwargs['title'] = list(model_names)
     plot_kws = {} if plot_kws is None else plot_kws.copy() # Most plot defaults handled in _generate_heatmap() defaults
