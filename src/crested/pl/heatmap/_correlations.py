@@ -29,7 +29,7 @@ def _generate_heatmap(
     **kwargs
 ) -> plt.Axes:
     """
-    Base heatmap plotting function, wrapper around `:func:`~seaborn.heatmap`.
+    Plot the base correlation heatmap, wrapper around `:func:`~seaborn.heatmap`.
 
     Parameters
     ----------
