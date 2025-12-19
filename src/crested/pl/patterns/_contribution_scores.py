@@ -129,6 +129,9 @@ def contribution_scores(
     if "ylabel" not in kwargs:
         kwargs["ylabel"] = "Scores"
 
+    if total_plots > 1 and ax is not None:
+        raise ValueError("Cannot provide a pre-existing axis if plotting more than one sequence/more than one class. Please only provide one sequence and one class, or don't provide `ax`.")
+
     fig, axs = create_plot(ax=ax, width=plot_width, height=plot_height, nrows=total_plots, sharex=sharex, sharey=sharey)
 
     if total_plots == 1:
@@ -198,8 +201,6 @@ def contribution_scores(
                         linewidth=0.5,
                     )
 
-            # if i == total_classes - 1:  # Add x-label to the last subplot only
-            #     # ax.set_xlabel("Position")
             ax.set_xticks(np.arange(0, zoom_n_bases, 50))
 
         # Set the title for the sequence (subplot)
