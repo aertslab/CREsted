@@ -104,6 +104,7 @@ def enhancer_design_steps_contribution_scores(
     ylim: tuple | None = None,
     global_ylim: str | None = "per_plot",
     method: str | None = None,
+    highlight_kws: dict | None = None,
     **kwargs,
 ):
     """
@@ -133,6 +134,9 @@ def enhancer_design_steps_contribution_scores(
         If None, each explanation has its y-axis limits separately selected.
     method
         Method used for calculating contribution scores. If mutagenesis, specify.
+    highlight_kws
+        Keywords to use for plotting changed basepairs with :func:`~matplotlib.Axes.axvspan`.
+        Default is {'edgecolor':  "red", 'facecolor': "none", 'linewidth' :0.5}
     width, height
         Dimensions of each created figure. Default is (50, 2*n_seqs).
     sharex, sharey
@@ -148,6 +152,13 @@ def enhancer_design_steps_contribution_scores(
     set_plot_height = kwargs.pop('height') if 'height' in kwargs else None
     sharex = kwargs.pop('sharex') if 'sharex' in kwargs else False
     sharey = kwargs.pop('sharey') if 'sharey' in kwargs else False
+    highlight_kws = {} if highlight_kws is None else highlight_kws.copy()
+    if 'edgecolor' not in highlight_kws:
+        highlight_kws['edgecolor'] = "red"
+    if 'facecolor' not in highlight_kws:
+        highlight_kws['facecolor'] = "none"
+    if 'linewidth' not in highlight_kws:
+        highlight_kws['linewidth'] = 0.5
 
     if not isinstance(scores_all, list):
         scores_all = [scores_all]
@@ -273,9 +284,7 @@ def enhancer_design_steps_contribution_scores(
                     axs[seq].axvspan(
                         xmin=start-start_idx-0.5,
                         xmax=end-start_idx-0.5,
-                        edgecolor="red",
-                        facecolor="none",
-                        linewidth=0.5,
+                        **highlight_kws
                     )
             plt.xticks(np.arange(0, zoom_n_bases, 50))
             if 'suptitle' not in kwargs:

@@ -48,6 +48,7 @@ def contribution_scores(
     class_labels: str | list | None = None,
     zoom_n_bases: int | None = None,
     highlight_positions: list[tuple[int, int]] | None = None,
+    highlight_kws: dict | None = None,
     method: str | None = None,
     ax: plt.Axes | None = None,
     **kwargs,
@@ -71,6 +72,9 @@ def contribution_scores(
         Number of center bases to zoom in on. Default is None (no zooming).
     highlight_positions
         List of tuples with start and end positions to highlight. Default is None.
+    highlight_kws
+        Keywords to use for plotting highlights with :func:`~matplotlib.Axes.axvspan`.
+        Default is {'edgecolor':  "red", 'facecolor': "none", 'linewidth': 0.5}
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width, height
@@ -128,6 +132,13 @@ def contribution_scores(
         kwargs["supxlabel"] = "Position"
     if "ylabel" not in kwargs:
         kwargs["ylabel"] = "Scores"
+    highlight_kws = {} if highlight_kws is None else highlight_kws.copy()
+    if 'edgecolor' not in highlight_kws:
+        highlight_kws['edgecolor'] = "red"
+    if 'facecolor' not in highlight_kws:
+        highlight_kws['facecolor'] = "none"
+    if 'linewidth' not in highlight_kws:
+        highlight_kws['linewidth'] = 0.5
 
     if total_plots > 1 and ax is not None:
         raise ValueError("Cannot provide a pre-existing axis if plotting more than one sequence/more than one class. Please only provide one sequence and one class, or don't provide `ax`.")
@@ -196,9 +207,7 @@ def contribution_scores(
                     ax.axvspan(
                         xmin=start-start_idx-0.5,
                         xmax=end-start_idx-0.5,
-                        edgecolor="red",
-                        facecolor="none",
-                        linewidth=0.5,
+                        **highlight_kws
                     )
 
             ax.set_xticks(np.arange(0, zoom_n_bases, 50))

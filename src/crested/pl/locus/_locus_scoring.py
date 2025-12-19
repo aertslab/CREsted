@@ -22,6 +22,7 @@ def locus_scoring(
     highlight_positions: list[tuple[int, int]] | None = None,
     locus_plot_kws: dict | None = None,
     bigwig_plot_kws: dict | None = None,
+    highlight_kws: dict | None = None,
     ax: plt.Axes | None = None,
     **kwargs
 ) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
@@ -54,6 +55,9 @@ def locus_scoring(
     bigwig_plot_kws
         Extra keyword arguments passed to :func:`~matplotlib.Axes.plot` for the bigWig plot.
         Defaults: `{'color': 'b', 'linestyle'='-', 'label': 'bigWig values', 'rasterized': True}`.
+    highlight_kws
+        Keywords to use for plotting highlights with :func:`~matplotlib.Axes.axvspan`.
+        Default is {'color': "green", 'alpha': 0.3}
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch. Can only be supplied if not plotting a bigWig.
     width, height
@@ -175,6 +179,12 @@ def locus_scoring(
     if 'rasterized' not in bigwig_plot_kws:
         bigwig_plot_kws['rasterized'] = True
 
+    highlight_kws = {} if highlight_kws is None else highlight_kws.copy()
+    if 'color' not in highlight_kws:
+        highlight_kws['color'] = 'green'
+    if 'alpha' not in highlight_kws:
+        highlight_kws['alpha'] = 0.3
+
     # Create plots
     nrows = 2 if bigwig_included else 1
     fig, axs = create_plot(ax=ax, width=plot_width, height=plot_height, nrows=nrows, sharex=sharex, sharey=sharey)
@@ -208,6 +218,6 @@ def locus_scoring(
             )
         if highlight_positions:
             for start, end in highlight_positions:
-                ax.axvspan(start, end, color="green", alpha=0.3)
+                ax.axvspan(start, end, **highlight_kws)
 
     return render_plot(fig, axs, **kwargs)
