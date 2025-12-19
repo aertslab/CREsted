@@ -51,7 +51,7 @@ def locus_scoring(
     locus_plot_kws
         Extra keyword arguments passed to :func:`~matplotlib.Axes.plot` for the prediction plot.
         Defaults: `{'markersize': 5.0, 'linewidth': 2.0, 'color': 'b', 'marker': 'o', 'label': 'Prediction score', 'rasterized': True}`.
-    locus_plot_kws
+    bigwig_plot_kws
         Extra keyword arguments passed to :func:`~matplotlib.Axes.plot` for the bigWig plot.
         Defaults: `{'color': 'b', 'linestyle'='-', 'label': 'bigWig values', 'rasterized': True}`.
     ax
