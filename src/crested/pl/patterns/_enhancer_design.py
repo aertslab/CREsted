@@ -338,8 +338,8 @@ def enhancer_design_steps_predictions(
     plot_kws
         Extra keyword arguments passed to :func:`~matplotlib.Axes.plot` (if `separate=True`)/:func:`~matplotlib.Axes.boxplot` (if `separate=False`).
         Defaults:
-            `separate=True`: `{'marker': "o",'markersize': 7, 'linewidth': 0.5}`
-            `separate=False`: {"showfliers": False, "capprops"/"boxprops"/"whiskerprops"/"flierprops"/"medianprops"/"meanprops": {"color": plot_color}}
+        `separate=True`: `{'marker': "o",'markersize': 7, 'linewidth': 0.5}`
+        `separate=False`: `{"showfliers": False, "capprops"/"boxprops"/"whiskerprops"/"flierprops"/"medianprops"/"meanprops": {"color": plot_color}}`
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width, height

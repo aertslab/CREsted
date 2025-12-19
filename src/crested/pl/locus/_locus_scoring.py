@@ -68,7 +68,7 @@ def locus_scoring(
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
         Custom defaults for `locus_scoring`:  `grid='both'`, `xlabel='Genomic position'`,
-        `title='Predictions across genomic regions'`/(`, "bigWig coverage across genomic regions"`), `ylabel='Prediction_score'`(`, 'bigWig values'`).
+        `title='Predictions across genomic regions'(, "bigWig coverage across genomic regions")`, `ylabel='Prediction_score'(, 'bigWig values')`.
 
     See Also
     --------
