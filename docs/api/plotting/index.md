@@ -50,6 +50,7 @@ violin
 .. autosummary::
     bar.region
     bar.region_predictions
+    bar.prediction
     bar.normalization_weights
 ```
 
