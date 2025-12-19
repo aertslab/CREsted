@@ -15,7 +15,7 @@ from crested.utils._logging import log_and_raise
 def track(
     scores: np.ndarray,
     class_idxs: int | list[int] | None = None,
-    range: tuple[chr, int, int] | tuple[int, int] | None = None,
+    range: tuple[str, int, int] | tuple[int, int] | None = None,
     class_names: Sequence[str] | str |  None = None,
     plot_kws: dict | None = None,
     ax: plt.Axes | None = None,
