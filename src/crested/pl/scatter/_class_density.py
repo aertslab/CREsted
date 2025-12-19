@@ -86,7 +86,7 @@ def class_density(
     max_threads
         Maximum number of threads to use when evaluating the density if using the density indication. If 1, will not parallelize.
     plot_kws
-        Extra keyword arguments passed to :func:`~matplotlib.Axes.scatter`. Defaults: `{'alpha': 0.25, 'edgecolor': 'k'}`.
+        Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.scatter`. Defaults: `{'alpha': 0.25, 'edgecolor': 'k'}`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width, height

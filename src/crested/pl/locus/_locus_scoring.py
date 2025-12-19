@@ -50,13 +50,13 @@ def locus_scoring(
     highlight_positions
         A list of tuples specifying ranges to highlight on the plot.
     locus_plot_kws
-        Extra keyword arguments passed to :func:`~matplotlib.Axes.plot` for the prediction plot.
+        Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.plot` for the prediction plot.
         Defaults: `{'markersize': 5.0, 'linewidth': 2.0, 'color': 'b', 'marker': 'o', 'label': 'Prediction score', 'rasterized': True}`.
     bigwig_plot_kws
-        Extra keyword arguments passed to :func:`~matplotlib.Axes.plot` for the bigWig plot.
+        Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.plot` for the bigWig plot.
         Defaults: `{'color': 'b', 'linestyle'='-', 'label': 'bigWig values', 'rasterized': True}`.
     highlight_kws
-        Keywords to use for plotting highlights with :func:`~matplotlib.Axes.axvspan`.
+        Keywords to use for plotting highlights with :meth:`~matplotlib.axes.Axes.axvspan`.
         Default is {'color': "green", 'alpha': 0.3}
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch. Can only be supplied if not plotting a bigWig.

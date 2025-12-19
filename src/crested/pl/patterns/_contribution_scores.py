@@ -73,7 +73,7 @@ def contribution_scores(
     highlight_positions
         List of tuples with start and end positions to highlight. Default is None.
     highlight_kws
-        Keywords to use for plotting highlights with :func:`~matplotlib.Axes.axvspan`.
+        Keywords to use for plotting highlights with :meth:`~matplotlib.axes.Axes.axvspan`.
         Default is {'edgecolor':  "red", 'facecolor': "none", 'linewidth': 0.5}
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.

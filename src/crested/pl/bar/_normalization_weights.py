@@ -23,7 +23,7 @@ def normalization_weights(
     adata
         AnnData object containing the normalization weights in `obsm["weights"]`.
     plot_kws
-        Extra keyword arguments passed to :func:`~matplotlib.Axes.bar`.
+        Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.bar`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width, height

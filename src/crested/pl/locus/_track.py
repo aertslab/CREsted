@@ -36,7 +36,7 @@ def track(
         Optional, list of all possible class names to extract label names from.
         If class_idxs is supplied, picks from there. If not, will use these in order.
     plot_kws
-        Extra keyword arguments passed to :func:`~matplotlib.Axes.fill_between`.
+        Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.fill_between`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width, height

@@ -1045,7 +1045,7 @@ def tf_expression_per_cell_type(
     log_transform
         Whether to log-transform the TF expression values.
     plot_kws
-        Extra keyword arguments passed to :func:`~pandas.DataFrame.plot`.
+        Extra keyword arguments passed to :meth:`~pandas.DataFrame.plot`.
         Defaults: `{'width': 0.8}`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.

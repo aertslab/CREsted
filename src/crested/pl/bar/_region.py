@@ -37,7 +37,7 @@ def region_predictions(
     truth_color
         Plot color of the ground truth barplot.
     plot_kws
-        Extra keyword arguments passed to :func:`~matplotlib.Axes.bar`.
+        Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.bar`.
     width, height
         Dimensions of the newly created figure if `ax=None`. Default is (20, 3*(1+n_models)).
     sharex, sharey
@@ -156,7 +156,7 @@ def region(
     target
         The target to plot the distribution for, either None (for the ground truth from adata.X) or the name of a prediction layer in adata.layers.
     plot_kws
-        Extra keyword arguments passed to :func:`~matplotlib.Axes.bar`. Defaults: `'alpha': 0.8`.
+        Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.bar`. Defaults: `'alpha': 0.8`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width, height
@@ -243,7 +243,7 @@ def prediction(
     classes
         A list of class or cell type labels corresponding to the predictions.
     plot_kws
-        Extra keyword arguments passed to :func:`~matplotlib.Axes.bar`. Defaults: `'alpha': 0.8`.
+        Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.bar`. Defaults: `'alpha': 0.8`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width, height

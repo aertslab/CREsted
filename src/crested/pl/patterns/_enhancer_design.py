@@ -135,7 +135,7 @@ def enhancer_design_steps_contribution_scores(
     method
         Method used for calculating contribution scores. If mutagenesis, specify.
     highlight_kws
-        Keywords to use for plotting changed basepairs with :func:`~matplotlib.Axes.axvspan`.
+        Keywords to use for plotting changed basepairs with :meth:`~matplotlib.axes.Axes.axvspan`.
         Default is {'edgecolor':  "red", 'facecolor': "none", 'linewidth' :0.5}
     width, height
         Dimensions of each created figure. Default is (50, 2*n_seqs).
@@ -336,7 +336,7 @@ def enhancer_design_steps_predictions(
     fig_rescale
         A scalar to scale the figure size up or down. Default is 1.0.
     plot_kws
-        Extra keyword arguments passed to :func:`~matplotlib.Axes.plot` (if `separate=True`)/:func:`~matplotlib.Axes.boxplot` (if `separate=False`).
+        Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.plot` (if `separate=True`)/:meth:`~matplotlib.axes.Axes.boxplot` (if `separate=False`).
         Defaults:
         `separate=True`: `{'marker': "o",'markersize': 7, 'linewidth': 0.5}`
         `separate=False`: `{"showfliers": False, "capprops"/"boxprops"/"whiskerprops"/"flierprops"/"medianprops"/"meanprops": {"color": plot_color}}`
