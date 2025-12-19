@@ -20,7 +20,7 @@ def track(
     plot_kws: dict | None = None,
     ax: plt.Axes | None = None,
     **kwargs,
-) -> plt.Figure:
+) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
     """Plot a predicted locus track, like a Borzoi prediction or BigWig track.
 
     Parameters

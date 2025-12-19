@@ -106,7 +106,7 @@ def enhancer_design_steps_contribution_scores(
     method: str | None = None,
     highlight_kws: dict | None = None,
     **kwargs,
-):
+) -> tuple[plt.Figure, list[plt.Axes]] | None:
     """
     Visualize enhancer design stepwise contribution scores.
 
@@ -311,7 +311,7 @@ def enhancer_design_steps_predictions(
     plot_kws: dict | None = None,
     ax: plt.Axes | None = None,
     **kwargs,
-):
+) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
     """
     Visualize enhancer design prediction score progression.
 

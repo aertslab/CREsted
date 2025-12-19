@@ -143,7 +143,7 @@ def region(
     plot_kws: dict | None = None,
     ax: plt.Axes | None = None,
     **kwargs
-) -> tuple[plt.Figure, plt.Axes] | None:
+) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
     """
     Barplot of ground truths or predictions for a specific region in your data, comparing different classes.
 
