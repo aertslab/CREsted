@@ -227,7 +227,7 @@ def region(
 
 
 def prediction(
-    prediction: np.array,
+    prediction: np.ndarray,
     classes: list[str],
     plot_kws: dict | None = None,
     ax: plt.Axes | None = None,
