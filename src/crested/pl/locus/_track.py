@@ -58,12 +58,13 @@ def track(
     Example
     --------
     >>> chrom, start, end = 'chr18', 61010523, 61207131
-    >>> class_idx = output_names_borzoi.index('ATAC:Microglia')
+    >>> class_idxs = [output_names_borzoi.index(class_name) for class_name in ['ATAC:MGL', 'ATAC:SSTGA1', 'ATAC:VEC']]
     >>> crested.pl.locus.track(
     ...     borzoi_pred,
-    ...     class_idxs=class_idx,
+    ...     class_idxs=class_idxs,
+    ...     class_names=output_names_borzoi,
     ...     range=(chrom, start, end),
-    ...     title="Human Borzoi microglia predictions around the FIRE enhancer",
+    ...     suptitle="Mouse Borzoi predictions around the FIRE enhancer",
     ... )
 
     .. image:: ../../../../docs/_static/img/examples/locus_track_pred.png
@@ -153,7 +154,7 @@ def track(
 
     # Plot figure
     for i, ax in enumerate(axs):
-        ax.fill_between(x, scores[:, i], **plot_kws)
+        ax.fill_between(x, scores[:, class_idxs[i]], **plot_kws)
         ax.margins(x=0)
         ax.xaxis.set_major_formatter("{x:,.0f}")
         # Set layout options
