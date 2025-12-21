@@ -90,7 +90,7 @@ def class_density(
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (7, 8) per model.
+        Dimensions of the newly created figure if `ax=None`. Default is (7, 8) per model without `cbar`, or (8, 8) with `cbar`.
     sharex, sharey
         Whether to share x and y axes of the created plots. Default is `sharex=False, sharey=True`.
     kwargs
