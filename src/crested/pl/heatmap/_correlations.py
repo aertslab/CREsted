@@ -22,6 +22,7 @@ def _generate_heatmap(
     vmax: float | None = None,
     reorder: bool = False,
     cmap: str | plt.Colormap = 'coolwarm',
+    cbar: bool = True,
     cbar_kws: None | dict = None,
     annot: bool = False,
     fmt: str = '.2f',
@@ -47,6 +48,8 @@ def _generate_heatmap(
         Whether to order classes by similarity.
     cmap
         Colormap to use.
+    cbar
+        Whether to draw a colorbar.
     cbar_kws
         Extra keyword arguments passed to the colorbar through `:func:`~seaborn.heatmap`.
         Default is `{'label': "Pearson correlations (of log1p-transformed values)"}`
@@ -75,6 +78,7 @@ def _generate_heatmap(
         vmin=vmin,
         vmax=vmax,
         square=square,
+        cbar=cbar,
         cbar_kws=cbar_kws,
         ax=ax,
         **kwargs
@@ -89,6 +93,7 @@ def correlations_self(
     vmax: float | None = None,
     reorder: bool = False,
     cmap: str | plt.Colormap = 'coolwarm',
+    cbar: bool = True,
     cbar_kws: dict | None = None,
     plot_kws: dict | None = None,
     ax: plt.Axes | None = None,
@@ -111,6 +116,8 @@ def correlations_self(
         Whether or not to order the clases by similarity.
     cmap
         Colormap to use.
+    cbar
+        Whether to draw a colorbar.
     cbar_kws
         Extra keyword arguments passed to the colorbar.
         Default is `{'label': "Pearson correlations (of log1p-transformed values)"}`
@@ -120,7 +127,7 @@ def correlations_self(
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (11, 8).
+        Dimensions of the newly created figure if `ax=None`. Default is (10, 8), or (8, 8) if `cbar=False`.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
@@ -139,7 +146,8 @@ def correlations_self(
     .. image:: ../../../../docs/_static/img/examples/heatmap_self_correlations.png
     """
     # Set defaults
-    plot_width = kwargs.pop('width') if 'width' in kwargs else 11
+    default_width = 10 if cbar else 8
+    plot_width = kwargs.pop('width') if 'width' in kwargs else default_width
     plot_height = kwargs.pop('height') if 'height' in kwargs else 8
     if 'xtick_rotation' not in kwargs:
         kwargs['xtick_rotation'] = 90
@@ -161,7 +169,7 @@ def correlations_self(
 
     # Plot heatmap
     fig, ax = create_plot(ax=ax, width=plot_width, height=plot_height)
-    ax = _generate_heatmap(ax=ax, correlation_matrix=correlation_matrix, classes=classes, vmin=vmin, vmax=vmax, reorder=reorder, cmap=cmap, cbar_kws=cbar_kws, **plot_kws)
+    ax = _generate_heatmap(ax=ax, correlation_matrix=correlation_matrix, classes=classes, vmin=vmin, vmax=vmax, reorder=reorder, cmap=cmap, cbar=cbar, cbar_kws=cbar_kws, **plot_kws)
 
     return render_plot(fig, ax, **kwargs)
 
@@ -175,6 +183,7 @@ def correlations_predictions(
     vmax: float | None = None,
     reorder: bool = False,
     cmap: str | plt.Colormap = 'coolwarm',
+    cbar: bool = True,
     cbar_kws: dict | None = None,
     plot_kws: dict | None = None,
     ax: plt.Axes | None = None,
@@ -201,6 +210,8 @@ def correlations_predictions(
         Whether or not to order the clases by similarity (boolean).
     cmap
         Colormap to use.
+    cbar
+        whether to draw a colorbar.
     cbar_kws
         Extra keyword arguments passed to the colorbar.
         Default is `{'label': "Pearson correlations (of log1p-transformed values)"}`
@@ -210,7 +221,7 @@ def correlations_predictions(
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch. Can only be supplied if plotting a single model.
     width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (11, 8) per model to plot.
+        Dimensions of the newly created figure if `ax=None`. Default is (10, 8) per model to plot, or (8, 8) if `cbar=False`.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
@@ -267,7 +278,8 @@ def correlations_predictions(
     n_models = len(model_names)
 
     # Set defaults
-    plot_width = kwargs.pop('width') if 'width' in kwargs else 11*n_models
+    default_width = 10*n_models if cbar else 8*n_models
+    plot_width = kwargs.pop('width') if 'width' in kwargs else default_width
     plot_height = kwargs.pop('height') if 'height' in kwargs else 8
     if 'xtick_rotation' not in kwargs:
         kwargs['xtick_rotation'] = 90
@@ -304,6 +316,6 @@ def correlations_predictions(
         # and no self correlations
         correlation_matrix = np.hsplit(np.vsplit(correlation_matrix, 2)[1], 2)[0].T
 
-        ax = _generate_heatmap(ax=axs[i], correlation_matrix=correlation_matrix, classes=classes, vmin=vmin, vmax=vmax, reorder=reorder, cmap=cmap, cbar_kws=cbar_kws, **plot_kws)
+        ax = _generate_heatmap(ax=axs[i], correlation_matrix=correlation_matrix, classes=classes, vmin=vmin, vmax=vmax, reorder=reorder, cmap=cmap, cbar=cbar, cbar_kws=cbar_kws, **plot_kws)
 
     return render_plot(fig, axs, **kwargs)
