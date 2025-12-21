@@ -45,7 +45,7 @@ def region_predictions(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `region_predictions`: `grid="y"`.
+        Custom defaults for `region_predictions`: `grid="y"`, `suptitle=region`.
 
     See Also
     --------
@@ -95,6 +95,8 @@ def region_predictions(
     sharey = kwargs.pop('sharey') if 'sharey' in kwargs else True
     if 'grid' not in kwargs:
         kwargs['grid'] = 'y'
+    if 'suptitle' not in kwargs:
+        kwargs['suptitle'] = region
     plot_kws = {} if plot_kws is None else plot_kws.copy()
 
     # Create figure scaffold
@@ -116,6 +118,7 @@ def region_predictions(
             region=region,
             target=model_names[i],
             grid=False, # Disable here so that final render_plot can set it
+            title=None,
             show=False,
             plot_kws=plot_kws_pred,
             ax=axs[i],
@@ -130,6 +133,7 @@ def region_predictions(
         region=region,
         target=None,
         grid=False, # Disable here so that final render_plot can set it
+        title=None,
         show=False,
         plot_kws=plot_kws_truth,
         ax=axs[-1],
@@ -164,7 +168,7 @@ def region(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `region`: `xlabel="None"`, `ylabel="Ground truth"`/`target`, `grid='y'`.
+        Custom defaults for `region`: `xlabel="None"`, `ylabel="Ground truth"`/`target`, `title=region`, `grid='y'`.
 
     See Also
     --------
@@ -214,6 +218,8 @@ def region(
         kwargs['xlabel'] = None
     if 'ylabel' not in kwargs:
         kwargs['ylabel'] = 'Ground truth' if target is None else target
+    if 'title' not in kwargs:
+        kwargs['title'] = region
     if 'grid' not in kwargs:
         kwargs['grid'] = 'y'
     plot_kws = {} if plot_kws is None else plot_kws.copy()
