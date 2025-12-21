@@ -111,12 +111,12 @@ def correlations_self(
         Whether or not to order the clases by similarity.
     cmap
         Colormap to use.
+    cbar_kws
+        Extra keyword arguments passed to the colorbar.
+        Default is `{'label': "Pearson correlations (of log1p-transformed values)"}`
     plot_kws
         Extra keyword arguments passed to :func:`~seaborn.heatmap`.
         Adjusted defaults compared to the base function are `{'square': True, 'fmt': '.2f'}`.
-    cbar_kws
-        Extra keyword arguments passed to the colorbar through `:func:`~seaborn.heatmap`.
-        Default is `{'label': "Pearson correlations (of log1p-transformed values)"}`
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width, height
@@ -201,6 +201,9 @@ def correlations_predictions(
         Whether or not to order the clases by similarity (boolean).
     cmap
         Colormap to use.
+    cbar_kws
+        Extra keyword arguments passed to the colorbar.
+        Default is `{'label': "Pearson correlations (of log1p-transformed values)"}`
     plot_kws
         Extra keyword arguments passed to :func:`~seaborn.heatmap`.
         Adjusted defaults compared to the base function are `square=True` and `fmt='.2f'`.
