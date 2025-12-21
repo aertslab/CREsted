@@ -41,8 +41,6 @@ def normalization_weights(
     -------
     >>> crested.pl.bar.normalization_weights(
     ...     adata,
-    ...     xlabel="Cell type",
-    ...     ylabel="Scaling factor",
     ...     width=20,
     ...     height=3,
     ...     title="Normalization scaling factors",

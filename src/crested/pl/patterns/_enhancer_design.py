@@ -144,6 +144,23 @@ def enhancer_design_steps_contribution_scores(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
+
+    See Also
+    --------
+    crested.pl.render_plot
+    crested.pl.patterns.contribution_scores
+
+    Example
+    --------
+    >>> crested.pl.patterns.enhancer_design_steps_contribution_scores(
+    ...     intermediate_results,
+    ...     scores,
+    ...     one_hot_encoded_sequences,
+    ...     labels=["L5ET"],
+    ...     highlight_kws={'facecolor': 'green', 'edgecolor': 'green', 'alpha': 0.1},
+    ... )
+
+    .. image:: ../../../../docs/_static/img/examples/patterns_enhancer_design_steps_contribution_scores.png
     """
     _check_ylim_params(global_ylim, ylim)
 
@@ -349,6 +366,21 @@ def enhancer_design_steps_predictions(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
+
+    See Also
+    --------
+    crested.pl.render_plot
+
+    Example
+    --------
+    >>> crested.pl.patterns.enhancer_design_steps_predictions(
+    ...     intermediate_results,
+    ...     target_classes="L5ET",
+    ...     obs_names=adata.obs_names,
+    ...     separate=True,
+    ... )
+
+    .. image:: ../../../../docs/_static/img/examples/patterns_enhancer_design_steps_predictions.png
     """
     if 'seperate' in kwargs:
         separate = kwargs.pop('seperate')

@@ -79,12 +79,13 @@ def locus_scoring(
     --------
     >>> crested.pl.locus.locus_scoring(
     ...     scores,
-    ...     range=(0, 1000),
-    ...     gene_start=100,
-    ...     gene_end=200,
-    ...     title=["Predictions across genomic regions", "bigWig coverage across genomic regions"],
-    ...     bigwig_values=bigwig_values,
-    ...     bigwig_midpoints=bigwig_midpoints,
+    ...     range=(min_loc, max_loc),
+    ...     gene_start=start,
+    ...     gene_end=end,
+    ...     bigwig_values=bw_values,
+    ...     bigwig_midpoints=midpoints,
+    ...     highlight_positions = [(max_loc-45000, max_loc-40000)],
+    ...     suptitle="CREsted prediction around Elavl2 gene locus for Sst"
     ... )
 
     .. image:: ../../../../docs/_static/img/examples/locus_locus_scoring.png

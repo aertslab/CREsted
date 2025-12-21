@@ -60,7 +60,7 @@ def correlations(
     ...     model_names=["Base DilatedCNN", "Fine-tuned DilatedCNN"],
     ...     split="test",
     ...     log_transform=True,
-    ...     title="Class-wise prediction vs ground truth correlations",
+    ...     title="Per-class model correlation",
     ... )
 
     .. image:: ../../../../docs/_static/img/examples/violin_correlations.png

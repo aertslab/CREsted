@@ -140,7 +140,11 @@ def correlations_self(
     Examples
     --------
     >>> crested.pl.heatmap.correlations_self(
-    ...     adata, log_transform=True, title="Self correlations heatmap"
+    ...     adata,
+    ...     log_transform=True,
+    ...     vmin=0,
+    ...     vmax=1,
+    ...     title="Self correlations heatmap",
     ... )
 
     .. image:: ../../../../docs/_static/img/examples/heatmap_self_correlations.png
@@ -190,7 +194,7 @@ def correlations_predictions(
     **kwargs,
 ) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
     """
-    Plot correlation heatmaps of predictions vs ground truth or target values for different cell types.
+    Plot correlation heatmaps of predictions vs ground truth for all cell types.
 
     Parameters
     ----------
@@ -240,7 +244,7 @@ def correlations_predictions(
     ...     log_transform=True,
     ...     vmin=0.4,
     ...     vmax=0.85,
-    ...     title="Correlations: predictions vs ground truth",
+    ...     suptitle="Correlations: predictions vs ground truth",
     ... )
 
     .. image:: ../../../../docs/_static/img/examples/heatmap_correlations_predictions.png

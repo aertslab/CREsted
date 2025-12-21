@@ -101,7 +101,7 @@ def contribution_scores(
     ...     scores, seqs_one_hot, sequence_labels, class_labels
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/contribution_scores.png
+    .. image:: ../../../../docs/_static/img/examples/patterns_contribution_scores.png
     """
     if isinstance(sequence_labels, str):
         sequence_labels = [sequence_labels]

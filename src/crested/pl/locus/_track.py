@@ -57,16 +57,26 @@ def track(
 
     Example
     --------
+    >>> chrom, start, end = 'chr18', 61010523, 61207131
+    >>> class_idx = output_names_borzoi.index('ATAC:Microglia')
     >>> crested.pl.locus.track(
-    ...     preds,
+    ...     borzoi_pred,
     ...     class_idxs=class_idx,
     ...     range=(chrom, start, end),
-    ...     title="Mouse Borzoi ATAC:MGL predictions around the FIRE enhancer",
+    ...     title="Human Borzoi microglia predictions around the FIRE enhancer",
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/locus_track.png
+    .. image:: ../../../../docs/_static/img/examples/locus_track_pred.png
 
-    # TODO: add example for bigwig import?
+    >>> bw_values, midpoints = crested.utils.read_bigwig_region(bw_path, (chrom, start, end))
+    >>> crested.pl.locus.track(
+    ...     bw_values,
+    ...     range=(chrom, start, end),
+    ...     title="Mouse Borzoi microglia values around the FIRE enhancer",
+    ... )
+
+    .. image:: ../../../../docs/_static/img/examples/locus_track_bw.png
+
     """
     # Check inputs
     @log_and_raise(ValueError)

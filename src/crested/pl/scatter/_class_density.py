@@ -108,7 +108,7 @@ def class_density(
     >>> crested.pl.scatter.class_density(
     ...     adata,
     ...     class_name="Astro",
-    ...     model_names=["model1", "model2"],
+    ...     model_names=["Base model", "Fine-tuned"],
     ...     split="test",
     ...     log_transform=True,
     ... )

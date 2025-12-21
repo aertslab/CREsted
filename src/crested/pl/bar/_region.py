@@ -55,10 +55,9 @@ def region_predictions(
     -------
     >>> crested.pl.bar.region_predictions(
     ...     adata,
-    ...     region='chr1:3094805-3095305'
-    ...     model_names=["model_1", "model_2"],
-    ...     sharey=False,
-    ...     title="Region chr1:3094805-3095305"
+    ...     region='chr1:3093998-3096112',
+    ...     model_names=["Base model", "Fine-tuned"],
+    ...     sharey=False
     ... )
 
     .. image:: ../../../../docs/_static/img/examples/bar_region_predictions.png
@@ -180,13 +179,10 @@ def region(
     -------
     >>> crested.pl.bar.region(
     ...     adata,
-    ...     region="chr1:3094805-3095305",
-    ...     target=None,
-    ...     xlabel="Cell type",
-    ...     ylabel="Peak height",
+    ...     region='chr1:3093998-3096112',
+    ...     target="Base model",
     ...     width=20,
-    ...     height=3,
-    ...     figtitle="chr1:3094805-3095305",
+    ...     height=3
     ... )
 
     .. image:: ../../../../docs/_static/img/examples/bar_region.png
@@ -269,9 +265,11 @@ def prediction(
     -------
     >>> crested.pl.bar.prediction(
     ...     pred,
-    ...     classes=list(adata.obs_names),
-    ...     title="Region chr1:3094805-3095305"
+    ...     classes=adata.obs_names,
+    ...     title="Region chr18:61107770-61109884",
     ... )
+
+    .. image:: ../../../../docs/_static/img/examples/bar_prediction.png
     """
     # Check inputs
     @log_and_raise(ValueError)
