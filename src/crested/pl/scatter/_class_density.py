@@ -47,7 +47,7 @@ def class_density(
     density_indication: bool = False,
     square: bool = False,
     identity_line: bool = False,
-    colorbar: bool = False,
+    cbar: bool = False,
     downsample_density: int = 10000,
     max_threads: int = 8,
     plot_kws: dict | None = None,
@@ -77,7 +77,7 @@ def class_density(
         Whether to force the plots to be square and have equal aspect ratios.
     identity_line
         Whether to plot a y=x line denoting perfect correlation.
-    colorbar
+    cbar
         Whether to plot the colorbar when using `density_indication`.
     downsample_density
         Number of points to downsample to when fitting the density if using the density indication.
@@ -132,8 +132,8 @@ def class_density(
             raise ValueError("Split must be 'train', 'val', 'test', or None.")
         if ax is not None and len(model_names) > 1:
             raise ValueError("ax can only be set if plotting one model. Please pick one model in `model_names`.")
-        if colorbar is True and density_indication is False:
-            raise ValueError("`colorbar` is only used if `density_indication` is True.")
+        if cbar is True and density_indication is False:
+            raise ValueError("`cbar` is only used if `density_indication` is True.")
 
     if isinstance(model_names, str):
         model_names = [model_names]
@@ -184,7 +184,7 @@ def class_density(
         )
 
     # Set defaults
-    default_width = 8*n_models if (colorbar and density_indication) else 7*n_models
+    default_width = 8*n_models if (cbar and density_indication) else 7*n_models
     plot_width = kwargs.pop('width') if 'width' in kwargs else default_width
     plot_height = kwargs.pop('height') if 'height' in kwargs else 8
     sharex = kwargs.pop('sharex') if 'sharex' in kwargs else False
@@ -235,7 +235,7 @@ def class_density(
             z = _fit_kde(x, y, downsample_density, max_threads)
             scatter_pathcoll = ax.scatter(x, y, c=z, s=50, **plot_kws)
             scatter_pathcoll.set_rasterized(True)  # Rasterize only the scatter points
-            if colorbar:
+            if cbar:
                 fig.colorbar(ScalarMappable(cmap=scatter_pathcoll.cmap, norm=scatter_pathcoll.norm), ax = ax, label="Density")
         else:
             ax.scatter(x, y, **plot_kws)
