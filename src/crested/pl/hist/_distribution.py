@@ -42,10 +42,14 @@ def distribution(
         Defaults: `{'kde': True, 'stat': 'frequency', 'color': 'skyblue', 'binwidth': np.ptp(data)}`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch. Can only be supplied if plotting a single model.
-    width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (8, 6) per class histogram.
-    sharex, sharey
-        Whether to share x and y axes of the created plots. Default is True for both.
+    width
+        Width of the newly created figure if `ax=None`. Default is 8 per class histogram.
+    height
+        Height of the newly created figure if `ax=None`. Default is 6 per class histogram.
+    sharex
+        Whether to share the x axes of the created plots. Default is True.
+    sharey
+        Whether to share the y axes of the created plots. Default is True.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.

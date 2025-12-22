@@ -41,8 +41,10 @@ def correlations(
         Defaults: `{'inner': 'point', 'zorder': 2.05, 'orient': 'v', 'inner_kws': {"s": 20, "marker": ".", "edgecolor": "0", "color": "0.01", "alpha": 1}}`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
-    width, height
-        Dimensions of the newly created figure if `ax=None`. Default width is 6(+1/models>5), default height is 8.
+    width
+        Width of the newly created figure if `ax=None`. Default width is 6, +1 for every model > 5.
+    height
+        Height of the newly created figure if `ax=None`. Default is 8.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.

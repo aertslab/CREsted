@@ -126,8 +126,10 @@ def correlations_self(
         Adjusted defaults compared to the base function are `{'square': True, 'fmt': '.2f'}`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
-    width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (10, 8), or (8, 8) if `cbar=False`.
+    width
+        Width of the newly created figure if `ax=None`. Default is 10, or 8 if `cbar=False`.
+    height
+        Height of the newly created figure if `ax=None`. Default is 8.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
@@ -224,8 +226,10 @@ def correlations_predictions(
         Adjusted defaults compared to the base function are `square=True` and `fmt='.2f'`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch. Can only be supplied if plotting a single model.
-    width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (10, 8) per model to plot, or (8, 8) if `cbar=False`.
+    width
+        Width of the newly created figure if `ax=None`. Default is 10 per model to plot, or 8 if `cbar=False`.
+    height
+        Height of the newly created figure if `ax=None`. Default is 8 per model to plot.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.

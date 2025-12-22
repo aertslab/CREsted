@@ -39,10 +39,14 @@ def track(
         Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.fill_between`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
-    width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (20, 3) per class.
-    sharex, sharey
-        Whether to share x and y axes of the created plots. Default is `sharex=False`, `sharey=True`.
+    width
+        Width of the newly created figure if `ax=None`. Default is 20.
+    height
+        Height of the newly created figure if `ax=None`. Default is 3 per class.
+    sharex
+        Whether to share the y axes of the created plots. Default is False
+    sharey
+        Whether to share the y axes of the created plots. Default is True.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.

@@ -72,10 +72,14 @@ def modisco_results(
         Boolean for trimming modisco patterns.
     trim_ic_threshold
         If trimming patterns, indicate threshold.
-    width, height
-        Dimensions of the newly created figure. Default width is 6*len(classes), default height is 2*max_num_patterns.
-    sharex, sharey
-        Whether to share x and y axes of the created plots. Default is False for both.
+    width
+        Width of the newly created figure. Default is 6*`len(classes)`.
+    height
+        Height of the newly created figure. Default is 2*`max_num_patterns`.
+    sharex
+        Whether to share the x axes of the created plots. Default is False.
+    sharey
+        Whether to share the y axes of the created plots. Default is False.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
@@ -293,8 +297,10 @@ def clustermap_tomtom_similarities(
         Horizontal space between the PWM logos and the heatmap.
     show_pwms
         Whether to display PWM logos to the left of the heatmap.
-    width, height
-        Figure size.
+    width
+        Figure width.
+    height
+        Figure height.
     save_path
         If provided, the figure is saved to this path (e.g., as a PNG or PDF).
     plot_kws
@@ -479,8 +485,10 @@ def clustermap(
         Ratio of dendograms in x and y directions.
     importance_threshold
         Minimal pattern importance threshold over all classes to retain the pattern before clustering and plotting.
-    width, height
-        Figure size.
+    width
+        Figure width.
+    height
+        Figure height.
     plot_kws
         Extra keyword arguments passed to :func:`~seaborn.clustermap`.
         Default is `{'cbar_pos': (1.05, 0.4, 0.01, 0.3)}`.
@@ -662,8 +670,10 @@ def clustermap_with_pwm_logos(
         Relative vertical padding for the PWM logos relative to the heatmap. Default is 0.3.
     pwm_or_contrib:
         Whether to use the pwm or contrib score representation of the pattern in the plotting.
-    width, height
-        Dimensions of the newly created figure. Default is (25, 8).
+    width
+        Width of the newly created figure. Default is 25.
+    height
+        Height of the newly created figure. Default is 8.
     plot_kws
         Extra keyword arguments passed to :func:`~seaborn.clustermap`.
         Default is `{'cbar_pos': (1.05, 0.4, 0.01, 0.3)}`.
@@ -809,10 +819,14 @@ def selected_instances(
         An index or list of indices specifying which patterns to plot. The indices correspond to keys in the `pattern_dict`.
     ax
         An axis to plot the instance on. Only works if providing a single value for idcs.
-    width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (8, 2*len(idcs)).
-    sharex, sharey
-        Whether to share x and y axes of the created plots. Default is False for both.
+    width
+        Width of the newly created figure if `ax=None`. Default is 8.
+    height
+        Height of the newly created figure if `ax=None`. Default is 2*`len(idcs)`.
+    sharex
+        Whether to share the x axes of the created plots. Default is False.
+    sharey
+        Whether to share the y axes of the created plots. Default is False.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
@@ -876,10 +890,14 @@ def class_instances(
     class_representative
         If True, only the best representative instance of each class is plotted. If False (default), all instances of the pattern
         within each class are plotted.
-    width, height
-        Dimensions of the newly created figure. Default is (8, 2*len(idcs)).
-    sharex, sharey
-        Whether to share x and y axes of the created plots. Default is False for both.
+    width
+        Width of the newly created figure. Default is 8.
+    height
+        Height of the newly created figure. Default is 2*len(idcs).
+    sharex
+        Whether to share the x axes of the created plots. Default is False.
+    sharey
+        Whether to share the y axes of the created plots. Default is False.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
@@ -954,8 +972,10 @@ def similarity_heatmap(
         Adjusted defaults compared to the base function are `{'annot': True, 'fmt': '.2f', 'annot_kws': {'size': 8}, 'xticklabels': indices, 'yticklabels': indices}`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
-    width, height
-        Dimensions of the newly created figure if `ax=None`. Default width is 30, default height is 15.
+    width
+        Width of the newly created figure if `ax=None`. Default is 30.
+    height
+        Height of the newly created figure if `ax=None`. Default is 15.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
@@ -1049,8 +1069,10 @@ def tf_expression_per_cell_type(
         Defaults: `{'width': 0.8}`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
-    width, height
-        Dimensions of the newly created figure if `ax=None`. Default width is 12, default height is 5.
+    width
+        Width of the newly created figure if `ax=None`. Default is 12.
+    height
+        Height of the newly created figure if `ax=None`. Default is 5.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
@@ -1116,28 +1138,30 @@ def clustermap_tf_motif(
 
     Parameters
     ----------
-    data : numpy.ndarray
+    data
         3D numpy array with shape (len(classes), #patterns, 2).
-    heatmap_dim : str
+    heatmap_dim
         Either 'gex' or 'contrib', indicating which third dimension to use for heatmap colors.
-    dot_dim : str
+    dot_dim
         Either 'gex' or 'contrib', indicating which third dimension to use for dot sizes.
-    class_labels : list[str] | None
+    class_labels
         Labels for the classes.
-    subset_classes : list[str] | None
+    subset_classes
         Subset of classes to include in the heatmap. Rows in `data` are filtered accordingly.
-    pattern_labels : list[str] | None
+    pattern_labels
         Labels for the patterns.
-    cluster_rows : bool
+    cluster_rows
         Whether to cluster the rows (classes). Default is True.
-    cluster_columns : bool
+    cluster_columns
         Whether to cluster the columns (patterns). Default is True.
-    imshow_kws: dict | None
+    imshow_kws
         Extra arguments for `ax.imshow`. Default is `{'cmap': 'coolwarm', 'aspect': 'auto'}`.
-    scatter_kws:
+    scatter_kws
         Extra arguments for `ax.scatter`. Default is `{'c': "black", 'alpha': 0.6, 'edgecolor': "none"}`
-    width, height
-        Dimensions of the newly created figure. Default is `width=max(20, data.shape[1]//4)`, `height=data.shape[0]//2`.
+    width
+        Width of the newly created figure. Default is `max(20, data.shape[1]//4)`.
+    height
+        Height of the newly created figure. Default is `data.shape[0]//2`.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.

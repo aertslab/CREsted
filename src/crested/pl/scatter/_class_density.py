@@ -89,10 +89,14 @@ def class_density(
         Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.scatter`. Defaults: `{'alpha': 0.25, 'edgecolor': 'k'}`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
-    width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (7, 8) per model without `cbar`, or (8, 8) with `cbar`.
-    sharex, sharey
-        Whether to share x and y axes of the created plots. Default is `sharex=False, sharey=True`.
+    width
+        Width of the newly created figure if `ax=None`. Default is 7 per model without `cbar`, or 8 with `cbar`.
+    height
+        Height of the newly created figure if `ax=None`. Default is 8.
+    sharex
+        Whether to share the x axes of the created plots. Default is False.
+    sharey
+        Whether to share the y axes of the created plots. Default is True.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.

@@ -77,10 +77,14 @@ def contribution_scores(
         Default is {'edgecolor':  "red", 'facecolor': "none", 'linewidth': 0.5}
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
-    width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (18, 3).
-    sharex, sharey
-        Whether to share x and y axes of the created plots. Default is False for both; y limits are shared between sequences only instead.
+    width
+        Width of the newly created figure if `ax=None`. Default is 18.
+    height
+        Height of the newly created figure if `ax=None`. Default is 3.
+    sharex
+        Whether to share the x axes of the created plots. Default is False.
+    sharey
+        Whether to share the y axes of the created plots. Default is False; y limits are shared between sequences only instead.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.

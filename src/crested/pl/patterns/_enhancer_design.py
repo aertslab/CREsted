@@ -137,10 +137,14 @@ def enhancer_design_steps_contribution_scores(
     highlight_kws
         Keywords to use for plotting changed basepairs with :meth:`~matplotlib.axes.Axes.axvspan`.
         Default is {'edgecolor':  "red", 'facecolor': "none", 'linewidth' :0.5}
-    width, height
-        Dimensions of each created figure. Default is (50, 2*n_seqs).
-    sharex, sharey
-        Whether to share x and y axes of the created plots. Default is False for both.
+    width
+        Width of each created figure. Default is 50.
+    height
+        Height of each created figure. Default is 2*`n_seqs`.
+    sharex
+        Whether to share the x axes of the created plots. Default is False.
+    sharey
+        Whether to share the y axes of the created plots. Default is False.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
@@ -344,8 +348,10 @@ def enhancer_design_steps_predictions(
         Whether to plot each designed enhancer separately, or all together as a boxplot. Default is False.
     n_rows
         Number of rows to use when more than one target class is selected.
+        If None, will infer from `n_cols`. If both are None, creates a square grid.
     n_cols
         Number of columns to use when more than one target class is selected.
+        If None, will infer from `n_rows`. If both are None, creates a square grid.
     legend_separate
         Whether to plot a legend when separate is True. Default is False.
     plot_color
@@ -359,10 +365,14 @@ def enhancer_design_steps_predictions(
         `separate=False`: `{"showfliers": False, "capprops"/"boxprops"/"whiskerprops"/"flierprops"/"medianprops"/"meanprops": {"color": plot_color}}`
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
-    width, height
-        Dimensions of the newly created figure if not supplying `ax`. Default is (fig_rescale*10*n_rows, fig_rescale*10*columns).
-    sharex, sharey
-        Whether to share x and y axes of the created plots. Default is `sharex=False`, `sharey=True`.
+    width
+        Width of the newly created figure if not supplying `ax`. Default is `fig_rescale`*10*`n_rows`.
+    height
+        Height of the newly created figure if not supplying `ax`. Default is `fig_rescale`*10*`n_cols`.
+    sharex
+        Whether to share the x axes of the created plots. Default is False.
+    sharey
+        Whether to share the y axes of the created plots. Default is True.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.

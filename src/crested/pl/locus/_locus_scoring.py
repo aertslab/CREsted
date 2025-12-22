@@ -60,10 +60,14 @@ def locus_scoring(
         Default is {'color': "green", 'alpha': 0.3}
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch. Can only be supplied if not plotting a bigWig.
-    width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (30, 3) or (30, 6) with a bigWig plot.
-    sharex, sharey
-        Whether to share x and y axes of the created plots. Default is True for both.
+    width
+        Width of the newly created figure if `ax=None`. Default is 30.
+    height
+        Height of the newly created figure if `ax=None`. Default is 3 without or 6 with a bigWig plot.
+    sharex
+        Whether to share the x axes of the created plots. Default is True.
+    sharey
+        Whether to share the y axes of the created plots. Default is True.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.

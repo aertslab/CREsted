@@ -38,10 +38,14 @@ def region_predictions(
         Plot color of the ground truth barplot.
     plot_kws
         Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.bar`.
-    width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (20, 3*(1+n_models)).
-    sharex, sharey
-        Whether to share x and y axes of the created plots. Default is True for both.
+    width
+        Width of the newly created figure if `ax=None`. Default is 20.
+    height
+        Height of the newly created figure if `ax=None`. Default is 3*(1+n_models).
+    sharex
+        Whether to share the x axes of the created plots. Default is True.
+    sharey
+        Whether to share the y axes of the created plots. Default is True.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
@@ -162,8 +166,10 @@ def region(
         Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.bar`. Defaults: `'alpha': 0.8`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
-    width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (18, 6).
+    width
+        Width of the newly created figure if `ax=None`. Default is 18.
+    height
+        Height of the newly created figure if `ax=None`. Default is 6.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
@@ -248,8 +254,10 @@ def prediction(
         Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.bar`. Defaults: `'alpha': 0.8`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
-    width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (18, 3).
+    width
+        Width of the newly created figure if `ax=None`. Default is 18.
+    height
+        Height of the newly created figure if `ax=None`. Default is 3.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.

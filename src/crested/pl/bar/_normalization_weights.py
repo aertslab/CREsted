@@ -26,8 +26,10 @@ def normalization_weights(
         Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.bar`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
-    width, height
-        Dimensions of the newly created figure if `ax=None`. Default is (11, 8).
+    width
+        Width of the newly created figure if `ax=None`. Default is 11.
+    height
+        Height of the newly created figure if `ax=None`. Default is 8.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
