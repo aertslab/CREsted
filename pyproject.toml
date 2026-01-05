@@ -84,7 +84,7 @@ features = [ "dev" ]
 features = [ "doc" ]
 
 [tool.hatch.envs.default.env-vars]
-UV_RESOLUTION = ['highest']
+UV_RESOLUTION = 'highest'
 
 [tool.hatch.envs.docs.scripts]
 build = "sphinx-build -M html docs docs/_build -W {args}"
