@@ -177,8 +177,6 @@ class TrackData:
         self.data = {chrom_name: np.zeros((chrom_size, len(self.paths)), dtype='float16') for chrom_name, chrom_size in self.chrom_sizes.items()}
 
         # Read in data per path
-        # if self.verbose:
-        #     logger.info("TEMP: Opening bw files")
         file_objects = {path: pybigtools.open(path, "r") for path in self.paths}
 
         # TODO maybe: parallelize across chroms as well (i.e. chrom*file parallel entries), but risk of multi-IO
@@ -186,14 +184,12 @@ class TrackData:
         # Read in one chrom at a time so that we can compress the entire chrom readout before moving to the next one
         try:
             for chrom in tqdm.tqdm(self.chrom_sizes):
+                # Extract values for this chromosome per opened bw
                 with ThreadPoolExecutor() as executor:
-                    futures_to_idxs = {}
-                    for path_i, bw_path in enumerate(self.paths):
-                        # Extract values for this chromosome per opened bw
-                        futures_to_idxs[executor.submit(_get_chrom, file_objects[bw_path], self.chrom_name_mapping[bw_path][chrom])] = path_i
-                for future in futures_to_idxs:
-                    path_i = futures_to_idxs[future]
-                    self.data[chrom][:, path_i] = future.result()
+                    futures_to_idxs = {executor.submit(_get_chrom, file_objects[bw_path], self.chrom_name_mapping[bw_path][chrom]): path_i for path_i, bw_path in enumerate(self.paths)}
+                    for future in futures_to_idxs:
+                        path_i = futures_to_idxs[future]
+                        self.data[chrom][:, path_i] = future.result()
 
                 # Convert values to column sparse arrays
                 if self.compressed:
@@ -206,52 +202,6 @@ class TrackData:
         finally:
             for path in file_objects:
                 file_objects[path].close()
-        # try:
-        #     for chrom in tqdm.tqdm(self.chrom_sizes):
-        #         with ThreadPoolExecutor() as executor:
-        #             for path_i, bw_path in enumerate(self.paths):
-        #                 # Extract values for this chromosome per opened bw
-        #                 futures = [executor.submit(_get_chrom(file_objects[bw_path], self.chrom_name_mapping[bw_path][chrom])) for ]
-        #                 for future in futures:
-        #                     self.data[chrom][:, path_i] = future.result()
-
-        #         # Convert values to column sparse arrays
-        #         if self.compressed:
-        #             if self.verbose:
-        #                 logger.info(f"TEMP: Converting chrom {chrom} to csc")
-        #             self.data[chrom] = csr_array(self.data[chrom])
-        #         if self.verbose:
-        #             logger.info("TEMP: Collecting garbage")
-        #         gc.collect()
-        # finally:
-        #     for path in file_objects:
-        #         file_objects[path].close()
-
-
-        # try:
-        #     for chrom in tqdm.tqdm(self.chrom_sizes):
-        #         for path_i, bw_path in enumerate(self.paths):
-        #             # Extract values for this chromosome per opened bw
-        #             values = file_objects[bw_path].values(
-        #                 self.chrom_name_mapping[bw_path][chrom], # Get the chrom name in this specific bigwig
-        #                 exact=True,
-        #                 missing=0.0,
-        #                 oob=0.0,
-        #             )
-        #             values = values.astype('float16')
-        #             self.data[chrom][:, path_i] = values
-
-        #         # Convert values to column sparse arrays
-        #         if self.compressed:
-        #             if self.verbose:
-        #                 logger.info(f"TEMP: Converting chrom {chrom} to csc")
-        #             self.data[chrom] = csr_array(self.data[chrom])
-        #         if self.verbose:
-        #             logger.info("TEMP: Collecting garbage")
-        #         gc.collect()
-        # finally:
-        #     for path in file_objects:
-        #         file_objects[path].close()
 
     def _get_single_region(self, chrom, start, end, strand = "+"):
         """"""
