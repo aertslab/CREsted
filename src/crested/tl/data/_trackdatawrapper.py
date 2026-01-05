@@ -1,12 +1,6 @@
-import os
-
-import keras
 import numpy as np
 from anndata import AnnData
 from scipy.sparse import spmatrix
-
-if os.environ["KERAS_BACKEND"] == "torch":
-    import torch
 
 from crested._genome import Genome
 from crested.tl.data import TrackData
@@ -32,7 +26,7 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
         test_values: str | list = 'test',
         split_column = 'split',
         **kwargs
-    ): 
+    ):
         """""" # TODO: ADD DOCS
         # Set some basic values (esp those required for _get_indices and _get_splits)
         self.data = data
