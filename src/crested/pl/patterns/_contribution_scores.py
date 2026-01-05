@@ -126,10 +126,6 @@ def contribution_scores(
     total_plots = total_sequences * total_classes
 
     # Set defaults
-    plot_width = kwargs.pop('width') if 'width' in kwargs else seq_length // 10
-    plot_height = kwargs.pop('height') if 'height' in kwargs else 2 * total_plots
-    sharex = kwargs.pop('sharex') if 'sharex' in kwargs else False
-    sharey = kwargs.pop('sharey') if 'sharey' in kwargs else False
     if "xlabel" not in kwargs and total_plots == 1:
         kwargs["xlabel"] = "Position"
     if "supxlabel" not in kwargs and total_plots > 1:
@@ -147,7 +143,15 @@ def contribution_scores(
     if total_plots > 1 and ax is not None:
         raise ValueError("Cannot provide a pre-existing axis if plotting more than one sequence/more than one class. Please only provide one sequence and one class, or don't provide `ax`.")
 
-    fig, axs = create_plot(ax=ax, width=plot_width, height=plot_height, nrows=total_plots, sharex=sharex, sharey=sharey)
+    fig, axs = create_plot(
+        ax=ax,
+        kwargs_dict=kwargs,
+        default_width=seq_length//10,
+        default_height=2*total_plots,
+        nrows=total_plots,
+        default_sharex=False,
+        default_sharey=False
+    )
 
     if total_plots == 1:
         axs = [axs]

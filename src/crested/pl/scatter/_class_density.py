@@ -188,11 +188,6 @@ def class_density(
         )
 
     # Set defaults
-    default_width = 8*n_models if (cbar and density_indication) else 7*n_models
-    plot_width = kwargs.pop('width') if 'width' in kwargs else default_width
-    plot_height = kwargs.pop('height') if 'height' in kwargs else 8
-    sharex = kwargs.pop('sharex') if 'sharex' in kwargs else False
-    sharey = kwargs.pop('sharey') if 'sharey' in kwargs else True
     if "xlabel" not in kwargs:
         kwargs["xlabel"] = "Ground truth"
         if log_transform:
@@ -216,13 +211,15 @@ def class_density(
         plot_kws['edgecolor'] = "k"
 
     # Create plot
+    default_width = 8*n_models if (cbar and density_indication) else 7*n_models
     fig, axs = create_plot(
         ax=ax,
-        width=plot_width,
-        height=plot_height,
+        kwargs_dict=kwargs,
+        default_width=default_width,
+        default_height=8,
         ncols=n_models,
-        sharex=sharex,
-        sharey=sharey,
+        default_sharex=False,
+        default_sharey=True
     )
     if n_models == 1:
         axs = [axs]

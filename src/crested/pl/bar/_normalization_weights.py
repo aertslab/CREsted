@@ -58,8 +58,6 @@ def normalization_weights(
     _check_input_params()
 
     # Set defaults
-    plot_width = kwargs.pop('width') if 'width' in kwargs else 20
-    plot_height = kwargs.pop('height') if 'height' in kwargs else 3
     if 'xlabel' not in kwargs:
         kwargs['xlabel'] = "Cell type"
     if 'ylabel' not in kwargs:
@@ -73,6 +71,6 @@ def normalization_weights(
     weights = adata.obsm["weights"]
 
     # Plot
-    fig, ax = create_plot(ax=ax, width=plot_width, height=plot_height)
+    fig, ax = create_plot(ax=ax, kwargs_dict=kwargs, default_width=20, default_height=3)
     ax.bar(classes, weights, **plot_kws)
     return render_plot(fig, ax, **kwargs)

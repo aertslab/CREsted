@@ -129,10 +129,6 @@ def track(
         x = np.arange(n_bins)
 
     # Set defaults
-    plot_width = kwargs.pop('width') if 'width' in kwargs else 20
-    plot_height = kwargs.pop('height') if 'height' in kwargs else 3*(n_classes)
-    sharex = kwargs.pop('sharex') if 'sharex' in kwargs else False
-    sharey = kwargs.pop('sharey') if 'sharey' in kwargs else True
     if 'title' not in kwargs and class_names is not None:
         kwargs['title'] = [class_names[cidx] for cidx in class_idxs]
     if 'xlabel' not in kwargs and range is not None:
@@ -147,11 +143,12 @@ def track(
     # Prep figure inputs
     fig, axs = create_plot(
         ax=ax,
-        width=plot_width,
-        height=plot_height,
+        kwargs_dict=kwargs,
+        default_width=20,
+        default_height=3*n_classes,
         nrows=n_classes,
-        sharex=sharex,
-        sharey=sharey
+        default_sharex=False,
+        default_sharey=True
     )
     if n_classes == 1:
         axs = [axs]

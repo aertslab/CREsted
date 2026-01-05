@@ -152,9 +152,6 @@ def correlations_self(
     .. image:: ../../../../docs/_static/img/examples/heatmap_self_correlations.png
     """
     # Set defaults
-    default_width = 10 if cbar else 8
-    plot_width = kwargs.pop('width') if 'width' in kwargs else default_width
-    plot_height = kwargs.pop('height') if 'height' in kwargs else 8
     if 'xtick_rotation' not in kwargs:
         kwargs['xtick_rotation'] = 90
     plot_kws = {} if plot_kws is None else plot_kws.copy() # Most plot defaults handled in _generate_heatmap() defaults
@@ -174,7 +171,8 @@ def correlations_self(
     correlation_matrix = np.corrcoef(x)
 
     # Plot heatmap
-    fig, ax = create_plot(ax=ax, width=plot_width, height=plot_height)
+    default_width = 10 if cbar else 8
+    fig, ax = create_plot(ax=ax, kwargs_dict=kwargs, default_width=default_width, default_height=8)
     ax = _generate_heatmap(ax=ax, correlation_matrix=correlation_matrix, classes=classes, vmin=vmin, vmax=vmax, reorder=reorder, cmap=cmap, cbar=cbar, cbar_kws=cbar_kws, **plot_kws)
 
     return render_plot(fig, ax, **kwargs)
@@ -286,9 +284,6 @@ def correlations_predictions(
     n_models = len(model_names)
 
     # Set defaults
-    default_width = 10*n_models if cbar else 8*n_models
-    plot_width = kwargs.pop('width') if 'width' in kwargs else default_width
-    plot_height = kwargs.pop('height') if 'height' in kwargs else 8
     if 'xtick_rotation' not in kwargs:
         kwargs['xtick_rotation'] = 90
     if 'title' not in kwargs:
@@ -306,7 +301,8 @@ def correlations_predictions(
         x = np.log1p(x)
 
     # Create plots
-    fig, axs = create_plot(ax=ax, width=plot_width, height=plot_height, ncols=n_models)
+    default_width = 10*n_models if cbar else 8*n_models
+    fig, axs = create_plot(ax=ax, kwargs_dict=kwargs, default_width=default_width, default_height=8, ncols=n_models)
     if n_models == 1:
         axs = [axs]
 

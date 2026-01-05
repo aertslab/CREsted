@@ -142,11 +142,6 @@ def locus_scoring(
     bigwig_included = bigwig_values is not None and bigwig_midpoints is not None
 
     # Set defaults
-    plot_width = kwargs.pop('width') if 'width' in kwargs else 30
-    default_height = 6 if bigwig_included else 3
-    plot_height = kwargs.pop('height') if 'height' in kwargs else default_height
-    sharex = kwargs.pop('sharex') if 'sharex' in kwargs else False
-    sharey = kwargs.pop('sharey') if 'sharey' in kwargs else False
     if 'title' not in kwargs:
         kwargs['title'] = "Predictions across genomic regions"
         if bigwig_included: # Add empty title for bottom plot
@@ -191,8 +186,17 @@ def locus_scoring(
         highlight_kws['alpha'] = 0.3
 
     # Create plots
+    default_height = 6 if bigwig_included else 3
     nrows = 2 if bigwig_included else 1
-    fig, axs = create_plot(ax=ax, width=plot_width, height=plot_height, nrows=nrows, sharex=sharex, sharey=sharey)
+    fig, axs = create_plot(
+        ax=ax,
+        kwargs_dict=kwargs,
+        default_width=30,
+        default_height=default_height,
+        nrows=nrows,
+        default_sharex=False,
+        default_sharey=False
+    )
     if nrows == 1:
         axs = [axs]
 

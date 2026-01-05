@@ -453,10 +453,6 @@ def enhancer_design_steps_predictions(
         )
 
     # Set defaults
-    plot_width = kwargs.pop('width') if 'width' in kwargs else fig_rescale * 10 * n_cols
-    plot_height = kwargs.pop('height') if 'height' in kwargs else fig_rescale * 10 * n_rows
-    sharex = kwargs.pop('sharex') if 'sharex' in kwargs else False
-    sharey = kwargs.pop('sharey') if 'sharey' in kwargs else True
     if 'title' not in kwargs:
         kwargs['title'] = [f"Class {target}" for target in target_classes]
     if 'xlabel' not in kwargs:
@@ -467,7 +463,17 @@ def enhancer_design_steps_predictions(
         kwargs['grid'] = 'y'
     if 'ylim' not in kwargs:
         kwargs['ylim'] = (0, None)
-    fig, axs = create_plot(ax=ax, width=plot_width, height=plot_height, nrows=n_rows, ncols=n_cols, sharex=sharex, sharey=sharey, squeeze=False)
+    fig, axs = create_plot(
+        ax=ax,
+        kwargs_dict=kwargs,
+        default_width=fig_rescale*10*n_cols,
+        default_height=fig_rescale*10*n_rows,
+        nrows=n_rows,
+        ncols=n_cols,
+        default_sharex=False,
+        default_sharey=True,
+        squeeze=False
+    )
     separate_plot_kws = {
         'marker' : "o",
         'markersize': 7,

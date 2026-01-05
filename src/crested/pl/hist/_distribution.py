@@ -108,10 +108,6 @@ def distribution(
     n_rows = int(np.ceil(n_classes / n_cols))
 
     # Set defaults
-    plot_width = kwargs.pop('width') if 'width' in kwargs else 8*n_cols
-    plot_height = kwargs.pop('height') if 'height' in kwargs else 6*n_rows
-    sharex = kwargs.pop('sharex') if 'sharex' in kwargs else True
-    sharey = kwargs.pop('sharey') if 'sharey' in kwargs else True
     if 'grid' not in kwargs:
         kwargs['grid'] = 'both'
     if 'xlabel' not in kwargs:
@@ -128,7 +124,7 @@ def distribution(
         plot_kws['stat'] = 'frequency'
 
     # Create plots
-    fig, axs = create_plot(ax=ax, width=plot_width, height=plot_height, nrows=n_rows, ncols=n_cols, sharex=sharex, sharey=sharey)
+    fig, axs = create_plot(ax=ax, kwargs_dict=kwargs, default_width=8*n_cols, default_height=6*n_rows, nrows=n_rows, ncols=n_cols, default_sharex=True, default_sharey=True)
     if n_classes == 1:
         axs = [axs]
     else:

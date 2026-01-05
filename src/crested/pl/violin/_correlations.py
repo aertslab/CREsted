@@ -95,9 +95,6 @@ def correlations(
     _check_input_params()
 
     # Set defaults
-    default_width = 6+max(0, n_models-5)  # 1-5 models: 6 wide, 5+ models: add 1 extra width per model
-    plot_width = kwargs.pop('width') if 'width' in kwargs else default_width
-    plot_height = kwargs.pop('height') if 'height' in kwargs else 8
     if 'ylabel' not in kwargs:
         kwargs['ylabel'] = "Pearson correlation"
         if log_transform:
@@ -171,7 +168,8 @@ def correlations(
         ]
 
      # Create plot
-    fig, ax = create_plot(ax=ax, width=plot_width, height=plot_height)
+    default_width = 6+max(0, n_models-5)  # 1-5 models: 6 wide, 5+ models: add 1 extra width per model
+    fig, ax = create_plot(ax=ax, kwargs_dict=kwargs, default_width=default_width, default_height=8)
 
     sns.violinplot(
         correlations,

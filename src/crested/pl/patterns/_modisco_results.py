@@ -1003,8 +1003,6 @@ def similarity_heatmap(
         logger.warning("`fig_path` is deprecated, please use arguments `save_path` instead.") # handled in render_plot
 
     # Set defaults
-    plot_width = kwargs.pop('width') if 'width' in kwargs else 30
-    plot_height = kwargs.pop('height') if 'height' in kwargs else 15
     if 'title' not in kwargs:
         kwargs['title'] = "Pattern similarity heatmap"
     if 'title_fontsize' not in kwargs:
@@ -1029,7 +1027,7 @@ def similarity_heatmap(
     if 'yticklabels' not in plot_kws:
         plot_kws['yticklabels'] = indices
 
-    fig, ax = create_plot(ax=ax, width=plot_width, height=plot_height)
+    fig, ax = create_plot(ax=ax, kwargs_dict=kwargs, default_width=30, default_height=15)
     heatmap = sns.heatmap(
         similarity_matrix,
         ax=ax,
@@ -1093,8 +1091,6 @@ def tf_expression_per_cell_type(
         tf_expression_df = np.log1p(tf_expression_df)
 
     # Set defaults
-    plot_width = kwargs.pop('width') if 'width' in kwargs else 12
-    plot_height = kwargs.pop('height') if 'height' in kwargs else 5
     if 'title' not in kwargs:
         kwargs['title'] = "TF expression per cell type"
     if 'xlabel' not in kwargs:
@@ -1112,7 +1108,7 @@ def tf_expression_per_cell_type(
         plot_kws['width'] = 0.8
 
     # Plot the TF expression per cell type
-    fig, ax = create_plot(ax=ax, width=plot_width, height=plot_height)
+    fig, ax = create_plot(ax=ax, kwargs_dict=kwargs, default_width=12, default_height=5)
     ax = tf_expression_df.plot(kind="bar", ax = ax, **plot_kws)
     ax.legend(title="Transcription factors")
 

@@ -250,8 +250,11 @@ def render_plot(
 
 def create_plot(
     ax: plt.Axes | None,
-    width: int = 8,
-    height: int = 8,
+    kwargs_dict: dict,
+    default_width: int = 8,
+    default_height: int = 8,
+    default_sharex: bool = False,
+    default_sharey: bool = False,
     nrows: int = 1,
     ncols: int = 1,
     **kwargs
@@ -270,18 +273,33 @@ def create_plot(
     ax
         A single axis object, or None. If an axis, will return its associated figure.
         If None, will create a new figure according to the other parameters.
-    width
-        The width of the figure, for `plt.subplots(figsize)`.
-    height
-        The height of the figure, for `plt.subplots(figsize)`.
+    kwargs_dict
+        The dictionary containing kwargs to set figure properties. Will consume arguments 'width', 'height', 'sharex', 'sharey'.
+    default_width
+        The default width of the figure, for `plt.subplots(figsize)`, if not in `kwargs_dict`.
+    default_height
+        The default height of the figure, for `plt.subplots(figsize)`, if not in `kwargs_dict`.
+    default_sharex
+        Default state of `plt.subplots(sharex)` if not in `kwargs_dict`.
+    default_sharey
+        Default state of `plt.subplots(sharey)` if not in `kwargs_dict`.
     nrows
         The number of rows for the subplot grid.
     ncols
         The number of columns for the subplot grid.
+    kwargs
+        Extra kwargs passed to `plt.subplots`.
     """
     if ax is None:
-        fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(width, height), **kwargs)
+        width = kwargs_dict.pop('width') if 'width' in kwargs_dict else default_width
+        height = kwargs_dict.pop('height') if 'height' in kwargs_dict else default_height
+        sharex = kwargs_dict.pop('sharex') if 'sharex' in kwargs_dict else default_sharex
+        sharey = kwargs_dict.pop('sharey') if 'sharey' in kwargs_dict else default_sharey
+        fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(width, height), sharex=sharex, sharey=sharey, **kwargs)
     elif isinstance(ax, plt.Axes):
+        for kwarg in ['width', 'height', 'sharex', 'sharey']:
+            if kwarg in kwargs_dict:
+                logger.warning(f"Using keyword argument {kwarg} does not do anything when passing a pre-existing axis.")
         fig = ax.get_figure()
     else:
         raise ValueError(f"ax must be a single matplotlib ax or None, not {type(ax)}.")
