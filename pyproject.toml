@@ -83,13 +83,13 @@ features = [ "dev" ]
 [tool.hatch.envs.docs]
 features = [ "doc" ]
 
-[tool.hatch.envs.default.env-vars]
-UV_RESOLUTION = 'highest'
-
 [tool.hatch.envs.docs.scripts]
 build = "sphinx-build -M html docs docs/_build -W {args}"
 open = "python -m webbrowser -t docs/_build/html/index.html"
 clean = "git clean -fdX -- {args:docs}"
+
+[tool.hatch.envs.hatch-test.env-vars]
+UV_RESOLUTION = 'highest'
 
 [tool.hatch.envs.hatch-test]
 features = [ "dev", "test" ]
