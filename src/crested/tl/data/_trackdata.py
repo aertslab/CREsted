@@ -1,6 +1,7 @@
 import gc
 import os
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from copy import copy
 from os import PathLike
 
@@ -10,7 +11,7 @@ import tqdm
 from loguru import logger
 from scipy.sparse import csr_array
 
-from crested._genome import Genome
+import crested._conf as conf
 from crested._io import _extract_tracks_from_bigwig
 
 
@@ -22,7 +23,8 @@ class TrackData:
         target: str = "mean",
         crop: int | tuple[int, int] = 0,
         in_memory: bool = True,
-        chrom_sizes: dict[str, int] | Genome | None = None,
+        kept_chroms: list[str] | None = None,
+        chrom_sizes: dict[str, int] | None = None,
         compressed: bool = False,
         verbose: bool = False
     ):
@@ -44,11 +46,12 @@ class TrackData:
         in_memory
             Whether to save the bigwig values in memory, or read out tracks on the fly. If doing actual training, recommended to turn on, 
             since on-the-fly track retrieval is likely not fast enough to keep up. Default is True.
-        chrom_sizes
-            The chromosomes to read in with their sizes, should be exactly the same between datasets.
-            The keys in this determine which chromosomes are read in; if you want to skip i.e. the mitochondrial genome, drop it here.
-            Can be a dict, a crested.Genome object, or None. If None (default), read in from the first bigwig listed.
+        kept_chroms
+            Chromosomes to actually read in. if you want to skip i.e. the mitochondrial genome, drop it here.
             Note that TrackData handles mixed presence/absence 'chr' prefixes by default when loading in data.
+        chrom_sizes
+            Chromosome sizes. Should be exactly the same between datasets.
+            Can be a dict or None. If None (default), uses the registered genome if available, and otherwise read in from the first bigwig listed.
         compressed
             Whether to save the data as compressed sparse rows. Currently not recommended since this increases memory usage peaks 
             while reading in data, while not resulting in large gains in terms of stable memory occupancy. Default is False.
@@ -80,7 +83,7 @@ class TrackData:
         self.bin_size = None if bin_size == 1 else bin_size
         self.target = target
         self.in_memory = in_memory
-        self.chrom_sizes = chrom_sizes.chrom_sizes if isinstance(chrom_sizes, Genome) else chrom_sizes
+        self.chrom_sizes = chrom_sizes
         self.compressed = compressed
         self.verbose = verbose
 
@@ -91,9 +94,12 @@ class TrackData:
             with pybigtools.open(path) as f:
                 # Check if file is actually a bigwig
                 assert f.is_bigwig, f"{path} does not appear to be a bigwig file."
-                # If no chromsizes provided, use from the first bigwig we see
+                # If no chromsizes provided, use registered genome or otherwise the first bigwig we see
                 if self.chrom_sizes is None:
-                    self.chrom_sizes = copy(f.chroms())
+                    if conf.genome is not None:
+                        self.chrom_sizes = conf.genome.chrom_sizes
+                    else:
+                        self.chrom_sizes = copy(f.chroms())
                 # Do some fuzzy matching to work with both bigwigs using chr prefix and no chr prefix
                 ## Get definitely prefix-less ver to compare and map back to original chromnames. (i.e '3': '3' or '3': 'chr3', depending on this bw's chromosomes)
                 curr_bw_prefixless2orig = {curr_bw_chrom.replace('chr', ''): curr_bw_chrom for curr_bw_chrom in f.chroms()}
@@ -171,28 +177,23 @@ class TrackData:
         self.data = {chrom_name: np.zeros((chrom_size, len(self.paths)), dtype='float16') for chrom_name, chrom_size in self.chrom_sizes.items()}
 
         # Read in data per path
-        if self.verbose:
-            logger.info("TEMP: Opening bw files")
+        # if self.verbose:
+        #     logger.info("TEMP: Opening bw files")
         file_objects = {path: pybigtools.open(path, "r") for path in self.paths}
 
-        # TODO: parallelize? but likely have to go back to per-file first
+        # TODO maybe: parallelize across chroms as well (i.e. chrom*file parallel entries), but risk of multi-IO
+        # TODO maybe: check if other parallelizations work faster
         # Read in one chrom at a time so that we can compress the entire chrom readout before moving to the next one
-        if self.verbose:
-            logger.info("TEMP: Starting chrom reading loop")
         try:
             for chrom in tqdm.tqdm(self.chrom_sizes):
-                for path_i, bw_path in enumerate(self.paths):
-                    # Extract values for this chromosome per opened bw
-                    if self.verbose:
-                        logger.info(f"TEMP: Reading chrom {chrom} from path {bw_path}")
-                    values = file_objects[bw_path].values(
-                        self.chrom_name_mapping[bw_path][chrom], # Get the chrom name in this specific bigwig
-                        exact=True,
-                        missing=0.0,
-                        oob=0.0,
-                    )
-                    values = values.astype('float16')
-                    self.data[chrom][:, path_i] = values
+                with ThreadPoolExecutor() as executor:
+                    futures_to_idxs = {}
+                    for path_i, bw_path in enumerate(self.paths):
+                        # Extract values for this chromosome per opened bw
+                        futures_to_idxs[executor.submit(_get_chrom, file_objects[bw_path], self.chrom_name_mapping[bw_path][chrom])] = path_i
+                for future in futures_to_idxs:
+                    path_i = futures_to_idxs[future]
+                    self.data[chrom][:, path_i] = future.result()
 
                 # Convert values to column sparse arrays
                 if self.compressed:
@@ -205,6 +206,52 @@ class TrackData:
         finally:
             for path in file_objects:
                 file_objects[path].close()
+        # try:
+        #     for chrom in tqdm.tqdm(self.chrom_sizes):
+        #         with ThreadPoolExecutor() as executor:
+        #             for path_i, bw_path in enumerate(self.paths):
+        #                 # Extract values for this chromosome per opened bw
+        #                 futures = [executor.submit(_get_chrom(file_objects[bw_path], self.chrom_name_mapping[bw_path][chrom])) for ]
+        #                 for future in futures:
+        #                     self.data[chrom][:, path_i] = future.result()
+
+        #         # Convert values to column sparse arrays
+        #         if self.compressed:
+        #             if self.verbose:
+        #                 logger.info(f"TEMP: Converting chrom {chrom} to csc")
+        #             self.data[chrom] = csr_array(self.data[chrom])
+        #         if self.verbose:
+        #             logger.info("TEMP: Collecting garbage")
+        #         gc.collect()
+        # finally:
+        #     for path in file_objects:
+        #         file_objects[path].close()
+
+
+        # try:
+        #     for chrom in tqdm.tqdm(self.chrom_sizes):
+        #         for path_i, bw_path in enumerate(self.paths):
+        #             # Extract values for this chromosome per opened bw
+        #             values = file_objects[bw_path].values(
+        #                 self.chrom_name_mapping[bw_path][chrom], # Get the chrom name in this specific bigwig
+        #                 exact=True,
+        #                 missing=0.0,
+        #                 oob=0.0,
+        #             )
+        #             values = values.astype('float16')
+        #             self.data[chrom][:, path_i] = values
+
+        #         # Convert values to column sparse arrays
+        #         if self.compressed:
+        #             if self.verbose:
+        #                 logger.info(f"TEMP: Converting chrom {chrom} to csc")
+        #             self.data[chrom] = csr_array(self.data[chrom])
+        #         if self.verbose:
+        #             logger.info("TEMP: Collecting garbage")
+        #         gc.collect()
+        # finally:
+        #     for path in file_objects:
+        #         file_objects[path].close()
 
     def _get_single_region(self, chrom, start, end, strand = "+"):
         """"""
@@ -225,3 +272,15 @@ class TrackData:
 
     def __len__(self):
         return len(self.paths)
+
+def _get_chrom(bw, chrom):
+    # with pybigtools.open(path, "r") as bw:
+    values = bw.values(
+        # self.chrom_name_mapping[bw_path][chrom], # Get the chrom name in this specific bigwig
+        chrom,
+        exact=True,
+        missing=0.0,
+        oob=0.0,
+    )
+    values = values.astype('float16')
+    return values
