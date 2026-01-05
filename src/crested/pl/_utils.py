@@ -33,10 +33,12 @@ def render_plot(
     supylabel_fontsize: int = 16,
     xtick_fontsize: int = 12,
     ytick_fontsize: int = 12,
-    xtick_rotation: int = 0,
-    ytick_rotation: int = 0,
-    xtick_ha: str = None,
-    xtick_rotationmode: str = None,
+    xtick_rotation: float = 0.,
+    ytick_rotation: float = 0.,
+    xtick_ha: Literal['left', 'center', 'right'] | None = None,
+    ytick_va: Literal['baseline', 'bottom', 'center', 'center_baseline', 'top'] | None = None,
+    xtick_rotationmode: Literal['default', 'anchor'] | None = None,
+    ytick_rotationmode: Literal['default', 'anchor'] | None = None,
     show: bool = True,
     save_path: str | None = None,
     x_label_fontsize = 'deprecated',
@@ -95,8 +97,12 @@ def render_plot(
         Rotation of the Y-axis labels in degrees.
     xtick_ha
         Horizontal alignment of the X-axis tick labels. If None, inferred to be appropriate for xtick_rotation.
+    ytick_va
+        Vertical alignment of the Y-axis tick labels. If None, kept unchanged.
     xtick_rotationmode
         Rotation mode when rotating the X-axis tick labels. If None, inferred to be appropriate for xtick_rotation.
+    ytick_rotationmode
+        Rotation mode when rotating the Y-axis tick labels. If None, kept unchanged.
     show
         Whether to display the plot. Set this to False if you want to return the figure object to customize it further.
     save_path
@@ -219,6 +225,10 @@ def render_plot(
         for label in ax.get_yticklabels():
             label.set_fontsize(ytick_fontsize)
             label.set_rotation(ytick_rotation)
+            if ytick_va is not None:
+                label.set_va(ytick_va)
+            if ytick_rotationmode is not None:
+                label.set_rotation_mode(ytick_rotationmode)
         if grid:
             ax.grid(visible=True, axis=grid, color=".85")
             ax.set_axisbelow(True)
