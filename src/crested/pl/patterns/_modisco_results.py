@@ -105,7 +105,7 @@ def modisco_results(
 
     @log_and_raise(FileNotFoundError)
     def _check_file_params():
-        if not os.isdir(contribution_dir):
+        if not os.path.isdir(contribution_dir):
             raise FileNotFoundError(
                 f"contribution_dir {contribution_dir} is not a directory."
             )
