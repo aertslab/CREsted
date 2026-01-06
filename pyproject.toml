@@ -14,13 +14,12 @@ maintainers = [
 authors = [
   { name = "Stein Aerts Lab" },
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
-  "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
   "anndata",
@@ -33,7 +32,7 @@ dependencies = [
   "pooch",
   "pybigtools>=0.2",
   "pysam",
-  "scanpy",
+  "scanpy>=1.10",
   "scikit-learn",
   "seaborn",
   "tqdm",
