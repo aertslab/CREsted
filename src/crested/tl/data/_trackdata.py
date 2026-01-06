@@ -44,7 +44,7 @@ class TrackData:
             A single value will remove half that from both flank, while a tuple will remove those amounts from either side.
             Example: returning center 500bp tracks from 1000bp regions works with crop=500 or crop=(250, 250).
         in_memory
-            Whether to save the bigwig values in memory, or read out tracks on the fly. If doing actual training, recommended to turn on, 
+            Whether to save the bigwig values in memory, or read out tracks on the fly. If doing actual training, recommended to turn on,
             since on-the-fly track retrieval is likely not fast enough to keep up. Default is True.
         kept_chroms
             Chromosomes to actually read in. if you want to skip i.e. the mitochondrial genome, drop it here.
@@ -53,12 +53,19 @@ class TrackData:
             Chromosome sizes. Should be exactly the same between datasets.
             Can be a dict or None. If None (default), uses the registered genome if available, and otherwise read in from the first bigwig listed.
         compressed
-            Whether to save the data as compressed sparse rows. Currently not recommended since this increases memory usage peaks 
+            Whether to save the data as compressed sparse rows. Currently not recommended since this increases memory usage peaks
             while reading in data, while not resulting in large gains in terms of stable memory occupancy. Default is False.
         verbose
             Whether to print extra information when reading in data. Default is False.
         """
-        # If paths is a single directory, read in files
+        # Save simple arguments
+        self.bin_size = None if bin_size == 1 else bin_size
+        self.target = target
+        self.in_memory = in_memory
+        self.compressed = compressed
+        self.verbose = verbose
+
+        # If paths is a single directory, gather files
         if isinstance(paths, str) or isinstance(paths, PathLike):
             paths = [file for file in os.listdir(paths) if os.path.isfile(os.path.join(paths, file))]
 
@@ -78,32 +85,35 @@ class TrackData:
             assert crop % 2 == 0, "If providing a single cropping integer, must be divisible by 2, since we remove crop//2 from both flanks."
             self.crop = (crop // 2, crop // 2)
 
+        # If no chromsizes provided, use registered genome or otherwise the first bigwig we see
+        if chrom_sizes is not None:
+            self.chrom_sizes = chrom_sizes
+        else:
+            if conf.genome is not None:
+                self.chrom_sizes = conf.genome.chrom_sizes
+            else:
+                with pybigtools.open(self.paths[0]) as f:
+                    self.chrom_sizes = copy(f.chroms())
 
-        # Save other arguments
-        self.bin_size = None if bin_size == 1 else bin_size
-        self.target = target
-        self.in_memory = in_memory
-        self.chrom_sizes = chrom_sizes
-        self.compressed = compressed
-        self.verbose = verbose
+        # Filter chrom_sizes to kept_chroms
+        if kept_chroms is not None:
+            for chrom in kept_chroms:
+                if chrom not in self.chrom_sizes:
+                    raise KeyError(f"Could not find chromosome {chrom} in chrom_sizes.\nCurrent chrom_sizes chroms: {list(self.chrom_sizes.keys())}")
+            self.chrom_sizes = {chrom: chrom_size for chrom, chrom_size in self.chrom_sizes.items() if chrom in kept_chroms}
 
-        # Do initial bigwig checks and housekeeping
+        # Do bigwig checks and fuzzy chromosome name matching
         logger.info("Checking whether bigwigs exist")
         self.chrom_name_mapping = {}
         for path in self.paths:
             with pybigtools.open(path) as f:
                 # Check if file is actually a bigwig
                 assert f.is_bigwig, f"{path} does not appear to be a bigwig file."
-                # If no chromsizes provided, use registered genome or otherwise the first bigwig we see
-                if self.chrom_sizes is None:
-                    if conf.genome is not None:
-                        self.chrom_sizes = conf.genome.chrom_sizes
-                    else:
-                        self.chrom_sizes = copy(f.chroms())
                 # Do some fuzzy matching to work with both bigwigs using chr prefix and no chr prefix
                 ## Get definitely prefix-less ver to compare and map back to original chromnames. (i.e '3': '3' or '3': 'chr3', depending on this bw's chromosomes)
                 curr_bw_prefixless2orig = {curr_bw_chrom.replace('chr', ''): curr_bw_chrom for curr_bw_chrom in f.chroms()}
                 ## Then use the prefixless ver of the ref chroms to link the original ref chrom to the original bw chrom
+                ## i.e. {'path1': {'chr3': '3', ...}, 'path2': {'chr3': 'chr3', ...}, ...} if chrom_sizes is using 'chr3'
                 self.chrom_name_mapping[path] = {ref_chrom: curr_bw_prefixless2orig[ref_chrom.replace('chr', '')] for ref_chrom in self.chrom_sizes}
 
         # Load regions into memory
@@ -112,11 +122,11 @@ class TrackData:
             self._read_bws()
             logger.info("Finished reading bigwigs into memory")
 
-        # TODO maybe: add cropping function to return center part of submitted region (but maybe is more for the custom dataloader to shrink input seq there)?
         # TODO maybe: add optional contigs argument, where we only read in values from specific regions rather than from everywhere.
         #   Small problem: augmentation might shift boundaries, expect ppl to handle this beforehand?
         #   Also: how much does this actually save? Idea is for only loading regions around genes, but eh
         # TODO maybe: add support for stranded bigwigs (provide pair of paths, save both in alternative version, but bit of a bother to implement)
+        # TODO: implement region reading rather than full chromosomes
 
     def __getitem__(self, idx):
         """"""
