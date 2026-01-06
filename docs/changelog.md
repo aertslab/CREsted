@@ -1,5 +1,9 @@
 # Release Notes
 
+## 1.6.1
+
+Version fixing for scanpy (>=1.10) and python (<3.14).
+
 ## 1.6.0
 
 From now on, crested requires a python>=3.11 installation.
