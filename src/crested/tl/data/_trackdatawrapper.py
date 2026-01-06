@@ -52,7 +52,7 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
         """"""
         return self.regions
 
-    def _get_splits(self, split):
+    def _get_splits(self):
         """"""
         return self.splits
 
@@ -111,7 +111,7 @@ class GeckoDataWrapper(BaseGenomicDataWrapper):
         """"""
         return list(self.data.var_names)
 
-    def _get_splits(self, split):
+    def _get_splits(self):
         """"""
         return list(self.data.var[self.split_column])
 
