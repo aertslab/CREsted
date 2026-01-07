@@ -5,7 +5,7 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 
-from crested.pl._utils import render_plot
+from crested.pl._utils import create_plot, render_plot
 from crested.utils._logging import log_and_raise
 
 from ._utils import (
@@ -48,14 +48,15 @@ def contribution_scores(
     class_labels: str | list | None = None,
     zoom_n_bases: int | None = None,
     highlight_positions: list[tuple[int, int]] | None = None,
-    ylim: tuple | None = None,
+    highlight_kws: dict | None = None,
     method: str | None = None,
+    ax: plt.Axes | None = None,
     **kwargs,
-):
+) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
     """
     Visualize interpretation scores with optional highlighted positions.
 
-    Contribution scores can be calculated using the :func:`~crested.tl.Crested.calculate_contribution_scores` method.
+    Contribution scores can be calculated using the :func:`~crested.tl.contribution_scores` method.
 
     Parameters
     ----------
@@ -71,11 +72,23 @@ def contribution_scores(
         Number of center bases to zoom in on. Default is None (no zooming).
     highlight_positions
         List of tuples with start and end positions to highlight. Default is None.
-    ylim
-        Y-axis limits. Default is None.
-    method
-        Method used for calculating contribution scores. If mutagenesis, you can either set this to mutagenesis to visualize
-        in legacy way, or mutagenesis_letters to visualize an average of changes.
+    highlight_kws
+        Keywords to use for plotting highlights with :meth:`~matplotlib.axes.Axes.axvspan`.
+        Default is {'edgecolor':  "red", 'facecolor': "none", 'linewidth': 0.5}
+    ax
+        Axis to plot values on. If not supplied, creates a figure from scratch.
+    width
+        Width of the newly created figure if `ax=None`. Default is 18.
+    height
+        Height of the newly created figure if `ax=None`. Default is 3.
+    sharex
+        Whether to share the x axes of the created plots. Default is False.
+    sharey
+        Whether to share the y axes of the created plots. Default is False; y limits are shared between sequences only instead.
+    kwargs
+        Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
+        Please see :func:`~crested.pl.render_plot` for details.
+        Custom defaults for `prediction`: `xlabel='Cell types'`, `ylabel='Prediction'`, `grid="y"`.
 
     See Also
     --------
@@ -92,7 +105,7 @@ def contribution_scores(
     ...     scores, seqs_one_hot, sequence_labels, class_labels
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/contribution_scores.png
+    .. image:: ../../../../docs/_static/img/examples/patterns_contribution_scores.png
     """
     if isinstance(sequence_labels, str):
         sequence_labels = [sequence_labels]
@@ -103,22 +116,41 @@ def contribution_scores(
 
     if zoom_n_bases is None:
         zoom_n_bases = scores.shape[2]
-    if sequence_labels and not isinstance(sequence_labels, list):
-        sequence_labels = [str(sequence_labels)]
-    if class_labels and not isinstance(class_labels, list):
-        class_labels = [str(class_labels)]
     center = int(scores.shape[2] / 2)
     start_idx = center - int(zoom_n_bases / 2)
     scores = scores[:, :, start_idx : start_idx + zoom_n_bases, :]
 
+    seq_length = scores.shape[2]
     total_classes = scores.shape[1]
     total_sequences = seqs_one_hot.shape[0]
     total_plots = total_sequences * total_classes
-    plot_width = scores.shape[2] // 10
 
-    fig_height_per_class = 2
-    fig, axs = plt.subplots(
-        total_plots, 1, figsize=(plot_width, fig_height_per_class * total_plots)
+    # Set defaults
+    if "xlabel" not in kwargs and total_plots == 1:
+        kwargs["xlabel"] = "Position"
+    if "supxlabel" not in kwargs and total_plots > 1:
+        kwargs["supxlabel"] = "Position"
+    if "ylabel" not in kwargs:
+        kwargs["ylabel"] = "Scores"
+    highlight_kws = {} if highlight_kws is None else highlight_kws.copy()
+    if 'edgecolor' not in highlight_kws:
+        highlight_kws['edgecolor'] = "red"
+    if 'facecolor' not in highlight_kws:
+        highlight_kws['facecolor'] = "none"
+    if 'linewidth' not in highlight_kws:
+        highlight_kws['linewidth'] = 0.5
+
+    if total_plots > 1 and ax is not None:
+        raise ValueError("Cannot provide a pre-existing axis if plotting more than one sequence/more than one class. Please only provide one sequence and one class, or don't provide `ax`.")
+
+    fig, axs = create_plot(
+        ax=ax,
+        kwargs_dict=kwargs,
+        default_width=seq_length//10,
+        default_height=2*total_plots,
+        nrows=total_plots,
+        default_sharex=False,
+        default_sharey=False
     )
 
     if total_plots == 1:
@@ -173,50 +205,23 @@ def contribution_scores(
                 intgrad_df = grad_times_input_to_df(seq_class_x, seq_class_scores)
                 _plot_attribution_map(intgrad_df, ax=ax, return_ax=False)
 
-            if ylim:
-                ax.set_ylim(ylim[0], ylim[1])
-                x_pos = 5
-                y_pos = 0.7 * ylim[1]
-            else:
-                ax.set_ylim([global_min, global_max])
-                x_pos = 5
-                y_pos = 0.7 * global_max
+            ax.set_ylim([global_min, global_max])
             text_to_add = class_labels[i] if class_labels else None
-
-            ax.text(x_pos, y_pos, text_to_add, fontsize=16, ha="left", va="center")
+            ax.annotate(text_to_add, (0.025, 0.7), xycoords= 'axes fraction', fontsize=16, ha="left", va="center")
 
             # Draw rectangles to highlight positions
             if highlight_positions:
                 for start, end in highlight_positions:
-                    ax.add_patch(
-                        plt.Rectangle(
-                            (
-                                start - start_idx - 0.5,
-                                global_min,
-                            ),
-                            end - start,
-                            global_max - global_min,
-                            edgecolor="red",
-                            facecolor="none",
-                            linewidth=0.5,
-                        )
+                    ax.axvspan(
+                        xmin=start-start_idx-0.5,
+                        xmax=end-start_idx-0.5,
+                        **highlight_kws
                     )
 
-            if i == total_classes - 1:  # Add x-label to the last subplot only
-                ax.set_xlabel("Position")
             ax.set_xticks(np.arange(0, zoom_n_bases, 50))
 
         # Set the title for the sequence (subplot)
         if sequence_labels:
             axs[plot_idx - total_classes].set_title(sequence_labels[seq], fontsize=14)
 
-    if "width" not in kwargs:
-        kwargs["width"] = plot_width
-    if "height" not in kwargs:
-        kwargs["height"] = fig_height_per_class * total_plots
-    if "xlabel" not in kwargs:
-        kwargs["xlabel"] = "Position"
-    if "ylabel" not in kwargs:
-        kwargs["ylabel"] = "Scores"
-
-    return render_plot(fig, **kwargs)
+    return render_plot(fig, axs, **kwargs)
