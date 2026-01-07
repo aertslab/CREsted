@@ -117,9 +117,13 @@ def integrated_grad(
     if _is_tensor(X):
         X = _from_tensor(X)
 
-    def interpolate_data(
-        x: np.ndarray, baseline: np.ndarray, steps: np.ndarray
-    ) -> np.ndarray:
+    # Ensure X is float type to avoid silent failures with integer dtypes.
+    # Integer dtypes (e.g., uint8) cause arithmetic overflow/underflow during interpolation,
+    # leading to incorrect gradient calculations. Models also expect float inputs.
+    if not np.issubdtype(X.dtype, np.floating):
+        X = X.astype(np.float32)
+
+    def interpolate_data(x: np.ndarray, baseline: np.ndarray, steps: np.ndarray) -> np.ndarray:
         """
         Interpolate len(steps) sequences from baseline to x.
 
@@ -162,9 +166,7 @@ def integrated_grad(
         return np.mean(grads, axis=1)
 
     # Make baselines
-    baselines = make_baselines(
-        X, num_samples=num_baselines, baseline_type=baseline_type, seed=seed
-    )
+    baselines = make_baselines(X, num_samples=num_baselines, baseline_type=baseline_type, seed=seed)
 
     outputs = np.zeros_like(X)
     for i, x in enumerate(X):
@@ -198,9 +200,7 @@ def integrated_grad(
     return outputs
 
 
-def mutagenesis(
-    X: np.ndarray, model: keras.Model, class_index: int = None, batch_size: int = 256
-) -> np.ndarray:
+def mutagenesis(X: np.ndarray, model: keras.Model, class_index: int = None, batch_size: int = 256) -> np.ndarray:
     """In silico mutagenesis analysis for a given sequence.
 
     Parameters
@@ -298,9 +298,7 @@ def window_shuffle(
             indexes = []
             for shuffle in range(n_shuffles):
                 offset = shuffle * n_mut_per_shuffle
-                indexes.extend(
-                    range(start + offset, (start + number_of_changes) + offset)
-                )
+                indexes.extend(range(start + offset, (start + number_of_changes) + offset))
             mut_score[0, location, :] = np.mean(predictions[indexes])
         return mut_score
 
@@ -317,18 +315,14 @@ def window_shuffle(
         x = np.expand_dims(x, axis=0)
 
         # generate mutagenized sequences
-        x_mut = generate_window_shuffle(
-            x, window_size=window_size, n_shuffles=n_shuffles, uniform=uniform
-        )
+        x_mut = generate_window_shuffle(x, window_size=window_size, n_shuffles=n_shuffles, uniform=uniform)
 
         # get baseline wildtype score
         wt_score = get_score(x, model, class_index, batch_size=batch_size)
         predictions = get_score(x_mut, model, class_index, batch_size=batch_size)
 
         # reshape mutagenesis predictions
-        mut_score = reconstruct_map(
-            predictions, window_size=window_size, n_shuffles=n_shuffles
-        )
+        mut_score = reconstruct_map(predictions, window_size=window_size, n_shuffles=n_shuffles)
         scores.append(wt_score - mut_score)
     return np.concatenate(scores, axis=0)
 
@@ -357,9 +351,7 @@ def smoothgrad(
 
 
 # ---- Helper functions ----
-def make_baselines(
-    X: np.ndarray, baseline_type: str, num_samples: int = 25, seed: int = 42
-) -> np.ndarray:
+def make_baselines(X: np.ndarray, baseline_type: str, num_samples: int = 25, seed: int = 42) -> np.ndarray:
     """Create backgrounds for integrated gradients.
 
     Assumes x shape is (batch, seq_len, nuc), returns (batch, num_samples, seq_len, nuc) or (batch, 1, seq_len, nuc).
@@ -389,9 +381,7 @@ def make_baselines(
         # If using zeroes, extra samples is useless since they're all equivalent, so keeping it as 1 sample
         return np.expand_dims(np.zeros_like(X), axis=1)
     else:
-        raise ValueError(
-            f"Unrecognised baseline_type {baseline_type}. Must be 'random' or 'zeros'/'zeroes'."
-        )
+        raise ValueError(f"Unrecognised baseline_type {baseline_type}. Must be 'random' or 'zeros'/'zeroes'.")
 
 
 def random_shuffle(X: np.ndarray, num_samples: int, seed: int = 42) -> np.ndarray:
