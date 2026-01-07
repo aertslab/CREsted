@@ -60,11 +60,9 @@ def _smoothgrad(
 ):
     """Calculate the smoothgrad for a given sequence."""
     _, L, A = x.shape
-    x_noise = x.repeat((num_samples, 1, 1)) + torch.normal(
-        mean, stddev, size=(num_samples, L, A)
-    )
+    x_noise = x.repeat((num_samples, 1, 1)) + torch.normal(mean, stddev, size=(num_samples, L, A))
     grad = _saliency_map(x_noise, model, class_index=class_index, func=func)
-    return torch.mean(grad, dim=0, keepdim=True).numpy()
+    return torch.mean(grad, dim=0, keepdim=True)
 
 
 def _is_tensor(array) -> bool:
