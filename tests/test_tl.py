@@ -222,8 +222,9 @@ def test_explainer_dtype_handling(keras_model):
 
     This test reproduces the bug reported in issue #138 where integrated_grad
     silently fails (returns 0) when given uint8 input instead of float32.
+    Also tests saliency_map and smoothgrad for the same issue.
     """
-    from crested.tl._explainer import integrated_grad
+    from crested.tl._explainer import integrated_grad, saliency_map, smoothgrad
     from crested.utils._seq_utils import one_hot_encode_sequence
 
     # Create a sequence that matches the model's expected input length
@@ -248,6 +249,34 @@ def test_explainer_dtype_handling(keras_model):
         atol=1e-7,
         err_msg="integrated_grad should produce similar results for uint8 and float32 inputs",
     )
+
+    # Test saliency_map with float32
+    sal_float32 = saliency_map(oh_float32, keras_model, class_index=1, batch_size=128)
+    assert sal_float32.sum() != 0, "saliency_map should return non-zero values for float32 input"
+
+    # Test saliency_map with uint8
+    sal_uint8 = saliency_map(oh_uint8, keras_model, class_index=1, batch_size=128)
+    assert sal_uint8.sum() != 0, "saliency_map should not silently fail and return 0 for uint8 input"
+
+    # The results should be similar
+    np.testing.assert_allclose(
+        sal_uint8,
+        sal_float32,
+        rtol=1e-5,
+        atol=1e-7,
+        err_msg="saliency_map should produce similar results for uint8 and float32 inputs",
+    )
+
+    # Test smoothgrad with float32
+    smooth_float32 = smoothgrad(oh_float32, keras_model, class_index=1, num_samples=10)
+    assert smooth_float32.sum() != 0, "smoothgrad should return non-zero values for float32 input"
+
+    # Test smoothgrad with uint8
+    smooth_uint8 = smoothgrad(oh_uint8, keras_model, class_index=1, num_samples=10)
+    assert smooth_uint8.sum() != 0, "smoothgrad should not silently fail and return 0 for uint8 input"
+
+    # Note: smoothgrad uses random noise, so we don't compare exact values between runs.
+    # The important thing is that both produce non-zero results (i.e., the dtype fix works).
 
 
 def test_enhancer_design_in_silico_evolution(keras_model, adata, genome):
