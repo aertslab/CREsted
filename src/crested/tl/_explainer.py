@@ -61,6 +61,16 @@ def saliency_map(
         so explaining 1 sequence still requires gradients of e.g. 650 sequences (num_baselines*num_steps+1).
         Default is 128, which works well for 2kb input size models but might struggle on bigger models.
     """
+    # Convert tensor to numpy if needed (for PyTorch/TensorFlow backends)
+    if _is_tensor(X):
+        X = _from_tensor(X)
+
+    # Ensure X is float type to avoid silent failures with integer dtypes.
+    # Integer dtypes (e.g., uint8) cause issues with gradient calculations.
+    # Models also expect float inputs.
+    if not np.issubdtype(X.dtype, np.floating):
+        X = X.astype(np.float32)
+
     return function_batch(
         X,
         _saliency_map,
@@ -337,6 +347,16 @@ def smoothgrad(
     func: Callable = None,
 ) -> np.ndarray:
     """Calculate smoothgrad for a given (set of) sequence(s)."""
+    # Convert tensor to numpy if needed (for PyTorch/TensorFlow backends)
+    if _is_tensor(X):
+        X = _from_tensor(X)
+
+    # Ensure X is float type to avoid silent failures with integer dtypes.
+    # Integer dtypes (e.g., uint8) cause issues with gradient calculations and noise addition.
+    # Models also expect float inputs.
+    if not np.issubdtype(X.dtype, np.floating):
+        X = X.astype(np.float32)
+
     return function_batch(
         X,
         _smoothgrad,
