@@ -5,7 +5,8 @@ from __future__ import annotations
 import os
 import random
 import re
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -138,7 +139,9 @@ def _detect_input_type(input: str | list[str] | np.array | AnnData) -> str:
         )
 
 
-def _transform_input(input, genome: Genome | os.PathLike | None = None) -> np.ndarray:
+def _transform_input(
+    input, genome: Genome | str | os.PathLike | None = None
+) -> np.ndarray:
     """
     Transform the input into a one-hot encoded matrix based on its type.
 
@@ -156,10 +159,7 @@ def _transform_input(input, genome: Genome | os.PathLike | None = None) -> np.nd
     input_type = _detect_input_type(input)
     if input_type == "anndata":
         genome = _resolve_genome(genome)
-        sequences = [
-            genome.fetch(chrom, start, end)
-            for chrom, start, end in zip(input.var['chr'], input.var['start'], input.var['end'])
-        ]
+        sequences = [genome.fetch(region=region) for region in input.var_names]
     elif input_type == "region":
         genome = _resolve_genome(genome)
         regions = input if isinstance(input, list) else [input]
@@ -210,7 +210,7 @@ def get_value_from_dataframe(df: pd.DataFrame, row_name: str, column_name: str):
 
 
 def extract_bigwig_values_per_bp(
-    bigwig_file: os.PathLike, coordinates: list[tuple[str, int, int]]
+    bigwig_file: str | os.PathLike, coordinates: list[tuple[str, int, int]]
 ) -> tuple[np.ndarray, list[int]]:
     """
     Extract per-base pair values from a bigWig file for the given genomic coordinates.
@@ -252,7 +252,7 @@ def extract_bigwig_values_per_bp(
 
 def fetch_sequences(
     regions: str | list[str],
-    genome: os.PathLike | Genome | None = None,
+    genome: str | os.PathLike | Genome | None = None,
     uppercase: bool = True,
 ) -> list[str]:
     """
@@ -292,7 +292,7 @@ def fetch_sequences(
 
 
 def read_bigwig_region(
-    bigwig_file: os.PathLike,
+    bigwig_file: str | os.PathLike,
     coordinates: tuple[str, int, int],
     bin_size: int | None = None,
     target: str = "mean",
@@ -365,7 +365,7 @@ def read_bigwig_region(
 
 def calculate_nucleotide_distribution(
     input: str | list[str] | np.ndarray | AnnData,
-    genome: Genome | os.PathLike | None = None,
+    genome: Genome | str | os.PathLike | None = None,
     per_position: bool = False,
     n_regions: int | None = None,
 ) -> np.ndarray:

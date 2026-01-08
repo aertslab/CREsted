@@ -142,6 +142,7 @@ nitpick_ignore = [
     ("py:class", "keras.src.metrics.metric.Metric"),
     ("py:class", "seaborn.matrix.ClusterGrid"),
     ("py:class", "pysam.libcfaidx.FastaFile"),
+    ("py:class", "pathlib._local.Path"),  # Internal pathlib implementation detail
 ]
 
 suppress_warnings = [

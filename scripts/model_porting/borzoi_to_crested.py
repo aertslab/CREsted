@@ -135,17 +135,17 @@ def copy_convdense(mod, layers, name):
         conv_b = layers[name][name]["bias:0"][...]
         conv = [conv_w_d, conv_w_p, conv_b]
 
-    assert (
-        conv[0].shape == mod.weights[0].shape
-    ), f"shape {conv[0].shape} != {mod.weights[0].shape}"
+    assert conv[0].shape == mod.weights[0].shape, (
+        f"shape {conv[0].shape} != {mod.weights[0].shape}"
+    )
     if len(mod.weights) >= 2:
-        assert (
-            conv[1].shape == mod.weights[1].shape
-        ), f"shape {conv[1].shape} != {mod.weights[1].shape}"
+        assert conv[1].shape == mod.weights[1].shape, (
+            f"shape {conv[1].shape} != {mod.weights[1].shape}"
+        )
     if len(mod.weights) >= 3:
-        assert (
-            conv[2].shape == mod.weights[2].shape
-        ), f"shape {conv[2].shape} != {mod.weights[2].shape}"
+        assert conv[2].shape == mod.weights[2].shape, (
+            f"shape {conv[2].shape} != {mod.weights[2].shape}"
+        )
     mod.set_weights(conv)
 
 
@@ -158,12 +158,12 @@ def copy_dense_to_pointwise(mod, layers, name):
     dense_w = np.expand_dims(layers[name][name]["kernel:0"][...], 0)
     dense_b = layers[name][name]["bias:0"][...]
     dense = [dense_w, dense_b]
-    assert (
-        dense[0].shape == mod.weights[0].shape
-    ), f"shape {dense[0].shape} != {mod.weights[0].shape}"
-    assert (
-        dense[1].shape == mod.weights[1].shape
-    ), f"shape {dense[1].shape} != {mod.weights[1].shape}"
+    assert dense[0].shape == mod.weights[0].shape, (
+        f"shape {dense[0].shape} != {mod.weights[0].shape}"
+    )
+    assert dense[1].shape == mod.weights[1].shape, (
+        f"shape {dense[1].shape} != {mod.weights[1].shape}"
+    )
     mod.set_weights(dense)
 
 
@@ -175,18 +175,18 @@ def copy_bn(mod, layers, name):
     bn_mov_mean = layers[name][name]["moving_mean:0"][...]
     bn_mov_var = layers[name][name]["moving_variance:0"][...]
     bn = [bn_w, bn_b, bn_mov_mean.flatten(), bn_mov_var.flatten()]
-    assert (
-        bn[0].shape == mod.weights[0].shape
-    ), f"shape {bn[0].shape} != {mod.weights[0].shape}"
-    assert (
-        bn[1].shape == mod.weights[1].shape
-    ), f"shape {bn[1].shape} != {mod.weights[1].shape}"
-    assert (
-        bn[2].shape == mod.weights[2].shape
-    ), f"shape {bn[2].shape} != {mod.weights[2].shape}"
-    assert (
-        bn[3].shape == mod.weights[3].shape
-    ), f"shape {bn[3].shape} != {mod.weights[3].shape}"
+    assert bn[0].shape == mod.weights[0].shape, (
+        f"shape {bn[0].shape} != {mod.weights[0].shape}"
+    )
+    assert bn[1].shape == mod.weights[1].shape, (
+        f"shape {bn[1].shape} != {mod.weights[1].shape}"
+    )
+    assert bn[2].shape == mod.weights[2].shape, (
+        f"shape {bn[2].shape} != {mod.weights[2].shape}"
+    )
+    assert bn[3].shape == mod.weights[3].shape, (
+        f"shape {bn[3].shape} != {mod.weights[3].shape}"
+    )
     mod.set_weights(bn)
 
 
@@ -196,12 +196,12 @@ def copy_ln(mod, layers, name):
     ln_w = layers[name][name]["gamma:0"][...]  # Scale = gamma
     ln_b = layers[name][name]["beta:0"][...]  # Offset = center = beta
     ln = [ln_w, ln_b]
-    assert (
-        ln[0].shape == mod.weights[0].shape
-    ), f"shape {ln[0].shape} != {mod.weights[0].shape}"
-    assert (
-        ln[1].shape == mod.weights[1].shape
-    ), f"shape {ln[0].shape} != {mod.weights[0].shape}"
+    assert ln[0].shape == mod.weights[0].shape, (
+        f"shape {ln[0].shape} != {mod.weights[0].shape}"
+    )
+    assert ln[1].shape == mod.weights[1].shape, (
+        f"shape {ln[0].shape} != {mod.weights[0].shape}"
+    )
     mod.set_weights(ln)
 
 
@@ -221,21 +221,17 @@ def copy_mhsa(mod, layers, name):
     # Positions from MultiHeadAttention.layers: [r_w_bias, r_r_bias, q_layer, k_layer, v_layer, embedding_layer/kernel, embedding_layer/bias, r_k_layer]
     mhsa = [r_w_b, r_r_b, Q_w, K_w, V_w, out_w, out_b, rel_K_w]
     for i in range(len(mhsa)):
-        assert (
-            mhsa[i].shape == mod.weights[i].shape
-        ), f"shape {mhsa[i].shape} != {mod.weights[i].shape} (index {i})"
+        assert mhsa[i].shape == mod.weights[i].shape, (
+            f"shape {mhsa[i].shape} != {mod.weights[i].shape} (index {i})"
+        )
 
     # Specifically check two weird separate weights
-    assert mod.weights[
-        0
-    ].name.endswith(
-        "r_w_bias"
-    ), f"You might be putting the MHSA weights in the wrong order. This weight should be put at r_w_bias, but it's called {mod.weights[6].name}"
-    assert mod.weights[
-        1
-    ].name.endswith(
-        "r_r_bias"
-    ), f"You might be putting the MHSA weights in the wrong order. This weight should be put at r_r_bias, but it's called {mod.weights[7].name}"
+    assert mod.weights[0].name.endswith("r_w_bias"), (
+        f"You might be putting the MHSA weights in the wrong order. This weight should be put at r_w_bias, but it's called {mod.weights[6].name}"
+    )
+    assert mod.weights[1].name.endswith("r_r_bias"), (
+        f"You might be putting the MHSA weights in the wrong order. This weight should be put at r_r_bias, but it's called {mod.weights[7].name}"
+    )
 
     mod.set_weights(mhsa)
 
@@ -244,9 +240,10 @@ def copy_mhsa(mod, layers, name):
 for i, (human_tf_path, mouse_tf_path) in enumerate(weights_paths):
     model = crested.tl.zoo.borzoi(seq_len=524288, num_classes=[7611, 2608])
     # Convert weights
-    with h5py.File(human_tf_path) as human_weights, h5py.File(
-        mouse_tf_path
-    ) as mouse_weights:
+    with (
+        h5py.File(human_tf_path) as human_weights,
+        h5py.File(mouse_tf_path) as mouse_weights,
+    ):
         for baskerville_name, crested_name in conv_lookup.items():
             copy_convdense(
                 model.get_layer(crested_name),

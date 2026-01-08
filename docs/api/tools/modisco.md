@@ -1,6 +1,6 @@
 # Modisco `tl.modisco`
 
-Tfmodisco (utility) functions. Requires the `modisco-lite` package to be installed.
+Tfmodisco (utility) functions. Requires the `modisco-lite` and `memelite` packages to be installed. Install with: `pip install crested[motif]`
 
 ```{eval-rst}
 .. currentmodule:: crested.tl.modisco

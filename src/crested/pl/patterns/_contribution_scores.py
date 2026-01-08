@@ -44,8 +44,8 @@ def _check_contrib_params(
 def contribution_scores(
     scores: np.ndarray,
     seqs_one_hot: np.ndarray,
-    sequence_labels: list | None = None,
-    class_labels: list | None = None,
+    sequence_labels: str | list | None = None,
+    class_labels: str | list | None = None,
     zoom_n_bases: int | None = None,
     highlight_positions: list[tuple[int, int]] | None = None,
     ylim: tuple | None = None,
@@ -64,9 +64,9 @@ def contribution_scores(
     seqs_one_hot
         One-hot encoded corresponding sequences of shape (n_seqs, n_bases, n_features).
     sequence_labels
-        List of sequence labels (subplot titles) to add to the plot. Should have the same length as the number of sequences.
+        Label or list of sequence labels (subplot titles) to add to the plot. Should have the same length as the number of sequences.
     class_labels
-        List of class labels to add to the plot. Should have the same length as the number of classes.
+        Label or list of class labels to add to the plot. Should have the same length as the number of classes.
     zoom_n_bases
         Number of center bases to zoom in on. Default is None (no zooming).
     highlight_positions
@@ -86,15 +86,21 @@ def contribution_scores(
     >>> import numpy as np
     >>> scores = np.random.rand(1, 1, 100, 4)
     >>> seqs_one_hot = np.random.randint(0, 2, (1, 100, 4))
-    >>> class_labels = ["celltype_A"]
-    >>> sequence_labels = ["chr1:100-200"]
+    >>> class_labels = "celltype_A"
+    >>> sequence_labels = "chr1:100-200"
     >>> crested.pl.patterns.contribution_scores(
     ...     scores, seqs_one_hot, sequence_labels, class_labels
     ... )
 
     .. image:: ../../../../docs/_static/img/examples/contribution_scores.png
     """
+    if isinstance(sequence_labels, str):
+        sequence_labels = [sequence_labels]
+    if isinstance(class_labels, str):
+        class_labels = [class_labels]
+
     _check_contrib_params(zoom_n_bases, scores, class_labels, sequence_labels)
+
     if zoom_n_bases is None:
         zoom_n_bases = scores.shape[2]
     if sequence_labels and not isinstance(sequence_labels, list):

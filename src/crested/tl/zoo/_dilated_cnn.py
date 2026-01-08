@@ -12,8 +12,7 @@ def chrombpnet(*args, **kwargs):
     :meta private:
     """
     warnings.warn(
-        "'chrombpnet' is deprecated and will be removed in a future release. "
-        "Use its new name 'dilated_cnn' instead.",
+        "'chrombpnet' is deprecated and will be removed in a future release. Use its new name 'dilated_cnn' instead.",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -41,9 +40,6 @@ def dilated_cnn(
 ) -> keras.Model:
     """
     Construct a CNN using dilated convolutions.
-
-    This architecture is based on the ChromBPNet model described in :cite:`Pampari_Bias_factorized_base-resolution_2023`.
-    This was renamed to DilatedCNN to avoid confusion with the original ChromBPNet framework.
 
     Parameters
     ----------
@@ -143,9 +139,9 @@ def dilated_cnn(
         )(x)
         x = keras.layers.add([conv_x, x])
         if dropout > 0:
-            x = keras.layers.Dropout(dropout, name=f"bpnet_{layer_names[i-1]}dropout")(
-                x
-            )
+            x = keras.layers.Dropout(
+                dropout, name=f"bpnet_{layer_names[i - 1]}dropout"
+            )(x)
 
     x = keras.layers.GlobalAveragePooling1D()(x)
     outputs = keras.layers.Dense(

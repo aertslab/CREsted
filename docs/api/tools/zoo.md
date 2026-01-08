@@ -13,6 +13,7 @@ Supply these (or your own) to `tl.Crested(...)` to use them in training.
 
     basenji
     borzoi
+    borzoi_prime
     deeptopic_cnn
     deeptopic_lstm
     dilated_cnn

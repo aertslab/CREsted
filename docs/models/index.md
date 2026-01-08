@@ -8,9 +8,8 @@ BICCN/index
 Brain/index
 Cancer/index
 EnformerBorzoi/index
-Hydrop/index
+Fly/index
 Liver/index
-deepflybrain
 deeppbmc
 deepzebrafish
 ```

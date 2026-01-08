@@ -1,31 +1,43 @@
-"""Import all submodules, set the backend, and setup logging."""
+"""Import all submodules and setup logging."""
 
-import os
-import warnings
-
-# Set keras backend
-try:
-    import tensorflow as tf
-
-    os.environ["KERAS_BACKEND"] = "tensorflow"
-    os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-except ImportError:
-    try:
-        import torch
-
-        os.environ["KERAS_BACKEND"] = "torch"
-    except ImportError as e:
-        raise ImportError(
-            "No backend found. Please install either tensorflow or pytorch."
-        ) from e
-
-import sys
 from importlib.metadata import version
 
-from . import pl, pp, tl, utils
+# Import utils eagerly (needed for logging setup)
+from . import utils
+
+# Import lightweight modules
 from ._datasets import get_dataset, get_model, get_motif_db
 from ._genome import Genome, register_genome
 from ._io import import_beds, import_bigwigs
+
+__version__ = version("crested")
+
+# Setup loguru logging
+utils.setup_logging(log_level="INFO", log_file=None)
+
+# Lazy import heavy modules (pl, pp, tl)
+_LAZY_MODULES = {
+    "pl": ".pl",
+    "pp": ".pp",
+    "tl": ".tl",
+}
+
+
+def __getattr__(name):
+    """Lazy import submodules only when accessed."""
+    if name in _LAZY_MODULES:
+        import importlib
+
+        module = importlib.import_module(_LAZY_MODULES[name], __name__)
+        globals()[name] = module
+        return module
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    """Add lazy modules to dir() output."""
+    return sorted(list(globals().keys()) + list(_LAZY_MODULES.keys()))
+
 
 __all__ = [
     "pl",
@@ -40,10 +52,3 @@ __all__ = [
     "Genome",
     "register_genome",
 ]
-
-__version__ = version("crested")
-
-os.environ["AUTOGRAPH_VERBOSITY"] = "0"
-
-# Setup loguru logging
-utils.setup_logging(log_level="INFO", log_file=None)

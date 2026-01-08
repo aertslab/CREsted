@@ -4,7 +4,7 @@ DeepMEL2 GABPA
 .. sidebar:: Model Features
 
    - **Genome**: hg38
-   - **Type**: Topic Classification
+   - **Type**: Topic classification
    - **Parameters**: 6.4M
    - **Size**: 23MB
    - **Input shape**: (500, 4)
