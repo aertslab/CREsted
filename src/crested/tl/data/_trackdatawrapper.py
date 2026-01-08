@@ -118,12 +118,14 @@ class GeckoDataWrapper(BaseGenomicDataWrapper):
     def _get_target(self, original_index: str, expanded_index: str, **kwargs) -> np.ndarray:
         """Get target for a given index."""
         y_index = self.index_map[original_index]
-        y1 = (
+        # Get track
+        y1 = self.trackdata[expanded_index]
+        # Get scalar
+        y2 = (
             self.data.X[:, y_index].toarray().flatten()
             if self.compressed
             else self.data.X[:, y_index].astype('float32')
         )
-        y2 = self.trackdata[expanded_index]
         return y1, y2
 
     def __repr__(self):
