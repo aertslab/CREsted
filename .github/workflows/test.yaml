@@ -14,83 +14,44 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash -e {0} # -e to fail on error
-
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # TensorFlow Test Cases
-          - os: ubuntu-latest
-            python: "3.9"
-            backend: "tensorflow"
-          - os: ubuntu-latest
-            python: "3.11"
-            backend: "tensorflow"
-          - os: ubuntu-latest
-            python: "3.11"
-            backend: "tensorflow"
-            pip-flags: "--pre"
-            name: "TensorFlow PRE-RELEASE DEPENDENCIES"
-          # PyTorch Test Cases
-          - os: ubuntu-latest
-            python: "3.9"
-            backend: "pytorch"
-          - os: ubuntu-latest
-            python: "3.11"
-            backend: "pytorch"
-          - os: ubuntu-latest
-            python: "3.11"
-            backend: "pytorch"
-            pip-flags: "--pre"
-            name: "PyTorch PRE-RELEASE DEPENDENCIES"
-
-    name: ${{ matrix.name }} Python ${{ matrix.python }} Backend ${{ matrix.backend }}
-
+        os: [ubuntu-latest]
+        python: ["3.11", "3.12", "3.13"]
+        backend: ["tensorflow", "pytorch"]
+    name: Python ${{ matrix.python }} - ${{ matrix.backend }}
+    runs-on: ${{ matrix.os }}
     env:
-      OS: ${{ matrix.os }}
-      PYTHON: ${{ matrix.python }}
-      BACKEND: ${{ matrix.backend }}
-
+      MPLBACKEND: agg
+      PLATFORM: ${{ matrix.os }}
+      DISPLAY: :42
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
+        with:
+          filter: blob:none
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-          cache: "pip"
-          cache-dependency-path: "**/pyproject.toml"
 
-      - name: Install test dependencies
-        run: |
-          python -m pip install --upgrade pip wheel
+      - name: Install Hatch
+        run: pip install hatch
 
-      - name: Install dependencies for ${{ matrix.backend }}
-        run: |
-          if [ "${{ matrix.backend }}" = "tensorflow" ]; then
-            pip install ${{ matrix.pip-flags }} "tensorflow" ".[dev,test]";
-          elif [ "${{ matrix.backend }}" = "pytorch" ]; then
-            pip install ${{ matrix.pip-flags }} "torch" ".[dev,test]";
-          fi
-
-      - name: Run tests
-        env:
-          MPLBACKEND: agg
-          PLATFORM: ${{ matrix.os }}
-          DISPLAY: :42
-        run: |
-          coverage run -m pytest -v --color=yes
-
-      - name: Report coverage
-        run: |
-          coverage report
+      - name: Run tests with Hatch
+        run: hatch test -i python=${{ matrix.python }} -i backend=${{ matrix.backend }}
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        env:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          slug: aertslab/CREsted
+        uses: codecov/codecov-action@v5
+
+  check:
+    name: Tests pass in all environments
+    if: always()
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: re-actors/alls-green@release/v1
+        with:
+          jobs: ${{ toJSON(needs) }}

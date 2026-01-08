@@ -13,7 +13,7 @@ from crested import _conf as conf
 from crested.utils._logging import log_and_raise
 
 
-def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
+def _read_chromsizes(chromsizes_file: str | PathLike) -> dict[str, int]:
     """Read chromsizes file into a dictionary."""
     chromsizes = pd.read_csv(
         chromsizes_file, sep="\t", header=None, names=["chr", "size"]
@@ -25,7 +25,7 @@ def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
 def change_regions_width(
     adata: AnnData,
     width: int,
-    chromsizes_file: PathLike | None = None,
+    chromsizes_file: str | PathLike | None = None,
 ) -> None:
     """
     Change the widths of all regions in the adata object.
@@ -43,6 +43,7 @@ def change_regions_width(
         The new width of the regions.
     chromsizes_file
         File path of the chromsizes file. Used for checking if the new regions are within the chromosome boundaries.
+        If not provided, uses chromsizes from the registered Genome object, and if that doesn't exist either, doesn't check against chromosome boundaries.
 
     Returns
     -------

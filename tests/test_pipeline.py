@@ -2,21 +2,16 @@
 
 import os
 
-import genomepy
 import keras
 
 import crested
 
 
-def test_peak_regression(adata):
+def test_peak_regression(adata, genome):
     crested.pp.change_regions_width(adata, width=600)
     crested.pp.train_val_test_split(
         adata, strategy="region", val_size=0.1, test_size=0.1
     )
-    if not os.path.exists("tests/data/genomes/hg38.fa"):
-        genomepy.install_genome(
-            "hg38", annotation=False, provider="UCSC", genomes_dir="tests/data/genomes"
-        )
 
     if os.path.exists("tests/data/test_pipeline"):
         import shutil
@@ -25,7 +20,7 @@ def test_peak_regression(adata):
 
     datamodule = crested.tl.data.AnnDataModule(
         adata,
-        genome="tests/data/genomes/hg38/hg38.fa",
+        genome=genome,
         batch_size=2,
         always_reverse_complement=True,
         deterministic_shift=True,
