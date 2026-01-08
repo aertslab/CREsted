@@ -159,7 +159,7 @@ class BaseDataWrapper:
             for split_value in split_values:
                 if split_value not in self._get_splits():
                     raise ValueError(f"Could not find {split} split value {split_value} in your split data. Split data example: {self._get_splits()[:5]}")
-        return [index for index, index_split in zip(self.indices, self._get_splits()) if index_split in self.split_values[split]]
+        return [index for index, index_split in zip(self.indices, self._get_splits(), strict=True) if index_split in self.split_values[split]]
 
     def _expand_indices(self, indices: list[str], expand_revcomp: bool) -> list[str]:
         """Add strand information to indices, if not already present. Optionally also expands total set of indices by adding the reverse complement version index."""
@@ -466,7 +466,7 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         test_values: str | list = 'test',
         **kwargs
     ):
-        """Initialize the BaseGenomicDataWrapper, calling BaseDataWrapper.__init__() and initializing the SequenceLoader."""
+        """Initialize the genome-enabled datawrapper, calling BaseDataWrapper.__init__() and initializing the SequenceLoader."""
         super().__init__(
             batch_size=batch_size,
             random_reverse_complement=random_reverse_complement,
