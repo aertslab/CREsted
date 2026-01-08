@@ -136,17 +136,58 @@ class BaseDataWrapper:
         raise NotImplementedError("Please define `self._get_splits()` to extract a split identifier per sample from your dataset, i.e. AnnData var['split'].")
 
     def _get_sequence(self, original_index: str, expanded_index: str, revcomp: bool = False, shift: int = 0, **kwargs) -> str:
-        """Get a sequence (as a string) given a certain index."""
+        """Retrieve the sequence (as a string) of a certain index.
+
+        Use the parameters you need and disregard the rest through **kwargs.
+
+        Parameters
+        ----------
+        original_index
+            The original index of the sequence (i.e. before always_reverse_complement or other expansion).
+        expanded_index
+            The expanded index of the sequence (guaranteed to be stranded).
+        revcomp
+            Whether to reverse-complement the string (like because of stochastic reverse complementing) relative to the requested original index.
+        shift
+            How much to shift the string left or right (like because of stochastic shifting) relative to the original requested index.
+            Can be positive or negative.
+        kwargs
+            Catcher for arguments you're not using in your implementation.
+        """
         raise NotImplementedError("Implement _get_sequence of your inherited DataWrapper class to retrieve (unencoded) input sequences for your classes, to be encoded by _encode_sequence.")
 
-    def _encode_sequence(self, seq: str, **kwargs) -> np.ndarray:
-        """Encode the sequence as string to a numerical representation by one-hot encoding it. Returned value should not have a batch dimension yet."""
+    def _encode_sequence(self, seq: str) -> np.ndarray:
+        """Encode the sequence as string to a numerical representation by one-hot encoding it. Returned value should not have a batch dimension yet.
+
+        Generally done through one_hot_encode_sequence, override if you need to do something fancier.
+
+        Parameters
+        ----------
+        seq
+            A sequence as a string, to encode as a one-hot encoded numpy array.
+        """
         return one_hot_encode_sequence(seq, expand_dim=False)
 
     def _get_target(self, original_index: str, expanded_index: str, revcomp: bool = False, shift: int = 0, **kwargs) -> np.ndarray:
         """Get target for a given index. Returned value should not have a batch dimension yet.
 
         If not using certain arguments in your implementation (like only using one of original_index/expanded_index), please keep **kwargs to absorb the un-used other arguments.
+
+        Parameters
+        ----------
+        original_index
+            The original index of the sequence (i.e. before always_reverse_complement or other expansion).
+            The inherited version will generally use only original_index or expanded_index, depending on desired functionality.
+        expanded_index
+            The expanded index of the sequence (guaranteed to be stranded).
+            The inherited version will generally use only original_index or expanded_index, depending on desired functionality.
+        revcomp
+            Whether to reverse-complement the string (like because of stochastic reverse complementing) relative to the requested index.
+        shift
+            How much to shift the string left or right (like because of stochastic shifting) relative to the requested index.
+            Can be positive or negative.
+        kwargs
+            Catcher for arguments you're not using in your implementation.
         """
         raise NotImplementedError("Implement _get_target() of your inherited DataWrapper class to retrieve output values for your sequence")
 
@@ -162,7 +203,15 @@ class BaseDataWrapper:
         return [index for index, index_split in zip(self.indices, self._get_splits(), strict=True) if index_split in self.split_values[split]]
 
     def _expand_indices(self, indices: list[str], expand_revcomp: bool) -> list[str]:
-        """Add strand information to indices, if not already present. Optionally also expands total set of indices by adding the reverse complement version index."""
+        """Add strand information to indices, if not already present. Optionally also expands total set of indices by adding the reverse complement version index.
+
+        Parameters
+        ----------
+        indices
+            List of string-based indices to use.
+        expand_revcomp
+            Whether to expand the dataset by including both strands of every input index.
+        """
         if not hasattr(self, 'expanded_indices_map'):
             self.expanded_indices_map = {}
         expanded_indices = []
@@ -185,6 +234,12 @@ class BaseDataWrapper:
         Return sequence and target for a given numeric or expanded str index. Not used too much: primary indexing function is get_indexed_item().
 
         Main logic is implemented in get_indexed_item() to retrieve using expanded indices and with optional stochastic augmentation.
+
+        Parameters
+        ----------
+        idx
+            The index to retrieve. If a string, used directly in self.get_indexed_item.
+            If an integer, the associated index from the 'predict' expanded indices is used, just to have an easy way to get an example value.
         """
         if isinstance(idx, int):
             # Get expanded index (after adding revcomp indices) from prediction list
@@ -506,7 +561,20 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
             )
 
     def _get_sequence(self, expanded_index: str, revcomp: bool = False, shift: int = 0, **kwargs) -> np.ndarray:
-        """Get a sequence (as a string) given a certain index."""
+        """Get a sequence (as a string) given a certain index.
+
+        Parameters
+        ----------
+        expanded_index
+            The expanded index of the sequence (guaranteed to be stranded).
+        revcomp
+            Whether to reverse-complement the string (like because of stochastic reverse complementing) relative to the requested index.
+        shift
+            How much to shift the string left or right (like because of stochastic shifting) relative to the requested index.
+            Can be positive or negative.
+        kwargs
+            Catcher for unused arguments from `get_indexed_item()`, specifically `original_index`.
+        """
         # We need the stranded information when extracting from the genome so use the expanded index
         x = self.sequence_loader.get_sequence(
             expanded_index, stranded=True, shift=shift

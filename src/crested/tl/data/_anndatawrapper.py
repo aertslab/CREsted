@@ -95,7 +95,17 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
         return list(self.data.var[self.split_column])
 
     def _get_target(self, original_index: str, **kwargs) -> np.ndarray:
-        """Get target for a given index."""
+        """Get target for a given index. Returned value should not have a batch dimension yet.
+
+        If not using certain arguments in your implementation (like only using one of original_index/expanded_index), please keep **kwargs to absorb the un-used other arguments.
+
+        Parameters
+        ----------
+        original_index
+            The original index of the sequence, as present in the anndata's var_names.
+        kwargs
+            Catcher for unused arguments from `get_indexed_item`, specifically `expanded_index`, `revcomp`, and `shift`.
+        """
         y_index = self.index_map[original_index]
         return (
             self.data.X[:, y_index].toarray().flatten()
