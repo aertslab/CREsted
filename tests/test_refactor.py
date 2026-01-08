@@ -142,9 +142,9 @@ def test_score_gene_locus(crested_object, adata, keras_model, genome):
         ref_scores,
         atol=1e-4,
     ), "Scores are not equal."
-    assert (
-        a == b for a, b in zip(coordinates, ref_coordinates)
-    ), "Coordinates are not equal."
+    assert (a == b for a, b in zip(coordinates, ref_coordinates, strict=False)), (
+        "Coordinates are not equal."
+    )
     assert min_loc == ref_min_loc, "Minimum location is not equal."
     assert max_loc == ref_max_loc, "Maximum location is not equal."
     assert tss_pos == ref_tss_pos, "TSS position is not equal."

@@ -94,7 +94,7 @@ def render_plot(
     else:
         fig.tight_layout()
     if save_path:
-        plt.savefig(save_path, bbox_inches='tight')
+        plt.savefig(save_path, bbox_inches="tight")
 
     if show:
         plt.show()

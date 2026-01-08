@@ -4,7 +4,6 @@
 # Problem： Don't have environment with both working Sonnet and working CREsted -> Sonnet seems to be broken with modern TF versions?
 # Solution: read checkpoint directly without Sonnet.
 
-
 import os
 
 import keras
@@ -57,13 +56,13 @@ def copy_convdense(mod, model_vars, name):
     if len(mod.weights) == 2:
         conv_b = model_vars.pop(f"{name}b/.ATTRIBUTES/VARIABLE_VALUE")
         conv.append(conv_b)
-    assert (
-        conv[0].shape == mod.weights[0].shape
-    ), f"shape {conv[0].shape} != {mod.weights[0].shape}"
+    assert conv[0].shape == mod.weights[0].shape, (
+        f"shape {conv[0].shape} != {mod.weights[0].shape}"
+    )
     if len(mod.weights) == 2:
-        assert (
-            conv[1].shape == mod.weights[1].shape
-        ), f"shape {conv[1].shape} != {mod.weights[1].shape}"
+        assert conv[1].shape == mod.weights[1].shape, (
+            f"shape {conv[1].shape} != {mod.weights[1].shape}"
+        )
     mod.set_weights(conv)
 
 
@@ -77,12 +76,12 @@ def copy_dense_to_pointwise(mod, model_vars, name):
     dense_w = np.expand_dims(model_vars.pop(f"{name}w/.ATTRIBUTES/VARIABLE_VALUE"), 0)
     dense_b = model_vars.pop(f"{name}b/.ATTRIBUTES/VARIABLE_VALUE")
     dense = [dense_w, dense_b]
-    assert (
-        dense[0].shape == mod.weights[0].shape
-    ), f"shape {dense[0].shape} != {mod.weights[0].shape}"
-    assert (
-        dense[1].shape == mod.weights[1].shape
-    ), f"shape {dense[1].shape} != {mod.weights[1].shape}"
+    assert dense[0].shape == mod.weights[0].shape, (
+        f"shape {dense[0].shape} != {mod.weights[0].shape}"
+    )
+    assert dense[1].shape == mod.weights[1].shape, (
+        f"shape {dense[1].shape} != {mod.weights[1].shape}"
+    )
     mod.set_weights(dense)
 
 
@@ -107,18 +106,18 @@ def copy_bn(mod, model_vars, name):
     del model_vars[f"{name}moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE"]
     del model_vars[f"{name}moving_variance/_counter/.ATTRIBUTES/VARIABLE_VALUE"]
     bn = [bn_gamma, bn_beta, bn_mov_mean.flatten(), bn_mov_var.flatten()]
-    assert (
-        bn[0].shape == mod.weights[0].shape
-    ), f"shape {bn[0].shape} != {mod.weights[0].shape}"
-    assert (
-        bn[1].shape == mod.weights[1].shape
-    ), f"shape {bn[1].shape} != {mod.weights[1].shape}"
-    assert (
-        bn[2].shape == mod.weights[2].shape
-    ), f"shape {bn[2].shape} != {mod.weights[2].shape}"
-    assert (
-        bn[3].shape == mod.weights[3].shape
-    ), f"shape {bn[3].shape} != {mod.weights[3].shape}"
+    assert bn[0].shape == mod.weights[0].shape, (
+        f"shape {bn[0].shape} != {mod.weights[0].shape}"
+    )
+    assert bn[1].shape == mod.weights[1].shape, (
+        f"shape {bn[1].shape} != {mod.weights[1].shape}"
+    )
+    assert bn[2].shape == mod.weights[2].shape, (
+        f"shape {bn[2].shape} != {mod.weights[2].shape}"
+    )
+    assert bn[3].shape == mod.weights[3].shape, (
+        f"shape {bn[3].shape} != {mod.weights[3].shape}"
+    )
     mod.set_weights(bn)
 
 
@@ -126,9 +125,9 @@ def copy_bn(mod, model_vars, name):
 def copy_attn_pool(mod, model_vars, name):
     """Copy attention pooling weights."""
     attn_pool = [model_vars.pop(f"{name}w/.ATTRIBUTES/VARIABLE_VALUE")]
-    assert (
-        attn_pool[0].shape == mod.weights[0].shape
-    ), f"shape {attn_pool[0].shape} != {mod.weights[0].shape}"
+    assert attn_pool[0].shape == mod.weights[0].shape, (
+        f"shape {attn_pool[0].shape} != {mod.weights[0].shape}"
+    )
     mod.set_weights(attn_pool)
 
 
@@ -140,12 +139,12 @@ def copy_ln(mod, model_vars, name):
         f"{name}offset/.ATTRIBUTES/VARIABLE_VALUE"
     )  # Offset = center = beta
     ln = [ln_w, ln_b]
-    assert (
-        ln[0].shape == mod.weights[0].shape
-    ), f"shape {ln[0].shape} != {mod.weights[0].shape}"
-    assert (
-        ln[1].shape == mod.weights[1].shape
-    ), f"shape {ln[0].shape} != {mod.weights[0].shape}"
+    assert ln[0].shape == mod.weights[0].shape, (
+        f"shape {ln[0].shape} != {mod.weights[0].shape}"
+    )
+    assert ln[1].shape == mod.weights[1].shape, (
+        f"shape {ln[0].shape} != {mod.weights[0].shape}"
+    )
     mod.set_weights(ln)
 
 
@@ -165,23 +164,19 @@ def copy_mhsa(mod, model_vars, name):
     # Positions from MultiHeadAttention.layers: [r_w_bias, r_r_bias, q_layer, k_layer, v_layer, embedding_layer/kernel, embedding_layer/bias, r_k_layer]
     mhsa = [r_w_b, r_r_b, Q_w, K_w, V_w, out_w, out_b, rel_K_w]
     for i in range(len(mhsa)):
-        assert (
-            mhsa[i].shape == mod.weights[i].shape
-        ), f"shape {mhsa[i].shape} != {mod.weights[i].shape} (index {i})"
+        assert mhsa[i].shape == mod.weights[i].shape, (
+            f"shape {mhsa[i].shape} != {mod.weights[i].shape} (index {i})"
+        )
 
     # Specifically check two weird separate weights
     # assert mod.weights[6].name.endswith('r_w_bias'), f"You might be indexing into the MHSA wrongly. this weight should be put at r_w_bias, but it's called {mod.weights[6].name}"
     # assert mod.weights[7].name.endswith('r_r_bias'), f"You might be indexing into the MHSA wrongly. this weight should be put at r_r_bias, but it's is called {mod.weights[7].name}"
-    assert mod.weights[
-        0
-    ].name.endswith(
-        "r_w_bias"
-    ), f"You might be putting the MHSA weights in the wrong order. This weight should be put at r_w_bias, but it's called {mod.weights[6].name}"
-    assert mod.weights[
-        1
-    ].name.endswith(
-        "r_r_bias"
-    ), f"You might be putting the MHSA weights in the wrong order. This weight should be put at r_r_bias, but it's called {mod.weights[7].name}"
+    assert mod.weights[0].name.endswith("r_w_bias"), (
+        f"You might be putting the MHSA weights in the wrong order. This weight should be put at r_w_bias, but it's called {mod.weights[6].name}"
+    )
+    assert mod.weights[1].name.endswith("r_r_bias"), (
+        f"You might be putting the MHSA weights in the wrong order. This weight should be put at r_r_bias, but it's called {mod.weights[7].name}"
+    )
 
     mod.set_weights(mhsa)
 
@@ -213,11 +208,11 @@ def copy_snt_to_keras(ckpt_reader, keras_model):
 
     # Convolution tower
     for i in range(n_tower_layers):
-        tower_bn = keras_model.get_layer(f"tower_conv_{i+1}_batchnorm")
-        tower_conv = keras_model.get_layer(f"tower_conv_{i+1}_conv")
-        tower_res_bn = keras_model.get_layer(f"tower_pointwise_{i+1}_batchnorm")
-        tower_res_conv = keras_model.get_layer(f"tower_pointwise_{i+1}_conv")
-        tower_pool = keras_model.get_layer(f"tower_pointwise_{i+1}_pool")
+        tower_bn = keras_model.get_layer(f"tower_conv_{i + 1}_batchnorm")
+        tower_conv = keras_model.get_layer(f"tower_conv_{i + 1}_conv")
+        tower_res_bn = keras_model.get_layer(f"tower_pointwise_{i + 1}_batchnorm")
+        tower_res_conv = keras_model.get_layer(f"tower_pointwise_{i + 1}_conv")
+        tower_pool = keras_model.get_layer(f"tower_pointwise_{i + 1}_pool")
 
         bn_name = f"module/_trunk/_layers/1/_layers/{i}/_layers/0/_layers/0/"
         conv_name = f"module/_trunk/_layers/1/_layers/{i}/_layers/0/_layers/2/"
@@ -237,11 +232,11 @@ def copy_snt_to_keras(ckpt_reader, keras_model):
 
     # Transformer tower
     for i in range(n_transformer_layers):
-        trans_mha_ln = keras_model.get_layer(f"transformer_mha_{i+1}_layernorm")
-        trans_mha_mhsa = keras_model.get_layer(f"transformer_mha_{i+1}_mhsa")
-        trans_ff_ln = keras_model.get_layer(f"transformer_ff_{i+1}_layernorm")
-        trans_ff_conv1 = keras_model.get_layer(f"transformer_ff_{i+1}_pointwise_1")
-        trans_ff_conv2 = keras_model.get_layer(f"transformer_ff_{i+1}_pointwise_2")
+        trans_mha_ln = keras_model.get_layer(f"transformer_mha_{i + 1}_layernorm")
+        trans_mha_mhsa = keras_model.get_layer(f"transformer_mha_{i + 1}_mhsa")
+        trans_ff_ln = keras_model.get_layer(f"transformer_ff_{i + 1}_layernorm")
+        trans_ff_conv1 = keras_model.get_layer(f"transformer_ff_{i + 1}_pointwise_1")
+        trans_ff_conv2 = keras_model.get_layer(f"transformer_ff_{i + 1}_pointwise_2")
 
         ln1_name = f"module/_trunk/_layers/2/_layers/{i}/_layers/0/_module/_layers/0/"
         mhsa_name = f"module/_trunk/_layers/2/_layers/{i}/_layers/0/_module/_layers/1/"

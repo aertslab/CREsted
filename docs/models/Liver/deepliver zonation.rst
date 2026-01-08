@@ -4,7 +4,7 @@ DeepLiver Zonation
 .. sidebar:: Model Features
 
    - **Genome**: *mm10*
-   - **Type**: Multi-Label Classification
+   - **Type**: Multi-label classification
    - **Parameters**: 12.2M
    - **Size**: 44MB
    - **Input shape**: (500, 4)

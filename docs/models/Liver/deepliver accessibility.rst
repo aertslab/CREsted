@@ -4,7 +4,7 @@ DeepLiver Accessibility
 .. sidebar:: Model Features
 
    - **Genome**: *mm10*
-   - **Type**: Topic Classification
+   - **Type**: Topic classification
    - **Parameters**: 12.2M
    - **Size**: 44MB
    - **Input shape**: (500, 4)

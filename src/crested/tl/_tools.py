@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import os
+from collections.abc import Sequence
 from typing import Any
 
 import keras
@@ -24,6 +25,7 @@ from crested.tl._utils import (
     generate_motif_insertions,
     parse_starting_sequences,
 )
+from crested.utils._logging import log_and_raise
 from crested.utils._seq_utils import (
     generate_mutagenesis,
     hot_encoding_to_sequence,
@@ -40,7 +42,7 @@ def extract_layer_embeddings(
     input: str | list[str] | np.ndarray | AnnData,
     model: keras.Model,
     layer_name: str,
-    genome: Genome | os.PathLike | None = None,
+    genome: Genome | str | os.PathLike | None = None,
     **kwargs,
 ) -> np.ndarray:
     """
@@ -74,6 +76,7 @@ def extract_layer_embeddings(
     embeddings = predict(input, embedding_model, genome, **kwargs)
 
     return embeddings
+
 
 class PredictPyDataset(keras.utils.PyDataset):
     """
@@ -131,7 +134,7 @@ class PredictPyDataset(keras.utils.PyDataset):
 def predict(
     input: str | list[str] | np.array | AnnData,
     model: keras.Model | list[keras.Model],
-    genome: Genome | os.PathLike | None = None,
+    genome: Genome | str | os.PathLike | None = None,
     batch_size: int = 128,
     **kwargs,
 ) -> None | np.ndarray:
@@ -182,13 +185,14 @@ def predict(
             raise ValueError("Model must be a Keras model or a list of Keras models.")
         return model.predict(dataset, **kwargs)
 
+
 def score_gene_locus(
     chr_name: str,
     gene_start: int,
     gene_end: int,
     target_idx: int,
     model: keras.Model | list[keras.Model],
-    genome: Genome | os.PathLike | None = None,
+    genome: Genome | str | os.PathLike | None = None,
     strand: str = "+",
     upstream: int = 50000,
     downstream: int = 10000,
@@ -249,7 +253,7 @@ def score_gene_locus(
     # Detect window size from the model input shape
     if not isinstance(target_idx, int):
         raise ValueError("Target index must be an integer.")
-    if isinstance(model, list):
+    if isinstance(model, Sequence):
         input_shape = model[0].input_shape
     else:
         input_shape = model.input_shape
@@ -285,7 +289,7 @@ def score_gene_locus(
 
     # Map predictions to the score array
     scores = np.zeros(total_length)
-    for _, (pos, pred) in enumerate(zip(positions, predictions_class)):
+    for _, (pos, pred) in enumerate(zip(positions, predictions_class, strict=False)):
         central_start = pos + (window_size - central_size) // 2
         central_end = central_start + central_size
 
@@ -299,7 +303,7 @@ def score_gene_locus(
     window_starts = positions
     window_ends = positions + window_size
     coordinates = np.array(
-        list(zip([chr_name] * len(positions), window_starts, window_ends))
+        list(zip([chr_name] * len(positions), window_starts, window_ends, strict=False))
     )
     # Normalize the scores based on the number of times each position is included in the central window
     return (
@@ -318,11 +322,11 @@ def contribution_scores(
     method: str = "expected_integrated_grad",
     window_size: int | None = 7,
     n_shuffles: int | None = 24,
-    genome: Genome | os.PathLike | None = None,
+    genome: Genome | str | os.PathLike | None = None,
     transpose: bool = False,
     all_class_names: list[str] | None = None,
     batch_size: int = 128,
-    output_dir: os.PathLike | None = None,
+    output_dir: str | os.PathLike | None = None,
     seed: int | None = 42,
     verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -338,6 +342,7 @@ def contribution_scores(
     ----------
     input
         Input data to calculate the contribution scores for. Can be a (list of) sequence(s), a (list of) region name(s), a matrix of one hot encodings (N, L, 4), or an AnnData object with region names as its var_names.
+        If the input regions are stranded, will return the sequence from the proper strand; i.e. chrI:0-100:- will return a (complement) sequence from 100 to 0, as it's reversed compared to the positive strand.
     target_idx
         Index/indices of the target class(es) to calculate the contribution scores for.
         If this is an empty list, the contribution scores for the 'combined' class will be calculated.
@@ -378,20 +383,39 @@ def contribution_scores(
     --------
     crested.pl.patterns.contribution_scores
     """
-    if not isinstance(model, list):
+
+    @log_and_raise(ValueError)
+    def _check_input_params(
+        target_idx: Sequence[int]
+    ):
+        """Check contribution scores parameters."""
+        if isinstance(target_idx, str):
+            raise ValueError(
+                "target_idx must be an integer, list of integers, None, or empty list, but not a string. "
+                "You can get this index with `list(anndata.obs_names).index(class_name)` or `list(adata.obs_names.get_indexer(classes_of_interest))`"
+            )
+        if not isinstance(target_idx[0], (int, np.integer)) and target_idx[0] is not None:
+            raise ValueError(f"target_idx must be an integer, list of integers, None, or empty list, not {type(target_idx[0])}")
+
+    # Infer/repackage input values
+    if not isinstance(model, Sequence):
         model = [model]
-    if isinstance(target_idx, int):
-        target_idx = [target_idx]
-    elif target_idx is None:
+
+    if target_idx is None:
         target_idx = list(range(0, model[0].output_shape[-1]))
-    elif target_idx == []:
+    if not isinstance(target_idx, Sequence):
+        target_idx = [target_idx]
+    if target_idx == []:
         if verbose:
             logger.info(
                 "No class indices provided. Calculating contribution scores for the 'combined' class."
             )
         target_idx = [None]
-    n_classes = len(target_idx)
 
+    # Check inputs for correctness
+    _check_input_params(target_idx=target_idx)
+
+    n_classes = len(target_idx)
     input_sequences = _transform_input(input, genome)
 
     if verbose:
@@ -497,11 +521,11 @@ def contribution_scores_specific(
     input: AnnData,
     target_idx: int | list[int] | None,
     model: keras.Model | list[keras.Model],
-    genome: Genome | os.PathLike | None = None,
+    genome: Genome | str | os.PathLike | None = None,
     method: str = "expected_integrated_grad",
     transpose: bool = True,
     batch_size: int = 128,
-    output_dir: os.PathLike | None = None,
+    output_dir: str | os.PathLike | None = None,
     verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -564,7 +588,7 @@ def contribution_scores_specific(
         raise ValueError("Can't calculate 'combined' scores for specific regions.")
     if target_idx is None:
         target_idx = list(range(0, len(all_class_names)))
-    if not isinstance(target_idx, list):
+    if not isinstance(target_idx, Sequence):
         target_idx = [target_idx]
     all_scores = []
     all_one_hots = []
