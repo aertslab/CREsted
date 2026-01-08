@@ -25,7 +25,7 @@ elif os.environ["KERAS_BACKEND"] == "torch":
     from crested.tl._explainer_torch import _from_tensor, _is_tensor
 
 from crested.tl.data import AnnDataModule, BaseDataWrapper
-from crested.tl.data._dataset import SequenceLoader
+from crested.tl.data._sequenceloader import SequenceLoader
 from crested.utils import (
     EnhancerOptimizer,
     hot_encoding_to_sequence,
@@ -1975,7 +1975,6 @@ class Crested:
         sequence_loader = SequenceLoader(
             genome=self.anndatamodule.genome,
             in_memory=True,
-            always_reverse_complement=False,
             max_stochastic_shift=0,
             regions=list(regions.index),
         )

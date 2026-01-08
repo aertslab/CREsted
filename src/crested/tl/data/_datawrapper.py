@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import re
 from math import ceil
 
 import keras
 import numpy as np
 from loguru import logger
-from tqdm import tqdm
 
 if keras.config.backend() == "torch":
     import torch
@@ -20,6 +18,8 @@ else:
 
 from crested._genome import Genome, _resolve_genome
 from crested.utils import one_hot_encode_sequence
+
+from ._sequenceloader import SequenceLoader, _check_region_strandedness, _flip_region_strand
 
 
 class BaseDataWrapper:
@@ -548,7 +548,7 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
             in_memory=in_memory,
             always_reverse_complement=self.always_reverse_complement,
             max_stochastic_shift=self.max_stochastic_shift,
-            regions=self.indices,
+            regions=self.full_expanded_indices,
         )
 
         # Save input shape now that we've created the function to retrieve one
@@ -588,176 +588,6 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
             x = self.sequence_loader._reverse_complement(x)
         return x
 
-
-def _flip_region_strand(region: str) -> str:
-    """Reverse the strand of a region."""
-    strand_reverser = {"+": "-", "-": "+"}
-    return region[:-1] + strand_reverser[region[-1]]
-
-
-def _check_region_strandedness(region: str) -> bool:
-    """Check the strandedness of a region, raising an error if the formatting isn't recognised."""
-    if re.fullmatch(r".+:\d+-\d+:[-+]", region):
-        return True
-    elif re.fullmatch(r".+:\d+-\d+", region):
-        return False
-    else:
-        raise ValueError(
-            f"Region {region} was not recognised as a valid coordinate set (chr:start-end or chr:start-end:strand)."
-            "If provided, strand must be + or -."
-        )
-
-class SequenceLoader:
-    """
-    Load sequences from a genome file.
-
-    Options for reverse complementing and stochastic shifting are available.
-
-    Parameters
-    ----------
-    genome
-        Genome instance.
-    in_memory
-        If True, the sequences of supplied regions will be loaded into memory.
-    always_reverse_complement
-        If True, the dataset will be expanded to include both the forward and reverse-complemented versions of every region provided.
-        Doubles the dataset size.
-    max_stochastic_shift
-        Maximum stochastic shift (n base pairs) to apply randomly to each sequence.
-    regions
-        List of regions to load into memory. Required if in_memory is True.
-    """
-
-    def __init__(
-        self,
-        genome: Genome,
-        in_memory: bool = False,
-        always_reverse_complement: bool = False,
-        max_stochastic_shift: int = 0,
-        regions: list[str] | None = None,
-    ):
-        """Initialize the SequenceLoader with the provided genome file and options."""
-        self.genome = genome.fasta
-        self.chromsizes = genome.chrom_sizes
-        self.in_memory = in_memory
-        self.always_reverse_complement = always_reverse_complement
-        self.max_stochastic_shift = max_stochastic_shift
-        self.sequences = {}
-        self.complement = str.maketrans("ACGT", "TGCA")
-        self.regions = regions
-
-        if self.in_memory:
-            self._load_sequences_into_memory(self.regions)
-        # TODO: maybe add check for sequence length
-
-    def _load_sequences_into_memory(self, regions: list[str]):
-        """Load all sequences into memory (dict)."""
-        logger.info("Loading sequences into memory...")
-        # Check region formatting
-        stranded = _check_region_strandedness(regions[0])
-
-        for region in tqdm(regions):
-            # Make region stranded if not
-            if not stranded:
-                strand = "+"
-                region = f"{region}:{strand}"
-                if region[-4] == ":":
-                    raise ValueError(
-                        f"You are double-adding strand ids to your region {region}. Check if all regions are stranded or unstranded."
-                    )
-
-            # Parse region
-            chrom, start_end, strand = region.split(":")
-            start, end = map(int, start_end.split("-"))
-
-            # Add region to self.sequences
-            extended_sequence = self._get_extended_sequence(
-                chrom, start, end, strand
-            )
-            self.sequences[region] = extended_sequence
-
-            # Add reverse-complemented region to self.sequences if always_reverse_complement
-            if self.always_reverse_complement:
-                self.sequences[
-                    _flip_region_strand(region)
-                ] = self._reverse_complement(extended_sequence)
-            # TODO: maybe pass augmented regions to function instead and then we don't have to do this again here, also don't have to add strand to regions above
-            # TODO: change that and also change it in the original dataset code, small change that shouldn't break things as long as it's synchronised
-            # TODO: problem: don't have combined set of augmented train and non-augmented val/test set.
-
-    def _get_extended_sequence(
-        self, chrom: str, start: int, end: int, strand: str
-    ) -> str:
-        """Get sequence from genome file, extended for stochastic shifting."""
-        extended_start = max(0, start - self.max_stochastic_shift)
-        extended_end = extended_start + (end - start) + (self.max_stochastic_shift * 2)
-
-        if self.chromsizes and chrom in self.chromsizes:
-            chrom_size = self.chromsizes[chrom]
-            if extended_end > chrom_size:
-                extended_start = chrom_size - (
-                    end - start + self.max_stochastic_shift * 2
-                )
-                extended_end = chrom_size
-
-        seq = self.genome.fetch(chrom, extended_start, extended_end).upper()
-        if strand == "-":
-            seq = self._reverse_complement(seq)
-        return seq
-
-    def _reverse_complement(self, sequence: str) -> str:
-        """Reverse complement a sequence."""
-        return sequence.translate(self.complement)[::-1]
-
-    def get_sequence(
-        self, region: str, stranded: bool | None = None, shift: int = 0
-    ) -> str:
-        """
-        Get sequence for a region, strand, and shift from memory or fasta.
-
-        If no strand is given in region or strand, assumes positive strand.
-
-        Parameters
-        ----------
-        region
-            Region to get the sequence for. Either (chr:start-end) or (chr:start-end:strand).
-        stranded
-            Whether the input data is stranded. Default (None) infers from sequence (at a computational cost).
-            If not stranded, positive strand is assumed.
-        shift:
-            Shift of the sequence within the extended sequence, for use with the stochastic shift mechanism.
-
-        Returns
-        -------
-        The DNA sequence, as a string.
-        """
-        if stranded is None:
-            stranded = _check_region_strandedness(region)
-        if not stranded:
-            region = f"{region}:+"
-        # Parse region
-        chrom, start_end, strand = region.split(":")
-        start, end = map(int, start_end.split("-"))
-
-        # Get extended sequence
-        if self.in_memory:
-            sequence = self.sequences[region]
-        else:
-            sequence = self._get_extended_sequence(chrom, start, end, strand)
-
-        # Extract from extended sequence
-        start_idx = self.max_stochastic_shift + shift
-        end_idx = start_idx + (end - start)
-        sub_sequence = sequence[start_idx:end_idx]
-
-        # Pad with Ns if sequence is shorter than expected
-        if len(sub_sequence) < (end - start):
-            if strand == "+":
-                sub_sequence = sub_sequence.ljust(end - start, "N")
-            else:
-                sub_sequence = sub_sequence.rjust(end - start, "N")
-
-        return sub_sequence
 
 def recursive_tensor_spec(output):
     """Generate (a tuple) of TensorSpecs recursively, to turn a tuple of (tuple of) arrays into TensorSpecs for tf.data.dataset.from_generator().
