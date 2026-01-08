@@ -44,11 +44,12 @@ class BaseDataWrapper:
         Default is 0 (disabled).
     drop_remainder
         If True, drop the last batch if it is not the full batch_size. Default is False.
-    train_values
+    train_splits
         The values in your split labeling that correspond to the training set as string or list of strings, i.e 'train' or ['fold0', 'fold1', 'fold2']
-    val_values
+        If None, uses the values that aren't `val_splits` or `test_splits`.
+    val_splits
         The values in your split labeling that correspond to the validation set as string or list of strings, i.e 'val' or ['fold3', 'fold4']
-    test_values
+    test_splits
         The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
     """
 
@@ -60,17 +61,20 @@ class BaseDataWrapper:
         always_reverse_complement: bool = True,
         max_stochastic_shift: int = 0,
         drop_remainder: bool = False,
-        train_values: str | list = 'train',
-        val_values: str | list = 'val',
-        test_values: str | list = 'test',
+        train_splits: str | list | None = None,
+        val_splits: str | list = 'val',
+        test_splits: str | list = 'test',
     ):
         """Initialize the DataWrapper with the provided dataset and options."""
         # Dataset
         # Split parameters
+        if train_splits is None:
+            train_splits = list(set(self._get_indices()) - (set(val_splits) | set(test_splits)))
+            logger.info(f"Training labels inferred to be {train_splits}.")
         self.split_values = {
-            'train': [train_values] if isinstance(train_values, str) else train_values,
-            'val': [val_values] if isinstance(val_values, str) else val_values,
-            'test': [test_values] if isinstance(test_values, str) else test_values,
+            'train': [train_splits] if isinstance(train_splits, str) else train_splits,
+            'val': [val_splits] if isinstance(val_splits, str) else val_splits,
+            'test': [test_splits] if isinstance(test_splits, str) else test_splits,
         }
         # Data augmentation parameters
         self.random_reverse_complement = random_reverse_complement
@@ -129,7 +133,7 @@ class BaseDataWrapper:
     def _get_splits(self):
         """Get values that map to train/val/test splits for each index.
 
-        Expected to return values according to train/val/test_values, so if you have train_values='fold0', val_values='fold1', test_values='fold2',
+        Expected to return values according to train/val/test_splits, so if you have train_splits='fold0', val_splits='fold1', test_splits='fold2',
         _get_splits should return a list of values in the set {'fold0', 'fold1', 'fold2'}.
         """
         # Pseudocode: return self.data.metadata[self.split_column]
@@ -497,11 +501,12 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         rather than extracting on the fly every time. Default is True.
     drop_remainder
         If True, drop the last batch if it is not the full batch_size. Default is False.
-    train_values
+    train_splits
         The values in your split labeling that correspond to the training set as string or list of strings, i.e 'train' or ['fold0', 'fold1', 'fold2']
-    val_values
+        If None, uses the values that aren't `val_splits` or `test_splits`.
+    val_splits
         The values in your split labeling that correspond to the validation set as string or list of strings, i.e 'val' or ['fold3', 'fold4']
-    test_values
+    test_splits
         The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
     kwargs
         Remaining keyword arguments, passed to BaseDataLoader.
@@ -516,9 +521,9 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         max_stochastic_shift: int = 0,
         in_memory: bool = True,
         drop_remainder: bool = False,
-        train_values: str | list = 'train',
-        val_values: str | list = 'val',
-        test_values: str | list = 'test',
+        train_splits: str | list | None = None,
+        val_splits: str | list = 'val',
+        test_splits: str | list = 'test',
         **kwargs
     ):
         """Initialize the genome-enabled datawrapper, calling BaseDataWrapper.__init__() and initializing the SequenceLoader."""
@@ -528,9 +533,9 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
             always_reverse_complement=always_reverse_complement,
             max_stochastic_shift=max_stochastic_shift,
             drop_remainder=drop_remainder,
-            train_values=train_values,
-            val_values=val_values,
-            test_values=test_values,
+            train_splits=train_splits,
+            val_splits=val_splits,
+            test_splits=test_splits,
             **kwargs
         )
         genome =  _resolve_genome(genome)

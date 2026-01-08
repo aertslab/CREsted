@@ -36,14 +36,15 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
         Default is 0 (disabled).
     drop_remainder
         If True, drop the last batch if it is not the full batch_size. Default is False.
-    train_values
+    train_splits
         The values in your split labeling that correspond to the training set as string or list of strings, i.e 'train' or ['fold0', 'fold1', 'fold2']
-    val_values
+        If None, uses the values that aren't `val_splits` or `test_splits`.
+    val_splits
         The values in your split labeling that correspond to the validation set as string or list of strings, i.e 'val' or ['fold3', 'fold4']
-    test_values
+    test_splits
         The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
     split_column
-        The column in adata.var that contains the values to split on (as provided to [train/val/test]_values)
+        The column in adata.var that contains the values to split on (as provided to [train/val/test]_splits)
     """
 
     def __init__(
@@ -56,9 +57,9 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
         max_stochastic_shift: int = 0,
         in_memory: bool = True,
         drop_remainder: bool = False,
-        train_values: str | list = 'train',
-        val_values: str | list = 'val',
-        test_values: str | list = 'test',
+        train_splits: str | list | None = None,
+        val_splits: str | list = 'val',
+        test_splits: str | list = 'test',
         split_column = 'split',
         **kwargs
     ):
@@ -77,9 +78,9 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
             max_stochastic_shift=max_stochastic_shift,
             in_memory=in_memory,
             drop_remainder=drop_remainder,
-            train_values=train_values,
-            val_values=val_values,
-            test_values=test_values,
+            train_splits=train_splits,
+            val_splits=val_splits,
+            test_splits=test_splits,
             **kwargs
         )
 
