@@ -21,9 +21,9 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
         max_stochastic_shift: int = 0,
         in_memory: bool = True,
         drop_remainder: bool = False,
-        train_values: str | list = 'train',
-        val_values: str | list = 'val',
-        test_values: str | list = 'test',
+        train_splits: str | list = 'train',
+        val_splits: str | list = 'val',
+        test_splits: str | list = 'test',
         split_column = 'split',
         **kwargs
     ):
@@ -42,9 +42,9 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
             max_stochastic_shift=max_stochastic_shift,
             in_memory=in_memory,
             drop_remainder=drop_remainder,
-            train_values=train_values,
-            val_values=val_values,
-            test_values=test_values,
+            train_splits=train_splits,
+            val_splits=val_splits,
+            test_splits=test_splits,
             **kwargs
         )
 
@@ -76,9 +76,9 @@ class GeckoDataWrapper(BaseGenomicDataWrapper):
         max_stochastic_shift: int = 0,
         in_memory: bool = True,
         drop_remainder: bool = False,
-        train_values: str | list = 'train',
-        val_values: str | list = 'val',
-        test_values: str | list = 'test',
+        train_splits: str | list = 'train',
+        val_splits: str | list = 'val',
+        test_splits: str | list = 'test',
         split_column = 'split', # TODO: add docs for these, maybe only keep this in downstream implementations
         **kwargs
     ): # TODO: ADD ARGS
@@ -98,9 +98,9 @@ class GeckoDataWrapper(BaseGenomicDataWrapper):
             max_stochastic_shift=max_stochastic_shift,
             in_memory=in_memory,
             drop_remainder=drop_remainder,
-            train_values=train_values,
-            val_values=val_values,
-            test_values=test_values,
+            train_splits=train_splits,
+            val_splits=val_splits,
+            test_splits=test_splits,
             **kwargs
         )
 
