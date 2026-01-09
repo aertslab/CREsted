@@ -21,7 +21,7 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
         max_stochastic_shift: int = 0,
         in_memory: bool = True,
         drop_remainder: bool = False,
-        train_splits: str | list = 'train',
+        train_splits: str | list | None = None,
         val_splits: str | list = 'val',
         test_splits: str | list = 'test',
         split_column = 'split',
