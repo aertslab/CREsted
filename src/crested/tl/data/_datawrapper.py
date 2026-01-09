@@ -526,7 +526,7 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         test_splits: str | list = 'test',
         **kwargs
     ):
-        """Initialize the genome-enabled datawrapper, calling BaseDataWrapper.__init__() and initializing the SequenceLoader."""
+        """Initialize the genome-enabled datawrapper, building a BaseDataWrapper and adding the SequenceLoader."""
         super().__init__(
             batch_size=batch_size,
             random_reverse_complement=random_reverse_complement,
