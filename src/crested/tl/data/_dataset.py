@@ -196,7 +196,7 @@ class AnnDataset(BaseClass):
             regions=self.index_manager.augmented_indices,
         )
         self.seq_len = len(
-            self.sequence_loader.get_sequence(self.index_manager.augmented_indices[0], stranded=stranded)
+            self.sequence_loader.get_sequence(self.index_manager.augmented_indices[0], stranded=True)
         )
 
     @staticmethod
