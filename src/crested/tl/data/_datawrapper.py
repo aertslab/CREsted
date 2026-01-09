@@ -68,14 +68,17 @@ class BaseDataWrapper:
         """Initialize the DataWrapper with the provided dataset and options."""
         # Dataset
         # Split parameters
+        if isinstance(train_splits, str):
+            train_splits = [train_splits]
+        if isinstance(val_splits, str):
+            val_splits = [val_splits]
+        if isinstance(test_splits, str):
+            test_splits = [test_splits]
         if train_splits is None:
             train_splits = list(set(self._get_splits()) - (set(val_splits) | set(test_splits)))
             logger.info(f"Training labels inferred to be {train_splits}.")
-        self.split_values = {
-            'train': [train_splits] if isinstance(train_splits, str) else train_splits,
-            'val': [val_splits] if isinstance(val_splits, str) else val_splits,
-            'test': [test_splits] if isinstance(test_splits, str) else test_splits,
-        }
+        self.split_values = {'train': train_splits, 'val': val_splits, 'test': test_splits}
+
         # Data augmentation parameters
         self.random_reverse_complement = random_reverse_complement
         self.always_reverse_complement = always_reverse_complement
