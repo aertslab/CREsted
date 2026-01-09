@@ -526,7 +526,7 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         test_splits: str | list = 'test',
         **kwargs
     ):
-        """Initialize the genome-enabled datawrapper, calling BaseDataWrapper.__init__() and initializing the SequenceLoader."""
+        """Initialize the genome-enabled datawrapper, building a BaseDataWrapper and adding the SequenceLoader."""
         super().__init__(
             batch_size=batch_size,
             random_reverse_complement=random_reverse_complement,
@@ -546,7 +546,6 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         self.sequence_loader = SequenceLoader(
             genome,
             in_memory=in_memory,
-            always_reverse_complement=self.always_reverse_complement,
             max_stochastic_shift=self.max_stochastic_shift,
             regions=self.full_expanded_indices,
         )
