@@ -546,7 +546,6 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         self.sequence_loader = SequenceLoader(
             genome,
             in_memory=in_memory,
-            always_reverse_complement=self.always_reverse_complement,
             max_stochastic_shift=self.max_stochastic_shift,
             regions=self.full_expanded_indices,
         )
