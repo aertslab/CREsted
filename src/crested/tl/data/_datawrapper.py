@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import re
 from math import ceil
 
 import keras
 import numpy as np
 from loguru import logger
-from tqdm import tqdm
 
 if keras.config.backend() == "torch":
     import torch
@@ -20,6 +18,8 @@ else:
 
 from crested._genome import Genome, _resolve_genome
 from crested.utils import one_hot_encode_sequence
+
+from ._sequenceloader import SequenceLoader, _check_region_strandedness, _flip_region_strand
 
 
 class BaseDataWrapper:
@@ -44,11 +44,12 @@ class BaseDataWrapper:
         Default is 0 (disabled).
     drop_remainder
         If True, drop the last batch if it is not the full batch_size. Default is False.
-    train_values
+    train_splits
         The values in your split labeling that correspond to the training set as string or list of strings, i.e 'train' or ['fold0', 'fold1', 'fold2']
-    val_values
+        If None, uses the values that aren't `val_splits` or `test_splits`.
+    val_splits
         The values in your split labeling that correspond to the validation set as string or list of strings, i.e 'val' or ['fold3', 'fold4']
-    test_values
+    test_splits
         The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
     """
 
@@ -60,17 +61,20 @@ class BaseDataWrapper:
         always_reverse_complement: bool = True,
         max_stochastic_shift: int = 0,
         drop_remainder: bool = False,
-        train_values: str | list = 'train',
-        val_values: str | list = 'val',
-        test_values: str | list = 'test',
+        train_splits: str | list | None = None,
+        val_splits: str | list = 'val',
+        test_splits: str | list = 'test',
     ):
         """Initialize the DataWrapper with the provided dataset and options."""
         # Dataset
         # Split parameters
+        if train_splits is None:
+            train_splits = list(set(self._get_indices()) - (set(val_splits) | set(test_splits)))
+            logger.info(f"Training labels inferred to be {train_splits}.")
         self.split_values = {
-            'train': [train_values] if isinstance(train_values, str) else train_values,
-            'val': [val_values] if isinstance(val_values, str) else val_values,
-            'test': [test_values] if isinstance(test_values, str) else test_values,
+            'train': [train_splits] if isinstance(train_splits, str) else train_splits,
+            'val': [val_splits] if isinstance(val_splits, str) else val_splits,
+            'test': [test_splits] if isinstance(test_splits, str) else test_splits,
         }
         # Data augmentation parameters
         self.random_reverse_complement = random_reverse_complement
@@ -129,24 +133,65 @@ class BaseDataWrapper:
     def _get_splits(self):
         """Get values that map to train/val/test splits for each index.
 
-        Expected to return values according to train/val/test_values, so if you have train_values='fold0', val_values='fold1', test_values='fold2',
+        Expected to return values according to train/val/test_splits, so if you have train_splits='fold0', val_splits='fold1', test_splits='fold2',
         _get_splits should return a list of values in the set {'fold0', 'fold1', 'fold2'}.
         """
         # Pseudocode: return self.data.metadata[self.split_column]
         raise NotImplementedError("Please define `self._get_splits()` to extract a split identifier per sample from your dataset, i.e. AnnData var['split'].")
 
     def _get_sequence(self, original_index: str, expanded_index: str, revcomp: bool = False, shift: int = 0, **kwargs) -> str:
-        """Get a sequence (as a string) given a certain index."""
+        """Retrieve the sequence (as a string) of a certain index.
+
+        Use the parameters you need and disregard the rest through **kwargs.
+
+        Parameters
+        ----------
+        original_index
+            The original index of the sequence (i.e. before always_reverse_complement or other expansion).
+        expanded_index
+            The expanded index of the sequence (guaranteed to be stranded).
+        revcomp
+            Whether to reverse-complement the string (like because of stochastic reverse complementing) relative to the requested original index.
+        shift
+            How much to shift the string left or right (like because of stochastic shifting) relative to the original requested index.
+            Can be positive or negative.
+        kwargs
+            Catcher for arguments you're not using in your implementation.
+        """
         raise NotImplementedError("Implement _get_sequence of your inherited DataWrapper class to retrieve (unencoded) input sequences for your classes, to be encoded by _encode_sequence.")
 
-    def _encode_sequence(self, seq: str, **kwargs) -> np.ndarray:
-        """Encode the sequence as string to a numerical representation by one-hot encoding it. Returned value should not have a batch dimension yet."""
+    def _encode_sequence(self, seq: str) -> np.ndarray:
+        """Encode the sequence as string to a numerical representation by one-hot encoding it. Returned value should not have a batch dimension yet.
+
+        Generally done through one_hot_encode_sequence, override if you need to do something fancier.
+
+        Parameters
+        ----------
+        seq
+            A sequence as a string, to encode as a one-hot encoded numpy array.
+        """
         return one_hot_encode_sequence(seq, expand_dim=False)
 
     def _get_target(self, original_index: str, expanded_index: str, revcomp: bool = False, shift: int = 0, **kwargs) -> np.ndarray:
         """Get target for a given index. Returned value should not have a batch dimension yet.
 
         If not using certain arguments in your implementation (like only using one of original_index/expanded_index), please keep **kwargs to absorb the un-used other arguments.
+
+        Parameters
+        ----------
+        original_index
+            The original index of the sequence (i.e. before always_reverse_complement or other expansion).
+            The inherited version will generally use only original_index or expanded_index, depending on desired functionality.
+        expanded_index
+            The expanded index of the sequence (guaranteed to be stranded).
+            The inherited version will generally use only original_index or expanded_index, depending on desired functionality.
+        revcomp
+            Whether to reverse-complement the string (like because of stochastic reverse complementing) relative to the requested index.
+        shift
+            How much to shift the string left or right (like because of stochastic shifting) relative to the requested index.
+            Can be positive or negative.
+        kwargs
+            Catcher for arguments you're not using in your implementation.
         """
         raise NotImplementedError("Implement _get_target() of your inherited DataWrapper class to retrieve output values for your sequence")
 
@@ -159,10 +204,18 @@ class BaseDataWrapper:
             for split_value in split_values:
                 if split_value not in self._get_splits():
                     raise ValueError(f"Could not find {split} split value {split_value} in your split data. Split data example: {self._get_splits()[:5]}")
-        return [index for index, index_split in zip(self.indices, self._get_splits()) if index_split in self.split_values[split]]
+        return [index for index, index_split in zip(self.indices, self._get_splits(), strict=True) if index_split in self.split_values[split]]
 
     def _expand_indices(self, indices: list[str], expand_revcomp: bool) -> list[str]:
-        """Add strand information to indices, if not already present. Optionally also expands total set of indices by adding the reverse complement version index."""
+        """Add strand information to indices, if not already present. Optionally also expands total set of indices by adding the reverse complement version index.
+
+        Parameters
+        ----------
+        indices
+            List of string-based indices to use.
+        expand_revcomp
+            Whether to expand the dataset by including both strands of every input index.
+        """
         if not hasattr(self, 'expanded_indices_map'):
             self.expanded_indices_map = {}
         expanded_indices = []
@@ -185,6 +238,12 @@ class BaseDataWrapper:
         Return sequence and target for a given numeric or expanded str index. Not used too much: primary indexing function is get_indexed_item().
 
         Main logic is implemented in get_indexed_item() to retrieve using expanded indices and with optional stochastic augmentation.
+
+        Parameters
+        ----------
+        idx
+            The index to retrieve. If a string, used directly in self.get_indexed_item.
+            If an integer, the associated index from the 'predict' expanded indices is used, just to have an easy way to get an example value.
         """
         if isinstance(idx, int):
             # Get expanded index (after adding revcomp indices) from prediction list
@@ -442,11 +501,12 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         rather than extracting on the fly every time. Default is True.
     drop_remainder
         If True, drop the last batch if it is not the full batch_size. Default is False.
-    train_values
+    train_splits
         The values in your split labeling that correspond to the training set as string or list of strings, i.e 'train' or ['fold0', 'fold1', 'fold2']
-    val_values
+        If None, uses the values that aren't `val_splits` or `test_splits`.
+    val_splits
         The values in your split labeling that correspond to the validation set as string or list of strings, i.e 'val' or ['fold3', 'fold4']
-    test_values
+    test_splits
         The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
     kwargs
         Remaining keyword arguments, passed to BaseDataLoader.
@@ -461,21 +521,21 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         max_stochastic_shift: int = 0,
         in_memory: bool = True,
         drop_remainder: bool = False,
-        train_values: str | list = 'train',
-        val_values: str | list = 'val',
-        test_values: str | list = 'test',
+        train_splits: str | list | None = None,
+        val_splits: str | list = 'val',
+        test_splits: str | list = 'test',
         **kwargs
     ):
-        """Initialize the BaseGenomicDataWrapper, calling BaseDataWrapper.__init__() and initializing the SequenceLoader."""
+        """Initialize the genome-enabled datawrapper, calling BaseDataWrapper.__init__() and initializing the SequenceLoader."""
         super().__init__(
             batch_size=batch_size,
             random_reverse_complement=random_reverse_complement,
             always_reverse_complement=always_reverse_complement,
             max_stochastic_shift=max_stochastic_shift,
             drop_remainder=drop_remainder,
-            train_values=train_values,
-            val_values=val_values,
-            test_values=test_values,
+            train_splits=train_splits,
+            val_splits=val_splits,
+            test_splits=test_splits,
             **kwargs
         )
         genome =  _resolve_genome(genome)
@@ -488,7 +548,7 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
             in_memory=in_memory,
             always_reverse_complement=self.always_reverse_complement,
             max_stochastic_shift=self.max_stochastic_shift,
-            regions=self.indices,
+            regions=self.full_expanded_indices,
         )
 
         # Save input shape now that we've created the function to retrieve one
@@ -506,7 +566,20 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
             )
 
     def _get_sequence(self, expanded_index: str, revcomp: bool = False, shift: int = 0, **kwargs) -> np.ndarray:
-        """Get a sequence (as a string) given a certain index."""
+        """Get a sequence (as a string) given a certain index.
+
+        Parameters
+        ----------
+        expanded_index
+            The expanded index of the sequence (guaranteed to be stranded).
+        revcomp
+            Whether to reverse-complement the string (like because of stochastic reverse complementing) relative to the requested index.
+        shift
+            How much to shift the string left or right (like because of stochastic shifting) relative to the requested index.
+            Can be positive or negative.
+        kwargs
+            Catcher for unused arguments from `get_indexed_item()`, specifically `original_index`.
+        """
         # We need the stranded information when extracting from the genome so use the expanded index
         x = self.sequence_loader.get_sequence(
             expanded_index, stranded=True, shift=shift
@@ -515,176 +588,6 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
             x = self.sequence_loader._reverse_complement(x)
         return x
 
-
-def _flip_region_strand(region: str) -> str:
-    """Reverse the strand of a region."""
-    strand_reverser = {"+": "-", "-": "+"}
-    return region[:-1] + strand_reverser[region[-1]]
-
-
-def _check_region_strandedness(region: str) -> bool:
-    """Check the strandedness of a region, raising an error if the formatting isn't recognised."""
-    if re.fullmatch(r".+:\d+-\d+:[-+]", region):
-        return True
-    elif re.fullmatch(r".+:\d+-\d+", region):
-        return False
-    else:
-        raise ValueError(
-            f"Region {region} was not recognised as a valid coordinate set (chr:start-end or chr:start-end:strand)."
-            "If provided, strand must be + or -."
-        )
-
-class SequenceLoader:
-    """
-    Load sequences from a genome file.
-
-    Options for reverse complementing and stochastic shifting are available.
-
-    Parameters
-    ----------
-    genome
-        Genome instance.
-    in_memory
-        If True, the sequences of supplied regions will be loaded into memory.
-    always_reverse_complement
-        If True, the dataset will be expanded to include both the forward and reverse-complemented versions of every region provided.
-        Doubles the dataset size.
-    max_stochastic_shift
-        Maximum stochastic shift (n base pairs) to apply randomly to each sequence.
-    regions
-        List of regions to load into memory. Required if in_memory is True.
-    """
-
-    def __init__(
-        self,
-        genome: Genome,
-        in_memory: bool = False,
-        always_reverse_complement: bool = False,
-        max_stochastic_shift: int = 0,
-        regions: list[str] | None = None,
-    ):
-        """Initialize the SequenceLoader with the provided genome file and options."""
-        self.genome = genome.fasta
-        self.chromsizes = genome.chrom_sizes
-        self.in_memory = in_memory
-        self.always_reverse_complement = always_reverse_complement
-        self.max_stochastic_shift = max_stochastic_shift
-        self.sequences = {}
-        self.complement = str.maketrans("ACGT", "TGCA")
-        self.regions = regions
-
-        if self.in_memory:
-            self._load_sequences_into_memory(self.regions)
-        # TODO: maybe add check for sequence length
-
-    def _load_sequences_into_memory(self, regions: list[str]):
-        """Load all sequences into memory (dict)."""
-        logger.info("Loading sequences into memory...")
-        # Check region formatting
-        stranded = _check_region_strandedness(regions[0])
-
-        for region in tqdm(regions):
-            # Make region stranded if not
-            if not stranded:
-                strand = "+"
-                region = f"{region}:{strand}"
-                if region[-4] == ":":
-                    raise ValueError(
-                        f"You are double-adding strand ids to your region {region}. Check if all regions are stranded or unstranded."
-                    )
-
-            # Parse region
-            chrom, start_end, strand = region.split(":")
-            start, end = map(int, start_end.split("-"))
-
-            # Add region to self.sequences
-            extended_sequence = self._get_extended_sequence(
-                chrom, start, end, strand
-            )
-            self.sequences[region] = extended_sequence
-
-            # Add reverse-complemented region to self.sequences if always_reverse_complement
-            if self.always_reverse_complement:
-                self.sequences[
-                    _flip_region_strand(region)
-                ] = self._reverse_complement(extended_sequence)
-            # TODO: maybe pass augmented regions to function instead and then we don't have to do this again here, also don't have to add strand to regions above
-            # TODO: change that and also change it in the original dataset code, small change that shouldn't break things as long as it's synchronised
-            # TODO: problem: don't have combined set of augmented train and non-augmented val/test set.
-
-    def _get_extended_sequence(
-        self, chrom: str, start: int, end: int, strand: str
-    ) -> str:
-        """Get sequence from genome file, extended for stochastic shifting."""
-        extended_start = max(0, start - self.max_stochastic_shift)
-        extended_end = extended_start + (end - start) + (self.max_stochastic_shift * 2)
-
-        if self.chromsizes and chrom in self.chromsizes:
-            chrom_size = self.chromsizes[chrom]
-            if extended_end > chrom_size:
-                extended_start = chrom_size - (
-                    end - start + self.max_stochastic_shift * 2
-                )
-                extended_end = chrom_size
-
-        seq = self.genome.fetch(chrom, extended_start, extended_end).upper()
-        if strand == "-":
-            seq = self._reverse_complement(seq)
-        return seq
-
-    def _reverse_complement(self, sequence: str) -> str:
-        """Reverse complement a sequence."""
-        return sequence.translate(self.complement)[::-1]
-
-    def get_sequence(
-        self, region: str, stranded: bool | None = None, shift: int = 0
-    ) -> str:
-        """
-        Get sequence for a region, strand, and shift from memory or fasta.
-
-        If no strand is given in region or strand, assumes positive strand.
-
-        Parameters
-        ----------
-        region
-            Region to get the sequence for. Either (chr:start-end) or (chr:start-end:strand).
-        stranded
-            Whether the input data is stranded. Default (None) infers from sequence (at a computational cost).
-            If not stranded, positive strand is assumed.
-        shift:
-            Shift of the sequence within the extended sequence, for use with the stochastic shift mechanism.
-
-        Returns
-        -------
-        The DNA sequence, as a string.
-        """
-        if stranded is None:
-            stranded = _check_region_strandedness(region)
-        if not stranded:
-            region = f"{region}:+"
-        # Parse region
-        chrom, start_end, strand = region.split(":")
-        start, end = map(int, start_end.split("-"))
-
-        # Get extended sequence
-        if self.in_memory:
-            sequence = self.sequences[region]
-        else:
-            sequence = self._get_extended_sequence(chrom, start, end, strand)
-
-        # Extract from extended sequence
-        start_idx = self.max_stochastic_shift + shift
-        end_idx = start_idx + (end - start)
-        sub_sequence = sequence[start_idx:end_idx]
-
-        # Pad with Ns if sequence is shorter than expected
-        if len(sub_sequence) < (end - start):
-            if strand == "+":
-                sub_sequence = sub_sequence.ljust(end - start, "N")
-            else:
-                sub_sequence = sub_sequence.rjust(end - start, "N")
-
-        return sub_sequence
 
 def recursive_tensor_spec(output):
     """Generate (a tuple) of TensorSpecs recursively, to turn a tuple of (tuple of) arrays into TensorSpecs for tf.data.dataset.from_generator().
