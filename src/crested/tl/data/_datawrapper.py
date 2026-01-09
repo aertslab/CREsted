@@ -69,7 +69,7 @@ class BaseDataWrapper:
         # Dataset
         # Split parameters
         if train_splits is None:
-            train_splits = list(set(self._get_indices()) - (set(val_splits) | set(test_splits)))
+            train_splits = list(set(self._get_splits()) - (set(val_splits) | set(test_splits)))
             logger.info(f"Training labels inferred to be {train_splits}.")
         self.split_values = {
             'train': [train_splits] if isinstance(train_splits, str) else train_splits,
