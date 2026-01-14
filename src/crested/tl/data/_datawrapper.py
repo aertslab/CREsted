@@ -76,7 +76,7 @@ class BaseDataWrapper:
             test_splits = [test_splits]
         if train_splits is None:
             train_splits = list(set(self._get_splits()) - (set(val_splits) | set(test_splits)))
-            logger.info(f"Training labels inferred to be {train_splits}.")
+            logger.info(f"Training split labels inferred to be {train_splits}.")
         self.split_values = {'train': train_splits, 'val': val_splits, 'test': test_splits}
 
         # Data augmentation parameters
@@ -125,7 +125,7 @@ class BaseDataWrapper:
         for split in ('val', 'test'):
             self.split_expanded_indices[split] =  self._expand_indices(self.split_indices[split], expand_revcomp = False)
         # Get total set of expanded indices across all possibilities
-        self.full_expanded_indices = {aug_index for aug_index_list in self.split_expanded_indices.values() for aug_index in aug_index_list}
+        self.full_expanded_indices = list({aug_index for aug_index_list in self.split_expanded_indices.values() for aug_index in aug_index_list})
 
     # ----- Primary methods to implement/overwrite in the inherited versions: -----
     def _get_indices(self):
