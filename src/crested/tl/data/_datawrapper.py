@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from math import ceil
+from math import ceil, inf
 
 import keras
 import numpy as np
@@ -198,6 +198,15 @@ class BaseDataWrapper:
         """
         raise NotImplementedError("Implement _get_target() of your inherited DataWrapper class to retrieve output values for your sequence")
 
+    def _get_shift(self, **kwargs) -> int:
+        """Returns a stochastic shift value.
+
+        If there are constraints to your stochastic shift, like genomic limits, this function can be overwritten.
+        """
+        return np.random.randint(
+            -self.max_stochastic_shift, self.max_stochastic_shift + 1
+        )
+
 
     # ----- Index management -----
     def _split_indices(self, split: str) -> list[str]:
@@ -281,9 +290,7 @@ class BaseDataWrapper:
 
         # Get stochastic shift amount
         if augment and self.max_stochastic_shift > 0:
-            shift = np.random.randint(
-                -self.max_stochastic_shift, self.max_stochastic_shift + 1
-            )
+            shift = self._get_shift(original_index=original_index, expanded_index=expanded_index)
         else:
             shift = 0
         # Get whether to random reverse complement (always_reverse_complement is done in the sequence loader by encoding the strand in the index)
@@ -291,7 +298,6 @@ class BaseDataWrapper:
             revcomp = True
         else:
             revcomp = False
-
         # Get sequence as string and apply stochastic shift/revcomp augmentations, letting the function choose
         # whether to use original (like when grabbing from dataframe) or expanded index (like when extracting from genome)
         x = self._get_sequence(original_index=original_index, expanded_index=expanded_index, revcomp=revcomp, shift=shift)
@@ -589,6 +595,33 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         if revcomp:
             x = self.sequence_loader._reverse_complement(x)
         return x
+
+    def _get_shift(self, expanded_index: str, **kwargs) -> int:
+        """Returns a stochastic shift value.
+
+        If there are constraints to your stochastic shift, like genomic limits, this function can be overwritten.
+        """
+        # Parse region
+        chrom, start_end, strand = expanded_index.split(":")
+        start, end = map(int, start_end.split("-"))
+
+        chrom_size = self.sequence_loader.chromsizes[chrom] if self.sequence_loader.chromsizes is not None else inf
+
+        # Get default stochastic shift
+        shift = super()._get_shift()
+
+
+        # Account for negative strand also flipping shift direction
+        real_shift = -shift if strand == "-" else shift
+
+        # Check if within genomic boundaries, reroll otherwise
+        while (start + real_shift) <= 0 or (end + real_shift) >= chrom_size:
+            shift = super()._get_shift()
+            real_shift = -shift if strand == "-" else shift
+
+        # Undo negative strand flipping
+        shift = -real_shift if strand == "-" else real_shift
+        return shift
 
 
 def recursive_tensor_spec(output):
