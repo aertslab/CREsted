@@ -91,18 +91,23 @@ class SequenceLoader:
         self, chrom: str, start: int, end: int, strand: str
     ) -> str:
         """Get sequence from genome file, extended for stochastic shifting."""
-        extended_start = max(0, start - self.max_stochastic_shift)
-        extended_end = extended_start + (end - start) + (self.max_stochastic_shift * 2)
+        extended_start = start - self.max_stochastic_shift
+        extended_end = end + self.max_stochastic_shift
+        padding_start, padding_end = 0, 0
 
-        if self.chromsizes and chrom in self.chromsizes:
-            chrom_size = self.chromsizes[chrom]
-            if extended_end > chrom_size:
-                extended_start = chrom_size - (
-                    end - start + self.max_stochastic_shift * 2
-                )
-                extended_end = chrom_size
+        if extended_start < 0:
+            padding_start = -extended_start
+            extended_start = 0
+        if self.chromsizes and (extended_end > self.chromsizes[chrom]):
+            padding_end = extended_end - self.chromsizes[chrom]
+            extended_end = self.chromsizes[chrom]
 
         seq = self.genome.fetch(chrom, extended_start, extended_end).upper()
+        if padding_start > 0:
+            seq = "N"*padding_start + seq
+        if padding_end > 0:
+            seq = seq + "N"*padding_end
+
         if strand == "-":
             seq = self._reverse_complement(seq)
         return seq
@@ -140,6 +145,17 @@ class SequenceLoader:
         # Parse region
         chrom, start_end, strand = region.split(":")
         start, end = map(int, start_end.split("-"))
+        chrom_size = self.chromsizes[chrom] if self.chromsizes is not None else None
+
+        # Check if within genomic boundaries, clip otherwise
+        defacto_shift = -shift if strand == "-" else shift
+        overhang = 0
+        if start + defacto_shift < 0:
+            overhang = start + defacto_shift
+        elif chrom_size is not None and (end + defacto_shift) > chrom_size:
+            overhang = end + defacto_shift - chrom_size
+        defacto_shift -= overhang
+        shift = -defacto_shift if strand == "-" else defacto_shift
 
         # Get extended sequence
         if self.in_memory:
