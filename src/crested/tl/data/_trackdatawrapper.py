@@ -129,4 +129,4 @@ class GeckoDataWrapper(BaseGenomicDataWrapper):
         return y1, y2
 
     def __repr__(self):
-        return f"TrackAnnDataWrapper: (n_samples={len(self)}, batch_size={self.batch_size}, batched_length={self.batched_length()}, data shape: {self.data.shape}, input_shape={self.input_shape}, output_shape={self.output_shape})" #TODO: finish
+        return f"TrackAnnDataWrapper: (n_samples={len(self)}, batch_size={self.batch_size}, batched_length={self.batched_length()}, input_shape={self.input_shape}, output_shape={self.output_shape})" #TODO: finish

@@ -59,7 +59,7 @@ class TrackData:
             Whether to print extra information when reading in data. Default is False.
         """
         # Save simple arguments
-        self.bin_size = None if bin_size == 1 else bin_size
+        self.bin_size = 1 if bin_size is None else bin_size
         self.target = target
         self.in_memory = in_memory
         self.compressed = compressed
@@ -162,6 +162,8 @@ class TrackData:
                 values = self.data[chrom][start:end, :].toarray()
             else:
                 values = self.data[chrom][start:end, :]
+            if strand == "-":
+                values = np.flip(values, axis = 0)
         else:
             values = self._get_single_region(chrom, start, end, strand)
 
@@ -222,21 +224,27 @@ class TrackData:
             ) for bw_path in self.paths
         ], axis = 0).T
         if strand == "-":
-            values = np.flip(values, axis=0) # TODO: test
+            values = np.flip(values, axis=0)
         # TODO: implement binning through pybigtools directly
         return values
+
+    @property
+    def shape(self):
+        return len(self.class_names), len(self.chrom_sizes)
 
     @property
     def obs_names(self):
         return self.class_names
 
+    @property
+    def n_obs(self):
+        return len(self.class_names)
+
     def __len__(self):
         return len(self.paths)
 
 def _get_chrom(bw, chrom):
-    # with pybigtools.open(path, "r") as bw:
     values = bw.values(
-        # self.chrom_name_mapping[bw_path][chrom], # Get the chrom name in this specific bigwig
         chrom,
         exact=True,
         missing=0.0,
