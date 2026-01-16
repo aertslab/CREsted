@@ -56,9 +56,12 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
         """"""
         return self.splits
 
-    def _get_target(self, expanded_index: str, **kwargs) -> np.ndarray:
+    def _get_target(self, expanded_index: str, revcomp: bool, shift: int, **kwargs) -> np.ndarray:
         """Get target for a given index."""
-        return self.data[expanded_index]
+        track = self.data.get_track(expanded_index, shift=shift)
+        if revcomp:
+            track = np.flip(track, axis=1)
+        return track
 
     def __repr__(self):
         return f"TrackDataWrapper: (n_samples={len(self)}, batch_size={self.batch_size}, batched_length={self.batched_length()}, data shape: {self.data.shape}, input_shape={self.input_shape}, output_shape={self.output_shape})" #TODO: finish
@@ -115,17 +118,21 @@ class GeckoDataWrapper(BaseGenomicDataWrapper):
         """"""
         return list(self.data.var[self.split_column])
 
-    def _get_target(self, original_index: str, expanded_index: str, **kwargs) -> np.ndarray:
+    def _get_target(self, original_index: str, expanded_index: str, revcomp: bool, shift: int, **kwargs) -> np.ndarray:
         """Get target for a given index."""
-        y_index = self.index_map[original_index]
         # Get track
-        y1 = self.trackdata[expanded_index]
+        y1 = self.trackdata.get_track(expanded_index, shift=shift)
+        if revcomp:
+            y1 = np.flip(y1, axis=1)
+
         # Get scalar
+        y_index = self.index_map[original_index]
         y2 = (
             self.data.X[:, y_index].toarray().flatten()
             if self.compressed
             else self.data.X[:, y_index].astype('float32')
         )
+
         return y1, y2
 
     def __repr__(self):
