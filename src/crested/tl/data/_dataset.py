@@ -14,6 +14,7 @@ from crested._genome import Genome
 from crested.utils import one_hot_encode_sequence
 
 from ._sequenceloader import SequenceLoader
+from ._utils import _split_region
 
 
 def _flip_region_strand(region: str) -> str:
@@ -44,8 +45,7 @@ def _deterministic_shift_region(
     This is a legacy function, it's recommended to use stochastic shifting instead.
     """
     new_regions = []
-    chrom, start_end, strand = region.split(":")
-    start, end = map(int, start_end.split("-"))
+    chrom, start, end, strand = _split_region(region)
     for i in range(-n_shifts, n_shifts + 1):
         new_start = start + i * stride
         new_end = end + i * stride

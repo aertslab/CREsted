@@ -19,7 +19,8 @@ else:
 from crested._genome import Genome, _resolve_genome
 from crested.utils import one_hot_encode_sequence
 
-from ._sequenceloader import SequenceLoader, _check_region_strandedness, _flip_region_strand
+from ._sequenceloader import SequenceLoader
+from ._utils import _check_region_strandedness, _flip_region_strand, _split_region
 
 
 class BaseDataWrapper:
@@ -597,19 +598,14 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         return x
 
     def _get_shift(self, expanded_index: str, **kwargs) -> int:
-        """Returns a stochastic shift value.
-
-        If there are constraints to your stochastic shift, like genomic limits, this function can be overwritten.
-        """
+        """Returns a stochastic shift value, accounting for genomic limits given the index to shift."""
         # Parse region
-        chrom, start_end, strand = expanded_index.split(":")
-        start, end = map(int, start_end.split("-"))
+        chrom, start, end, strand = _split_region(expanded_index)
 
         chrom_size = self.sequence_loader.chromsizes[chrom] if self.sequence_loader.chromsizes is not None else inf
 
         # Get default stochastic shift
         shift = super()._get_shift()
-
 
         # Account for negative strand also flipping shift direction
         real_shift = -shift if strand == "-" else shift

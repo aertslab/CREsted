@@ -14,6 +14,8 @@ from scipy.sparse import csr_array
 import crested._conf as conf
 from crested._io import _extract_tracks_from_bigwig
 
+from ._utils import _split_region
+
 
 class TrackData:
     def __init__(
@@ -132,15 +134,7 @@ class TrackData:
         """"""
         # Parse string index
         if isinstance(idx, str):
-            n_colons = idx.count(':')
-            if n_colons == 1:
-                chrom, start_end = idx.split(':')
-                strand = "+"
-            elif n_colons == 2:
-                chrom, start_end, strand = idx.split(':')
-            else:
-                raise ValueError(f"Expect either 1 or 2 colons (chr:start-end or chr:start-end:split), not like this: {idx}")
-            start, end = map(int, start_end.split('-'))
+            chrom, start, end, strand = _split_region(idx)
         # Parse tuple index
         else:
             chrom = idx[0]
@@ -172,14 +166,15 @@ class TrackData:
 
         # Do binning
         if self.bin_size > 1:
+            values = values.reshape((-1, self.bin_size, values.shape[-1]))
             if self.target == 'mean':
-                values = values.reshape((-1, self.bin_size, values.shape[-1])).mean(axis=1)
+                values = values.mean(axis=1)
             elif self.target == 'max':
-                values = values.reshape((-1, self.bin_size, values.shape[-1])).max(axis=1)
+                values = values.max(axis=1)
             elif self.target == 'count' or self.target == 'sum':
-                values = values.reshape((-1, self.bin_size, values.shape[-1])).sum(axis=1)
+                values = values.sum(axis=1)
             elif self.target == 'logcount' or self.target == 'logsum':
-                values = np.log1p(values.reshape((-1, self.bin_size, values.shape[-1])).sum(axis=1))
+                values = np.log1p(values.sum(axis=1))
 
         return values
 

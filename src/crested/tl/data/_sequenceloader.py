@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import re
-
 import keras
 from loguru import logger
 from tqdm import tqdm
@@ -11,6 +9,8 @@ if keras.config.backend() == "torch":
     FrameworkDatasetClass = torch.utils.data.Dataset
 else:
     FrameworkDatasetClass = object
+
+from _utils import _check_region_strandedness, _split_region
 
 from crested._genome import Genome
 
@@ -78,8 +78,7 @@ class SequenceLoader:
                     )
 
             # Parse region
-            chrom, start_end, strand = region.split(":")
-            start, end = map(int, start_end.split("-"))
+            chrom, start, end, strand = _split_region(region)
 
             # Add region to self.sequences
             extended_sequence = self._get_extended_sequence(
@@ -143,8 +142,7 @@ class SequenceLoader:
         if not stranded:
             region = f"{region}:+"
         # Parse region
-        chrom, start_end, strand = region.split(":")
-        start, end = map(int, start_end.split("-"))
+        chrom, start, end, strand = _split_region(region)
         chrom_size = self.chromsizes[chrom] if self.chromsizes is not None else None
 
         # Check if within genomic boundaries, clip otherwise
@@ -178,20 +176,4 @@ class SequenceLoader:
         return sub_sequence
 
 
-def _flip_region_strand(region: str) -> str:
-    """Reverse the strand of a region."""
-    strand_reverser = {"+": "-", "-": "+"}
-    return region[:-1] + strand_reverser[region[-1]]
 
-
-def _check_region_strandedness(region: str) -> bool:
-    """Check the strandedness of a region, raising an error if the formatting isn't recognised."""
-    if re.fullmatch(r".+:\d+-\d+:[-+]", region):
-        return True
-    elif re.fullmatch(r".+:\d+-\d+", region):
-        return False
-    else:
-        raise ValueError(
-            f"Region {region} was not recognised as a valid coordinate set (chr:start-end or chr:start-end:strand)."
-            "If provided, strand must be + or -."
-        )
