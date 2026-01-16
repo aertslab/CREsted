@@ -10,9 +10,9 @@ if keras.config.backend() == "torch":
 else:
     FrameworkDatasetClass = object
 
-from _utils import _check_region_strandedness, _split_region
-
 from crested._genome import Genome
+
+from ._utils import _check_region_strandedness, _split_region
 
 
 class SequenceLoader:
