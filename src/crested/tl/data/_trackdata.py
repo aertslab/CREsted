@@ -130,10 +130,10 @@ class TrackData:
         # TODO maybe: add support for stranded bigwigs (provide pair of paths, save both in alternative version, but bit of a bother to implement)
         # TODO: implement region reading rather than full chromosomes
 
-    def __getitem__(self, idx: tuple(str, int, int) | tuple(str, int, int, str) | str):
+    def __getitem__(self, idx: tuple[str, int, int] | tuple[str, int, int, str] | str):
         return self.get_track(idx, shift=0)
 
-    def get_track(self, idx: tuple(str, int, int) | tuple(str, int, int, str) | str, shift: int = 0):
+    def get_track(self, idx: tuple[str, int, int] | tuple[str, int, int, str] | str, shift: int = 0):
         """"""
         # Parse string index
         if isinstance(idx, str):

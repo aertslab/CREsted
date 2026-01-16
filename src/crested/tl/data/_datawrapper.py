@@ -640,7 +640,7 @@ def recursive_shape(output):
     else:
         return tuple(recursive_shape(xi) for xi in output)
 
-def recursive_move_device(output: keras.KerasTensor | tuple(keras.KerasTensor), device, **kwargs):
+def recursive_move_device(output: keras.KerasTensor | tuple[keras.KerasTensor, ...], device, **kwargs):
     """Move (a tuple) of tensors shapes to another device recursively.
 
     Works on standard (seq, target) dataloader tuples, but also on more complicated things like (seq, (target1, target2)).

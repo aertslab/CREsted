@@ -21,7 +21,7 @@ def _check_region_strandedness(region: str) -> bool:
             "If provided, strand must be + or -."
         )
 
-def _split_region(region: str) -> tuple(str, int, int, str):
+def _split_region(region: str) -> tuple[str, int, int, str]:
     """Split a region string in constituent chr, start, end and strand.
 
     If strand is not provided, infers + to keep output consistent.
