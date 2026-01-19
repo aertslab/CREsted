@@ -195,9 +195,13 @@ class Genome:
                 chrom, start_end = region.split(":")
             start, end = map(int, start_end.split("-"))
 
-        if not (chrom and start and end):
+        if chrom is None or start is None or end is None:
             raise ValueError(
-                "chrom/start/end must all be supplied to extract a sequence."
+                "chrom/start/end must all be provided or extracted from `region` to extract a sequence."
+            )
+        if start == end:
+            raise ValueError(
+                f"Cannot return 0-length sequences (start {start} is same as end {end}).  Did you accidentally input the same value twice?"
             )
 
         seq = self.fasta.fetch(reference=chrom, start=start, end=end)
