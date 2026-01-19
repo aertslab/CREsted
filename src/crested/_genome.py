@@ -199,6 +199,10 @@ class Genome:
             raise ValueError(
                 "chrom/start/end must all be provided or extracted from `region` to extract a sequence."
             )
+        if start == end:
+            raise ValueError(
+                f"Cannot return 0-length sequences (start {start} is same as end {end}).  Did you accidentally input the same value twice?"
+            )
 
         seq = self.fasta.fetch(reference=chrom, start=start, end=end)
         if strand == "-":
