@@ -23,7 +23,8 @@ def render_plot(
     supylabel: str | None = None,
     xlim: tuple[float, float]| list[tuple(float, float)] | None = None,
     ylim: tuple[float, float]| list[tuple(float, float)] | None = None,
-    grid: Literal[False, 'x', 'y', 'both'] = False,
+    grid: bool | Literal['x', 'y', 'both'] = False,
+    tight_layout: bool = True,
     tight_rect: tuple | None = None,
     title_fontsize: int = 16,
     suptitle_fontsize: int = 18,
@@ -78,9 +79,11 @@ def render_plot(
     ylim
         Y-axis limits. If a list of lists, matched to each axis in axs; if a single list, applied to all axes.
     grid
-        Add a major tick grid. Can be 'x', 'y', or 'both' to determine axis, True as alias for 'all', or False to disable.
+        Add a major tick grid. True/'both' for a full grid, 'x' or 'y' for a specific axis, or False to disable.
+    tight_layout
+        Whether to run `fig.tight_layout()` after setting all plot properties.
     tight_rect
-        Normalized coordinates in which subplots will fit.
+        Normalized coordinates in which subplots will fit, for `fig.tight_layout(tight_rect=tight_rect)`
     title_fontsize
         Font size for the title.
     xlabel_fontsize
@@ -234,10 +237,11 @@ def render_plot(
             ax.set_axisbelow(True)
 
     # Set figure resizing
-    if tight_rect:
-        fig.tight_layout(rect=tight_rect)
-    else:
-        fig.tight_layout()
+    if tight_layout:
+        if tight_rect:
+            fig.tight_layout(rect=tight_rect)
+        else:
+            fig.tight_layout()
 
     # Save and/or show and/or return
     if save_path:
