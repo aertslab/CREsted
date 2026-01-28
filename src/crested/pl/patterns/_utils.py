@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import warnings
+
 import logomaker
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,7 +12,15 @@ from PIL import Image
 
 
 def grad_times_input_to_df(x, grad, alphabet="ACGT"):
-    """Generate pandas dataframe for saliency plot based on grad x inputs."""
+    """Generate pandas dataframe for saliency plot based on grad x inputs.
+
+    Deprecated, please use `~crested.utils.hot_encoding_to_sequence` and `logomaker.saliency_to_matrix` instead.
+    """
+    warnings.warn(
+        "'grad_times_input_to_df' is deprecated and will be removed in a future release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     x_index = np.argmax(np.squeeze(x), axis=1)
     grad = np.squeeze(grad)
     L, A = grad.shape
@@ -25,9 +35,16 @@ def grad_times_input_to_df(x, grad, alphabet="ACGT"):
     saliency_df = logomaker.saliency_to_matrix(seq=seq, values=saliency)
     return saliency_df
 
-
 def grad_times_input_to_df_mutagenesis(x, grad, alphabet="ACGT"):
-    """Generate pandas dataframe for mutagenesis plot based on grad x inputs."""
+    """Generate pandas dataframe for mutagenesis plot based on grad x inputs.
+
+    Deprecated, please pass a masked score matrix directly to `_plot_mutagenesis_map`.
+    """
+    warnings.warn(
+        "'grad_times_input_to_df_mutagenesis' is deprecated and will be removed in a future release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     x = np.squeeze(x)  # Ensure x is correctly squeezed
     grad = np.squeeze(grad)
     L, A = x.shape
@@ -52,7 +69,16 @@ def grad_times_input_to_df_mutagenesis(x, grad, alphabet="ACGT"):
 
 
 def grad_times_input_to_df_mutagenesis_letters(x, grad, alphabet="ACGT"):
-    """Generate pandas dataframe for mutagenesis plot based on grad x inputs."""
+    """Generate pandas dataframe for mutagenesis plot based on grad x inputs.
+
+    Deprecated, please manually calculate average mutagenesis scores and use
+    `~crested.utils.hot_encoding_to_sequence` and `logomaker.saliency_to_matrix` instead.
+    """
+    warnings.warn(
+        "'grad_times_input_to_df_mutagenesis_letters' is deprecated and will be removed in a future release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     x = np.squeeze(x)  # Ensure x is correctly squeezed
     grad = np.squeeze(grad)
     L, A = x.shape
@@ -73,30 +99,38 @@ def grad_times_input_to_df_mutagenesis_letters(x, grad, alphabet="ACGT"):
 
 
 def _plot_attribution_map(
-    saliency_df,
-    ax=None,
+    saliency_df: pd.DataFrame | np.ndarray,
+    ax: plt.Axis | None = None,
     return_ax: bool = True,
     spines: bool = True,
     figsize: tuple[int, int] = (20, 1),
     rotate: bool = False,
+    **kwargs
 ):
     """
     Plot an attribution map (PWM logo) and optionally rotate it by 90 degrees.
 
     Parameters
     ----------
-        saliency_df (pd.DataFrame or np.ndarray): A DataFrame or array with attribution scores,
-            where columns are nucleotide bases (A, C, G, T).
-        ax (matplotlib.axes.Axes, optional): Axes object to plot on. Default is None,
-            which creates a new Axes.
-        return_ax (bool, optional): Whether to return the Axes object. Default is True.
-        spines (bool, optional): Whether to display spines (axes borders). Default is True.
-        figsize (tuple[int, int], optional): Figure size for temporary rendering. Default is (20, 1).
-        rotate (bool, optional): Whether to rotate the resulting plot by 90 degrees. Default is False.
+    saliency_df
+        A DataFrame or array with attribution scores where columns are nucleotide bases (A, C, G, T).
+        Can be constructed with `logomaker.saliency_to_matrix()`.
+    ax
+        Axes object to plot on. Default is None which creates a new Axes.
+    return_ax
+        Whether to return the Axes object. Default is True.
+    spines
+        Whether to display spines (axes borders). Default is True.
+    figsize
+        Figure size for temporary rendering. Default is (20, 1).
+    rotate
+        Whether to rotate the resulting plot by 90 degrees. Default is False.
+    kwargs
+        Arguments passed to `logomaker.Logo()`.
 
     Returns
     -------
-        matplotlib.axes.Axes: The Axes object with the plotted attribution map, if `return_ax` is True.
+    matplotlib.axes.Axes: The Axes object with the plotted attribution map, if `return_ax` is True.
     """
     # Convert input to DataFrame if needed
     if not isinstance(saliency_df, pd.DataFrame):
@@ -106,7 +140,7 @@ def _plot_attribution_map(
     if not rotate:
         if ax is None:
             _, ax = plt.subplots(figsize=figsize)
-        logomaker.Logo(saliency_df, ax=ax)
+        logomaker.Logo(saliency_df, ax=ax, **kwargs)
         if not spines:
             ax.spines["right"].set_visible(False)
             ax.spines["top"].set_visible(False)
@@ -147,34 +181,51 @@ def _plot_attribution_map(
         return ax
 
 
-def _plot_mutagenesis_map(mutagenesis_df, ax=None):
-    """Plot an attribution map for mutagenesis using different colored dots, with adjusted x-axis limits."""
-    colors = {"A": "green", "C": "blue", "G": "orange", "T": "red"}
-    if ax is None:
-        ax = plt.gca()
+def _plot_mutagenesis_map(
+        scores: np.ndarray,
+        ax: plt.Axes,
+        colors: dict | None = None,
+        s: int = 10,
+        spines: bool = False,
+        **kwargs
+    ):
+    """
+    Plot a mutagenesis map with one point for every nucleotide.
+
+    Parameters
+    ----------
+    scores
+        A [seq, nuc] matrix, with the reference nucleotide score masked as `np.nan`.
+    ax
+        Axes object to plot on.
+    colors
+        A dictionary of nucleotide labels and colors, matching the order of the score `nuc` dimension.
+        Default is None, which uses `{"A": "green", "C": "blue", "G": "orange", "T": "red"}`.
+    s
+        The size of the scatter points. Default is 10.
+    spines
+        Whether to display spines (axes borders). Default is True.
+    figsize
+        Figure size for temporary rendering. Default is (20, 1).
+    kwargs
+        Arguments passed to :meth:`~matplotlib.axes.Axes.bar`.
+    """
+    # Set default colors if not supplied
+    if colors is None:
+        colors = {"A": "green", "C": "blue", "G": "orange", "T": "red"}
+
+    # Get positions of every point
+    x_positions = np.arange(scores.shape[0])
+
+    # Plot all entries of each nucleotide - assumes reference/wt nucleotides are already set to None
+    for i, (nuc, color) in enumerate(colors.items()):
+        ax.scatter(x_positions, scores[:, i], color=color, label=nuc, s=s, **kwargs)
+    ax.legend(title="Nucleotide", loc="upper right")
+
     # Add horizontal line at y=0
     ax.axhline(0, color="gray", linewidth=1, linestyle="--")
-
-    # Scatter plot for each nucleotide type
-    for nuc, color in colors.items():
-        # Filter out dots where the variant is the same as the original nucleotide
-        subset = mutagenesis_df[
-            (mutagenesis_df["Nucleotide"] == nuc)
-            & (mutagenesis_df["Nucleotide"] != mutagenesis_df["Original"])
-        ]
-        ax.scatter(
-            subset["Position"], subset["Effect"], color=color, label=nuc, s=10
-        )  # s is the size of the dot
-
-    # Set the limits of the x-axis to match exactly the first and last position
-    if not mutagenesis_df.empty:
-        ax.set_xlim(
-            mutagenesis_df["Position"].min() - 0.5,
-            mutagenesis_df["Position"].max() + 0.5,
-        )
-
-    ax.legend(title="Nucleotide", loc="upper right")
-    ax.spines["right"].set_visible(False)
-    ax.spines["top"].set_visible(False)
-    ax.xaxis.set_ticks_position("none")
-    plt.xticks([])  # Optionally, hide x-axis ticks for a cleaner look
+    # Prettify plot
+    if not spines:
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+    ax.margins(x=0)

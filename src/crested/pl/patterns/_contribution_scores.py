@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Literal
+
+import logomaker
 import matplotlib.pyplot as plt
 import numpy as np
 
 from crested.pl._utils import create_plot, render_plot
+from crested.utils import hot_encoding_to_sequence
 from crested.utils._logging import log_and_raise
 
 from ._utils import (
     _plot_attribution_map,
     _plot_mutagenesis_map,
-    grad_times_input_to_df,
-    grad_times_input_to_df_mutagenesis,
-    grad_times_input_to_df_mutagenesis_letters,
 )
 
 
@@ -47,9 +49,10 @@ def contribution_scores(
     sequence_labels: str | list | None = None,
     class_labels: str | list | None = None,
     zoom_n_bases: int | None = None,
-    highlight_positions: list[tuple[int, int]] | None = None,
+    highlight_positions: tuple[int, int] | list[tuple[int, int]] | None = None,
+    method: Literal['mutagenesis', 'mutagenesis_letters'] | None = None,
+    plot_kws: dict | None = None,
     highlight_kws: dict | None = None,
-    method: str | None = None,
     ax: plt.Axes | None = None,
     **kwargs,
 ) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
@@ -72,15 +75,22 @@ def contribution_scores(
         Number of center bases to zoom in on. Default is None (no zooming).
     highlight_positions
         List of tuples with start and end positions to highlight. Default is None.
+    method
+        Default is None (for gradient-based contributions). If plotting mutagenesis values, set to `'mutagenesis_letters'`
+        (to visualize average effects as letters) or `mutagenesis` (to visualize in a legacy way).
+    plot_kws
+        Extra keyword arguments passed to the underlying plotting function.
+        If `method` is `None` or `'mutagenesis_letters'`, passed to  `_plot_attribution_map` and on to `logomaker.Logo`.
+        If `method` is `'mutagenesis'`, passed to `_plot_mutagenesis_map` and on to :meth:`~matplotlib.axes.Axes.bar`.
     highlight_kws
         Keywords to use for plotting highlights with :meth:`~matplotlib.axes.Axes.axvspan`.
         Default is {'edgecolor':  "red", 'facecolor': "none", 'linewidth': 0.5}
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width
-        Width of the newly created figure if `ax=None`. Default is 18.
+        Width of the newly created figure if `ax=None`. Default is n_bases//10.
     height
-        Height of the newly created figure if `ax=None`. Default is 3.
+        Height of the newly created figure if `ax=None`. Default is 2*n_seqs*n_classes.
     sharex
         Whether to share the x axes of the created plots. Default is False.
     sharey
@@ -97,7 +107,7 @@ def contribution_scores(
     Examples
     --------
     >>> import numpy as np
-    >>> scores = np.random.rand(1, 1, 100, 4)
+    >>> scores = np.random.random_sample((1, 1, 100, 4))
     >>> seqs_one_hot = np.random.randint(0, 2, (1, 100, 4))
     >>> class_labels = "celltype_A"
     >>> sequence_labels = "chr1:100-200"
@@ -112,13 +122,29 @@ def contribution_scores(
     if isinstance(class_labels, str):
         class_labels = [class_labels]
 
+    # Add extra sequence/class/etc dims if inputs are not quite properly shaped
+    if seqs_one_hot.ndim == 2:
+        seqs_one_hot = np.expand_dims(seqs_one_hot, 0)
+    if scores.ndim == 2:
+        scores = np.expand_dims(scores, (0, 1))
+    elif scores.ndim == 3:
+        if scores.shape[0] == seqs_one_hot.shape[0]:
+            scores = np.expand_dims(scores, 1)
+        else:
+            scores = np.expand_dims(scores, 0)
+
+    if highlight_positions is not None:
+        if not isinstance(highlight_positions[0], Sequence):
+            highlight_positions = [highlight_positions]
+
     _check_contrib_params(zoom_n_bases, scores, class_labels, sequence_labels)
 
     if zoom_n_bases is None:
         zoom_n_bases = scores.shape[2]
     center = int(scores.shape[2] / 2)
     start_idx = center - int(zoom_n_bases / 2)
-    scores = scores[:, :, start_idx : start_idx + zoom_n_bases, :]
+    scores = scores[:, :, start_idx:start_idx+zoom_n_bases, :]
+    seqs_one_hot = seqs_one_hot[:, start_idx:start_idx+zoom_n_bases, :]
 
     seq_length = scores.shape[2]
     total_classes = scores.shape[1]
@@ -132,6 +158,7 @@ def contribution_scores(
         kwargs["supxlabel"] = "Position"
     if "ylabel" not in kwargs:
         kwargs["ylabel"] = "Scores"
+    plot_kws = {} if plot_kws is None else plot_kws.copy()
     highlight_kws = {} if highlight_kws is None else highlight_kws.copy()
     if 'edgecolor' not in highlight_kws:
         highlight_kws['edgecolor'] = "red"
@@ -157,59 +184,48 @@ def contribution_scores(
         axs = [axs]
 
     plot_idx = 0
-    for seq in range(total_sequences):
-        seq_class_x = seqs_one_hot[seq, start_idx : start_idx + zoom_n_bases, :]
+    for seq_i in range(total_sequences):
+        # Gather this sequence's seq and score values
+        seq_x = seqs_one_hot[seq_i, ...]
+        seq_scores_raw = scores[seq_i, ...]
 
-        if method == "mutagenesis":
-            global_max = scores[seq].max() + 0.25 * np.abs(scores[seq].max())
-            global_min = scores[seq].min() - 0.25 * np.abs(scores[seq].min())
-        elif method == "mutagenesis_letters":
-            mins = []
-            maxs = []
-            for i in range(total_classes):
-                seq_class_scores = scores[seq, i, :, :]
-                mins.append(
-                    np.min(-np.sum(seq_class_scores * (1 - seq_class_x), axis=1) / 3)
-                )
-                maxs.append(
-                    np.max(-np.sum(seq_class_scores * (1 - seq_class_x), axis=1) / 3)
-                )
-            global_max = np.array(maxs).max() + 0.25 * np.abs(np.array(maxs).max())
-            global_min = np.array(mins).min() - 0.25 * np.abs(np.array(mins).min())
+        # Process values depending on method
+        if method == 'mutagenesis':
+            # Set reference nucleotides to None to only plot alternative nucleotides
+            seq_scores = seq_scores_raw.copy()
+            seq_scores[:, seq_x.astype('bool')] = np.nan
+        elif method == 'mutagenesis_letters':
+            # Keep only values of non-reference values and take mean of those 3
+            seq_scores = seq_scores_raw * np.logical_not(seq_x[None, ...])
+            seq_scores = -seq_scores.sum(axis=-1) / 3
         else:
-            mins = []
-            maxs = []
-            for i in range(total_classes):
-                seq_class_scores = scores[seq, i, :, :]
-                mins.append(np.min(seq_class_scores * seq_class_x))
-                maxs.append(np.max(seq_class_scores * seq_class_x))
-            global_max = np.array(maxs).max() + 0.25 * np.abs(np.array(maxs).max())
-            global_min = np.array(mins).min() - 0.25 * np.abs(np.array(mins).min())
+            # Gradients: keep only scores for the reference nucleotide
+            seq_scores = (seq_scores_raw * seq_x[None, ...]).sum(axis=-1)
 
-        for i in range(total_classes):
-            seq_class_scores = scores[seq, i, :, :]
+        # Get min and max ylims across all classes
+        sequence_min = np.nanmin(seq_scores) - 0.25*np.abs(np.nanmin(seq_scores))
+        sequence_max = np.nanmax(seq_scores) + 0.25*np.abs(np.nanmax(seq_scores))
+
+        for class_i in range(total_classes):
             ax = axs[plot_idx]
             plot_idx += 1
 
+            # Plot values for this sequence x class combo
             if method == "mutagenesis":
-                mutagenesis_df = grad_times_input_to_df_mutagenesis(
-                    seq_class_x, seq_class_scores
-                )
-                _plot_mutagenesis_map(mutagenesis_df, ax=ax)
-            elif method == "mutagenesis_letters":
-                mutagenesis_df_letters = grad_times_input_to_df_mutagenesis_letters(
-                    seq_class_x, seq_class_scores
-                )
-                _plot_attribution_map(mutagenesis_df_letters, ax=ax, return_ax=False)
+                _plot_mutagenesis_map(seq_scores[class_i], ax=ax, **plot_kws)
             else:
-                intgrad_df = grad_times_input_to_df(seq_class_x, seq_class_scores)
-                _plot_attribution_map(intgrad_df, ax=ax, return_ax=False)
+                seq_x_str = hot_encoding_to_sequence(seq_x)
+                logomaker_df = logomaker.saliency_to_matrix(seq=seq_x_str, values=seq_scores[class_i])
+                _plot_attribution_map(logomaker_df, ax=ax, return_ax=False, **plot_kws)
 
-            ax.set_ylim([global_min, global_max])
-            text_to_add = class_labels[i] if class_labels else None
-            ax.annotate(text_to_add, (0.025, 0.7), xycoords= 'axes fraction', fontsize=16, ha="left", va="center")
+            # Handle layout
+            ax.set_ylim([sequence_min, sequence_max])
+            if class_labels is not None:
+                # Plot at bottom half if mutagenesis scatter (usually negative values), top half for letters (usually positive)
+                label_rel_y = 0.3 if method == 'mutagenesis' else 0.7
+                ax.annotate(class_labels[class_i], (0.025, label_rel_y), xycoords= 'axes fraction', fontsize=16, ha="left", va="center")
 
-            # Draw rectangles to highlight positions
+            # Draw highlights
             if highlight_positions:
                 for start, end in highlight_positions:
                     ax.axvspan(
@@ -222,6 +238,6 @@ def contribution_scores(
 
         # Set the title for the sequence (subplot)
         if sequence_labels:
-            axs[plot_idx - total_classes].set_title(sequence_labels[seq], fontsize=14)
+            axs[plot_idx - total_classes].set_title(sequence_labels[seq_i], fontsize=14)
 
     return render_plot(fig, axs, **kwargs)
