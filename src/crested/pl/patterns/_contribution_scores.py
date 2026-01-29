@@ -173,6 +173,7 @@ def contribution_scores(
     if total_plots > 1 and ax is not None:
         raise ValueError("Cannot provide a pre-existing axis if plotting more than one sequence/more than one class. Please only provide one sequence and one class, or don't provide `ax`.")
 
+    sharing_y = 'sharey' in kwargs and kwargs['sharey']
     fig, axs = create_plot(
         ax=ax,
         kwargs_dict=kwargs,
@@ -220,7 +221,8 @@ def contribution_scores(
                 _plot_attribution_map(logomaker_df, ax=ax, return_ax=False, **plot_kws)
 
             # Handle layout
-            ax.set_ylim([sequence_min, sequence_max])
+            if not sharing_y:
+                ax.set_ylim([sequence_min, sequence_max])
             if class_labels is not None:
                 # Plot at bottom half if mutagenesis scatter (usually negative values), top half for letters (usually positive)
                 label_rel_y = 0.3 if method == 'mutagenesis' else 0.7
