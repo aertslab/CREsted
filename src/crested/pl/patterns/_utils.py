@@ -11,92 +11,57 @@ import pandas as pd
 from PIL import Image
 
 
-def grad_times_input_to_df(x, grad, alphabet="ACGT"):
-    """Generate pandas dataframe for saliency plot based on grad x inputs.
+def _process_mutagenesis(seq: np.ndarray, scores: np.ndarray):
+    """Process a mutagenesis scoring matrix for plotting by masking reference values.
 
-    Deprecated, please use `~crested.utils.hot_encoding_to_sequence` and `logomaker.saliency_to_matrix` instead.
+    Parameters
+    ----------
+    seq
+        A [n_bp, n_nuc] one-hot encoded array, of the specific sequence.
+    scores
+        A [n_classes, n_bp, n_nuc] or [n_bp, n_nuc] array, of scores per nucleotide for each location.
+
+    Returns
+    -------
+    An array of the same shape as `scores`, but with `np.nan` at the non-alternative values.
     """
-    warnings.warn(
-        "'grad_times_input_to_df' is deprecated and will be removed in a future release.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    x_index = np.argmax(np.squeeze(x), axis=1)
-    grad = np.squeeze(grad)
-    L, A = grad.shape
+    # Where seq is True/1, set np.nan, otherwise grab value from scores
+    return np.where(seq, np.nan, scores)
 
-    seq = ""
-    saliency = np.zeros(L)
-    for i in range(L):
-        seq += alphabet[x_index[i]]
-        saliency[i] = grad[i, x_index[i]]
+def _process_mutagenesis_letters(seq: np.ndarray, scores: np.ndarray):
+    """Process a mutagenesis scoring matrix for plotting as letters by taking the average effect and inverting the sign.
 
-    # create saliency matrix
-    saliency_df = logomaker.saliency_to_matrix(seq=seq, values=saliency)
-    return saliency_df
+    Parameters
+    ----------
+    seq
+        A [n_bp, n_nuc] one-hot encoded array, of the specific sequence.
+    scores
+        A [n_classes, n_bp, n_nuc] or [n_bp, n_nuc] array, of scores per nucleotide for each location.
 
-def grad_times_input_to_df_mutagenesis(x, grad, alphabet="ACGT"):
-    """Generate pandas dataframe for mutagenesis plot based on grad x inputs.
-
-    Deprecated, please pass a masked score matrix directly to `_plot_mutagenesis_map`.
+    Returns
+    -------
+    A [n_classes, n_bp] (or [n_bp] if no class dimension) array, the average drop in score over the three non-reference nucleotides.
     """
-    warnings.warn(
-        "'grad_times_input_to_df_mutagenesis' is deprecated and will be removed in a future release.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    x = np.squeeze(x)  # Ensure x is correctly squeezed
-    grad = np.squeeze(grad)
-    L, A = x.shape
+    # Multiply reference values (seq == 1) with 0
+    scores = scores * np.logical_not(seq)
+    # Take the sum of the other nucleotides, negate
+    return -scores.sum(axis=-1) / 3
 
-    # Get original nucleotides' indices, ensure it's 1D
-    x_index = np.argmax(x, axis=1)
+def _process_gradients(seq: np.ndarray, scores: np.ndarray):
+    """Process a gradient scoring matrix for plotting by selecting the values for the sequence in `seq`.
 
-    # Convert index array to nucleotide letters
-    original_nucleotides = np.array([alphabet[idx] for idx in x_index])
+    Parameters
+    ----------
+    seq
+        A [n_bp, n_nuc] one-hot encoded array, of the specific sequence.
+    scores
+        A [n_classes, n_bp, n_nuc] or [n_bp, n_nuc] array, of scores per nucleotide for each location.
 
-    # Data preparation for DataFrame
-    data = {
-        "Position": np.repeat(np.arange(L), A),
-        "Nucleotide": np.tile(list(alphabet), L),
-        "Effect": grad.reshape(
-            -1
-        ),  # Flatten grad assuming it matches the reshaped size
-        "Original": np.repeat(original_nucleotides, A),
-    }
-    df = pd.DataFrame(data)
-    return df
-
-
-def grad_times_input_to_df_mutagenesis_letters(x, grad, alphabet="ACGT"):
-    """Generate pandas dataframe for mutagenesis plot based on grad x inputs.
-
-    Deprecated, please manually calculate average mutagenesis scores and use
-    `~crested.utils.hot_encoding_to_sequence` and `logomaker.saliency_to_matrix` instead.
+    Returns
+    -------
+    A [n_classes, n_bp] (or [n_bp] if no class dimension) array, the score of the nucleotide at that location.
     """
-    warnings.warn(
-        "'grad_times_input_to_df_mutagenesis_letters' is deprecated and will be removed in a future release.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    x = np.squeeze(x)  # Ensure x is correctly squeezed
-    grad = np.squeeze(grad)
-    L, A = x.shape
-
-    # Get original nucleotides' indices, ensure it's 1D
-    x_index = np.argmax(x, axis=1)
-
-    all_locs = np.array([0, 1, 2, 3])
-    seq = ""
-    saliency = np.zeros(L)
-    for i in range(L):
-        seq += alphabet[x_index[i]]
-        saliency[i] = -np.mean(grad[i, np.delete(all_locs, x_index[i])])
-
-    # create saliency matrix
-    saliency_df = logomaker.saliency_to_matrix(seq=seq, values=saliency)
-    return saliency_df
-
+    return np.sum(scores*seq, axis=-1)
 
 def _plot_attribution_map(
     saliency_df: pd.DataFrame | np.ndarray,
@@ -229,3 +194,88 @@ def _plot_mutagenesis_map(
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
     ax.margins(x=0)
+
+def grad_times_input_to_df(x, grad, alphabet="ACGT"):
+    """Generate pandas dataframe for saliency plot based on grad x inputs.
+
+    Deprecated, please use `_process_gradients`, `~crested.utils.hot_encoding_to_sequence` and `logomaker.saliency_to_matrix` instead.
+    """
+    warnings.warn(
+        "'grad_times_input_to_df' is deprecated and will be removed in a future release. Please use `_process_gradients` and `logomaker.saliency_to_matrix` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    x_index = np.argmax(np.squeeze(x), axis=1)
+    grad = np.squeeze(grad)
+    L, A = grad.shape
+
+    seq = ""
+    saliency = np.zeros(L)
+    for i in range(L):
+        seq += alphabet[x_index[i]]
+        saliency[i] = grad[i, x_index[i]]
+
+    # create saliency matrix
+    saliency_df = logomaker.saliency_to_matrix(seq=seq, values=saliency)
+    return saliency_df
+
+def grad_times_input_to_df_mutagenesis(x, grad, alphabet="ACGT"):
+    """Generate pandas dataframe for mutagenesis plot based on grad x inputs.
+
+    Deprecated, please use `_process_mutagenesis` instead.
+    """
+    warnings.warn(
+        "'grad_times_input_to_df_mutagenesis' is deprecated and will be removed in a future release. Please use `_process_mutagenesis` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    x = np.squeeze(x)  # Ensure x is correctly squeezed
+    grad = np.squeeze(grad)
+    L, A = x.shape
+
+    # Get original nucleotides' indices, ensure it's 1D
+    x_index = np.argmax(x, axis=1)
+
+    # Convert index array to nucleotide letters
+    original_nucleotides = np.array([alphabet[idx] for idx in x_index])
+
+    # Data preparation for DataFrame
+    data = {
+        "Position": np.repeat(np.arange(L), A),
+        "Nucleotide": np.tile(list(alphabet), L),
+        "Effect": grad.reshape(
+            -1
+        ),  # Flatten grad assuming it matches the reshaped size
+        "Original": np.repeat(original_nucleotides, A),
+    }
+    df = pd.DataFrame(data)
+    return df
+
+
+def grad_times_input_to_df_mutagenesis_letters(x, grad, alphabet="ACGT"):
+    """Generate pandas dataframe for mutagenesis plot based on grad x inputs.
+
+    Deprecated, please use `_process_mutagenesis_letters`, `~crested.utils.hot_encoding_to_sequence` and `logomaker.saliency_to_matrix` instead.
+    """
+    warnings.warn(
+        "'grad_times_input_to_df_mutagenesis_letters' is deprecated and will be removed in a future release. Please use `_process_mutagenesis_letters` and `logomaker.saliency_to_matrix` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    x = np.squeeze(x)  # Ensure x is correctly squeezed
+    grad = np.squeeze(grad)
+    L, A = x.shape
+
+    # Get original nucleotides' indices, ensure it's 1D
+    x_index = np.argmax(x, axis=1)
+
+    all_locs = np.array([0, 1, 2, 3])
+    seq = ""
+    saliency = np.zeros(L)
+    for i in range(L):
+        seq += alphabet[x_index[i]]
+        saliency[i] = -np.mean(grad[i, np.delete(all_locs, x_index[i])])
+
+    # create saliency matrix
+    saliency_df = logomaker.saliency_to_matrix(seq=seq, values=saliency)
+    return saliency_df

@@ -16,6 +16,9 @@ from crested.utils._logging import log_and_raise
 from ._utils import (
     _plot_attribution_map,
     _plot_mutagenesis_map,
+    _process_gradients,
+    _process_mutagenesis,
+    _process_mutagenesis_letters,
 )
 
 
@@ -187,20 +190,19 @@ def contribution_scores(
     for seq_i in range(total_sequences):
         # Gather this sequence's seq and score values
         seq_x = seqs_one_hot[seq_i, ...]
+        seq_x_str = hot_encoding_to_sequence(seq_x)
         seq_scores_raw = scores[seq_i, ...]
 
         # Process values depending on method
         if method == 'mutagenesis':
-            # Set reference nucleotides to None to only plot alternative nucleotides
-            seq_scores = seq_scores_raw.copy()
-            seq_scores[:, seq_x.astype('bool')] = np.nan
+            # Set reference nucleotides to nan to only plot alternative nucleotides
+            seq_scores = _process_mutagenesis(seq=seq_x, scores=seq_scores_raw)
         elif method == 'mutagenesis_letters':
             # Keep only values of non-reference values and take mean of those 3
-            seq_scores = seq_scores_raw * np.logical_not(seq_x[None, ...])
-            seq_scores = -seq_scores.sum(axis=-1) / 3
+            seq_scores = _process_mutagenesis_letters(seq=seq_x, scores=seq_scores_raw)
         else:
             # Gradients: keep only scores for the reference nucleotide
-            seq_scores = (seq_scores_raw * seq_x[None, ...]).sum(axis=-1)
+            seq_scores = _process_gradients(seq=seq_x, scores=seq_scores_raw)
 
         # Get min and max ylims across all classes
         sequence_min = np.nanmin(seq_scores) - 0.25*np.abs(np.nanmin(seq_scores))
@@ -214,7 +216,6 @@ def contribution_scores(
             if method == "mutagenesis":
                 _plot_mutagenesis_map(seq_scores[class_i], ax=ax, **plot_kws)
             else:
-                seq_x_str = hot_encoding_to_sequence(seq_x)
                 logomaker_df = logomaker.saliency_to_matrix(seq=seq_x_str, values=seq_scores[class_i])
                 _plot_attribution_map(logomaker_df, ax=ax, return_ax=False, **plot_kws)
 
