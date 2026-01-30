@@ -22,30 +22,6 @@ from ._utils import (
 )
 
 
-@log_and_raise(ValueError)
-def _check_contrib_params(
-    zoom_n_bases: int | None,
-    scores: np.ndarray,
-    class_labels: list | None,
-    sequence_labels: list | None,
-):
-    """Check contribution scores parameters."""
-    if zoom_n_bases is not None and zoom_n_bases > scores.shape[2]:
-        raise ValueError(
-            f"zoom_n_bases ({zoom_n_bases}) must be less than or equal to the number of bases in the sequence ({scores.shape[2]})"
-        )
-    if class_labels:
-        if len(class_labels) != scores.shape[1]:
-            raise ValueError(
-                f"Number of class plot labels ({len(class_labels)}) must match the number of classes ({scores.shape[1]})."
-            )
-    if sequence_labels:
-        if len(sequence_labels) != scores.shape[0]:
-            raise ValueError(
-                f"Number of sequence plot labels ({len(sequence_labels)}) must match the number of sequences ({scores.shape[0]})."
-            )
-
-
 def contribution_scores(
     scores: np.ndarray,
     seqs_one_hot: np.ndarray,
@@ -56,6 +32,7 @@ def contribution_scores(
     method: Literal['mutagenesis', 'mutagenesis_letters'] | None = None,
     plot_kws: dict | None = None,
     highlight_kws: dict | None = None,
+    sharey: Literal["sequence", True, False] = "sequence",
     ax: plt.Axes | None = None,
     **kwargs,
 ) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
@@ -88,6 +65,8 @@ def contribution_scores(
     highlight_kws
         Keywords to use for plotting highlights with :meth:`~matplotlib.axes.Axes.axvspan`.
         Default is {'edgecolor':  "red", 'facecolor': "none", 'linewidth': 0.5}
+    sharey
+        Whether to share the y axes of the created plots. Default is 'sequence', which shared between classes for one sequence but not between sequences.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width
@@ -96,12 +75,10 @@ def contribution_scores(
         Height of the newly created figure if `ax=None`. Default is 2*n_seqs*n_classes.
     sharex
         Whether to share the x axes of the created plots. Default is False.
-    sharey
-        Whether to share the y axes of the created plots. Default is False; y limits are shared between sequences only instead.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `prediction`: `xlabel='Cell types'`, `ylabel='Prediction'`, `grid="y"`.
+        Custom defaults for `contribution_scores`: `xlabel='Position'` (if n_plots=1)/`supxlabel='Position'` (if n_plots>1), `ylabel='Scores'`.
 
     See Also
     --------
@@ -120,10 +97,34 @@ def contribution_scores(
 
     .. image:: ../../../../docs/_static/img/examples/patterns_contribution_scores.png
     """
+
+    @log_and_raise(ValueError)
+    def _check_contrib_params():
+        """Check contribution scores parameters."""
+        if zoom_n_bases is not None and zoom_n_bases > scores.shape[2]:
+            raise ValueError(
+                f"zoom_n_bases ({zoom_n_bases}) must be less than or equal to the number of bases in the sequence ({scores.shape[2]})"
+            )
+        if class_labels is not None:
+            if len(class_labels) != scores.shape[1]:
+                raise ValueError(
+                    f"Number of class plot labels ({len(class_labels)}) must match the number of classes ({scores.shape[1]})."
+                )
+        if sequence_labels is not None:
+            if len(sequence_labels) != scores.shape[0]:
+                raise ValueError(
+                    f"Number of sequence plot labels ({len(sequence_labels)}) must match the number of sequences ({scores.shape[0]})."
+                )
+        if sharey not in [True, False, "sequence"]:
+            raise ValueError(f"`sharey` must be True, False or 'sequence', not {sharey}")
+
     if isinstance(sequence_labels, str):
         sequence_labels = [sequence_labels]
     if isinstance(class_labels, str):
         class_labels = [class_labels]
+    if highlight_positions is not None:
+        if not isinstance(highlight_positions[0], Sequence):
+            highlight_positions = [highlight_positions]
 
     # Add extra sequence/class/etc dims if inputs are not quite properly shaped
     if seqs_one_hot.ndim == 2:
@@ -136,11 +137,7 @@ def contribution_scores(
         else:
             scores = np.expand_dims(scores, 0)
 
-    if highlight_positions is not None:
-        if not isinstance(highlight_positions[0], Sequence):
-            highlight_positions = [highlight_positions]
-
-    _check_contrib_params(zoom_n_bases, scores, class_labels, sequence_labels)
+    _check_contrib_params()
 
     if zoom_n_bases is None:
         zoom_n_bases = scores.shape[2]
@@ -173,7 +170,9 @@ def contribution_scores(
     if total_plots > 1 and ax is not None:
         raise ValueError("Cannot provide a pre-existing axis if plotting more than one sequence/more than one class. Please only provide one sequence and one class, or don't provide `ax`.")
 
-    sharing_y = 'sharey' in kwargs and kwargs['sharey']
+    # Handle sharey with create_plot now that we have a third option (which handles it elsewhere)
+    kwargs['sharey'] = False if sharey == 'sequence' else sharey
+
     fig, axs = create_plot(
         ax=ax,
         kwargs_dict=kwargs,
@@ -219,10 +218,13 @@ def contribution_scores(
             else:
                 logomaker_df = logomaker.saliency_to_matrix(seq=seq_x_str, values=seq_scores[class_i])
                 _plot_attribution_map(logomaker_df, ax=ax, return_ax=False, **plot_kws)
+                ax.autoscale(enable=True, axis='y') # undo fixing of axes within logomaker
 
             # Handle layout
-            if not sharing_y:
+            if sharey == 'sequence':
                 ax.set_ylim([sequence_min, sequence_max])
+            else:
+                ax.set_ymargin(0.25)
             if class_labels is not None:
                 # Plot at bottom half if mutagenesis scatter (usually negative values), top half for letters (usually positive)
                 label_rel_y = 0.3 if method == 'mutagenesis' else 0.7
