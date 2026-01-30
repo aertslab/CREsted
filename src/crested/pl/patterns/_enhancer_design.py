@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Literal
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -8,20 +11,14 @@ from loguru import logger
 from crested.pl._utils import create_plot, render_plot
 from crested.utils._logging import log_and_raise
 
-from ._contribution_scores import _check_contrib_params
-from ._utils import (
-    _plot_attribution_map,
-    _plot_mutagenesis_map,
-    grad_times_input_to_df,
-    grad_times_input_to_df_mutagenesis,
-)
+from ._contribution_scores import contribution_scores
 
 
 @log_and_raise(ValueError)
 def _check_ylim_params(global_ylim: int | None, ylim: np.ndarray):
     """Check contribution scores parameters."""
     if global_ylim is not None and global_ylim not in ["all", "per_design", "per_plot"]:
-        raise ValueError("global_ylim must be one of all, per_design or per_plot")
+        raise ValueError("global_ylim must be one of 'all', 'per_design' or 'per_plot' or None.")
     if ylim is not None and global_ylim is not None:
         logger.warning("Both ylim and global_ylim is set. Ignoring ylim.")
 
@@ -44,69 +41,21 @@ def _check_target_classes(target_classes: list[str], obs_names: pd.Index | list[
                 f"target class {target} not in obs_names. All targets must be in obs_names."
             )
 
-
-def _determine_min_max(
-    scores_all,
-    seqs_one_hot_all,
-    center,
-    zoom_n_bases,
-    start_idx,
-    method,
-    class_idxs=None,
-    designed_idxs=None,
-):
-    n_designs = len(scores_all)
-    n_class = scores_all[0].shape[1]
-    n_steps = scores_all[0].shape[0]
-
-    if class_idxs is None:
-        class_idxs = range(n_class)
-
-    if designed_idxs is None:
-        designed_idxs = range(n_designs)
-
-    # construct loop list
-    constructed_loop = []
-    for des_idx in designed_idxs:
-        for c_idx in class_idxs:
-            for s_idx in range(n_steps):
-                constructed_loop.append((s_idx, c_idx, des_idx))
-
-    mins = []
-    maxs = []
-
-    for s_idx, c_idx, des_idx in constructed_loop:
-        scores = scores_all[des_idx][:, :, start_idx : start_idx + zoom_n_bases, :]
-        seq_class_scores = scores[s_idx, c_idx, :, :]
-        if method == "mutagenesis":
-            maxs.append(seq_class_scores.max() + 0.25 * np.abs(seq_class_scores.max()))
-            mins.append(seq_class_scores.min() - 0.25 * np.abs(seq_class_scores.min()))
-        else:
-            seqs_one_hot = seqs_one_hot_all[des_idx]
-            seq_class_x = seqs_one_hot[s_idx, start_idx : start_idx + zoom_n_bases, :]
-            mins.append(np.min(seq_class_scores * seq_class_x))
-            maxs.append(np.max(seq_class_scores * seq_class_x))
-
-    if method == "mutagenesis":
-        return min(mins), max(maxs)
-
-    return np.array(mins).min() - 0.25 * np.abs(np.array(mins).min()), np.array(
-        maxs
-    ).max() + 0.25 * np.abs(np.array(maxs).max())
-
-
 def enhancer_design_steps_contribution_scores(
     intermediate: list[dict],
-    scores_all: np.ndarray,
-    seqs_one_hot_all: np.ndarray,
-    labels: list | None = None,
+    scores_all: list[np.ndarray] | np.ndarray,
+    seqs_one_hot_all: list[np.ndarray] | np.ndarray,
+    sequence_labels: list | None = None,
+    class_labels: list | None = None,
     zoom_n_bases: int | None = None,
-    ylim: tuple | None = None,
-    global_ylim: str | None = "per_plot",
-    method: str | None = None,
+    ylim: tuple[float, float] | list[tuple[float, float]] | None = None,
+    global_ylim: Literal["all", "per_design", "per_plot"] | None = "per_plot",
+    method: Literal["mutagenesis", "mutagenesis_letters"] | None = None,
     highlight_kws: dict | None = None,
+    show: bool = True,
+    labels: str = 'deprecated',
     **kwargs,
-) -> tuple[plt.Figure, list[plt.Axes]] | None:
+) -> tuple[plt.Figure, list[plt.Axes]] | list[tuple[plt.Figure, list[plt.Axes]]]| None:
     """
     Visualize enhancer design stepwise contribution scores.
 
@@ -117,15 +66,17 @@ def enhancer_design_steps_contribution_scores(
     intermediate
         Intermediate output from enhancer design when return_intermediate is True
     scores_all
-        An array of a list of arrays of contribution scores of shape (n_seqs, n_classes, n_bases, n_features).
+        A list of contribution scores arrays for each designed sequence, of shape [(seq_steps, n_classes, n_bases, n_features), ...], like from :func:`~crested.tl.contribution_scores`.
     seqs_one_hot_all
-        An array of a list of arrays of one-hot encoded corresponding sequences of shape (n_seqs, n_bases, n_features).
-    labels
-        List of labels to add to the plot. Should have the same length as the number of classes.
+        A list of one-hot encoded corresponding sequence arrays of shape [(seq_steps, n_bases, n_features), ...], like from :func:`~crested.utils.derive_intermediate_sequences()`.
+    sequence_labels
+        List of sequence labels ot add to the plot. Should have the same length as the number of designed sequences.
+    class_labels
+        List of class labels to add to the plot. Should have the same length as the number of classes.
     zoom_n_bases
         Number of center bases to zoom in on. Default is None (no zooming).
     ylim
-        Y-axis limits, ignored if global_ylim is set. Default is None.
+        Y-axis limits, ignored if global_ylim is set. Can be a single tuple or a tuple for each designed sequence. Default is None.
     global_ylim
         Used to set global y-axis limits across explanations. Can be one of 'all', 'per_design', 'per_plot' or None. Default is 'per_plot'
         'all' makes the y-axis limit same across all of the explanations.
@@ -133,21 +84,29 @@ def enhancer_design_steps_contribution_scores(
         'per_plot' makes y-axis limits same across all the steps but not the classes of a single designed sequence.
         If None, each explanation has its y-axis limits separately selected.
     method
-        Method used for calculating contribution scores. If mutagenesis, specify.
+        Default is None (for gradient-based contributions). If plotting mutagenesis values, set to `'mutagenesis_letters'`
+        (to visualize average effects as letters) or `mutagenesis` (to visualize in a legacy way).
     highlight_kws
         Keywords to use for plotting changed basepairs with :meth:`~matplotlib.axes.Axes.axvspan`.
         Default is {'edgecolor':  "red", 'facecolor': "none", 'linewidth' :0.5}
+    show
+        Whether to show all plots or return the (list of) figure and axes instead.
     width
         Width of each created figure. Default is 50.
     height
         Height of each created figure. Default is 2*`n_seqs`.
     sharex
-        Whether to share the x axes of the created plots. Default is False.
+        Whether to share the x axes of the created subplots within each figure. Default is False.
     sharey
-        Whether to share the y axes of the created plots. Default is False.
+        Whether to share the y axes of the created subplots within each figure. Default is False.
     kwargs
-        Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
-        Please see :func:`~crested.pl.render_plot` for details.
+        Additional arguments passed to :func:`~crested.pl.patterns.contribution_scores` to control contribution score settings and on to :func:`~crested.pl.render_plot` to control the final plot output.
+        Please see :func:`~crested.pl.patterns.contribution_scores` and :func:`~crested.pl.render_plot` for details.
+        Custom defaults for `enhancer_design_steps_contribution_scores`: `suptitle_fontsize=26`, `tight_rect=[0, 0, 1, 0.98]`.
+
+    Returns
+    -------
+    If `show=False`, a (fig, axs) tuple (if plotting one sequence and one class), or a list of (fig, axs) tuples (if plotting multiple sequences and/or classes).
 
     See Also
     --------
@@ -166,13 +125,17 @@ def enhancer_design_steps_contribution_scores(
 
     .. image:: ../../../../docs/_static/img/examples/patterns_enhancer_design_steps_contribution_scores.png
     """
+    if labels != 'deprecated':
+        class_labels = labels
+        logger.warning("Argument `labels` is renamed; please use `class_labels` instead.")
+
     _check_ylim_params(global_ylim, ylim)
 
-    # Handle defaults here since plotting is in a loop and popping would only work once
-    set_plot_width = kwargs.pop('width') if 'width' in kwargs else None
-    set_plot_height = kwargs.pop('height') if 'height' in kwargs else None
-    sharex = kwargs.pop('sharex') if 'sharex' in kwargs else False
-    sharey = kwargs.pop('sharey') if 'sharey' in kwargs else False
+    # Handle defaults
+    if 'suptitle_fontsize' not in kwargs:
+        kwargs['suptitle_fontsize'] = 26
+    if 'tight_rect' not in kwargs:
+        kwargs['tight_rect'] = [0, 0, 1, 0.97]
     highlight_kws = {} if highlight_kws is None else highlight_kws.copy()
     if 'edgecolor' not in highlight_kws:
         highlight_kws['edgecolor'] = "red"
@@ -185,139 +148,82 @@ def enhancer_design_steps_contribution_scores(
         scores_all = [scores_all]
     if not isinstance(seqs_one_hot_all, list):
         seqs_one_hot_all = [seqs_one_hot_all]
+    if ylim is not None and not isinstance(ylim[0], Sequence):
+        ylim = [ylim]*len(scores_all)
 
-    _check_contrib_params(zoom_n_bases, scores_all[0], labels, None)
+    # Check inputs
+    assert len(scores_all) == len(seqs_one_hot_all), f"Number of entries in the scores list ({len(scores_all)}) should be the same as the number of entries in the sequence list ({len(seqs_one_hot_all)})."
+    if class_labels is not None:
+        assert all(s.shape[1] == len(class_labels) for s in scores_all), f"Number of class_labels ({len(class_labels)}) should match number of classes, but found {[s.shape[1] for s in scores_all]} classes."
+    if sequence_labels is not None:
+        assert len(seqs_one_hot_all) == len(sequence_labels), f"Number of sequence_labels ({len(sequence_labels)}) should match number of designed sequences ({len(seqs_one_hot_all)})."
 
-    # Center and zoom
-    if zoom_n_bases is None:
-        zoom_n_bases = scores_all[0].shape[2]
-    if labels and not isinstance(labels, list):
-        labels = [str(labels)]
-    center = int(scores_all[0].shape[2] / 2)
-    start_idx = center - int(zoom_n_bases / 2)
+    if global_ylim is None:
+        sharey = False
+    else:
+        sharey = True
+        ylim = None
 
-    if global_ylim == "all":
-        if method == "mutagenesis":
-            global_min, global_max = _determine_min_max(
-                scores_all, seqs_one_hot_all, center, zoom_n_bases, start_idx, method
+    # Goal of plotting: make one plot of n steps, for each designed seq x class combination.
+    return_list = []
+    design_idx_per_plot = []
+    ylim_per_design = []
+    for design_idx in range(len(scores_all)):
+        ymin_sublist = []
+        ymax_sublist = []
+        n_steps, n_classes, seq_len, _ = scores_all[design_idx].shape
+        step_labels = ["Random sequence"] + [f"Step {i}" for i in range(1, n_steps)]
+        for class_idx in range(n_classes):
+            # Plot intermediate sequences and scores for this designed sequence x class combo
+            seq_label = f"Sequence {design_idx}" if sequence_labels is None else sequence_labels[design_idx]
+            class_label = f"Class {class_idx}" if class_labels is None else class_labels[class_idx]
+            fig, axs = contribution_scores(
+                scores=scores_all[design_idx][:, class_idx, ...],
+                seqs_one_hot=seqs_one_hot_all[design_idx],
+                sequence_labels=step_labels, # Sequence labels per step
+                class_labels=None,
+                zoom_n_bases=zoom_n_bases,
+                method=method,
+                sharey=sharey,
+                ylim=ylim if ylim is not None else None, # TODO: check this
+                suptitle=f"{seq_label} - {class_label}",
+                show=False,
+                **kwargs,
             )
-        else:
-            global_min, global_max = _determine_min_max(
-                scores_all, seqs_one_hot_all, center, zoom_n_bases, start_idx, method
-            )
-
-    # Plot
-    for intermediate_idx, (scores, seqs_one_hot) in enumerate(
-        zip(scores_all, seqs_one_hot_all, strict=False)
-    ):
-        intermediate_current = intermediate[intermediate_idx]
-        if global_ylim == "per_design":
-            if method == "mutagenesis":
-                global_min, global_max = _determine_min_max(
-                    scores_all,
-                    seqs_one_hot_all,
-                    center,
-                    zoom_n_bases,
-                    start_idx,
-                    method,
-                    designed_idxs=[intermediate_idx],
-                )
-            else:
-                global_min, global_max = _determine_min_max(
-                    scores_all,
-                    seqs_one_hot_all,
-                    center,
-                    zoom_n_bases,
-                    start_idx,
-                    method,
-                    designed_idxs=[intermediate_idx],
-                )
-
-        for class_idx in range(scores.shape[1]):
-            logger.info(
-                f"Plotting contribution scores for {seqs_one_hot.shape[0]} sequence(s)"
-            )
-            number_of_steps = seqs_one_hot.shape[0]
-            plot_width = set_plot_width if set_plot_width is not None else 50
-            plot_height = set_plot_height if set_plot_height is not None else 2*number_of_steps
-
-            fig, axs = plt.subplots(
-                number_of_steps, 1, figsize=(plot_width, plot_height), sharex=sharex, sharey=sharey
-            )
-            if global_ylim == "per_plot":
-                if method == "mutagenesis":
-                    global_min, global_max = _determine_min_max(
-                        scores_all,
-                        seqs_one_hot_all,
-                        center,
-                        zoom_n_bases,
-                        start_idx,
-                        method,
-                        designed_idxs=[intermediate_idx],
-                        class_idxs=[class_idx],
-                    )
-                else:
-                    global_min, global_max = _determine_min_max(
-                        scores_all,
-                        seqs_one_hot_all,
-                        center,
-                        zoom_n_bases,
-                        start_idx,
-                        method,
-                        designed_idxs=[intermediate_idx],
-                        class_idxs=[class_idx],
-                    )
-
-            for seq in range(seqs_one_hot.shape[0]):
-                seq_class_x = seqs_one_hot[seq, start_idx : start_idx + zoom_n_bases, :]
-
-                seq_class_scores = scores[seq, class_idx, :, :]
-                if method == "mutagenesis":
-                    mutagenesis_df = grad_times_input_to_df_mutagenesis(
-                        seq_class_x, seq_class_scores
-                    )
-                    _plot_mutagenesis_map(mutagenesis_df, ax=axs[seq])
-                else:
-                    intgrad_df = grad_times_input_to_df(seq_class_x, seq_class_scores)
-                    _plot_attribution_map(intgrad_df, ax=axs[seq], return_ax=False)
-
-                if global_ylim in ["all", "per_design", "per_plot"]:
-                    axs[seq].set_ylim([global_min, global_max])
-                elif ylim:
-                    axs[seq].set_ylim(ylim[0], ylim[1])
-                elif global_ylim is None:
-                    current_ylim = axs[seq].get_ylim()
-                    axs[seq].set_ylim((current_ylim[0] * 1.1, current_ylim[1] * 1.1))
-
-                current_ylim = axs[seq].get_ylim()
-
-                # Set change step as title
-                if seq == 0:
-                    current_mut_title = "Random sequence"
-                else:
-                    current_mut_title = f"Step {seq}"
-                axs[seq].set_title(current_mut_title)
-
-                # Draw rectangles to highlight positions
-                change_loc, change = intermediate_current["changes"][seq]
+            # Draw highlights
+            start_idx = int(seq_len / 2) - int(zoom_n_bases / 2) if zoom_n_bases is not None else 0 # Get rel shift if zoom_n_bases is used
+            for step_idx in range(n_steps):
+                change_loc, change = intermediate[design_idx]["changes"][step_idx]
                 if change_loc != -1:
-                    start, end = change_loc, change_loc + len(change)
-                    axs[seq].axvspan(
+                    start, end = change_loc, change_loc+len(change)
+                    axs[step_idx].axvspan(
                         xmin=start-start_idx-0.5,
                         xmax=end-start_idx-0.5,
                         **highlight_kws
                     )
-            plt.xticks(np.arange(0, zoom_n_bases, 50))
-            if 'suptitle' not in kwargs:
-                kwargs["suptitle"] = labels[class_idx] if labels else f"Class {class_idx}"
-            if "supxlabel" not in kwargs:
-                kwargs["supxlabel"] = "Position"
-            if "supylabel" not in kwargs:
-                kwargs["supylabel"] = "Scores"
-            if "tight_rect" not in kwargs:
-                kwargs["tight_rect"] = (0.02, 0.02, 1, 0.98)
-            render_plot(fig, axs, **kwargs)
+            return_list.append((fig, axs))
+            ymin_sublist.append(min(ax.get_ylim()[0] for ax in axs))
+            ymax_sublist.append(max(ax.get_ylim()[1] for ax in axs))
+            design_idx_per_plot.append(design_idx)
+        # Get furthest ylims per design
+        ylim_per_design.append((min(ymin_sublist), max(ymax_sublist)))
 
+    # Handle global_ylim
+    if global_ylim == 'all':
+        total_ylim = (min(ylim[0] for ylim in ylim_per_design),  max(ylim[1] for ylim in ylim_per_design))
+
+    for i, (_, axs) in enumerate(return_list):
+        design_idx = design_idx_per_plot[i]
+        for ax in axs:
+            if global_ylim == 'all':
+                ax.set_ylim(total_ylim)
+            elif global_ylim == 'per_design':
+                ax.set_ylim(ylim_per_design[design_idx])
+
+    if show:
+        plt.show()
+    else:
+        return return_list[0] if len(return_list) == 1 else return_list
 
 def enhancer_design_steps_predictions(
     intermediate: list[dict],
