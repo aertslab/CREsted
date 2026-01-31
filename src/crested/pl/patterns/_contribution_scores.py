@@ -25,8 +25,8 @@ from ._utils import (
 def contribution_scores(
     scores: np.ndarray,
     seqs_one_hot: np.ndarray,
-    sequence_labels: str | list | None = None,
-    class_labels: str | list | None = None,
+    sequence_labels: str | list[str] | None = None,
+    class_labels: str | list[str] | None = None,
     zoom_n_bases: int | None = None,
     highlight_positions: tuple[int, int] | list[tuple[int, int]] | None = None,
     method: Literal['mutagenesis', 'mutagenesis_letters'] | None = None,
@@ -205,8 +205,9 @@ def contribution_scores(
             seq_scores = _process_gradients(seq=seq_x, scores=seq_scores_raw)
 
         # Get min and max ylims across all classes
-        sequence_min = np.nanmin(seq_scores) - 0.25*np.abs(np.nanmin(seq_scores))
-        sequence_max = np.nanmax(seq_scores) + 0.25*np.abs(np.nanmax(seq_scores))
+        data_range = np.abs(np.nanmax(seq_scores) - np.nanmin(seq_scores))
+        sequence_min = np.nanmin(seq_scores) - 0.25*data_range
+        sequence_max = np.nanmax(seq_scores) + 0.25*data_range
 
         for class_i in range(total_classes):
             ax = axs[plot_idx]
