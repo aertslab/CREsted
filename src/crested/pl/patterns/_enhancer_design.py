@@ -42,13 +42,13 @@ def _check_target_classes(target_classes: list[str], obs_names: pd.Index | list[
             )
 
 def enhancer_design_steps_contribution_scores(
-    intermediate: list[dict],
+    intermediate: list[dict] | dict,
     scores_all: list[np.ndarray] | np.ndarray,
     seqs_one_hot_all: list[np.ndarray] | np.ndarray,
     sequence_labels: list | None = None,
     class_labels: list | None = None,
     zoom_n_bases: int | None = None,
-    ylim: tuple[float, float] | list[tuple[float, float]] | None = None,
+    ylim: tuple[float, float] | None = None,
     global_ylim: Literal["all", "per_design", "per_plot"] | None = "per_plot",
     method: Literal["mutagenesis", "mutagenesis_letters"] | None = None,
     highlight_kws: dict | None = None,
@@ -64,7 +64,8 @@ def enhancer_design_steps_contribution_scores(
     Parameters
     ----------
     intermediate
-        Intermediate output from enhancer design when return_intermediate is True
+        Intermediate output from enhancer design when return_intermediate is True.
+        Specifically, a single dict or list of dicts (one per designed sequence), with dict entry 'changes' to denote the changed position per step.
     scores_all
         A list of contribution scores arrays for each designed sequence, of shape [(seq_steps, n_classes, n_bases, n_features), ...], like from :func:`~crested.tl.contribution_scores`.
     seqs_one_hot_all
@@ -76,7 +77,7 @@ def enhancer_design_steps_contribution_scores(
     zoom_n_bases
         Number of center bases to zoom in on. Default is None (no zooming).
     ylim
-        Y-axis limits, ignored if global_ylim is set. Can be a single tuple or a tuple for each designed sequence. Default is None.
+        Y-axis limits, ignored if global_ylim is set. Default is None.
     global_ylim
         Used to set global y-axis limits across explanations. Can be one of 'all', 'per_design', 'per_plot' or None. Default is 'per_plot'
         'all' makes the y-axis limit same across all of the explanations.
@@ -144,6 +145,8 @@ def enhancer_design_steps_contribution_scores(
     if 'linewidth' not in highlight_kws:
         highlight_kws['linewidth'] = 0.5
 
+    if not isinstance(intermediate, list):
+        intermediate = [intermediate]
     if not isinstance(scores_all, list):
         scores_all = [scores_all]
     if not isinstance(seqs_one_hot_all, list):
@@ -167,7 +170,7 @@ def enhancer_design_steps_contribution_scores(
     # Goal of plotting: make one plot of n steps, for each designed seq x class combination.
     return_list = []
     design_idx_per_plot = []
-    ylim_per_design = []
+    ylim_per_design = [] # Save ylims as we go to unify later on for global_ylim
     for design_idx in range(len(scores_all)):
         ymin_sublist = []
         ymax_sublist = []
@@ -185,7 +188,7 @@ def enhancer_design_steps_contribution_scores(
                 zoom_n_bases=zoom_n_bases,
                 method=method,
                 sharey=sharey,
-                ylim=ylim if ylim is not None else None, # TODO: check this
+                ylim=ylim,
                 suptitle=f"{seq_label} - {class_label}",
                 show=False,
                 **kwargs,
