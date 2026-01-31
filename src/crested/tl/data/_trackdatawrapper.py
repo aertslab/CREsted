@@ -56,7 +56,7 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
         """"""
         return self.splits
 
-    def _get_target(self, expanded_index: str, revcomp: bool, shift: int, **kwargs) -> np.ndarray:
+    def _get_target(self, expanded_index: tuple[str, int, int, str], revcomp: bool, shift: int, **kwargs) -> np.ndarray:
         """Get target for a given index."""
         track = self.data.get_track(expanded_index, shift=shift)
         if revcomp:

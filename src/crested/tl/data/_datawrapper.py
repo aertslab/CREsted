@@ -17,10 +17,9 @@ else:
     FrameworkDatasetClass = object
 
 from crested._genome import Genome, _resolve_genome
-from crested.utils import one_hot_encode_sequence
+from crested.utils import flip_region_strand, one_hot_encode_sequence, parse_region
 
 from ._sequenceloader import SequenceLoader
-from ._utils import _check_region_strandedness, _flip_region_strand, _split_region
 
 
 class BaseDataWrapper:
@@ -240,8 +239,8 @@ class BaseDataWrapper:
             expanded_indices.append(stranded_region)
             self.expanded_indices_map[stranded_region] = region # Update shared backmapping with the original indices
             if expand_revcomp:
-                expanded_indices.append(_flip_region_strand(stranded_region))
-                self.expanded_indices_map[_flip_region_strand(stranded_region)] = region
+                expanded_indices.append(flip_region_strand(stranded_region))
+                self.expanded_indices_map[flip_region_strand(stranded_region)] = region
         return expanded_indices
 
 
@@ -550,9 +549,6 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         )
         genome =  _resolve_genome(genome)
 
-        # Check region formatting: do they match chr:start-end[:strand] format and if so, do they contain strand info
-        _ = (_check_region_strandedness(index) for index in self.indices)
-
         self.sequence_loader = SequenceLoader(
             genome,
             in_memory=in_memory,
@@ -600,7 +596,7 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
     def _get_shift(self, expanded_index: str, **kwargs) -> int:
         """Returns a stochastic shift value, accounting for genomic limits given the index to shift."""
         # Parse region
-        chrom, start, end, strand = _split_region(expanded_index)
+        chrom, start, end, strand = parse_region(expanded_index)
 
         chrom_size = self.sequence_loader.chromsizes[chrom] if self.sequence_loader.chromsizes is not None else inf
 

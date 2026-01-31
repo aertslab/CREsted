@@ -13,8 +13,7 @@ from scipy.sparse import csr_array
 
 import crested._conf as conf
 from crested._io import _extract_tracks_from_bigwig
-
-from ._utils import _split_region
+from crested.utils import parse_region
 
 
 class TrackData:
@@ -135,18 +134,8 @@ class TrackData:
 
     def get_track(self, idx: tuple[str, int, int] | tuple[str, int, int, str] | str, shift: int = 0):
         """"""
-        # Parse string index
-        if isinstance(idx, str):
-            chrom, start, end, strand = _split_region(idx)
-        # Parse tuple index
-        else:
-            chrom = idx[0]
-            start = idx[1]
-            end = idx[2]
-            if len(idx) >= 4:
-                strand = idx[3]
-            else:
-                strand = "+"
+        # Parse index
+        chrom, start, end, strand = parse_region(idx)
 
         if self.crop[0] > 0 or self.crop[1] > 0:
             start = start + self.crop[0]

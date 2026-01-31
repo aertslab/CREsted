@@ -11,8 +11,7 @@ else:
     FrameworkDatasetClass = object
 
 from crested._genome import Genome
-
-from ._utils import _check_region_strandedness, _split_region
+from crested.utils import parse_region
 
 
 class SequenceLoader:
@@ -125,7 +124,7 @@ class SequenceLoader:
         -------
         The DNA sequence, as a string.
         """
-        chrom, start, end, strand = _split_region(region)
+        chrom, start, end, strand = parse_region(region)
         chrom_size = self.chromsizes[chrom] if self.chromsizes is not None else None
 
         # Check if within genomic boundaries, clip otherwise

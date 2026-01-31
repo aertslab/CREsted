@@ -11,16 +11,9 @@ from loguru import logger
 from scipy.sparse import spmatrix
 
 from crested._genome import Genome
-from crested.utils import one_hot_encode_sequence
+from crested.utils import flip_region_strand, one_hot_encode_sequence, parse_region
 
 from ._sequenceloader import SequenceLoader
-from ._utils import _split_region
-
-
-def _flip_region_strand(region: str) -> str:
-    """Reverse the strand of a region."""
-    strand_reverser = {"+": "-", "-": "+"}
-    return region[:-1] + strand_reverser[region[-1]]
 
 
 def _check_strandedness(region: str) -> bool:
@@ -45,7 +38,7 @@ def _deterministic_shift_region(
     This is a legacy function, it's recommended to use stochastic shifting instead.
     """
     new_regions = []
-    chrom, start, end, strand = _split_region(region)
+    chrom, start, end, strand = parse_region(region)
     for i in range(-n_shifts, n_shifts + 1):
         new_start = start + i * stride
         new_end = end + i * stride
@@ -105,16 +98,16 @@ class IndexManager:
                     augmented_indices.append(shifted_region)
                     augmented_indices_map[shifted_region] = region
                     if self.always_reverse_complement:
-                        augmented_indices.append(_flip_region_strand(shifted_region))
-                        augmented_indices_map[_flip_region_strand(shifted_region)] = (
+                        augmented_indices.append(flip_region_strand(shifted_region))
+                        augmented_indices_map[flip_region_strand(shifted_region)] = (
                             region
                         )
             else:
                 augmented_indices.append(stranded_region)
                 augmented_indices_map[stranded_region] = region
                 if self.always_reverse_complement:
-                    augmented_indices.append(_flip_region_strand(stranded_region))
-                    augmented_indices_map[_flip_region_strand(stranded_region)] = region
+                    augmented_indices.append(flip_region_strand(stranded_region))
+                    augmented_indices_map[flip_region_strand(stranded_region)] = region
         return augmented_indices, augmented_indices_map
 
 
