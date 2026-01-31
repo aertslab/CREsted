@@ -61,24 +61,12 @@ class SequenceLoader:
             self._load_sequences_into_memory(self.regions)
         # TODO: maybe add check for sequence length
 
-    def _load_sequences_into_memory(self, regions: list[str]):
+    def _load_sequences_into_memory(self, regions: list[tuple[str, int, int]] | list[tuple[str, int, int, str]] | list[str]):
         """Load all sequences into memory (dict)."""
         logger.info("Loading sequences into memory...")
-        # Check region formatting
-        stranded = _check_region_strandedness(regions[0])
-
         for region in tqdm(regions):
-            # Make region stranded if not
-            if not stranded:
-                strand = "+"
-                region = f"{region}:{strand}"
-                if region[-4] == ":":
-                    raise ValueError(
-                        f"You are double-adding strand ids to your region {region}. Check if all regions are stranded or unstranded."
-                    )
-
             # Parse region
-            chrom, start, end, strand = _split_region(region)
+            chrom, start, end, strand = parse_region(region)
 
             # Add region to self.sequences
             extended_sequence = self._get_extended_sequence(
@@ -116,7 +104,7 @@ class SequenceLoader:
         return sequence.translate(self.complement)[::-1]
 
     def get_sequence(
-        self, region: str, stranded: bool | None = None, shift: int = 0
+        self, region: tuple[str, int, int, str] | str, stranded: bool | None = None, shift: int = 0
     ) -> str:
         """
         Get sequence for a region, strand, and shift from memory or fasta.
@@ -126,7 +114,7 @@ class SequenceLoader:
         Parameters
         ----------
         region
-            Region to get the sequence for. Either (chr:start-end) or (chr:start-end:strand).
+            Region to get the sequence for. Either (chr:start-end) or (chr:start-end:strand), as a tuple or a str.
         stranded
             Whether the input data is stranded. Default (None) infers from sequence (at a computational cost).
             If not stranded, positive strand is assumed.
@@ -137,11 +125,6 @@ class SequenceLoader:
         -------
         The DNA sequence, as a string.
         """
-        if stranded is None:
-            stranded = _check_region_strandedness(region)
-        if not stranded:
-            region = f"{region}:+"
-        # Parse region
         chrom, start, end, strand = _split_region(region)
         chrom_size = self.chromsizes[chrom] if self.chromsizes is not None else None
 
@@ -174,6 +157,4 @@ class SequenceLoader:
                 sub_sequence = sub_sequence.rjust(end - start, "N")
 
         return sub_sequence
-
-
 
