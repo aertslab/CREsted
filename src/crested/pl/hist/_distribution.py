@@ -124,7 +124,16 @@ def distribution(
         plot_kws['stat'] = 'frequency'
 
     # Create plots
-    fig, axs = create_plot(ax=ax, kwargs_dict=kwargs, default_width=8*n_cols, default_height=6*n_rows, nrows=n_rows, ncols=n_cols, default_sharex=True, default_sharey=True)
+    fig, axs = create_plot(
+        ax=ax,
+        kwargs_dict=kwargs,
+        default_width=8*n_cols,
+        default_height=6*n_rows,
+        nrows=n_rows,
+        ncols=n_cols,
+        default_sharex=True,
+        default_sharey=True
+    )
     if n_classes == 1:
         axs = [axs]
     else:
