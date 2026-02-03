@@ -187,8 +187,10 @@ def adata_preds():
         test_size=0.2,
         random_state=42,
     )
-    adata.layers['model_1'] = np.abs(np.random.randn(adata.n_obs, adata.n_vars))
-    adata.layers['model_2'] = np.abs(np.random.randn(adata.n_obs, adata.n_vars))
+    rng1 = np.random.default_rng(43)
+    rng2 = np.random.default_rng(44)
+    adata.layers['model_1'] = np.abs(rng1.standard_normal((adata.n_obs, adata.n_vars)))
+    adata.layers['model_2'] = np.abs(rng2.standard_normal((adata.n_obs, adata.n_vars)))
     return adata
 
 

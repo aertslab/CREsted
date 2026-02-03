@@ -16,9 +16,8 @@ def create_anndata_with_regions(
     random_state: int = None,
 ) -> ad.AnnData:
     """Create an AnnData object with given regions."""
-    if random_state is not None:
-        np.random.seed(random_state)
-    data = np.abs(np.random.randn(n_classes, len(regions)))
+    rng = np.random.default_rng(random_state)
+    data = np.abs(rng.standard_normal((n_classes, len(regions))))
     var = pd.DataFrame(index=regions)
     var[chr_var_key] = [region.split(":")[0] for region in regions]
     var["start"] = [int(region.split(":")[1].split("-")[0]) for region in regions]
