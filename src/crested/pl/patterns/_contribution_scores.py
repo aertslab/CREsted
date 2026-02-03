@@ -77,7 +77,7 @@ def contribution_scores(
     width
         Width of the newly created figure if `ax=None`. Default is n_bases//10.
     height
-        Height of the newly created figure if `ax=None`. Default is 2.25*n_seqs*n_classes.
+        Height of the newly created figure if `ax=None`. Default is 0.5+2.25*n_seqs*n_classes.
     sharex
         Whether to share the x axes of the created plots. Default is False.
     kwargs
@@ -185,7 +185,7 @@ def contribution_scores(
         ax=ax,
         kwargs_dict=kwargs,
         default_width=seq_length//10,
-        default_height=2.25*total_plots,
+        default_height=0.5+2.25*total_plots,
         nrows=total_plots,
         default_sharex=False,
         default_sharey=False
