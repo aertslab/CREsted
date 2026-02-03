@@ -94,7 +94,7 @@ def normalize_peaks(
 
     # Add the weights to the AnnData object
     logger.info("Added normalization weights to adata.obsm['weights']...")
-    adata.obsm["weights"] = weights.squeeze()
+    adata.obsm["weights"] = weights
 
     normalized_matrix = target_matrix * weights
 
