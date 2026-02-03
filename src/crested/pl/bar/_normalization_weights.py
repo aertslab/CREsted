@@ -47,7 +47,7 @@ def normalization_weights(adata: AnnData, **kwargs) -> plt.Figure:
 
     _check_input_params()
 
-    weights = adata.obsm["weights"]
+    weights = adata.obsm["weights"].squeeze()
     classes = list(adata.obs_names)
 
     fig, ax = plt.subplots()
