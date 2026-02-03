@@ -8,13 +8,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
 
-from crested.pl._utils import create_plot, render_plot
+from crested.pl._utils import _parse_coordinates_input, create_plot, render_plot
 from crested.utils._logging import log_and_raise
 
 
 def locus_scoring(
     scores: np.ndarray,
-    range: tuple[int, int],
+    coordinates: str | tuple = None,
     gene_start: int | None = None,
     gene_end: int | None = None,
     bigwig_values: np.ndarray | None = None,
@@ -35,8 +35,10 @@ def locus_scoring(
     ----------
     scores
         An array of prediction scores for each window.
-    range
-        The genomic range of the input. Can be (start, end) or (chr, start, end).
+    coordinates
+        A string or tuple of coordinates that are being plotted between, to set the x coordinates.
+        Can be a parsable chr:start-region(:strand) string, or a tuple with ((chr), start, end, (strand)), with chr and strand being optional.
+        Will ignore the chromosome and strand, if provided.
     gene_start
         The start position of the gene locus to highlight on the plot.
     gene_end
@@ -83,7 +85,7 @@ def locus_scoring(
     --------
     >>> crested.pl.locus.locus_scoring(
     ...     scores,
-    ...     range=(min_loc, max_loc),
+    ...     coordinates=(min_loc, max_loc),
     ...     gene_start=start,
     ...     gene_end=end,
     ...     bigwig_values=bw_values,
@@ -95,6 +97,11 @@ def locus_scoring(
     .. image:: ../../../../docs/_static/img/examples/locus_locus_scoring.png
     """
     # Handle deprecated arguments
+    if 'range' in kwargs:
+        logger.warning("Argument `range` is renamed; please use `coordinates` instead.")
+        coordinates = kwargs.pop('range')
+    elif 'range' not in kwargs and coordinates is None:
+        raise TypeError("locus_scoring() missing 1 required positional argument: 'coordinates'. This was previously called 'range'.")
     if 'figsize' in kwargs:
         logger.warning("Argument `figsize` is deprecated; please use width and height instead.")
         figsize = kwargs.pop('figsize')
@@ -123,15 +130,13 @@ def locus_scoring(
     def _check_input_params():
         if ax is not None and bigwig_values is not None:
             raise ValueError("ax can only be set if not adding a bigWig plot. Please don't supply `ax`, or only plot the locus scoring by disabling `bigwig_values`.")
-        if not 2 <= len(range) <= 3:
-            raise ValueError(f"Range must be (chr, start, end) or (start, end), so it cannot have length {len(range)}.")
         # Validate highlight_positions to ensure they fall within the specified range.
         if highlight_positions:
             for pos in highlight_positions:
                 start, end = pos
-                if start < range[-2] or end > range[-1]:
+                if pos[0] < start or pos[1] > end:
                     raise ValueError(
-                        f"Highlighted position ({start}, {end}) falls outside the plotting range {range}."
+                        f"Highlighted position ({pos}) falls outside the plotting coordinates {(start, end)}."
                     )
         if bigwig_values is not None and bigwig_midpoints is None:
             raise ValueError("If providing bigwig_values, must also provide bigwig_midpoints.")
@@ -139,6 +144,7 @@ def locus_scoring(
             raise ValueError("If providing bigwig_midpoints, must also provide bigwig_values.")
 
     _check_input_params()
+    chrom, start, end, _ = _parse_coordinates_input(coordinates)
     bigwig_included = bigwig_values is not None and bigwig_midpoints is not None
 
     # Set defaults
@@ -146,8 +152,6 @@ def locus_scoring(
         kwargs['title'] = "Predictions across genomic regions"
         if bigwig_included: # Add empty title for bottom plot
             kwargs['title'] = [kwargs['title'], "bigWig coverage across genomic regions"]
-    if 'xlabel' not in kwargs:
-        kwargs['xlabel'] = 'Genomic position'
     if 'ylabel' not in kwargs:
         kwargs['ylabel'] = 'Prediction score'
         if bigwig_included: # Set separate labels for both
@@ -202,7 +206,7 @@ def locus_scoring(
 
     # Top plot: Model predictions
     axs[0].plot(
-        np.arange(range[-2], range[-1]),
+        np.arange(start, end),
         scores,
         **locus_plot_kws
     )
