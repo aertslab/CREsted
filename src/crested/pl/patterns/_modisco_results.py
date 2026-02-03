@@ -847,14 +847,18 @@ def selected_instances(
         idcs = [idcs]
     if len(idcs) > 1 and ax is not None:
         raise ValueError("Can only provide a pre-existing axis if plotting a single index at idcs.")
-    # Set defaults
-    plot_width = kwargs.pop('width') if 'width' in kwargs else 8
-    plot_height = kwargs.pop('height') if 'height' in kwargs else 2*len(idcs)
-    sharex = kwargs.pop('sharex') if 'sharex' in kwargs else False
-    sharey = kwargs.pop('sharey') if 'sharey' in kwargs else False
 
     # Create figure
-    fig, axs = plt.subplots(ax=ax, nrows=len(idcs), ncols=1, figsize=(plot_width, plot_height), sharex=sharex, sharey=sharey)
+    fig, axs = create_plot(
+        ax=ax,
+        kwargs_dict=kwargs,
+        nrows=len(idcs),
+        ncols=1,
+        default_width=8,
+        default_height=2*len(idcs),
+        default_sharex=False,
+        default_sharey=False,
+    )
     if len(idcs) == 1:
         axs = [axs]
     if 'title' not in kwargs:
