@@ -25,7 +25,7 @@ def render_plot(
     xlim: tuple[float, float]| list[tuple(float, float)] | None = None,
     ylim: tuple[float, float]| list[tuple(float, float)] | None = None,
     grid: bool | Literal['x', 'y', 'both'] = False,
-    tight_layout: bool = True,
+    tight_layout: bool = False,
     tight_rect: tuple | None = None,
     title_fontsize: int = 16,
     suptitle_fontsize: int = 18,
@@ -82,9 +82,9 @@ def render_plot(
     grid
         Add a major tick grid. True/'both' for a full grid, 'x' or 'y' for a specific axis, or False to disable.
     tight_layout
-        Whether to run `fig.tight_layout()` after setting all plot properties.
+        Whether to run `fig.tight_layout()` after setting all plot properties. Default is False; constrained layout through `plt.subplots(layout='constrained')` is preferred.
     tight_rect
-        Normalized coordinates in which subplots will fit, for `fig.tight_layout(tight_rect=tight_rect)`
+        Normalized coordinates in which subplots will fit, for `fig.tight_layout(tight_rect=tight_rect)`. Only does something if `tight_layout` is True.
     title_fontsize
         Font size for the title.
     xlabel_fontsize
@@ -262,6 +262,9 @@ def create_plot(
     default_sharey: bool = False,
     nrows: int = 1,
     ncols: int = 1,
+    default_layout: Literal['constrained', 'compressed', 'tight', None] = 'constrained',
+    default_h_pad: float | None = 0.2,
+    default_w_pad: float | None = 0.2,
     **kwargs
 ) -> (plt.Figure, plt.Axes) | (plt.Figure, list[plt.Axes]):
     """
@@ -292,6 +295,12 @@ def create_plot(
         The number of rows for the subplot grid.
     ncols
         The number of columns for the subplot grid.
+    default_layout
+        The layout engine to use, if not in `kwargs_dict`. See :func:`~matplotlib.pyplot.figure` for more information.
+    default_h_pad
+        Minimum height padding to use between subplots, in inches, if not in `kwargs_dict`. See :meth:`~matplotlib.layout_engine.LayoutEngine.set()` for more information.
+    default_w_pad
+        Minimum width padding to use between subplots, in inches, if not in `kwargs_dict`. See :meth:`~matplotlib.layout_engine.LayoutEngine.set()` for more information.
     kwargs
         Extra kwargs passed to `plt.subplots`.
     """
@@ -300,9 +309,14 @@ def create_plot(
         height = kwargs_dict.pop('height') if 'height' in kwargs_dict else default_height
         sharex = kwargs_dict.pop('sharex') if 'sharex' in kwargs_dict else default_sharex
         sharey = kwargs_dict.pop('sharey') if 'sharey' in kwargs_dict else default_sharey
-        fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(width, height), sharex=sharex, sharey=sharey, **kwargs)
+        layout = kwargs_dict.pop('layout') if 'layout' in kwargs_dict else default_layout
+        h_pad = kwargs_dict.pop('h_pad') if 'h_pad' in kwargs_dict else default_h_pad
+        w_pad = kwargs_dict.pop('w_pad') if 'w_pad' in kwargs_dict else default_w_pad
+        fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(width, height), sharex=sharex, sharey=sharey, layout=layout, **kwargs)
+        if layout is not None:
+            fig.get_layout_engine().set(h_pad=h_pad, w_pad=w_pad)
     elif isinstance(ax, plt.Axes):
-        for kwarg in ['width', 'height', 'sharex', 'sharey']:
+        for kwarg in ['width', 'height', 'sharex', 'sharey', 'layout', 'h_pad', 'w_pad']:
             if kwarg in kwargs_dict:
                 logger.warning(f"Using keyword argument {kwarg} does not do anything when passing a pre-existing axis.")
         fig = ax.get_figure()
