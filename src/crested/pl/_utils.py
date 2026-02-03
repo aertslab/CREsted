@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
 
+from crested.utils import parse_region
 from crested.utils._logging import log_and_raise
 
 
@@ -308,3 +309,37 @@ def create_plot(
     else:
         raise ValueError(f"ax must be a single matplotlib ax or None, not {type(ax)}.")
     return fig, ax
+
+def _parse_coordinates_input(
+    coordinates: str | tuple[int, int] | tuple[str, int, int] | tuple[int, int, str] | tuple[str, int, int, str]
+    ) -> tuple[str, int, int, str]:
+    """Parse possible coordinates inputs.
+
+    Parameters
+    ----------
+    coordinates
+        A string or tuple of coordinates. Input possibilities:
+        String: chr:start-end or chr:start-end:strand.
+        Tuple: a (start, end), (chr, start, end), (start, end, string), (chrom, start, end, string).
+        Distinguishes between the 3-len tuples by checking if last is a string, indicating a strand marker.
+
+    Returns
+    -------
+    A (chrom, start, end, strand) tuple, with chrom set to None and strand set to + if not provided.
+    """
+    if isinstance(coordinates, str):
+        chrom, start, end, strand = parse_region(coordinates)
+    elif len(coordinates) == 2:
+        start, end = coordinates
+        chrom = None
+        strand = "+"
+    elif len(coordinates) == 3:
+        if isinstance(coordinates[-1], str):
+            start, end, strand = coordinates
+            chrom = None
+        else:
+            chrom, start, end = coordinates
+            strand = "+"
+    elif len(coordinates) == 4:
+        chrom, start, end, strand = coordinates
+    return chrom, start, end, strand

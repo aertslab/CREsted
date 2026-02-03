@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 
 import logomaker
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from loguru import logger
 from PIL import Image
 
 
@@ -40,12 +42,15 @@ def _process_mutagenesis_letters(seq: np.ndarray, scores: np.ndarray):
 
     Returns
     -------
-    A [n_classes, n_bp] (or [n_bp] if no class dimension) array, the average drop in score over the three non-reference nucleotides.
+    An array of the same shape as `scores`, but with the average drop in score over the three non-reference nucleotides at the reference and 0 elsewhere.
     """
     # Multiply reference values (seq == 1) with 0
     scores = scores * np.logical_not(seq)
-    # Take the sum of the other nucleotides, negate
-    return -scores.sum(axis=-1) / 3
+    # Take the mean of the other nucleotides, negate
+    scores = -scores.sum(axis=-1) / 3
+    # Spread back out over nucleotide axis
+    scores = scores[..., None] * seq[None, ...] # TODO: check whether this works
+    return scores
 
 def _process_gradients(seq: np.ndarray, scores: np.ndarray):
     """Process a gradient scoring matrix for plotting by selecting the values for the sequence in `seq`.
@@ -59,13 +64,33 @@ def _process_gradients(seq: np.ndarray, scores: np.ndarray):
 
     Returns
     -------
-    A [n_classes, n_bp] (or [n_bp] if no class dimension) array, the score of the nucleotide at that location.
+    An array the same shape as `scores`, with non-reference basepairs zero'd out.
     """
-    return np.sum(scores*seq, axis=-1)
+    return scores*seq
+
+
+def _make_logomaker_df(
+    scores: np.ndarray,
+    start: int | None = None,
+    end: int | None = None,
+    alphabet: Sequence = ('A', 'C', 'G', 'T')
+    ):
+    """"""
+    if start is None:
+        start = 0
+    if end is None:
+        end = start + scores.shape[-2]
+    step = -1 if start > end else 1
+    x_values = np.arange(start, end, step)
+    # Goal: a [n_bp, n_nuc] dataframe, with integer positions as row indices and DNA letters as columns.
+    return pd.DataFrame(scores, index=x_values, columns=alphabet)
+
 
 def _plot_attribution_map(
     saliency_df: pd.DataFrame | np.ndarray,
     ax: plt.Axis | None = None,
+    start: int | None = None,
+    end: int | None = None,
     return_ax: bool = True,
     spines: bool = True,
     figsize: tuple[int, int] = (20, 1),
@@ -79,9 +104,12 @@ def _plot_attribution_map(
     ----------
     saliency_df
         A DataFrame or array with attribution scores where columns are nucleotide bases (A, C, G, T).
-        Can be constructed with `logomaker.saliency_to_matrix()`.
     ax
         Axes object to plot on. Default is None which creates a new Axes.
+    start
+        The start of the sequence x-axis. If not supplied, set to 0. Ignored if `saliency_df` is already a dataframe.
+    end
+        The end of the sequence x-axis. If not supplied, set to start + the length of the sequence. Ignored if `saliency_df` is already a dataframe.
     return_ax
         Whether to return the Axes object. Default is True.
     spines
@@ -99,13 +127,21 @@ def _plot_attribution_map(
     """
     # Convert input to DataFrame if needed
     if not isinstance(saliency_df, pd.DataFrame):
-        saliency_df = pd.DataFrame(saliency_df, columns=["A", "C", "G", "T"])
+        saliency_df = _make_logomaker_df(saliency_df, start=start, end=end)
+    else:
+        if start is not None or end is not None:
+            logger.warning("Setting `start` and/or `end` with a pre-made DataFrame. Using DataFrame info and ignoring `start`/`end`...")
+
+    # Check matrix validity
+    logomaker.validate_matrix(saliency_df)
 
     # Standard plotting (no rotation)
     if not rotate:
         if ax is None:
             _, ax = plt.subplots(figsize=figsize)
         logomaker.Logo(saliency_df, ax=ax, **kwargs)
+        if saliency_df.index[0] > saliency_df.index[-1]:
+            ax.xaxis.set_inverted(True)
         if not spines:
             ax.spines["right"].set_visible(False)
             ax.spines["top"].set_visible(False)
@@ -149,6 +185,8 @@ def _plot_attribution_map(
 def _plot_mutagenesis_map(
         scores: np.ndarray,
         ax: plt.Axes,
+        start: int | None = None,
+        end: int | None = None,
         colors: dict | None = None,
         s: int = 10,
         spines: bool = False,
@@ -163,6 +201,10 @@ def _plot_mutagenesis_map(
         A [seq, nuc] matrix, with the reference nucleotide score masked as `np.nan`.
     ax
         Axes object to plot on.
+    start
+        The start of the sequence x-axis. If not supplied, set to 0.
+    end
+        The end of the sequence x-axis. If not supplied, set to start + the length of the sequence.
     colors
         A dictionary of nucleotide labels and colors, matching the order of the score `nuc` dimension.
         Default is None, which uses `{"A": "green", "C": "blue", "G": "orange", "T": "red"}`.
@@ -173,19 +215,26 @@ def _plot_mutagenesis_map(
     figsize
         Figure size for temporary rendering. Default is (20, 1).
     kwargs
-        Arguments passed to :meth:`~matplotlib.axes.Axes.bar`.
+        Arguments passed to :meth:`~matplotlib.axes.Axes.scatter`.
     """
     # Set default colors if not supplied
     if colors is None:
         colors = {"A": "green", "C": "blue", "G": "orange", "T": "red"}
 
-    # Get positions of every point
-    x_positions = np.arange(scores.shape[0])
+    # Create x axis values
+    if start is None:
+        start = 0
+    if end is None:
+        end = start + scores.shape[-2]
+    step = -1 if start > end else 1
+    x_positions = np.arange(start, end, step)
 
     # Plot all entries of each nucleotide - assumes reference/wt nucleotides are already set to None
     for i, (nuc, color) in enumerate(colors.items()):
         ax.scatter(x_positions, scores[:, i], color=color, label=nuc, s=s, **kwargs)
     ax.legend(title="Nucleotide", loc="upper right")
+    if start > end:
+        ax.xaxis.set_inverted(True)
 
     # Add horizontal line at y=0
     ax.axhline(0, color="gray", linewidth=1, linestyle="--")
@@ -198,10 +247,10 @@ def _plot_mutagenesis_map(
 def grad_times_input_to_df(x, grad, alphabet="ACGT"):
     """Generate pandas dataframe for saliency plot based on grad x inputs.
 
-    Deprecated, please use `_process_gradients`, `~crested.utils.hot_encoding_to_sequence` and `logomaker.saliency_to_matrix` instead.
+    Deprecated, please use `_process_gradients` instead.
     """
     warnings.warn(
-        "'grad_times_input_to_df' is deprecated and will be removed in a future release. Please use `_process_gradients` and `logomaker.saliency_to_matrix` instead.",
+        "'grad_times_input_to_df' is deprecated and will be removed in a future release. Please use `_process_gradients` instead.",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -255,10 +304,10 @@ def grad_times_input_to_df_mutagenesis(x, grad, alphabet="ACGT"):
 def grad_times_input_to_df_mutagenesis_letters(x, grad, alphabet="ACGT"):
     """Generate pandas dataframe for mutagenesis plot based on grad x inputs.
 
-    Deprecated, please use `_process_mutagenesis_letters`, `~crested.utils.hot_encoding_to_sequence` and `logomaker.saliency_to_matrix` instead.
+    Deprecated, please use `_process_mutagenesis_letters` instead.
     """
     warnings.warn(
-        "'grad_times_input_to_df_mutagenesis_letters' is deprecated and will be removed in a future release. Please use `_process_mutagenesis_letters` and `logomaker.saliency_to_matrix` instead.",
+        "'grad_times_input_to_df_mutagenesis_letters' is deprecated and will be removed in a future release. Please use `_process_mutagenesis_letters` instead.",
         DeprecationWarning,
         stacklevel=2,
     )

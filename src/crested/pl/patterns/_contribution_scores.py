@@ -5,12 +5,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Literal
 
-import logomaker
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.ticker import MultipleLocator
 
-from crested.pl._utils import create_plot, render_plot
-from crested.utils import hot_encoding_to_sequence
+from crested.pl._utils import _parse_coordinates_input, create_plot, render_plot
 from crested.utils._logging import log_and_raise
 
 from ._utils import (
@@ -28,6 +27,7 @@ def contribution_scores(
     sequence_labels: str | list[str] | None = None,
     class_labels: str | list[str] | None = None,
     zoom_n_bases: int | None = None,
+    coordinates: str | tuple | list[str] | list[tuple] | None = None,
     highlight_positions: tuple[int, int] | list[tuple[int, int]] | None = None,
     method: Literal['mutagenesis', 'mutagenesis_letters'] | None = None,
     plot_kws: dict | None = None,
@@ -53,8 +53,13 @@ def contribution_scores(
         Label or list of class labels to add to the plot. Should have the same length as the number of classes.
     zoom_n_bases
         Number of center bases to zoom in on. Default is None (no zooming).
+    coordinates
+        Optional, a (list of) string or tuple of coordinates that are being plotted between per sequence, to set the x coordinates.
+        Every entry can be a parsable chr:start-region(:strand) string, or a tuple with ((chr), start, end, (strand)), with chr and strand being optional.
+        If strand is provided and '-', runs the x coordinates from end to start, as expected with a negative strand region.
     highlight_positions
         List of tuples with start and end positions to highlight. Default is None.
+        Positions are within the full sequence length before zooming, or optionally genomic values if using `coordinates`.
     method
         Default is None (for gradient-based contributions). If plotting mutagenesis values, set to `'mutagenesis_letters'`
         (to visualize average effects as letters) or `mutagenesis` (to visualize in a legacy way).
@@ -78,7 +83,7 @@ def contribution_scores(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `contribution_scores`: `xlabel='Position'` (if n_plots=1)/`supxlabel='Position'` (if n_plots>1), `ylabel='Scores'`.
+        Custom defaults for `contribution_scores`: `ylabel='Scores'`.
 
     See Also
     --------
@@ -87,12 +92,16 @@ def contribution_scores(
     Examples
     --------
     >>> import numpy as np
-    >>> scores = np.random.random_sample((1, 1, 100, 4))
-    >>> seqs_one_hot = np.random.randint(0, 2, (1, 100, 4))
-    >>> class_labels = "celltype_A"
-    >>> sequence_labels = "chr1:100-200"
+    >>> scores = np.random.exponential(10, (1, 1, 200, 4))
+    >>> seqs_one_hot = np.eye(4)[None, np.random.randint(4, size=200)]
+    >>> class_of_interest = "celltype_A"
+    >>> region_of_interest = "chr1:100-300"
     >>> crested.pl.patterns.contribution_scores(
-    ...     scores, seqs_one_hot, sequence_labels, class_labels
+    ...     scores=scores,
+    ...     seqs_one_hot=seqs_one_hot,
+    ...     sequence_labels=region_of_interest,
+    ...     class_labels=class_of_interest,
+    ...     coordinates=region_of_interest
     ... )
 
     .. image:: ../../../../docs/_static/img/examples/patterns_contribution_scores.png
@@ -122,6 +131,8 @@ def contribution_scores(
         sequence_labels = [sequence_labels]
     if isinstance(class_labels, str):
         class_labels = [class_labels]
+    if isinstance(coordinates, tuple) or isinstance(coordinates, str):
+        coordinates = [coordinates]
     if highlight_positions is not None:
         if not isinstance(highlight_positions[0], Sequence):
             highlight_positions = [highlight_positions]
@@ -152,10 +163,6 @@ def contribution_scores(
     total_plots = total_sequences * total_classes
 
     # Set defaults
-    if "xlabel" not in kwargs and total_plots == 1:
-        kwargs["xlabel"] = "Position"
-    if "supxlabel" not in kwargs and total_plots > 1:
-        kwargs["supxlabel"] = "Position"
     if "ylabel" not in kwargs:
         kwargs["ylabel"] = "Scores"
     plot_kws = {} if plot_kws is None else plot_kws.copy()
@@ -172,6 +179,27 @@ def contribution_scores(
 
     # Handle sharey with create_plot now that we have a third option (which handles it elsewhere)
     kwargs['sharey'] = False if sharey == 'sequence' else sharey
+
+    # Parse coordinates if supplied
+    if coordinates is not None:
+        parsed_coordinates = []
+        xlabel_list = []
+        for coord_value in coordinates:
+            chrom, start, end, strand = _parse_coordinates_input(coord_value)
+            if zoom_n_bases is not None:
+                start = start + start_idx
+                end = end - start_idx
+            left, right = (end, start) if strand == "-" else (start, end)
+            parsed_coordinates.append((left, right))
+
+            default_xlabel = f"{start:,.0f}-{end:,.0f} ({np.abs(end - start)} bp)"
+            if chrom is not None:
+                default_xlabel = f"{chrom}:{default_xlabel}"
+            for _ in range(total_classes-1):
+                xlabel_list.append(None) # Add empty labels to all but non-final plot for sequence
+            xlabel_list.append(default_xlabel)
+        if 'xlabel' not in kwargs:
+            kwargs['xlabel'] = xlabel_list
 
     fig, axs = create_plot(
         ax=ax,
@@ -190,7 +218,6 @@ def contribution_scores(
     for seq_i in range(total_sequences):
         # Gather this sequence's seq and score values
         seq_x = seqs_one_hot[seq_i, ...]
-        seq_x_str = hot_encoding_to_sequence(seq_x)
         seq_scores_raw = scores[seq_i, ...]
 
         # Process values depending on method
@@ -214,11 +241,14 @@ def contribution_scores(
             plot_idx += 1
 
             # Plot values for this sequence x class combo
-            if method == "mutagenesis":
-                _plot_mutagenesis_map(seq_scores[class_i], ax=ax, **plot_kws)
+            if coordinates is not None:
+                left, right = parsed_coordinates[seq_i]
             else:
-                logomaker_df = logomaker.saliency_to_matrix(seq=seq_x_str, values=seq_scores[class_i])
-                _plot_attribution_map(logomaker_df, ax=ax, return_ax=False, **plot_kws)
+                left, right = 0, seq_length
+            if method == "mutagenesis":
+                _plot_mutagenesis_map(seq_scores[class_i], ax=ax, start=left, end=right, **plot_kws)
+            else:
+                _plot_attribution_map(seq_scores[class_i], ax=ax, start=left, end=right, return_ax=False, **plot_kws)
                 ax.autoscale(enable=True, axis='y') # undo fixing of axes within logomaker
 
             # Handle layout
@@ -233,14 +263,28 @@ def contribution_scores(
 
             # Draw highlights
             if highlight_positions:
-                for start, end in highlight_positions:
+                for hl_start, hl_end in highlight_positions:
+                    # Move highlights w.r.t zoom
+                    if coordinates is None:
+                        hl_start = hl_start - start_idx
+                        hl_end = hl_end - start_idx
+                    elif hl_end < (start_idx+zoom_n_bases): # Reverse compatibility: old idxes (0-indexed) with coordinates
+                        # Handle reversed axis if negative strand, adding 1 to compensate for flipping start and end (which messes up +/-0.5 later)
+                        if parsed_coordinates[seq_i][0] > parsed_coordinates[seq_i][1]:
+                            hl_start =  parsed_coordinates[seq_i][0] - (hl_start - start_idx) + 1
+                            hl_end = parsed_coordinates[seq_i][0] - (hl_end - start_idx) - 1
+                        else:
+                            hl_start = parsed_coordinates[seq_i][0] + (hl_start - start_idx)
+                            hl_end = parsed_coordinates[seq_i][0] + (hl_end - start_idx)
                     ax.axvspan(
-                        xmin=start-start_idx-0.5,
-                        xmax=end-start_idx-0.5,
+                        xmin=hl_start-0.5,
+                        xmax=hl_end+0.5,
                         **highlight_kws
                     )
 
-            ax.set_xticks(np.arange(0, zoom_n_bases, 50))
+            # Set xtick behaviour
+            ax.xaxis.set_major_locator(MultipleLocator(50))
+            ax.xaxis.set_major_formatter("{x:,.0f}")
 
         # Set the title for the sequence (subplot)
         if sequence_labels:

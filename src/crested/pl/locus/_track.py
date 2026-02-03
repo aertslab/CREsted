@@ -6,8 +6,9 @@ from collections.abc import Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
+from loguru import logger
 
-from crested.pl._utils import create_plot, render_plot
+from crested.pl._utils import _parse_coordinates_input, create_plot, render_plot
 from crested.utils._logging import log_and_raise
 
 
@@ -15,10 +16,11 @@ from crested.utils._logging import log_and_raise
 def track(
     scores: np.ndarray,
     class_idxs: int | list[int] | None = None,
-    range: tuple[str, int, int] | tuple[int, int] | None = None,
+    coordinates: str | tuple | None = None,
     class_names: Sequence[str] | str |  None = None,
     plot_kws: dict | None = None,
     ax: plt.Axes | None = None,
+    range: str = 'deprecated',
     **kwargs,
 ) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
     """Plot a predicted locus track, like a Borzoi prediction or BigWig track.
@@ -30,8 +32,10 @@ def track(
         Can be shapes (length) or (length, classes), and will automatically squeeze out one-wide dimensions.
     class_idxs
         Index or list of indices denoting classes to plot. If None, plots all classes.
-    range
-        Optional, a tuple of coordinates that are being plotted between, as (chr, start, end) or (start, end), to set the x coordinates.
+    coordinates
+        Optional, a string or tuple of coordinates that are being plotted between, to set the x coordinates.
+        Can be a parsable chr:start-region(:strand) string, or a tuple with ((chr), start, end, (strand)), with chr and strand being optional.
+        If strand is provided and '-', runs the x coordinates from end to start.
     class_names
         Optional, list of all possible class names to extract label names from.
         If class_idxs is supplied, picks from there. If not, will use these in order.
@@ -51,7 +55,7 @@ def track(
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
         Custom defaults for `track`:
-        `xlabel=f"{chr}:{start:,.0f}-{end:,.0f} ({end - start} bp)"`, (if `range` is set),
+        `xlabel=f"{chr}:{start:,.0f}-{end:,.0f} ({end - start} bp)"`, (if `coordinates` is set),
         `title=class_names[class_idxs]` (if `class_names` is set)
 
     See Also
@@ -67,7 +71,7 @@ def track(
     ...     borzoi_pred,
     ...     class_idxs=class_idxs,
     ...     class_names=output_names_borzoi,
-    ...     range=(chrom, start, end),
+    ...     coordinates=(chrom, start, end),
     ...     suptitle="Mouse Borzoi predictions around the FIRE enhancer",
     ... )
 
@@ -76,13 +80,16 @@ def track(
     >>> bw_values, midpoints = crested.utils.read_bigwig_region(bw_path, (chrom, start, end))
     >>> crested.pl.locus.track(
     ...     bw_values,
-    ...     range=(chrom, start, end),
+    ...     coordinates=(chrom, start, end),
     ...     title="Mouse Borzoi microglia values around the FIRE enhancer",
     ... )
 
     .. image:: ../../../../docs/_static/img/examples/locus_track_bw.png
 
     """
+    if range != 'deprecated':
+        coordinates = range
+        logger.warning("Argument `range` is renamed; please use `coordinates` instead.")
     # Check inputs
     @log_and_raise(ValueError)
     def _check_input_params():
@@ -94,9 +101,6 @@ def track(
                     raise ValueError(f"class_idxs {class_idxs} is beyond your input's number of classes ({n_classes}).")
                 if class_names is not None and cidx >= len(class_names):
                     raise ValueError(f"class_idxs {cidx} is beyond the size of class_names ({len(class_names)}).")
-        if range is not None:
-            if not 2 <= len(range) <= 3:
-                raise ValueError(f"Range must be (chr, start, end) or (start, end), so it cannot have length {len(range)}.")
         if ax is not None and n_classes > 1:
             raise ValueError("ax can only be set if plotting one class. Please pick one class in `class_idxs` or pass unidimensional data.")
 
@@ -119,25 +123,25 @@ def track(
 
     _check_input_params()
 
-    # Handle range
-    if range is not None:
-        start, end = range[-2], range[-1]
-        chrom = range[-3] if len(range) == 3 else None
-        binsize = np.abs((end-start)//2)//n_bins
-        x = np.linspace(start+(binsize//2), end, num=n_bins)
+    # Handle coordinates
+    if coordinates is not None:
+        chrom, start, end, strand = _parse_coordinates_input(coordinates)
+        binsize = np.abs(end-start)//n_bins
+        if strand == "-":
+            x = np.arange(end-(binsize//2), start, step=-binsize)
+        else:
+            x = np.arange(start+(binsize//2), end, step=binsize)
     else:
         x = np.arange(n_bins)
 
     # Set defaults
     if 'title' not in kwargs and class_names is not None:
         kwargs['title'] = [class_names[cidx] for cidx in class_idxs]
-    if 'xlabel' not in kwargs and range is not None:
-        default_xlabel = f"{start:,.0f}-{end:,.0f} ({end - start} bp)"
+    if 'xlabel' not in kwargs and coordinates is not None:
+        default_xlabel = f"{start:,.0f}-{end:,.0f} ({np.abs(end - start)} bp)"
         if chrom is not None:
             default_xlabel = chrom + ":" + default_xlabel
         kwargs["xlabel"] = default_xlabel
-    if 'xlim' not in kwargs and range is not None:
-        kwargs["xlim"] = (start, end)
     plot_kws = {} if plot_kws is None else plot_kws.copy()
 
     # Prep figure inputs
@@ -160,5 +164,7 @@ def track(
         ax.xaxis.set_major_formatter("{x:,.0f}")
         # Set layout options
         ax.set_ylim(bottom=min(scores[:, i]))
+        if coordinates is not None and strand == "-":
+            ax.xaxis.set_inverted(True)
 
     return render_plot(fig, axs, **kwargs)
