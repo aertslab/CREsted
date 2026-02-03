@@ -133,7 +133,7 @@ def correlations_self(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `correlations_self`: `xtick_rotation=90`.
+        Custom defaults for `correlations_self`: `xtick_rotation=90`, `layout='compressed'`.
 
     See Also
     --------
@@ -154,6 +154,8 @@ def correlations_self(
     # Set defaults
     if 'xtick_rotation' not in kwargs:
         kwargs['xtick_rotation'] = 90
+    if 'layout' not in kwargs:
+        kwargs['layout'] = 'compressed'
     plot_kws = {} if plot_kws is None else plot_kws.copy() # Most plot defaults handled in _generate_heatmap() defaults
     cbar_kws = {} if cbar_kws is None else cbar_kws.copy()
     if 'label' not in cbar_kws:
@@ -231,7 +233,7 @@ def correlations_predictions(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `correlations_predictions`: `xtick_rotation=90`, `title=list(adata.obs_names)`.
+        Custom defaults for `correlations_predictions`: `xtick_rotation=90`, `layout='compressed'`, `title=list(adata.obs_names)`.
 
     See Also
     --------
@@ -286,6 +288,8 @@ def correlations_predictions(
     # Set defaults
     if 'xtick_rotation' not in kwargs:
         kwargs['xtick_rotation'] = 90
+    if 'layout' not in kwargs:
+        kwargs['layout'] = 'compressed'
     if 'title' not in kwargs:
         kwargs['title'] = list(model_names)
     plot_kws = {} if plot_kws is None else plot_kws.copy() # Most plot defaults handled in _generate_heatmap() defaults
