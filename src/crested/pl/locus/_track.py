@@ -126,6 +126,9 @@ def track(
     # Handle coordinates
     if coordinates is not None:
         chrom, start, end, strand = _parse_coordinates_input(coordinates)
+        if start > end:
+            start, end = end, start
+            strand = "-"
         binsize = np.abs(end-start)//n_bins
         if strand == "-":
             x = np.arange(end-(binsize//2), start, step=-binsize)
@@ -138,7 +141,7 @@ def track(
     if 'title' not in kwargs and class_names is not None:
         kwargs['title'] = [class_names[cidx] for cidx in class_idxs]
     if 'xlabel' not in kwargs and coordinates is not None:
-        default_xlabel = f"{start:,.0f}-{end:,.0f} ({np.abs(end - start)} bp)"
+        default_xlabel = f"{start:,.0f}-{end:,.0f}:{strand} ({np.abs(end - start)} bp)"
         if chrom is not None:
             default_xlabel = chrom + ":" + default_xlabel
         kwargs["xlabel"] = default_xlabel
