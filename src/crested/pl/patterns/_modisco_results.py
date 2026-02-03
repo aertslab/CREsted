@@ -156,16 +156,13 @@ def modisco_results(
             all_pattern_names = list(hdf5_results[metacluster_name])
             max_num_patterns = max(max_num_patterns, len(all_pattern_names))
 
-    plot_width = kwargs.pop('width') if 'width' in kwargs else 6 * len(classes)
-    plot_height = kwargs.pop('height') if 'height' in kwargs else 2 * max_num_patterns
-    sharex = kwargs.pop('sharex') if 'sharex' in kwargs else False
-    sharey = kwargs.pop('sharey') if 'sharey' in kwargs else False
-    fig, axes = plt.subplots(
+    fig, axes = create_plot(
+        ax=None,
+        kwargs_dict=kwargs,
         nrows=max_num_patterns,
         ncols=len(classes),
-        figsize=(plot_width, plot_height),
-        sharex=sharex,
-        sharey=sharey
+        default_width=6*len(classes),
+        default_height=2*max_num_patterns
     )
 
     if verbose:
@@ -924,13 +921,12 @@ def class_instances(
     n_instances = len(pattern_dict[str(idx)][key])
 
     # Set defaults
-    plot_width = kwargs.pop('width') if 'width' in kwargs else 8
-    plot_height = kwargs.pop('height') if 'height' in kwargs else 2*n_instances
-    sharex = kwargs.pop('sharex') if 'sharex' in kwargs else False
-    sharey = kwargs.pop('sharey') if 'sharey' in kwargs else False
-
-    fig, axs = plt.subplots(
-        nrows=n_instances, ncols=1, figsize=(plot_width, plot_height), sharex=sharex, sharey=sharey
+    fig, axs = create_plot(
+        ax=None,
+        kwargs_dict=kwargs,
+        nrows=n_instances,
+        default_width=8,
+        default_height=2*n_instances,
     )
     if n_instances == 1:
         axs = [axs]
