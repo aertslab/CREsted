@@ -77,7 +77,7 @@ def contribution_scores(
     width
         Width of the newly created figure if `ax=None`. Default is n_bases//10.
     height
-        Height of the newly created figure if `ax=None`. Default is 2*n_seqs*n_classes.
+        Height of the newly created figure if `ax=None`. Default is 2.25*n_seqs*n_classes.
     sharex
         Whether to share the x axes of the created plots. Default is False.
     kwargs
@@ -161,6 +161,7 @@ def contribution_scores(
     total_classes = scores.shape[1]
     total_sequences = seqs_one_hot.shape[0]
     total_plots = total_sequences * total_classes
+    xlabel_list=[]
 
     # Set defaults
     if "ylabel" not in kwargs:
@@ -180,32 +181,11 @@ def contribution_scores(
     # Handle sharey with create_plot now that we have a third option (which handles it elsewhere)
     kwargs['sharey'] = False if sharey == 'sequence' else sharey
 
-    # Parse coordinates if supplied
-    if coordinates is not None:
-        parsed_coordinates = []
-        xlabel_list = []
-        for coord_value in coordinates:
-            chrom, start, end, strand = _parse_coordinates_input(coord_value)
-            if zoom_n_bases is not None:
-                start = start + start_idx
-                end = end - start_idx
-            left, right = (end, start) if strand == "-" else (start, end)
-            parsed_coordinates.append((left, right))
-
-            default_xlabel = f"{start:,.0f}-{end:,.0f} ({np.abs(end - start)} bp)"
-            if chrom is not None:
-                default_xlabel = f"{chrom}:{default_xlabel}"
-            for _ in range(total_classes-1):
-                xlabel_list.append(None) # Add empty labels to all but non-final plot for sequence
-            xlabel_list.append(default_xlabel)
-        if 'xlabel' not in kwargs:
-            kwargs['xlabel'] = xlabel_list
-
     fig, axs = create_plot(
         ax=ax,
         kwargs_dict=kwargs,
         default_width=seq_length//10,
-        default_height=2*total_plots,
+        default_height=2.25*total_plots,
         nrows=total_plots,
         default_sharex=False,
         default_sharey=False
@@ -236,15 +216,25 @@ def contribution_scores(
         sequence_min = np.nanmin(seq_scores) - 0.25*data_range
         sequence_max = np.nanmax(seq_scores) + 0.25*data_range
 
+        # Parse coordinates if supplied
+        if coordinates is not None:
+            chrom, start, end, strand = _parse_coordinates_input(coordinates[seq_i])
+            if zoom_n_bases is not None:
+                start = start + start_idx
+                end = end - start_idx
+            left, right = (end, start) if strand == "-" else (start, end)
+            default_xlabel = f"{start:,.0f}-{end:,.0f}:{strand} ({np.abs(end - start)} bp)"
+            for _ in range(total_classes-1):
+                xlabel_list.append(None) # Add empty labels to all but non-final plot for sequence
+            xlabel_list.append(default_xlabel)
+        else:
+            left, right = 0, seq_length
+
         for class_i in range(total_classes):
             ax = axs[plot_idx]
             plot_idx += 1
 
             # Plot values for this sequence x class combo
-            if coordinates is not None:
-                left, right = parsed_coordinates[seq_i]
-            else:
-                left, right = 0, seq_length
             if method == "mutagenesis":
                 _plot_mutagenesis_map(seq_scores[class_i], ax=ax, start=left, end=right, **plot_kws)
             else:
@@ -270,12 +260,12 @@ def contribution_scores(
                         hl_end = hl_end - start_idx
                     elif hl_end < (start_idx+zoom_n_bases): # Reverse compatibility: old idxes (0-indexed) with coordinates
                         # Handle reversed axis if negative strand, adding 1 to compensate for flipping start and end (which messes up +/-0.5 later)
-                        if parsed_coordinates[seq_i][0] > parsed_coordinates[seq_i][1]:
-                            hl_start =  parsed_coordinates[seq_i][0] - (hl_start - start_idx) + 1
-                            hl_end = parsed_coordinates[seq_i][0] - (hl_end - start_idx) - 1
+                        if left > right:
+                            hl_start =  left - (hl_start - start_idx) + 1
+                            hl_end = left - (hl_end - start_idx) - 1
                         else:
-                            hl_start = parsed_coordinates[seq_i][0] + (hl_start - start_idx)
-                            hl_end = parsed_coordinates[seq_i][0] + (hl_end - start_idx)
+                            hl_start = left + (hl_start - start_idx)
+                            hl_end = left + (hl_end - start_idx)
                     ax.axvspan(
                         xmin=hl_start-0.5,
                         xmax=hl_end+0.5,
@@ -289,5 +279,9 @@ def contribution_scores(
         # Set the title for the sequence (subplot)
         if sequence_labels:
             axs[plot_idx - total_classes].set_title(sequence_labels[seq_i], fontsize=14)
+
+    # Set xlabels with coordinates if not supplied
+    if coordinates is not None and 'xlabel' not in kwargs:
+        kwargs['xlabel'] = xlabel_list
 
     return render_plot(fig, axs, **kwargs)
