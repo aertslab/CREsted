@@ -92,10 +92,6 @@ def region_predictions(
     n_models = len(model_names)
 
     # Set defaults
-    plot_width = kwargs.pop('width') if 'width' in kwargs else 20
-    plot_height = kwargs.pop('height') if 'height' in kwargs else 3*(n_models+1)
-    sharex = kwargs.pop('sharex') if 'sharex' in kwargs else True
-    sharey = kwargs.pop('sharey') if 'sharey' in kwargs else True
     if 'grid' not in kwargs:
         kwargs['grid'] = 'y'
     if 'suptitle' not in kwargs:
@@ -103,12 +99,14 @@ def region_predictions(
     plot_kws = {} if plot_kws is None else plot_kws.copy()
 
     # Create figure scaffold
-    fig, axs = plt.subplots(
-        n_models+1,
-        1,
-        figsize=(plot_width, plot_height),
-        sharex=sharex,
-        sharey=sharey,
+    fig, axs = create_plot(
+        ax=None,
+        kwargs_dict=kwargs,
+        default_width=20,
+        default_height=3*(n_models+1),
+        default_sharex=True,
+        default_sharey=True,
+        nrows=n_models+1
     )
 
     # Plot predictions
