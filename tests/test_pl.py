@@ -621,6 +621,7 @@ def save_dir():
 
 
 def test_patterns_clustermap(all_patterns, all_classes, pattern_matrix, save_dir):
+    pytest.importorskip("modiscolite")
     pat_seqs = crested.tl.modisco.generate_nucleotide_sequences(all_patterns)
     save_path = os.path.join(save_dir, "patterns_clustermap.png")
     crested.pl.patterns.clustermap(
@@ -655,6 +656,7 @@ def test_patterns_class_instances(all_patterns, save_dir):
 
 
 def test_patterns_similarity_heatmap(all_patterns, save_dir):
+    pytest.importorskip("modiscolite")
     save_path = os.path.join(save_dir, "patterns_similarity_heatmap.png")
     sim_matrix, indices = crested.tl.modisco.calculate_similarity_matrix(all_patterns)
     crested.pl.patterns.similarity_heatmap(
