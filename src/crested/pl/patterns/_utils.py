@@ -75,7 +75,24 @@ def _make_logomaker_df(
     end: int | None = None,
     alphabet: Sequence = ('A', 'C', 'G', 'T')
     ):
-    """"""
+    """Turn an array into a LogoMaker-ready dataframe.
+
+    Parameters
+    ----------
+    scores
+        A [n_bp, n_nuc] array, of scores per nucleotide for each location, like from `_process_gradients()` or `_process_mutagenesis_letters()`.
+    start
+        The x-coordinate of the start of the sequence. If None, set to 0. Can be bigger than `end` to plot the values in reverse order.
+    end
+        The x-coordinate of the end of the sequence. If None, set to `start` + `n_bp`. Can be smaller than `start` to plot the values in reverse order.
+        Must be `n_bp` bigger or smaller than `start`.
+    alphabet
+        The order of the nucleotides.
+
+    Returns
+    -------
+    A DataFrame the same shape as `scores`, with scores as values, x-axis integers as index, and nucleotide letters as columns.
+    """
     if start is None:
         start = 0
     if end is None:
