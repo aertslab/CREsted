@@ -68,9 +68,9 @@ def normalization_weights(
 
     # Gather data
     classes = list(adata.obs_names)
-    weights = adata.obsm["weights"]
+    weights = adata.obsm["weights"].squeeze()
 
     # Plot
     fig, ax = create_plot(ax=ax, kwargs_dict=kwargs, default_width=20, default_height=3)
-    ax.bar(classes, weights, **plot_kws)
+    ax.bar(x=classes, height=weights, **plot_kws)
     return render_plot(fig, ax, **kwargs)
