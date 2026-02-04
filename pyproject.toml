@@ -53,7 +53,7 @@ optional-dependencies.doc = [
   "myst-nb",
   "pandas",
   "ruff",
-  "sphinx>=4",
+  "sphinx>=4,<9.0",
   "sphinx-autodoc-typehints",
   "sphinx-book-theme>=1",
   "sphinx-copybutton",
