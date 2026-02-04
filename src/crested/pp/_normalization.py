@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 from anndata import AnnData
 from loguru import logger
+from pandas import DataFrame
 from scipy.sparse import csr_matrix
 
 from ._utils import _calc_gini
@@ -16,7 +17,7 @@ def normalize_peaks(
     gini_std_threshold: float = 1.0,
     top_k_percent: float = 0.01,
     copy: bool = False
-) -> None:
+) -> DataFrame | (AnnData | DataFrame):
     """
     Normalize the adata.X based on variability of the top values per cell type.
 

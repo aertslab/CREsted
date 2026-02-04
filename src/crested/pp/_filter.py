@@ -13,7 +13,7 @@ def filter_regions_on_specificity(
     gini_std_threshold: float = 1.0,
     model_name: str | None = None,
     copy: bool = False,
-) -> None:
+) -> AnnData | None:
     """
     Filter bed regions & targets/predictions based on high Gini score.
 
@@ -88,7 +88,7 @@ def sort_and_filter_regions_on_specificity(
     model_name: str | None = None,
     method: str = "gini",
     copy: bool = False,
-) -> None:
+) -> AnnData | None:
     """
     Sort bed regions & targets/predictions based on high Gini or proportion score per colum while keeping the top k rows per column.
 

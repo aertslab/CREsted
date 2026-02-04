@@ -199,7 +199,7 @@ def train_val_test_split(
     shuffle: bool = True,
     random_state: None | int = None,
     copy: bool = False,
-) -> None:
+) -> AnnData | None:
     """
     Add 'train/val/test' split column to AnnData object.
 

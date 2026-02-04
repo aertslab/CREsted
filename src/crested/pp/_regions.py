@@ -27,7 +27,7 @@ def change_regions_width(
     width: int,
     chromsizes_file: str | PathLike | None = None,
     copy: bool = False,
-) -> None:
+) -> AnnData | None:
     """
     Change the widths of all regions in the adata object.
 
