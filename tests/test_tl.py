@@ -70,6 +70,14 @@ def test_predict(keras_model, adata, genome):
     predictions = crested.tl.predict(input=adata, model=models, genome=genome)
     assert predictions.shape == (10, 5)
 
+    region_str = "chr1:1-501"
+    region_str_pos = "chr1:1-501:+"
+    region_str_neg = "chr1:1-501:-"
+    predictions = crested.tl.predict(input=region_str, model=keras_model, genome=genome)
+    predictions_pos = crested.tl.predict(input=region_str_pos, model=keras_model, genome=genome)
+    predictions_neg = crested.tl.predict(input=region_str_neg, model=keras_model, genome=genome)
+    assert predictions == pytest.approx(predictions_pos)
+    assert predictions != pytest.approx(predictions_neg)
 
 def test_score_gene_locus(keras_model, genome):
     chrom = "chr1"

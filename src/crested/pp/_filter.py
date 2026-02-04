@@ -12,13 +12,13 @@ def filter_regions_on_specificity(
     adata: AnnData,
     gini_std_threshold: float = 1.0,
     model_name: str | None = None,
-) -> None:
+    copy: bool = False,
+) -> AnnData | None:
     """
     Filter bed regions & targets/predictions based on high Gini score.
 
     This function filters regions based on their specificity using Gini scores.
-    The regions with high Gini scores are retained, and a new AnnData object
-    is created with the filtered data.
+    The regions with high Gini scores are retained.
     If model_name is provided, will look for the corresponding predictions in the
     adata.layers[model_name] layer. Else, it will use the targets in adata.X to decide
     which regions to keep.
@@ -33,10 +33,13 @@ def filter_regions_on_specificity(
     model_name
         The name of the model to look for in adata.layers[model_name] for predictions.
         If None, will use the targets in adata.X to select specific regions.
+    copy
+        Perform computation and modify `adata` in-place or return a resulting copy of the `adata` instead.
 
     Returns
     -------
-    The AnnData object is filtered inplace with the filtered matrix and updated variable names.
+    If `copy=False` (default), returns nothing and modifies the AnnData in-place with the filtered matrix and updated variable names.
+    If `copy=True`, returns a modified copy of the AnnData object instead.
 
     Example
     -------
@@ -72,8 +75,11 @@ def filter_regions_on_specificity(
         f"After specificity filtering, kept {len(target_matrix_filt)} out of {target_matrix.shape[0]} regions."
     )
 
-    # Filter the adata object inplace
-    adata._inplace_subset_var(regions_filt)
+    # Filter the adata object inplace or return copy
+    if copy:
+        return adata[:, selected_indices].copy()
+    else:
+        adata._inplace_subset_var(regions_filt)
 
 
 def sort_and_filter_regions_on_specificity(
@@ -81,7 +87,8 @@ def sort_and_filter_regions_on_specificity(
     top_k: int,
     model_name: str | None = None,
     method: str = "gini",
-) -> None:
+    copy: bool = False,
+) -> AnnData | None:
     """
     Sort bed regions & targets/predictions based on high Gini or proportion score per colum while keeping the top k rows per column.
 
@@ -100,11 +107,14 @@ def sort_and_filter_regions_on_specificity(
     method
         The method to use for calculating scores, either 'gini' or 'proportion'.
         Default is 'gini'.
+    copy
+        Perform computation and modify `adata` in-place or return a resulting copy of the `adata` instead.
 
     Returns
     -------
-    The AnnData object is modified inplace with the sorted and filtered matrix, and extra columns indicating the original class name,
-    the rank per column, and the score.
+    If `copy=False` (default), returns nothing and modifies the AnnData in-place with the sorted and filtered matrix, and extra columns
+    indicating the original class name, the rank per column, and the score.
+    If `copy=True`, returns a modified copy of the AnnData object instead.
 
     Example
     -------
@@ -162,8 +172,13 @@ def sort_and_filter_regions_on_specificity(
         f"After sorting and filtering, kept {target_matrix_filtered.shape[0]} regions."
     )
 
-    # filter the adata object inplace
-    adata._inplace_subset_var(regions_filtered)
+    # filter the adata object (inplace or via a copy)
+    if copy:
+        adata = adata[:, all_selected_indices].copy()
+    else:
+        adata._inplace_subset_var(regions_filtered)
     adata.var["Class name"] = class_names_filtered
     adata.var["rank"] = ranks
     adata.var[f"{method}_score"] = all_scores
+    if copy:
+        return adata
