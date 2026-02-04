@@ -26,6 +26,7 @@ def change_regions_width(
     adata: AnnData,
     width: int,
     chromsizes_file: str | PathLike | None = None,
+    copy: bool = False,
 ) -> None:
     """
     Change the widths of all regions in the adata object.
@@ -44,10 +45,13 @@ def change_regions_width(
     chromsizes_file
         File path of the chromsizes file. Used for checking if the new regions are within the chromosome boundaries.
         If not provided, uses chromsizes from the registered Genome object, and if that doesn't exist either, doesn't check against chromosome boundaries.
+    copy
+        Perform computation and modify `adata` in-place or return a resulting copy of the `adata` instead.
 
     Returns
     -------
-    The AnnData object with the modified regions.
+    If `copy=False` (default), modifies the anndata in-place and doesn't return anything.
+    If `copy=True`, returns the AnnData object with the modified regions.
 
     Example
     -------
@@ -78,6 +82,8 @@ def change_regions_width(
     centers = (adata.var["start"] + adata.var["end"]) / 2
     half_width = width / 2
 
+    if copy:
+        adata = adata.copy()
     adata.var = adata.var.copy()
 
     adata.var["start"] = (centers - half_width).astype(int)
@@ -99,6 +105,11 @@ def change_regions_width(
                 )
                 regions_to_keep.remove(idx)
         if len(regions_to_keep) < len(adata.var_names):
-            adata._inplace_subset_var(regions_to_keep)
+            if copy:
+                adata = adata[:, regions_to_keep].copy()
+            else:
+                adata._inplace_subset_var(regions_to_keep)
 
     adata.var_names.name = "region"
+    if copy:
+        return adata

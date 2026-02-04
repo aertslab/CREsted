@@ -15,6 +15,7 @@ def normalize_peaks(
     peak_threshold: int = 0,
     gini_std_threshold: float = 1.0,
     top_k_percent: float = 0.01,
+    copy: bool = False
 ) -> None:
     """
     Normalize the adata.X based on variability of the top values per cell type.
@@ -22,7 +23,7 @@ def normalize_peaks(
     This function applies a normalization factor to each cell type,
     focusing on regions with the most significant peaks above
     a defined threshold and considering the variability within those peaks.
-    Only used on continuous .X data. Modifies the input AnnData.X in place.
+    Only used on continuous .X data. Modifies the input AnnData.X in place if `copy=False`.
 
     Parameters
     ----------
@@ -37,10 +38,13 @@ def normalize_peaks(
     top_k_percent
         The percentage (expressed as a fraction) of top values
         to consider for Gini score calculation.
+    copy
+        Perform computation and modify `adata` in-place or return a resulting copy of the `adata` instead.
 
     Returns
     -------
-    The AnnData object with the normalized matrix and cell type weights used for normalization in the obsm attribute.
+    If `copy=False` (default), modifies the AnnData in-place with the normalized matrix and normalization weights saved to `adata.obsm['weights']`, and returns the filtered .var of the significant peaks, as a DataFrame.
+    If `copy=True`, returns (adata, filtered_df): a modified copy of the AnnData object instead, along with a the filtered .var of the significant peaks, as a DataFrame.
 
     Example
     -------
@@ -91,11 +95,6 @@ def normalize_peaks(
 
     max_mean = np.max(top_k_percent_means)
     weights = max_mean / np.array(top_k_percent_means)
-
-    # Add the weights to the AnnData object
-    logger.info("Added normalization weights to adata.obsm['weights']...")
-    adata.obsm["weights"] = weights
-
     normalized_matrix = target_matrix * weights
 
     if isinstance(adata.X, csr_matrix):
@@ -105,6 +104,13 @@ def normalize_peaks(
 
     filtered_regions_df = regions_df.iloc[list(all_low_gini_indices)]
 
+    # Modify the adata
+    if copy:
+        adata = adata.copy()
+    logger.info("Added normalization weights to adata.obsm['weights']...")
+    adata.obsm["weights"] = weights
     adata.X = normalized_matrix
-
-    return filtered_regions_df
+    if copy:
+        return adata, filtered_regions_df
+    else:
+        return filtered_regions_df
