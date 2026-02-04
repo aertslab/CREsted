@@ -73,7 +73,7 @@ def distribution(
     # Handle deprecated arguments
     if 'share_y' in kwargs:
         kwargs['sharey'] = kwargs.pop('share_y')
-        logger.warning("Argument `share_y` is deprecated; please use sharey instead to align with matplotlib.")
+        logger.warning("Argument `share_y` is deprecated since version 2.0.0; please use sharey instead to align with matplotlib.")
 
     # Check params
     @log_and_raise(ValueError)

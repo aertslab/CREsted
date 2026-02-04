@@ -99,7 +99,7 @@ def track(
     """
     if 'range' in kwargs:
         coordinates = kwargs.pop('range')
-        logger.warning("Argument `range` is renamed; please use `coordinates` instead.")
+        logger.warning("Argument `range` is renamed since version 2.0.0; please use `coordinates` instead.")
     # Check inputs
     @log_and_raise(ValueError)
     def _check_input_params():

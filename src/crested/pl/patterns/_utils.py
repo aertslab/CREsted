@@ -267,7 +267,7 @@ def grad_times_input_to_df(x, grad, alphabet="ACGT"):
     Deprecated, please use `_process_gradients` instead.
     """
     warnings.warn(
-        "'grad_times_input_to_df' is deprecated and will be removed in a future release. Please use `_process_gradients` instead.",
+        "'grad_times_input_to_df' is deprecated since version 2.0.0 and will be removed in a future release. Please use `_process_gradients` instead.",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -291,7 +291,7 @@ def grad_times_input_to_df_mutagenesis(x, grad, alphabet="ACGT"):
     Deprecated, please use `_process_mutagenesis` instead.
     """
     warnings.warn(
-        "'grad_times_input_to_df_mutagenesis' is deprecated and will be removed in a future release. Please use `_process_mutagenesis` instead.",
+        "'grad_times_input_to_df_mutagenesis' is deprecated since version 2.0.0 and will be removed in a future release. Please use `_process_mutagenesis` instead.",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -324,7 +324,7 @@ def grad_times_input_to_df_mutagenesis_letters(x, grad, alphabet="ACGT"):
     Deprecated, please use `_process_mutagenesis_letters` instead.
     """
     warnings.warn(
-        "'grad_times_input_to_df_mutagenesis_letters' is deprecated and will be removed in a future release. Please use `_process_mutagenesis_letters` instead.",
+        "'grad_times_input_to_df_mutagenesis_letters' is deprecated since version 2.0.0 and will be removed in a future release. Please use `_process_mutagenesis_letters` instead.",
         DeprecationWarning,
         stacklevel=2,
     )

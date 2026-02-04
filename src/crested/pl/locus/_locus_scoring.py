@@ -98,31 +98,31 @@ def locus_scoring(
     """
     # Handle deprecated arguments
     if 'range' in kwargs:
-        logger.warning("Argument `range` is renamed; please use `coordinates` instead.")
+        logger.warning("Argument `range` is renamed since version 2.0.0; please use `coordinates` instead.")
         coordinates = kwargs.pop('range')
     elif 'range' not in kwargs and coordinates is None:
         raise TypeError("locus_scoring() missing 1 required positional argument: 'coordinates'. This was previously called 'range'.")
     if 'figsize' in kwargs:
-        logger.warning("Argument `figsize` is deprecated; please use width and height instead.")
+        logger.warning("Argument `figsize` is deprecated since version 2.0.0; please use width and height instead.")
         figsize = kwargs.pop('figsize')
         kwargs['width'] = figsize[0]
         kwargs['height'] = figsize[1]
     if 'marker_size' in kwargs:
-        logger.warning("Argument `marker_size` is deprecated; please use `locus_plot_kws={markersize=?}` instead. Note the lack of underscore in the new argument, to unify with matplotlib.")
+        logger.warning("Argument `marker_size` is deprecated since version 2.0.0; please use `locus_plot_kws={markersize=?}` instead. Note the lack of underscore in the new argument, to unify with matplotlib.")
         locus_plot_kws['markersize'] = kwargs.pop('marker_size')
     if 'line_width' in kwargs:
-        logger.warning("Argument `line_width` is deprecated; please use `shared_plot_kws={linewidth=?}` instead. Note the lack of underscore in the new argument, to unify with matplotlib.")
+        logger.warning("Argument `line_width` is deprecated since version 2.0.0; please use `shared_plot_kws={linewidth=?}` instead. Note the lack of underscore in the new argument, to unify with matplotlib.")
         locus_plot_kws['linewidth'] = kwargs.pop('line_width')
     if 'line_colors' in kwargs:
-        logger.warning("Argument `line_colors` is deprecated; please use `locus_plot_kws={color=?}`/`bigwig_plot_kws={color=?}` instead.")
+        logger.warning("Argument `line_colors` is deprecated since version 2.0.0; please use `locus_plot_kws={color=?}`/`bigwig_plot_kws={color=?}` instead.")
         line_colors = kwargs.pop('line_colors')
         locus_plot_kws['color'] = line_colors[0]
         bigwig_plot_kws['color'] = line_colors[1]
     if 'title' in kwargs and isinstance(kwargs['title'], str) and bigwig_values is not None:
-        logger.warning(f"Argument `title` only applying to the top plot is deprecated to make behavior consistent. To keep a primary title, please use `suptitle='{kwargs['title']}'` or `title=['{kwargs['title']}', '']`.")
+        logger.warning(f"Argument `title` only applying to the top plot is deprecated since version 2.0.0 to make behavior consistent. To keep a primary title, please use `suptitle='{kwargs['title']}'` or `title=['{kwargs['title']}', '']`.")
         kwargs['title'] = [kwargs['title'], None]
     if 'ylim' in kwargs and not isinstance(kwargs['ylim'][0], Sequence) and bigwig_values is not None:
-        logger.warning(f"Argument `ylim` only applying to the top plot is deprecated to make behavior consistent. To apply only to the top plot, please use `ylim=[{kwargs['ylim']}, None]`.")
+        logger.warning(f"Argument `ylim` only applying to the top plot is deprecated since version 2.0.0 to make behavior consistent. To apply only to the top plot, please use `ylim=[{kwargs['ylim']}, None]`.")
         kwargs['ylim'] = [kwargs['ylim'], None]
 
     # Check params
