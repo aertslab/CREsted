@@ -316,7 +316,10 @@ def get_model(model: str) -> tuple[str, list[str]]:
 
 
 class UntarDelete(pooch.Untar):
+    """Pooch's 'Untar', but deleting the tarball after it's been extracted."""
+
     def _extract_file(self, fname, extract_dir):
+        """Extract the tarfile and delete the file afterwards, as we only need the extracted directory."""
         super()._extract_file(fname, extract_dir)
         pooch.get_logger().info(f"Deleting file {fname} after untarring its contents to {extract_dir}")
         os.remove(fname)
