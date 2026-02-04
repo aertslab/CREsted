@@ -629,9 +629,9 @@ def test_patterns_class_instances(all_patterns, save_dir):
     )
     plt.close()
 
-class TestModiscolite:
+class TestModisco:
     def __init__(self):
-        pytest.importorskip("modiscolite")
+        pytest.importorskip("crested.tl.modisco")
 
     @pytest.fixture(scope="module")
     def pattern_matrix(all_patterns, all_classes):
@@ -656,7 +656,6 @@ class TestModiscolite:
         plt.close()
 
     def test_patterns_similarity_heatmap(all_patterns, save_dir):
-        pytest.importorskip("modiscolite")
         save_path = os.path.join(save_dir, "patterns_similarity_heatmap.png")
         sim_matrix, indices = crested.tl.modisco.calculate_similarity_matrix(all_patterns)
         crested.pl.patterns.similarity_heatmap(
