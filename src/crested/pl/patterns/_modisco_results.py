@@ -12,7 +12,7 @@ from loguru import logger
 from matplotlib.patches import Patch
 from scipy.cluster.hierarchy import dendrogram, leaves_list, linkage
 
-from crested.pl._utils import render_plot
+from crested.pl._utils import create_plot, render_plot
 from crested.tl.modisco._modisco_utils import (
     _pattern_to_ppm,
     _trim_pattern_by_ic,
@@ -37,7 +37,7 @@ def modisco_results(
     trim_pattern: bool = True,
     trim_ic_threshold: float = 0.1,
     **kwargs,
-) -> None:
+) -> tuple[plt.Figure, list[plt.Axes]] | None:
     """
     Plot genomic contributions for the given classes.
 
@@ -72,8 +72,17 @@ def modisco_results(
         Boolean for trimming modisco patterns.
     trim_ic_threshold
         If trimming patterns, indicate threshold.
+    width
+        Width of the newly created figure. Default is 6*`len(classes)`.
+    height
+        Height of the newly created figure. Default is 2*`max_num_patterns`.
+    sharex
+        Whether to share the x axes of the created plots. Default is False.
+    sharey
+        Whether to share the y axes of the created plots. Default is False.
     kwargs
-        Additional keyword arguments for the plot.
+        Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
+        Please see :func:`~crested.pl.render_plot` for details.
 
     See Also
     --------
@@ -147,10 +156,13 @@ def modisco_results(
             all_pattern_names = list(hdf5_results[metacluster_name])
             max_num_patterns = max(max_num_patterns, len(all_pattern_names))
 
-    fig, axes = plt.subplots(
+    fig, axes = create_plot(
+        ax=None,
+        kwargs_dict=kwargs,
         nrows=max_num_patterns,
         ncols=len(classes),
-        figsize=(8 * len(classes), 2 * max_num_patterns),
+        default_width=6*len(classes),
+        default_height=2*max_num_patterns
     )
 
     if verbose:
@@ -224,13 +236,7 @@ def modisco_results(
                     )
         motif_counter = 1
 
-    plt.tight_layout()
-    if "width" not in kwargs:
-        kwargs["width"] = 6 * len(classes)
-    if "height" not in kwargs:
-        kwargs["height"] = 2 * max_num_patterns
-
-    return render_plot(fig, **kwargs)
+    return render_plot(fig, axes, **kwargs)
 
 
 def clustermap_tomtom_similarities(
@@ -242,12 +248,16 @@ def clustermap_tomtom_similarities(
     threshold: float | None = None,
     min_seqlets: int = 0,
     class_names: list[str] | None = None,
-    figsize: tuple[int, int] = (10, 10),
+    cmap: str | plt.Colormap  = 'viridis',
     dendrogram_ratio: tuple[float, float] = (0.05, 0.05),
     logo_width_fraction: float = 0.35,
     logo_x_padding: float = 0.5,
     show_pwms: bool = True,
     save_path: str | None = None,
+    width: int | float = 10,
+    height: int | float = 10,
+    plot_kws: dict | None = None,
+    figsize = 'deprecated'
 ) -> sns.matrix.ClusterGrid:
     """
     Create a Seaborn clustermap of TOMTOM similarity scores with optional PWM logo display and filtering.
@@ -274,8 +284,8 @@ def clustermap_tomtom_similarities(
     class_names
         If provided, only keep patterns whose class name (parsed as '_'.join(id.split('_')[:-3]))
         is in this list.
-    figsize
-        Base size of the clustermap figure in inches.
+    cmap
+        Colormap to use in the clustermap.
     dendrogram_ratio : tuple[float, float]
         Ratio of dendrogram size to figure size for rows and columns.
     logo_width_fraction
@@ -284,14 +294,23 @@ def clustermap_tomtom_similarities(
         Horizontal space between the PWM logos and the heatmap.
     show_pwms
         Whether to display PWM logos to the left of the heatmap.
+    width
+        Figure width.
+    height
+        Figure height.
     save_path
         If provided, the figure is saved to this path (e.g., as a PNG or PDF).
+    plot_kws
+        Extra keyword arguments passed to :func:`~seaborn.clustermap`.
 
     Returns
     -------
     sns.matrix.ClusterGrid
         The Seaborn clustermap object containing the heatmap and dendrograms.
     """
+    if figsize != 'deprecated':
+        width, height = figsize
+        logger.warning("Argument `figsize` is deprecated since version 2.0.0; please use width and height instead.")
     if group_info is None:
         group_info = []
 
@@ -339,15 +358,17 @@ def clustermap_tomtom_similarities(
     row_colors = np.array(row_colors)  # shape (n_groups, n_rows)
 
     # --- Step 3: Clustermap ---
+    plot_kws = {} if plot_kws is None else plot_kws.copy()
     g = sns.clustermap(
         sim_matrix,
-        cmap="viridis",
         xticklabels=ids_arr,
         yticklabels=ids_arr,
         row_colors=row_colors,
         col_colors=row_colors,
-        figsize=figsize,
+        figsize=(width, height),
+        cmap = cmap,
         dendrogram_ratio=dendrogram_ratio,
+        **plot_kws
     )
     g.ax_heatmap.set_xticklabels(g.ax_heatmap.get_xticklabels(), rotation=90)
 
@@ -357,9 +378,8 @@ def clustermap_tomtom_similarities(
         reordered_ids = [ids_arr[i] for i in row_order]
 
         fig = g.fig
-        original_width = figsize[0]
-        extra_width = logo_width_fraction * original_width
-        fig.set_size_inches(original_width + extra_width, figsize[1])
+        extra_width = logo_width_fraction * width
+        fig.set_size_inches(width + extra_width, height)
 
         heatmap_pos = g.ax_heatmap.get_position()
         logo_width = logo_width_fraction * heatmap_pos.width
@@ -397,8 +417,7 @@ def clustermap_tomtom_similarities(
             Patch(facecolor=color, edgecolor="black", label=label)
             for label, color in group_colors.items()
         ]
-        fig = g.fig
-        fig.legend(
+        g.fig.legend(
             handles=legend_elements,
             title="Class",
             loc="lower left",
@@ -411,9 +430,8 @@ def clustermap_tomtom_similarities(
         )
 
     if save_path is not None:
-        plt.savefig(save_path, bbox_inches="tight")
+        g.savefig(save_path, bbox_inches="tight")
 
-    plt.show()
     return g
 
 
@@ -421,7 +439,6 @@ def clustermap(
     pattern_matrix: np.ndarray,
     classes: list[str],
     subset: list[str] | None = None,
-    figsize: tuple[int, int] = (25, 8),
     grid: bool = False,
     cmap: str = "coolwarm",
     center: float = 0,
@@ -431,6 +448,10 @@ def clustermap(
     pat_seqs: list[tuple[str, np.ndarray]] | None = None,
     dendrogram_ratio: tuple[float, float] = (0.05, 0.2),
     importance_threshold: float = 0,
+    plot_kws: dict | None = None,
+    width: int | float = 25,
+    height: int | float = 8,
+    figsize = 'deprecated',
 ) -> sns.matrix.ClusterGrid:
     """
     Create a clustermap from the given pattern matrix and class labels with customizable options.
@@ -443,8 +464,6 @@ def clustermap(
         List of class labels, matching the rows of the pattern matrix.
     subset
         List of class labels to subset the matrix.
-    figsize
-        Size of the figure.
     grid
         Whether to add a grid to the heatmap.
     cmap
@@ -463,6 +482,13 @@ def clustermap(
         Ratio of dendograms in x and y directions.
     importance_threshold
         Minimal pattern importance threshold over all classes to retain the pattern before clustering and plotting.
+    width
+        Figure width.
+    height
+        Figure height.
+    plot_kws
+        Extra keyword arguments passed to :func:`~seaborn.clustermap`.
+        Default is `{'cbar_pos': (1.05, 0.4, 0.01, 0.3)}`.
 
     See Also
     --------
@@ -482,6 +508,13 @@ def clustermap(
 
     .. image:: ../../../../docs/_static/img/examples/pattern_clustermap.png
     """
+    if figsize != 'deprecated':
+        width, height = figsize
+        logger.warning("Argument `figsize` is deprecated since version 2.0.0; please use width and height instead.")
+    plot_kws = {} if plot_kws is None else plot_kws.copy()
+    if 'cbar_pos' not in plot_kws:
+        plot_kws['cbar_pos'] = (1.05, 0.4, 0.01, 0.3)
+
     # Subset the pattern_matrix and classes if subset is provided
     if subset is not None:
         subset_indices = [
@@ -506,16 +539,14 @@ def clustermap(
     g = sns.clustermap(
         data,
         cmap=cmap,
-        figsize=figsize,
-        row_colors=None,
+        figsize=(width, height),
         yticklabels=classes,
         center=center,
-        xticklabels=True
-        if pat_seqs is None
-        else False,  # Disable default xticklabels if pat_seqs provided.  #xticklabels=xtick_labels,
+        xticklabels=True if pat_seqs is None else False,
         method=method,
         dendrogram_ratio=dendrogram_ratio,
-        cbar_pos=(1.05, 0.4, 0.01, 0.3),
+        **plot_kws,
+
     )
     col_order = g.dendrogram_col.reordered_ind
     cbar = g.ax_heatmap.collections[0].colorbar
@@ -535,7 +566,7 @@ def clustermap(
             np.arange(len(reordered_pat_seqs)) + 0.5
         )  # Shift labels by half a tick to the right
 
-        constant = (1 / figsize[1]) * 64
+        constant = (1 / height) * 64
         for i, (letters, scores) in enumerate(reordered_pat_seqs):
             previous_spacing = 0
             for _, (letter, score) in enumerate(
@@ -579,17 +610,15 @@ def clustermap(
         g.fig.canvas.draw()
 
     if save_path is not None:
-        plt.savefig(save_path, bbox_inches="tight")
+        g.savefig(save_path, bbox_inches="tight")
 
-    plt.show()
-
+    return g
 
 def clustermap_with_pwm_logos(
     pattern_matrix: np.ndarray,
     classes: list[str],
     pattern_dict: dict,
     subset: list[str] | None = None,
-    figsize: tuple[int, int] = (25, 8),
     grid: bool = False,
     cmap: str = "coolwarm",
     center: float = 0,
@@ -600,6 +629,10 @@ def clustermap_with_pwm_logos(
     logo_height_fraction: float = 0.35,
     logo_y_padding: float = 0.3,
     pwm_or_contrib: str = "pwm",
+    width: int | float = 25,
+    height: int | float = 8,
+    plot_kws: dict | None = None,
+    figsize = 'deprecated'
 ) -> sns.matrix.ClusterGrid:
     """
     Create a clustermap with additional PWM logo plots below the heatmap.
@@ -614,8 +647,6 @@ def clustermap_with_pwm_logos(
         A dictionary containing PWM patterns for x-tick plots.
     subset
         List of class labels to subset the matrix.
-    figsize:
-        Size of the clustermap figure (width, height). Default is (25, 8).
     grid:
         Whether to overlay grid lines on the heatmap. Default is False.
     cmap:
@@ -633,14 +664,27 @@ def clustermap_with_pwm_logos(
     logo_height_fraction:
         Fraction of clustermap height to allocate for PWM logos. Default is 0.35.
     logo_y_padding:
-        Vertical padding for the PWM logos relative to the heatmap. Default is 0.3.
+        Relative vertical padding for the PWM logos relative to the heatmap. Default is 0.3.
     pwm_or_contrib:
         Whether to use the pwm or contrib score representation of the pattern in the plotting.
+    width
+        Width of the newly created figure. Default is 25.
+    height
+        Height of the newly created figure. Default is 8.
+    plot_kws
+        Extra keyword arguments passed to :func:`~seaborn.clustermap`.
+        Default is `{'cbar_pos': (1.05, 0.4, 0.01, 0.3)}`.
 
     Returns
     -------
         sns.matrix.ClusterGrid: A seaborn ClusterGrid object containing the clustermap with the PWM logos.
     """
+    if figsize != 'deprecated':
+        width, height = figsize
+        logger.warning("Argument `figsize` is deprecated since version 2.0.0; please use width and height instead.")
+    plot_kws = {} if plot_kws is None else plot_kws.copy()
+    if 'cbar_pos' not in plot_kws:
+        plot_kws['cbar_pos'] = (1.05, 0.4, 0.01, 0.3)
     # Subset the pattern_matrix and classes if subset is provided
     if subset is not None:
         subset_indices = [
@@ -664,14 +708,13 @@ def clustermap_with_pwm_logos(
     g = sns.clustermap(
         data,
         cmap=cmap,
-        figsize=figsize,
-        row_colors=None,
+        figsize=(width, height),
         yticklabels=classes,
         center=center,
         xticklabels=False,
         method=method,
         dendrogram_ratio=dendrogram_ratio,
-        cbar_pos=(1.05, 0.4, 0.01, 0.3),
+        **plot_kws
     )
 
     col_order = g.dendrogram_col.reordered_ind
@@ -683,26 +726,25 @@ def clustermap_with_pwm_logos(
     reordered_indices = [selected_indices[i] for i in col_order]
 
     # Compute space for x-tick images
-    original_height = figsize[1]
-    extra_height = logo_height_fraction * original_height
-    total_height = original_height + extra_height
+    extra_height = logo_height_fraction * height
+    total_height = height + extra_height
 
     # Update the figure size to accommodate the logos
     fig = g.fig
-    fig.set_size_inches(figsize[0], total_height)
+    fig.set_size_inches(width, total_height)
 
     # Adjust width and height of logos
-    logo_width = g.ax_heatmap.get_position().width / len(reordered_patterns) * 2.5
+    logo_width = g.ax_heatmap.get_position().width / len(reordered_patterns)
     logo_height = logo_height_fraction * g.ax_heatmap.get_position().height
     ratio = logo_height / logo_width
 
     for i, pattern in enumerate(reordered_patterns):
         plot_start_x = (
             g.ax_heatmap.get_position().x0
-            + ((i - 0.75) / len(reordered_patterns)) * g.ax_heatmap.get_position().width
+            + g.ax_heatmap.get_position().width / len(reordered_patterns) * i
         )
         plot_start_y = (
-            g.ax_heatmap.get_position().y0 - logo_height - logo_height * logo_y_padding
+            g.ax_heatmap.get_position().y0 - logo_height * (1+logo_y_padding)
         )
         pwm_ax = fig.add_axes([plot_start_x, plot_start_y, logo_width, logo_height])
         pwm_ax.clear()
@@ -751,16 +793,17 @@ def clustermap_with_pwm_logos(
         tick.set_verticalalignment("top")
 
     if save_path is not None:
-        plt.savefig(save_path, bbox_inches="tight", dpi=600)
+        g.savefig(save_path, bbox_inches="tight", dpi=600)
 
-    plt.show()
     return g
 
 
 def selected_instances(
     pattern_dict: dict,
     idcs: list[int],
-) -> None:
+    ax: plt.Axes | None = None,
+    **kwargs
+) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
     """
     Plot the patterns specified by the indices in `idcs` from the `pattern_dict`.
 
@@ -770,7 +813,21 @@ def selected_instances(
         A dictionary containing pattern data. Each key corresponds to a pattern ID, and the value is a nested structure containing
         contribution scores and metadata for the pattern. Refer to the output of `crested.tl.modisco.process_patterns`.
     idcs
-        A list of indices specifying which patterns to plot. The indices correspond to keys in the `pattern_dict`.
+        An index or list of indices specifying which patterns to plot. The indices correspond to keys in the `pattern_dict`.
+    ax
+        An axis to plot the instance on. Only works if providing a single value for idcs.
+    width
+        Width of the newly created figure if `ax=None`. Default is 8.
+    height
+        Height of the newly created figure if `ax=None`. Default is 2*`len(idcs)`.
+    sharex
+        Whether to share the x axes of the created plots. Default is False.
+    sharey
+        Whether to share the y axes of the created plots. Default is False.
+    kwargs
+        Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
+        Please see :func:`~crested.pl.render_plot` for details.
+        Defaults for `selected_instances`: `title=[pattern_dict[str(idx)]["pattern"]["id"] for idx in idcs]`.
 
     See Also
     --------
@@ -783,26 +840,44 @@ def selected_instances(
 
     .. image:: ../../../../docs/_static/img/examples/pattern_selected_instances.png
     """
-    figure, axes = plt.subplots(nrows=len(idcs), ncols=1, figsize=(8, 2 * len(idcs)))
+    if isinstance(idcs, str):
+        idcs = [idcs]
+    if len(idcs) > 1 and ax is not None:
+        raise ValueError("Can only provide a pre-existing axis if plotting a single index at idcs.")
+
+    # Create figure
+    fig, axs = create_plot(
+        ax=ax,
+        kwargs_dict=kwargs,
+        nrows=len(idcs),
+        ncols=1,
+        default_width=8,
+        default_height=2*len(idcs),
+        default_sharex=False,
+        default_sharey=False,
+    )
     if len(idcs) == 1:
-        axes = [axes]
+        axs = [axs]
+    if 'title' not in kwargs:
+        kwargs['title'] = [pattern_dict[str(idx)]["pattern"]["id"] for idx in idcs]
 
     for i, idx in enumerate(idcs):
-        ax = _plot_attribution_map(
-            ax=axes[i],
+        _plot_attribution_map(
+            ax=axs[i],
             saliency_df=np.array(pattern_dict[str(idx)]["pattern"]["contrib_scores"]),
-            return_ax=True,
+            return_ax=False,
             figsize=None,
         )
-        ax.set_title(pattern_dict[str(idx)]["pattern"]["id"])
 
-    plt.tight_layout()
-    plt.show()
+    return render_plot(fig, axs, **kwargs)
 
 
 def class_instances(
-    pattern_dict: dict, idx: int, class_representative: bool = False
-) -> None:
+    pattern_dict: dict,
+    idx: int,
+    class_representative: bool = False,
+    **kwargs
+) -> tuple[plt.Figure, list[plt.Axes]] |  None:
     """
     Plot instances of a specific pattern, either the representative pattern per class or all instances for a given pattern index.
 
@@ -816,6 +891,18 @@ def class_instances(
     class_representative
         If True, only the best representative instance of each class is plotted. If False (default), all instances of the pattern
         within each class are plotted.
+    width
+        Width of the newly created figure. Default is 8.
+    height
+        Height of the newly created figure. Default is 2*len(idcs).
+    sharex
+        Whether to share the x axes of the created plots. Default is False.
+    sharey
+        Whether to share the y axes of the created plots. Default is False.
+    kwargs
+        Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
+        Please see :func:`~crested.pl.render_plot` for details.
+        Defaults for `class_instances`: `title=[pattern_dict[str(idx)]["pattern"]["id"] for idx in idcs]`.
 
     See Also
     --------
@@ -832,33 +919,43 @@ def class_instances(
     else:
         key = "instances"
     n_instances = len(pattern_dict[str(idx)][key])
-    figure, axes = plt.subplots(
-        nrows=n_instances, ncols=1, figsize=(8, 2 * n_instances)
+
+    # Set defaults
+    fig, axs = create_plot(
+        ax=None,
+        kwargs_dict=kwargs,
+        nrows=n_instances,
+        default_width=8,
+        default_height=2*n_instances,
     )
     if n_instances == 1:
-        axes = [axes]
+        axs = [axs]
 
     instance_classes = list(pattern_dict[str(idx)][key].keys())
+    if 'title' not in kwargs:
+        kwargs['title'] = [pattern_dict[str(idx)][key][cl]["id"] for cl in instance_classes]
 
     for i, cl in enumerate(instance_classes):
-        ax = _plot_attribution_map(
-            ax=axes[i],
+        _plot_attribution_map(
+            ax=axs[i],
             saliency_df=np.array(pattern_dict[str(idx)][key][cl]["contrib_scores"]),
-            return_ax=True,
+            return_ax=False,
             figsize=None,
         )
-        ax.set_title(pattern_dict[str(idx)][key][cl]["id"])
 
-    plt.tight_layout()
-    plt.show()
+    return render_plot(fig, axs, **kwargs)
 
 
 def similarity_heatmap(
     similarity_matrix: np.ndarray,
     indices: list,
-    fig_size: tuple[int, int] = (30, 15),
-    fig_path: str | None = None,
-) -> None:
+    cmap: str | plt.Colormap = 'coolwarm',
+    plot_kws: dict | None = None,
+    ax: plt.Axes | None = None,
+    fig_size = 'deprecated',
+    fig_path = 'deprecated',
+    **kwargs
+) -> tuple[plt.Figure, plt.Axes] | None:
     """
     Plot a similarity heatmap of all pattern indices.
 
@@ -868,10 +965,21 @@ def similarity_heatmap(
         A 2D numpy array containing the similarity values.
     indices
         List of pattern indices.
-    fig_size
-        Size of the figure for the heatmap.
-    fig_path
-        Path to save the figure. If None, the figure will be shown but not saved.
+    cmap
+        Colormap to use.
+    plot_kws
+        Extra keyword arguments passed to :func:`~seaborn.heatmap`.
+        Adjusted defaults compared to the base function are `{'annot': True, 'fmt': '.2f', 'annot_kws': {'size': 8}, 'xticklabels': indices, 'yticklabels': indices}`.
+    ax
+        Axis to plot values on. If not supplied, creates a figure from scratch.
+    width
+        Width of the newly created figure if `ax=None`. Default is 30.
+    height
+        Height of the newly created figure if `ax=None`. Default is 15.
+    kwargs
+        Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
+        Please see :func:`~crested.pl.render_plot` for details.
+        Adjusted defaults for `similarity_heatmap`: `title="Pattern similarity heatmap"`, `title_fontsize=20`, `[x/y]label='Pattern index'`, `[x/y]label_fontsize=15`
 
     See Also
     --------
@@ -886,16 +994,45 @@ def similarity_heatmap(
 
     .. image:: ../../../../docs/_static/img/examples/pattern_similarity_heatmap.png
     """
-    fig, ax = plt.subplots(figsize=fig_size)
+    # Handle deprecated arguments
+    if fig_size != 'deprecated':
+        kwargs['width'], kwargs['height'] = fig_size
+        logger.warning("`fig_size` is deprecated since version 2.0.0; please use arguments `width` and `height` instead.")
+    if fig_path != 'deprecated':
+        kwargs['save_path'] = fig_path
+        logger.warning("`fig_path` is deprecated since version 2.0.0; please use arguments `save_path` instead.") # handled in render_plot
+
+    # Set defaults
+    if 'title' not in kwargs:
+        kwargs['title'] = "Pattern similarity heatmap"
+    if 'title_fontsize' not in kwargs:
+        kwargs['title_fontsize'] = 20
+    if 'xlabel' not in kwargs:
+        kwargs['xlabel'] = 'Pattern index'
+    if 'xlabel_fontsize' not in kwargs:
+        kwargs['xlabel_fontsize'] = 15
+    if 'ylabel' not in kwargs:
+        kwargs['ylabel'] = 'Pattern index'
+    if 'ylabel_fontsize' not in kwargs:
+        kwargs['ylabel_fontsize'] = 15
+    plot_kws = {} if plot_kws is None else plot_kws.copy()
+    if 'annot' not in plot_kws:
+        plot_kws['annot'] = True
+    if 'fmt' not in plot_kws:
+        plot_kws['fmt'] = '.2f'
+    if 'annot_kws' not in plot_kws:
+        plot_kws['annot_kws'] = {'size': 8}
+    if 'xticklabels' not in plot_kws:
+        plot_kws['xticklabels'] = indices
+    if 'yticklabels' not in plot_kws:
+        plot_kws['yticklabels'] = indices
+
+    fig, ax = create_plot(ax=ax, kwargs_dict=kwargs, default_width=30, default_height=15)
     heatmap = sns.heatmap(
         similarity_matrix,
         ax=ax,
-        cmap="coolwarm",
-        annot=True,
-        fmt=".2f",
-        xticklabels=indices,
-        yticklabels=indices,
-        annot_kws={"size": 8},
+        cmap=cmap,
+        **plot_kws
     )
 
     for _, spine in heatmap.spines.items():
@@ -903,21 +1040,17 @@ def similarity_heatmap(
         spine.set_color("grey")
         spine.set_linewidth(0.5)
 
-    plt.title("Pattern Similarity Heatmap", fontsize=20)
-    plt.xlabel("Pattern Index", fontsize=15)
-    plt.ylabel("Pattern Index", fontsize=15)
-
-    if fig_path is not None:
-        plt.savefig(fig_path)
-    plt.show()
+    return render_plot(fig, ax, **kwargs)
 
 
 def tf_expression_per_cell_type(
     df: pd.DataFrame,
     tf_list: list,
     log_transform: bool = False,
-    title: str = "TF Expression per Cell Type",
-) -> None:
+    plot_kws: dict | None = None,
+    ax: plt.Axes | None = None,
+    **kwargs,
+) -> tuple[plt.Figure, plt.Axes] | None:
     """
     Plot the expression levels of specified transcription factors (TFs) per cell type.
 
@@ -929,8 +1062,19 @@ def tf_expression_per_cell_type(
         A list of transcription factors (TFs) to plot.
     log_transform
         Whether to log-transform the TF expression values.
-    title
-        The title of the plot.
+    plot_kws
+        Extra keyword arguments passed to :meth:`~pandas.DataFrame.plot`.
+        Defaults: `{'width': 0.8}`.
+    ax
+        Axis to plot values on. If not supplied, creates a figure from scratch.
+    width
+        Width of the newly created figure if `ax=None`. Default is 12.
+    height
+        Height of the newly created figure if `ax=None`. Default is 5.
+    kwargs
+        Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
+        Please see :func:`~crested.pl.render_plot` for details.
+        Defaults for `tf_expression_per_cell_type`: `title="TF expression per cell type"`, `xlabel="Cell type"`, `ylabel="(Log1p-transformed) mean TF expression"`, `xtick_rotation=45`, `xtick_ha=55`.
     """
     # Check if all specified TFs are in the DataFrame
     missing_tfs = [tf for tf in tf_list if tf not in df.columns]
@@ -944,17 +1088,31 @@ def tf_expression_per_cell_type(
 
     # Apply log transformation if specified
     if log_transform:
-        tf_expression_df = np.log(tf_expression_df + 1)
+        tf_expression_df = np.log1p(tf_expression_df)
+
+    # Set defaults
+    if 'title' not in kwargs:
+        kwargs['title'] = "TF expression per cell type"
+    if 'xlabel' not in kwargs:
+        kwargs['xlabel'] =  "Cell type"
+    if 'ylabel' not in kwargs:
+        kwargs['ylabel'] = "Mean TF expression"
+        if log_transform:
+            kwargs['ylabel'] = "Log1p-transformed " + kwargs['ylabel'].lower()
+    if 'xtick_rotation' not in kwargs:
+        kwargs['xtick_rotation'] = 45
+    if 'xtick_ha' not in kwargs:
+        kwargs['xtick_ha'] = 'right'
+    plot_kws = {} if plot_kws is None else plot_kws.copy()
+    if 'width' not in plot_kws:
+        plot_kws['width'] = 0.8
 
     # Plot the TF expression per cell type
-    ax = tf_expression_df.plot(kind="bar", figsize=(12, 5), width=0.8)
-    ax.set_title(title)
-    ax.set_xlabel("Cell Type")
-    ax.set_ylabel("Log Mean TF Expression" if log_transform else "Mean TF Expression")
-    ax.legend(title="Transcription Factors")
-    plt.xticks(rotation=45, ha="right")
-    plt.tight_layout()
-    plt.show()
+    fig, ax = create_plot(ax=ax, kwargs_dict=kwargs, default_width=12, default_height=5)
+    ax = tf_expression_df.plot(kind="bar", ax = ax, **plot_kws)
+    ax.legend(title="Transcription factors")
+
+    return render_plot(fig, ax, **kwargs)
 
 
 def clustermap_tf_motif(
@@ -964,40 +1122,49 @@ def clustermap_tf_motif(
     class_labels: list[str] | None = None,
     subset_classes: list[str] | None = None,
     pattern_labels: list[str] | None = None,
-    fig_size: tuple[int, int] | None = None,
-    save_path: str | None = None,
     cluster_rows: bool = True,
     cluster_columns: bool = True,
-) -> None:
+    imshow_kws: dict | None = None,
+    scatter_kws: dict | None = None,
+    fig_size = 'deprecated',
+    **kwargs
+) -> tuple[plt.Figure, list[plt.Axes]] | None:
     """
     Generate a heatmap where one modality is represented as color, and the other as dot size.
 
     Parameters
     ----------
-    data : numpy.ndarray
+    data
         3D numpy array with shape (len(classes), #patterns, 2).
-    heatmap_dim : str
+    heatmap_dim
         Either 'gex' or 'contrib', indicating which third dimension to use for heatmap colors.
-    dot_dim : str
+    dot_dim
         Either 'gex' or 'contrib', indicating which third dimension to use for dot sizes.
-    class_labels : list[str] | None
+    class_labels
         Labels for the classes.
-    subset_classes : list[str] | None
+    subset_classes
         Subset of classes to include in the heatmap. Rows in `data` are filtered accordingly.
-    pattern_labels : list[str] | None
+    pattern_labels
         Labels for the patterns.
-    fig_size : tuple[int, int] | None
-        Size of figure. If None, it will be auto-configured.
-    save_path : str | None
-        File path to save figure to.
-    cluster_rows : bool
+    cluster_rows
         Whether to cluster the rows (classes). Default is True.
-    cluster_columns : bool
+    cluster_columns
         Whether to cluster the columns (patterns). Default is True.
+    imshow_kws
+        Extra arguments for `ax.imshow`. Default is `{'cmap': 'coolwarm', 'aspect': 'auto'}`.
+    scatter_kws
+        Extra arguments for `ax.scatter`. Default is `{'c': "black", 'alpha': 0.6, 'edgecolor': "none"}`
+    width
+        Width of the newly created figure. Default is `max(20, data.shape[1]//4)`.
+    height
+        Height of the newly created figure. Default is `data.shape[0]//2`.
+    kwargs
+        Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
+        Please see :func:`~crested.pl.render_plot` for details.
 
     Examples
     --------
-    >>> clustermap_tf_motif_v2(
+    >>> clustermap_tf_motif(
     ...     data,
     ...     heatmap_dim="gex",
     ...     dot_dim="contrib",
@@ -1007,6 +1174,9 @@ def clustermap_tf_motif(
     ...     cluster_columns=True,
     ... )
     """
+    if fig_size != 'deprecated':
+        kwargs['width'], kwargs['height'] = fig_size
+        logger.warning("`fig_size` is deprecated since version 2.0.0; please use `width` and `height` instead.")
     assert data.shape[2] == 2, "The third dimension of the data must be 2."
 
     # Set default labels if not provided
@@ -1070,9 +1240,9 @@ def clustermap_tf_motif(
     dot_size_data = dot_size_data / max_dot_size  # Normalize dot size
 
     # Define figure layout
-    if fig_size is None:
-        fig_size = (max(20, data.shape[1] // 4), data.shape[0] // 2)
-    fig = plt.figure(figsize=fig_size)
+    plot_width = kwargs.pop('width') if 'width' in kwargs else max(20, data.shape[1] // 4)
+    plot_height = kwargs.pop('height') if 'height' in kwargs else data.shape[0] // 2
+    fig = plt.figure(figsize=(plot_width, plot_height))
 
     if cluster_rows:
         gs = fig.add_gridspec(1, 2, width_ratios=[0.1, 4], wspace=0.02)
@@ -1092,23 +1262,32 @@ def clustermap_tf_motif(
     )
 
     # Plot heatmap
+    imshow_kws = {} if imshow_kws is None else imshow_kws.copy()
+    if 'aspect' not in imshow_kws:
+        imshow_kws['aspect'] = 'auto'
+    if 'cmap' not in imshow_kws:
+        imshow_kws['cmap'] = 'coolwarm'
     heatmap = ax_heatmap.imshow(
         heatmap_data,
-        aspect="auto",
-        cmap="coolwarm",
         norm=norm,
+        **imshow_kws
     )
 
     # Overlay dots
+    scatter_kws = {} if scatter_kws is None else scatter_kws.copy()
+    if 'c' not in scatter_kws:
+        scatter_kws['c'] = 'black'
+    if 'alpha' not in scatter_kws:
+        scatter_kws['alpha'] = 0.6
+    if 'edgecolor' not in scatter_kws:
+        scatter_kws['edgecolor'] = 'none'
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
             ax_heatmap.scatter(
                 j,
                 i,
                 s=dot_size_data[i, j] * 100,
-                c="black",
-                alpha=0.6,
-                edgecolor="none",
+                **scatter_kws
             )
 
     # Add colorbar
@@ -1128,8 +1307,5 @@ def clustermap_tf_motif(
 
     ax_heatmap.yaxis.tick_right()
 
-    # Final layout adjustments
-    plt.tight_layout()
-    if save_path:
-        plt.savefig(save_path, bbox_inches="tight")
-    plt.show()
+    # Final layout adjustments - provide only heatmap ax since other axes likely shouldn't be adjusted/labeled/etc through this.
+    return render_plot(fig, ax_heatmap, **kwargs)

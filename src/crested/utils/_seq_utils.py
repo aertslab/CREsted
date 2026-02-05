@@ -246,3 +246,57 @@ def reverse_complement(sequence: str | list[str] | np.ndarray) -> str | np.ndarr
         raise TypeError(
             "Input must be either a DNA sequence string or a one-hot encoded array"
         )
+
+def flip_region_strand(region: str | tuple[str, int, int, str]) -> str | tuple[str, int, int, str]:
+    """Reverse the strand of a region strand or tuple.
+
+    Parameters
+    ----------
+    region
+        A region string ending in + or - (presumably chr:start-end:strand), or a region tuple with a + or - as the final entry.
+
+    Returns
+    -------
+    The region string or tuple, with the strand marker reversed.
+    """
+    strand_reverser = {"+": "-", "-": "+"}
+    try:
+        return region[:-1] + strand_reverser[region[-1]]
+    except TypeError:
+        return region[:-1] + tuple(strand_reverser[region[-1]])
+
+def parse_region(region: tuple[str, int, int] | tuple[str, int, int, str] | str) -> tuple[str, int, int, str]:
+    """Parse a region string or tuple, returning a consistent (chr, start, end, strand) tuple.
+
+    If strand is not provided, infers + to keep output consistent.
+
+    Parameters
+    ----------
+    region
+    A region tuple ((chrom, start, end) or (chrom, start, end, strand)), or a region strand ()
+    """
+    # Try most straightforward option
+    try:
+        chrom, start, end, strand = region
+        return region
+    # Cover other bases
+    except ValueError:
+        if isinstance(region, tuple):
+            try:
+                chrom, start, end = region
+                strand = "+"
+            except ValueError as err:
+                raise ValueError(f"Expect region with pattern (chr, start, end, strand) or (chr, start, end), not {region}") from err
+        elif isinstance(region, str):
+            region_split = region.split(':')
+            if len(region_split) == 3:
+                chrom, start_end, strand = region_split
+            elif len(region_split) == 2:
+                chrom, start_end = region_split
+                strand = "+"
+            else:
+                raise ValueError(f"Expect region with pattern chr:start-end:strand or chr:start-end, not {region}") from None
+            start, end = map(int, start_end.split('-'))
+        else:
+            raise ValueError(f"Expect region to be formatted as a 'chr:start-end[:string]' string or (chr, start, end[, string]) tuple, not {region}") from None
+        return chrom, start, end, strand

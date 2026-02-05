@@ -417,7 +417,7 @@ def derive_intermediate_sequences(
 
     Returns
     -------
-    The intermediate sequences.
+    A nested list of intermediate sequences, of shape [[seq1_step1, seq1_step2, ...], [seq2_step1, seq2_step2, ...]]
 
     See Also
     --------

@@ -1,27 +1,24 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Literal
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from loguru import logger
 
-from crested.pl._utils import render_plot
+from crested.pl._utils import create_plot, render_plot
 from crested.utils._logging import log_and_raise
 
-from ._contribution_scores import _check_contrib_params
-from ._utils import (
-    _plot_attribution_map,
-    _plot_mutagenesis_map,
-    grad_times_input_to_df,
-    grad_times_input_to_df_mutagenesis,
-)
+from ._contribution_scores import contribution_scores
 
 
 @log_and_raise(ValueError)
 def _check_ylim_params(global_ylim: int | None, ylim: np.ndarray):
     """Check contribution scores parameters."""
     if global_ylim is not None and global_ylim not in ["all", "per_design", "per_plot"]:
-        raise ValueError("global_ylim must be one of all, per_design or per_plot")
+        raise ValueError("global_ylim must be one of 'all', 'per_design' or 'per_plot' or None.")
     if ylim is not None and global_ylim is not None:
         logger.warning("Both ylim and global_ylim is set. Ignoring ylim.")
 
@@ -44,83 +41,39 @@ def _check_target_classes(target_classes: list[str], obs_names: pd.Index | list[
                 f"target class {target} not in obs_names. All targets must be in obs_names."
             )
 
-
-def _determine_min_max(
-    scores_all,
-    seqs_one_hot_all,
-    center,
-    zoom_n_bases,
-    start_idx,
-    method,
-    class_idxs=None,
-    designed_idxs=None,
-):
-    n_designs = len(scores_all)
-    n_class = scores_all[0].shape[1]
-    n_steps = scores_all[0].shape[0]
-
-    if class_idxs is None:
-        class_idxs = range(n_class)
-
-    if designed_idxs is None:
-        designed_idxs = range(n_designs)
-
-    # construct loop list
-    constructed_loop = []
-    for des_idx in designed_idxs:
-        for c_idx in class_idxs:
-            for s_idx in range(n_steps):
-                constructed_loop.append((s_idx, c_idx, des_idx))
-
-    mins = []
-    maxs = []
-
-    for s_idx, c_idx, des_idx in constructed_loop:
-        scores = scores_all[des_idx][:, :, start_idx : start_idx + zoom_n_bases, :]
-        seq_class_scores = scores[s_idx, c_idx, :, :]
-        if method == "mutagenesis":
-            maxs.append(seq_class_scores.max() + 0.25 * np.abs(seq_class_scores.max()))
-            mins.append(seq_class_scores.min() - 0.25 * np.abs(seq_class_scores.min()))
-        else:
-            seqs_one_hot = seqs_one_hot_all[des_idx]
-            seq_class_x = seqs_one_hot[s_idx, start_idx : start_idx + zoom_n_bases, :]
-            mins.append(np.min(seq_class_scores * seq_class_x))
-            maxs.append(np.max(seq_class_scores * seq_class_x))
-
-    if method == "mutagenesis":
-        return min(mins), max(maxs)
-
-    return np.array(mins).min() - 0.25 * np.abs(np.array(mins).min()), np.array(
-        maxs
-    ).max() + 0.25 * np.abs(np.array(maxs).max())
-
-
 def enhancer_design_steps_contribution_scores(
-    intermediate: list[dict],
-    scores_all: np.ndarray,
-    seqs_one_hot_all: np.ndarray,
-    labels: list | None = None,
+    intermediate: list[dict] | dict,
+    scores_all: list[np.ndarray] | np.ndarray,
+    seqs_one_hot_all: list[np.ndarray] | np.ndarray,
+    sequence_labels: list | None = None,
+    class_labels: list | None = None,
     zoom_n_bases: int | None = None,
-    ylim: tuple | None = None,
-    global_ylim: str | None = "per_plot",
-    method: str | None = None,
+    ylim: tuple[float, float] | None = None,
+    global_ylim: Literal["all", "per_design", "per_plot"] | None = "per_plot",
+    method: Literal["mutagenesis", "mutagenesis_letters"] | None = None,
+    highlight_kws: dict | None = None,
+    show: bool = True,
+    labels: str = 'deprecated',
     **kwargs,
-):
+) -> tuple[plt.Figure, list[plt.Axes]] | list[tuple[plt.Figure, list[plt.Axes]]]| None:
     """
     Visualize enhancer design stepwise contribution scores.
 
-    Contribution scores can be calculated using the :func:`~crested.tl.Crested.calculate_contribution_scores_enhancer_design` method.
+    Contribution scores can be calculated using the :func:`~crested.tl.contribution_scores` method.
 
     Parameters
     ----------
     intermediate
-        Intermediate output from enhancer design when return_intermediate is True
+        Intermediate output from enhancer design when return_intermediate is True.
+        Specifically, a single dict or list of dicts (one per designed sequence), with dict entry 'changes' to denote the changed position per step.
     scores_all
-        An array of a list of arrays of contribution scores of shape (n_seqs, n_classes, n_bases, n_features).
+        A list of contribution scores arrays for each designed sequence, of shape [(seq_steps, n_classes, n_bases, n_features), ...], like from :func:`~crested.tl.contribution_scores`.
     seqs_one_hot_all
-        An array of a list of arrays of one-hot encoded corresponding sequences of shape (n_seqs, n_bases, n_features).
-    labels
-        List of labels to add to the plot. Should have the same length as the number of classes.
+        A list of one-hot encoded corresponding sequence arrays of shape [(seq_steps, n_bases, n_features), ...], like from :func:`~crested.utils.derive_intermediate_sequences()`.
+    sequence_labels
+        List of sequence labels ot add to the plot. Should have the same length as the number of designed sequences.
+    class_labels
+        List of class labels to add to the plot. Should have the same length as the number of classes.
     zoom_n_bases
         Number of center bases to zoom in on. Default is None (no zooming).
     ylim
@@ -130,178 +83,165 @@ def enhancer_design_steps_contribution_scores(
         'all' makes the y-axis limit same across all of the explanations.
         'per_design' makes the y-axis limit same across all of the steps and classes of a single designed sequence.
         'per_plot' makes y-axis limits same across all the steps but not the classes of a single designed sequence.
-        If None, each explanation has its y-axis limits seperately selected.
+        If None, each explanation has its y-axis limits separately selected.
     method
-        Method used for calculating contribution scores. If mutagenesis, specify.
+        Default is None (for gradient-based contributions). If plotting mutagenesis values, set to `'mutagenesis_letters'`
+        (to visualize average effects as letters) or `mutagenesis` (to visualize in a legacy way).
+    highlight_kws
+        Keywords to use for plotting changed basepairs with :meth:`~matplotlib.axes.Axes.axvspan`.
+        Default is {'edgecolor':  "red", 'facecolor': "none", 'linewidth' :0.5}
+    show
+        Whether to show all plots or return the (list of) figure and axes instead.
+    width
+        Width of each created figure. Default is 50.
+    height
+        Height of each created figure. Default is 2*`n_seqs`.
+    sharex
+        Whether to share the x axes of the created subplots within each figure. Default is False.
+    sharey
+        Whether to share the y axes of the created subplots within each figure. Default is False.
+    kwargs
+        Additional arguments passed to :func:`~crested.pl.patterns.contribution_scores` to control contribution score settings and on to :func:`~crested.pl.render_plot` to control the final plot output.
+        Please see :func:`~crested.pl.patterns.contribution_scores` and :func:`~crested.pl.render_plot` for details.
+        Custom defaults for `enhancer_design_steps_contribution_scores`: `suptitle_fontsize=26`, `tight_rect=[0, 0, 1, 0.98]`.
+
+    Returns
+    -------
+    If `show=False`, a (fig, axs) tuple (if plotting one sequence and one class), or a list of (fig, axs) tuples (if plotting multiple sequences and/or classes).
+
+    See Also
+    --------
+    crested.pl.render_plot
+    crested.pl.patterns.contribution_scores
+
+    Example
+    --------
+    >>> crested.pl.patterns.enhancer_design_steps_contribution_scores(
+    ...     intermediate_results,
+    ...     scores,
+    ...     one_hot_encoded_sequences,
+    ...     labels=["L5ET"],
+    ...     highlight_kws={'facecolor': 'green', 'edgecolor': 'green', 'alpha': 0.1},
+    ... )
+
+    .. image:: ../../../../docs/_static/img/examples/patterns_enhancer_design_steps_contribution_scores.png
     """
+    if labels != 'deprecated':
+        class_labels = labels
+        logger.warning("Argument `labels` is renamed since version 2.0.0; please use `class_labels` instead.")
+
     _check_ylim_params(global_ylim, ylim)
 
+    # Handle defaults
+    if 'suptitle_fontsize' not in kwargs:
+        kwargs['suptitle_fontsize'] = 26
+    if 'tight_rect' not in kwargs:
+        kwargs['tight_rect'] = [0, 0, 1, 0.97]
+    highlight_kws = {} if highlight_kws is None else highlight_kws.copy()
+    if 'edgecolor' not in highlight_kws:
+        highlight_kws['edgecolor'] = "red"
+    if 'facecolor' not in highlight_kws:
+        highlight_kws['facecolor'] = "none"
+    if 'linewidth' not in highlight_kws:
+        highlight_kws['linewidth'] = 0.5
+
+    if not isinstance(intermediate, list):
+        intermediate = [intermediate]
     if not isinstance(scores_all, list):
         scores_all = [scores_all]
     if not isinstance(seqs_one_hot_all, list):
         seqs_one_hot_all = [seqs_one_hot_all]
+    if ylim is not None and not isinstance(ylim[0], Sequence):
+        ylim = [ylim]*len(scores_all)
 
-    _check_contrib_params(zoom_n_bases, scores_all[0], labels, None)
+    # Check inputs
+    assert len(scores_all) == len(seqs_one_hot_all), f"Number of entries in the scores list ({len(scores_all)}) should be the same as the number of entries in the sequence list ({len(seqs_one_hot_all)})."
+    if class_labels is not None:
+        assert all(s.shape[1] == len(class_labels) for s in scores_all), f"Number of class_labels ({len(class_labels)}) should match number of classes, but found {[s.shape[1] for s in scores_all]} classes."
+    if sequence_labels is not None:
+        assert len(seqs_one_hot_all) == len(sequence_labels), f"Number of sequence_labels ({len(sequence_labels)}) should match number of designed sequences ({len(seqs_one_hot_all)})."
 
-    # Center and zoom
-    if zoom_n_bases is None:
-        zoom_n_bases = scores_all[0].shape[2]
-    if labels and not isinstance(labels, list):
-        labels = [str(labels)]
-    center = int(scores_all[0].shape[2] / 2)
-    start_idx = center - int(zoom_n_bases / 2)
+    if global_ylim is None:
+        sharey = False
+    else:
+        sharey = True
+        ylim = None
 
-    if global_ylim == "all":
-        if method == "mutagenesis":
-            global_min, global_max = _determine_min_max(
-                scores_all, seqs_one_hot_all, center, zoom_n_bases, start_idx, method
+    # Goal of plotting: make one plot of n steps, for each designed seq x class combination.
+    return_list = []
+    design_idx_per_plot = []
+    ylim_per_design = [] # Save ylims as we go to unify later on for global_ylim
+    for design_idx in range(len(scores_all)):
+        ymin_sublist = []
+        ymax_sublist = []
+        n_steps, n_classes, seq_len, _ = scores_all[design_idx].shape
+        step_labels = ["Random sequence"] + [f"Step {i}" for i in range(1, n_steps)]
+        for class_idx in range(n_classes):
+            # Plot intermediate sequences and scores for this designed sequence x class combo
+            seq_label = f"Sequence {design_idx}" if sequence_labels is None else sequence_labels[design_idx]
+            class_label = f"Class {class_idx}" if class_labels is None else class_labels[class_idx]
+            fig, axs = contribution_scores(
+                scores=scores_all[design_idx][:, class_idx, ...],
+                seqs_one_hot=seqs_one_hot_all[design_idx],
+                sequence_labels=step_labels, # Sequence labels per step
+                class_labels=None,
+                zoom_n_bases=zoom_n_bases,
+                method=method,
+                sharey=sharey,
+                ylim=ylim,
+                suptitle=f"{seq_label} - {class_label}",
+                show=False,
+                **kwargs,
             )
-        else:
-            global_min, global_max = _determine_min_max(
-                scores_all, seqs_one_hot_all, center, zoom_n_bases, start_idx, method
-            )
-
-    # Plot
-    for intermediate_idx, (scores, seqs_one_hot) in enumerate(
-        zip(scores_all, seqs_one_hot_all, strict=False)
-    ):
-        intermediate_current = intermediate[intermediate_idx]
-        if global_ylim == "per_design":
-            if method == "mutagenesis":
-                global_min, global_max = _determine_min_max(
-                    scores_all,
-                    seqs_one_hot_all,
-                    center,
-                    zoom_n_bases,
-                    start_idx,
-                    method,
-                    designed_idxs=[intermediate_idx],
-                )
-            else:
-                global_min, global_max = _determine_min_max(
-                    scores_all,
-                    seqs_one_hot_all,
-                    center,
-                    zoom_n_bases,
-                    start_idx,
-                    method,
-                    designed_idxs=[intermediate_idx],
-                )
-
-        for class_idx in range(scores.shape[1]):
-            logger.info(
-                f"Plotting contribution scores for {seqs_one_hot.shape[0]} sequence(s)"
-            )
-            number_of_steps = seqs_one_hot.shape[0]
-            fig, ax = plt.subplots(
-                number_of_steps, 1, figsize=(50, 2 * number_of_steps)
-            )
-            if global_ylim == "per_plot":
-                if method == "mutagenesis":
-                    global_min, global_max = _determine_min_max(
-                        scores_all,
-                        seqs_one_hot_all,
-                        center,
-                        zoom_n_bases,
-                        start_idx,
-                        method,
-                        designed_idxs=[intermediate_idx],
-                        class_idxs=[class_idx],
-                    )
-                else:
-                    global_min, global_max = _determine_min_max(
-                        scores_all,
-                        seqs_one_hot_all,
-                        center,
-                        zoom_n_bases,
-                        start_idx,
-                        method,
-                        designed_idxs=[intermediate_idx],
-                        class_idxs=[class_idx],
-                    )
-
-            for seq in range(seqs_one_hot.shape[0]):
-                seq_class_x = seqs_one_hot[seq, start_idx : start_idx + zoom_n_bases, :]
-
-                seq_class_scores = scores[seq, class_idx, :, :]
-                if method == "mutagenesis":
-                    mutagenesis_df = grad_times_input_to_df_mutagenesis(
-                        seq_class_x, seq_class_scores
-                    )
-                    _plot_mutagenesis_map(mutagenesis_df, ax=ax[seq])
-                else:
-                    intgrad_df = grad_times_input_to_df(seq_class_x, seq_class_scores)
-                    _plot_attribution_map(intgrad_df, ax=ax[seq], return_ax=False)
-
-                if global_ylim in ["all", "per_design", "per_plot"]:
-                    ax[seq].set_ylim([global_min, global_max])
-                elif ylim:
-                    ax[seq].set_ylim(ylim[0], ylim[1])
-                elif global_ylim is None:
-                    current_ylim = ax[seq].get_ylim()
-                    ax[seq].set_ylim((current_ylim[0] * 1.1, current_ylim[1] * 1.1))
-
-                current_ylim = ax[seq].get_ylim()
-
-                # Set change step as title
-                if seq == 0:
-                    current_mut_title = "Random Sequence"
-                else:
-                    current_mut_title = f"Step {seq}"
-                ax[seq].set_title(current_mut_title)
-
-                # Draw rectangles to highlight positions
-                change_loc, change = intermediate_current["changes"][seq]
+            # Draw highlights
+            start_idx = int(seq_len / 2) - int(zoom_n_bases / 2) if zoom_n_bases is not None else 0 # Get rel shift if zoom_n_bases is used
+            for step_idx in range(n_steps):
+                change_loc, change = intermediate[design_idx]["changes"][step_idx]
                 if change_loc != -1:
-                    start, end = change_loc, change_loc + len(change)
-                    ax[seq].add_patch(
-                        plt.Rectangle(
-                            (
-                                start - start_idx - 0.5,
-                                current_ylim[0],
-                            ),
-                            end - start,
-                            current_ylim[1] - current_ylim[0],
-                            edgecolor="red",
-                            facecolor="none",
-                            linewidth=0.5,
-                        )
+                    start, end = change_loc, change_loc+len(change)
+                    axs[step_idx].axvspan(
+                        xmin=start-start_idx-0.5,
+                        xmax=end-start_idx-0.5,
+                        **highlight_kws
                     )
-            if labels:
-                class_name = labels[class_idx]
-            else:
-                class_name = f"Class {class_idx}"
-            kwargs["title"] = class_name
-            plt.xticks(np.arange(0, zoom_n_bases, 50))
+            return_list.append((fig, axs))
+            ymin_sublist.append(min(ax.get_ylim()[0] for ax in axs))
+            ymax_sublist.append(max(ax.get_ylim()[1] for ax in axs))
+            design_idx_per_plot.append(design_idx)
+        # Get furthest ylims per design
+        ylim_per_design.append((min(ymin_sublist), max(ymax_sublist)))
 
-            if "width" not in kwargs:
-                kwargs["width"] = 50
-            if "height" not in kwargs:
-                kwargs["height"] = 2 * number_of_steps
-            if "supxlabel" not in kwargs:
-                kwargs["supxlabel"] = "Position"
-            if "supylabel" not in kwargs:
-                kwargs["supylabel"] = "Scores"
-            if "tight_rect" not in kwargs:
-                kwargs["tight_rect"] = (0.02, 0.02, 1, 0.98)
-            render_plot(fig, **kwargs)
+    # Handle global_ylim
+    if global_ylim == 'all':
+        total_ylim = (min(ylim[0] for ylim in ylim_per_design),  max(ylim[1] for ylim in ylim_per_design))
 
+    for i, (_, axs) in enumerate(return_list):
+        design_idx = design_idx_per_plot[i]
+        for ax in axs:
+            if global_ylim == 'all':
+                ax.set_ylim(total_ylim)
+            elif global_ylim == 'per_design':
+                ax.set_ylim(ylim_per_design[design_idx])
+
+    if show:
+        plt.show()
+    else:
+        return return_list[0] if len(return_list) == 1 else return_list
 
 def enhancer_design_steps_predictions(
     intermediate: list[dict],
     target_classes: str | list[str],
     obs_names: pd.Index | list[str],
-    seperate: bool = False,
-    global_ylim: str = "minmax",
+    separate: bool = False,
     n_rows: int | None = None,
     n_cols: int | None = None,
-    alpha_seperate: float = 1.0,
-    legend_seperate: bool = False,
+    legend_separate: bool = False,
     plot_color: str | tuple = (0.3, 0.5, 0.6),
-    show_fliers: bool = False,
     fig_rescale: float = 1.0,
+    plot_kws: dict | None = None,
+    ax: plt.Axes | None = None,
     **kwargs,
-):
+) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
     """
     Visualize enhancer design prediction score progression.
 
@@ -313,28 +253,77 @@ def enhancer_design_steps_predictions(
         Target classes that the predictions will be plotted for. All target classes must be in obs_names.
     obs_names
         All class names either in the form of AnnData.obs_names or as a list.
-    seperate
-        Whether to plot each design enhancer seperately, or all together as a boxplot. Default is False.
-    global_ylim
-        Used to set global y-axis limits across plots. Can be one of 'classification', 'minmax' or None. Default is 'minmax'
-        'classification' makes the y-axis limits (0, 1).
-        'minmax' makes the y-axis limit minimum and maximum prediction across all the target classes of all designed enhancers
-        If None, each plot has its y-axis limits seperately selected.
+    separate
+        Whether to plot each designed enhancer separately, or all together as a boxplot. Default is False.
     n_rows
         Number of rows to use when more than one target class is selected.
+        If None, will infer from `n_cols`. If both are None, creates a square grid.
     n_cols
         Number of columns to use when more than one target class is selected.
-    alpha_seperate
-        Line alpha for lines when seperate is True. Default is 1.0.
-    legend_seperate
-        Whether to plot a legend when seperate is True. Default is False.
+        If None, will infer from `n_rows`. If both are None, creates a square grid.
+    legend_separate
+        Whether to plot a legend when separate is True. Default is False.
     plot_color
-        Boxplot color when seperate is False. Default is (0.3, 0.5, 0.6).
-    show_fliers
-        Whether to show fliers when seperate is False. Default is False.
+        Boxplot color when separate is False. Default is (0.3, 0.5, 0.6).
     fig_rescale
         A scalar to scale the figure size up or down. Default is 1.0.
+    plot_kws
+        Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.plot` (if `separate=True`)/:meth:`~matplotlib.axes.Axes.boxplot` (if `separate=False`).
+        Defaults:
+        `separate=True`: `{'marker': "o",'markersize': 7, 'linewidth': 0.5}`
+        `separate=False`: `{"showfliers": False, "capprops"/"boxprops"/"whiskerprops"/"flierprops"/"medianprops"/"meanprops": {"color": plot_color}}`
+    ax
+        Axis to plot values on. If not supplied, creates a figure from scratch.
+    width
+        Width of the newly created figure if not supplying `ax`. Default is `fig_rescale`*10*`n_rows`.
+    height
+        Height of the newly created figure if not supplying `ax`. Default is `fig_rescale`*10*`n_cols`.
+    sharex
+        Whether to share the x axes of the created plots. Default is False.
+    sharey
+        Whether to share the y axes of the created plots. Default is True.
+    kwargs
+        Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
+        Please see :func:`~crested.pl.render_plot` for details.
+
+    See Also
+    --------
+    crested.pl.render_plot
+
+    Example
+    --------
+    >>> crested.pl.patterns.enhancer_design_steps_predictions(
+    ...     intermediate_results,
+    ...     target_classes="L5ET",
+    ...     obs_names=adata.obs_names,
+    ...     separate=True,
+    ... )
+
+    .. image:: ../../../../docs/_static/img/examples/patterns_enhancer_design_steps_predictions.png
     """
+    if 'seperate' in kwargs:
+        separate = kwargs.pop('seperate')
+        logger.warning("Please use argument `separate` instead of `seperate`.")
+    if 'legend_seperate' in kwargs:
+        legend_separate = kwargs.pop('legend_seperate')
+        logger.warning("Please use argument `legend_separate` instead of `legend_seperate`.")
+
+    plot_kws = {} if plot_kws is None else plot_kws.copy()
+    if 'alpha_seperate' in kwargs:
+        logger.warning(f"Please use argument `plot_kws={{'alpha': {kwargs['alpha_seperate']}}}` instead of `alpha_seperate`.")
+        plot_kws['alpha'] = kwargs['alpha_seperate']
+    if 'show_fliers' in kwargs:
+        logger.warning(f"Please use argument `plot_kws={{'showfliers': {kwargs['show_fliers']}}}` instead of `show_fliers`.")
+        plot_kws['showfliers'] = kwargs['show_fliers']
+    if 'global_ylim' in kwargs:
+        if kwargs['global_ylim'] == 'minmax':
+            logger.warning("Argument `global_ylim` is superseded by `ylim` and `sharey`. Please set `sharey=True` instead of `global_ylim='minmax'`.")
+            kwargs['sharey'] = True
+        elif kwargs['global_ylim'] == 'classification':
+            logger.warning("Argument `global_ylim` is superseded by `ylim` and `sharey`. Please set `ylim=(0,1) instead of `global_ylim='classification'`.")
+            kwargs['ylim'] = (0, 1)
+        del kwargs['global_ylim']
+
     if not isinstance(obs_names, list):
         obs_names = list(obs_names)
 
@@ -342,8 +331,11 @@ def enhancer_design_steps_predictions(
         target_classes = [target_classes]
 
     _check_target_classes(target_classes, obs_names)
-    target_indexes = [obs_names.index(target_class) for target_class in target_classes]
+    if len(target_classes) > 1 and ax is not None:
+        raise ValueError("A pre-existing axis can only be used if plotting a single target class.")
+
     n_of_plots = len(target_classes)
+    target_indexes = [obs_names.index(target_class) for target_class in target_classes]
     if n_rows is not None and n_cols is not None:
         _check_figure_grid_params(n_rows, n_cols, n_of_plots)
     elif n_rows is not None and n_cols is None:
@@ -351,17 +343,9 @@ def enhancer_design_steps_predictions(
     elif n_rows is None and n_cols is not None:
         n_rows = n_of_plots // n_cols + (n_of_plots % n_cols > 0)
     elif n_rows is None and n_cols is None:
-        if n_of_plots == 1:
-            n_rows, n_cols = 1, 1
-        elif n_of_plots == 2:
-            n_rows, n_cols = 1, 2
-        elif n_of_plots == 4:
-            n_rows, n_cols = 2, 2
-        else:
-            n_cols = 3
-            n_rows = n_of_plots // n_cols + (n_of_plots % n_cols > 0)
+        n_cols = int(np.ceil(np.sqrt(n_of_plots)))
+        n_rows = int(np.ceil(n_of_plots / n_cols))
 
-    max_prediction, min_prediction = 0, np.inf
     predictions_per_class = {}
     all_predictions = []
     for intermediate_dict in intermediate:
@@ -371,63 +355,71 @@ def enhancer_design_steps_predictions(
         for i, prediction in enumerate(intermediate_dict["predictions"]):
             design_predictions[i, :] = prediction[target_indexes]
         all_predictions.append(design_predictions)
-        if np.max(design_predictions) > max_prediction:
-            max_prediction = np.max(design_predictions)
-        if np.min(design_predictions) < min_prediction:
-            min_prediction = np.min(design_predictions)
 
     for idx in range(len(target_indexes)):
         predictions_per_class[target_classes[idx]] = np.column_stack(
             [pred_mat[:, idx] for pred_mat in all_predictions]
         )
 
-    fig, ax = plt.subplots(n_rows, n_cols)
+    # Set defaults
+    if 'title' not in kwargs:
+        kwargs['title'] = [f"Class {target}" for target in target_classes]
+    if 'xlabel' not in kwargs:
+        kwargs['xlabel'] = "Steps"
+    if 'ylabel' not in kwargs:
+        kwargs['ylabel'] = "Prediction score"
+    if 'grid' not in kwargs:
+        kwargs['grid'] = 'y'
+    if 'ylim' not in kwargs:
+        kwargs['ylim'] = (0, None)
+    fig, axs = create_plot(
+        ax=ax,
+        kwargs_dict=kwargs,
+        default_width=fig_rescale*10*n_cols,
+        default_height=fig_rescale*10*n_rows,
+        nrows=n_rows,
+        ncols=n_cols,
+        default_sharex=False,
+        default_sharey=True,
+        squeeze=False
+    )
+    separate_plot_kws = {
+        'marker' : "o",
+        'markersize': 7,
+        'linewidth': 0.5
+    }
+    separate_plot_kws.update(plot_kws)
+    box_plot_kws = {
+        "showfliers": False,
+        "capprops": {"color": plot_color},
+        "boxprops": {"color": plot_color},
+        "whiskerprops": {"color": plot_color},
+        "flierprops": {"markeredgecolor": plot_color},
+        "medianprops": {"color": plot_color},
+        "meanprops": {"color": plot_color}
+    }
+    box_plot_kws.update(plot_kws)
+
     for idx in range(n_rows * n_cols):
-        if n_rows == 1 and n_cols == 1:
-            curr_ax = ax
-        elif n_rows == 1 or n_cols == 1:
-            curr_ax = ax[idx]
-        else:
-            i, j = idx // n_cols, idx % n_cols
-            curr_ax = ax[i, j]
+        i, j = idx // n_cols, idx % n_cols
 
         if idx >= len(target_indexes):
-            ax[i, j].set_axis_off()
+            axs[i, j].set_axis_off()
             continue
         else:
             target = target_classes[idx]
 
-        if seperate:
-            curr_ax.plot(
+        if separate:
+            axs[i, j].plot(
                 predictions_per_class[target],
-                marker="o",
-                markersize=7,
-                alpha=alpha_seperate,
-                linewidth=0.5,
+                **separate_plot_kws
             )
-            if legend_seperate:
-                curr_ax.legend(range(len(intermediate)))
+            if legend_separate:
+                axs[i, j].legend(range(len(intermediate)))
         else:
-            curr_ax.boxplot(
+            axs[i, j].boxplot(
                 predictions_per_class[target].T,
-                showfliers=show_fliers,
-                capprops={"color": plot_color},
-                boxprops={"color": plot_color},
-                whiskerprops={"color": plot_color},
-                flierprops={"markeredgecolor": plot_color},
-                medianprops={"color": plot_color},
-                meanprops={"color": plot_color},
+                **box_plot_kws
             )
-        if global_ylim == "classification":
-            curr_ax.set_ylim(0, 1)
-        elif global_ylim:
-            curr_ax.set_ylim(0, max_prediction)
-        curr_ax.set_title(f"Class {target}")
-        curr_ax.set_xlabel("Steps")
-        curr_ax.set_ylabel("Prediction Score")
 
-    if "width" not in kwargs:
-        kwargs["width"] = fig_rescale * 10 * n_cols
-    if "height" not in kwargs:
-        kwargs["height"] = fig_rescale * 10 * n_rows
-    render_plot(fig, **kwargs)
+    return render_plot(fig, axs, **kwargs)
