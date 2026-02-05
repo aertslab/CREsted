@@ -13,7 +13,7 @@ from crested.utils._logging import log_and_raise
 
 
 def region_predictions(
-    data: AnnData,
+    adata: AnnData,
     region: str,
     model_names: str | list[str] | None = None,
     log_transform: bool = False,
@@ -27,7 +27,7 @@ def region_predictions(
 
     Parameters
     ----------
-    data
+    adata
         AnnData object containing the predictions in `layers`.
     region
         String in the format 'chr:start-end' representing the genomic location.
@@ -73,25 +73,22 @@ def region_predictions(
     if 'share_y' in kwargs:
         kwargs['sharey'] = kwargs.pop('share_y')
         logger.warning("Argument `share_y` is deprecated since version 2.0.0; please use sharey instead to align with matplotlib.")
-    if 'adata' in kwargs:
-        data = kwargs.pop('adata')
-        logger.warning("Argument `adata` is deprecated since version 2.0.0; please use data instead to align with `region`.")
 
     # Check inputs
     @log_and_raise(ValueError)
     def _check_input_params():
-        if region not in list(data.var_names):
+        if region not in list(adata.var_names):
             raise ValueError(f"{region} not found in data.var_names.")
 
         if model_names is not None:
             for model_name in model_names:
-                if model_name not in data.layers:
+                if model_name not in adata.layers:
                     raise ValueError(f"Model {model_name} not found in data.layers.")
 
     if isinstance(model_names, str):
         model_names = [model_names]
     elif model_names is None:
-        model_names = list(data.layers.keys())
+        model_names = list(adata.layers.keys())
 
     _check_input_params()
 
@@ -121,7 +118,7 @@ def region_predictions(
         plot_kws_pred['color'] = pred_color
     for i in range(n_models):
         _ = crested.pl.bar.region(
-            data=data,
+            data=adata,
             region=region,
             target=model_names[i],
             log_transform=log_transform,
@@ -137,7 +134,7 @@ def region_predictions(
     if 'color' not in plot_kws_truth:
         plot_kws_truth['color'] = truth_color
     _ = crested.pl.bar.region(
-        data=data,
+        data=adata,
         region=region,
         target=None,
         log_transform=log_transform,
