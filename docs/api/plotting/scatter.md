@@ -12,4 +12,5 @@ Useful scatter plots.
 
     class_density
     gini_filtering
+    region
 ```
