@@ -51,7 +51,7 @@ def gini_filtering(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `gini_filtering`: ``
+        Custom defaults for `gini_filtering`: `xlabel='Rank'`, `ylabel='Standard deviations from the mean Gini'`, `grid='x'`.
 
     See Also
     --------
