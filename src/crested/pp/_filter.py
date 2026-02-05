@@ -22,6 +22,7 @@ def filter_regions_on_specificity(
     If model_name is provided, will look for the corresponding predictions in the
     adata.layers[model_name] layer. Else, it will use the targets in adata.X to decide
     which regions to keep.
+    To get an idea for the impact of different possible `gini_std_threshold` values, see :func:`~crested.pl.scatter.gini_filtering`.
 
     Parameters
     ----------
@@ -40,6 +41,10 @@ def filter_regions_on_specificity(
     -------
     If `copy=False` (default), returns nothing and modifies the AnnData in-place with the filtered matrix and updated variable names.
     If `copy=True`, returns a modified copy of the AnnData object instead.
+
+    See Also
+    --------
+    crested.pl.scatter.gini_filtering
 
     Example
     -------
@@ -62,11 +67,11 @@ def filter_regions_on_specificity(
             )
         target_matrix = adata.layers[model_name].T
 
-    gini_scores = _calc_gini(target_matrix)
-    mean = np.mean(np.max(gini_scores, axis=1))
-    std_dev = np.std(np.max(gini_scores, axis=1))
+    gini_scores = np.max(_calc_gini(target_matrix), axis=1)
+    mean = np.mean(gini_scores)
+    std_dev = np.std(gini_scores)
     gini_threshold = mean + gini_std_threshold * std_dev
-    selected_indices = np.argwhere(np.max(gini_scores, axis=1) > gini_threshold)[:, 0]
+    selected_indices = np.argwhere(gini_scores > gini_threshold)[:, 0]
 
     target_matrix_filt = target_matrix[selected_indices]
     regions_filt = adata.var_names[selected_indices]
