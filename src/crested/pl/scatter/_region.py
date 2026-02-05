@@ -54,18 +54,18 @@ def region(
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width
-        Width of the newly created figure if `ax=None`. Default is ?.
+        Width of the newly created figure if `ax=None`. Default is 7*n_models.
     height
-        Height of the newly created figure if `ax=None`. Default is ?.
+        Height of the newly created figure if `ax=None`. Default is 7.
     sharex
-        ?
+        Whether to share the x axes of the created plots. Default is False. Setting `square=True` does equalize limits even if `sharex=False`
     sharey
-        ?
+        Whether to share the y axes of the created plots. Default is False. Setting `square=True` does equalize limits even if `sharey=False`.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
         Custom defaults for `region`: `xlabel="Ground truth"`, `ylabel="Prediction", `title="region"`,
-        `layout="compressed"`, `title="{region}-{model_name}/model_name`, `suptitle=region` (if more than 1 model).
+        `layout="compressed"`, `title="{region}-{model_name}"`(1 model)/`model_name`(>1 model), `suptitle=region` (>1 model).
 
     See Also
     --------

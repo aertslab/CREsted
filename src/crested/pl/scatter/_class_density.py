@@ -94,9 +94,9 @@ def class_density(
     height
         Height of the newly created figure if `ax=None`. Default is 8.
     sharex
-        Whether to share the x axes of the created plots. Default is False.
+        Whether to share the x axes of the created plots. Default is False. Setting `square=True` does equalize limits even if `sharex=False`
     sharey
-        Whether to share the y axes of the created plots. Default is True.
+        Whether to share the y axes of the created plots. Default is True. Setting `square=True` does equalize limits even if `sharey=False`
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
