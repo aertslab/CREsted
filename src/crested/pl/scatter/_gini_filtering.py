@@ -24,12 +24,12 @@ def gini_filtering(
     **kwargs
 ):
     """
-    Plot the effect of different potential filtering cutoffs in :func:`~crested.pp.filter_regions_on_specificity`.
+    Plot the effect of different potential filtering cutoffs in :func:`~crested.pp.filter_regions_on_specificity` before doing the filtering.
 
     Parameters
     ----------
     adata
-        AnnData object with region data.
+        AnnData object with region data. This should not be filtered yet!
     cutoffs
         List of considered gini standard deviation cutoffs to plot, as in :func:`~crested.pp.filter_regions_on_specificity`'s `gini_std_threshold` (where the default is 1).
     color_points
@@ -60,7 +60,7 @@ def gini_filtering(
 
     Example
     -------
-    > crested.pl.scatter.gini(adata)
+    >>> crested.pl.scatter.gini(adata)
 
     .. image:: ../../../../docs/_static/img/examples/scatter_gini_filtering.png
     """
