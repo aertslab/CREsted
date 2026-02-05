@@ -13,9 +13,10 @@ from crested.utils._logging import log_and_raise
 
 
 def region_predictions(
-    adata: AnnData,
+    data: AnnData,
     region: str,
     model_names: str | list[str] | None = None,
+    log_transform: bool = False,
     pred_color: str = 'tab:blue',
     truth_color: str = 'green',
     plot_kws: dict | None = None,
@@ -26,12 +27,14 @@ def region_predictions(
 
     Parameters
     ----------
-    adata
+    data
         AnnData object containing the predictions in `layers`.
     region
         String in the format 'chr:start-end' representing the genomic location.
     model_names
         Single model name or list of model names in `adata.layers`. If None, will create a plot per model in `adata.layers`.
+    log_transform
+        Whether to apply a log1p transformation to the data.
     pred_color
         Plot color of the prediction barplot(s).
     truth_color
@@ -41,7 +44,7 @@ def region_predictions(
     width
         Width of the newly created figure if `ax=None`. Default is 20.
     height
-        Height of the newly created figure if `ax=None`. Default is 3*(1+n_models).
+        Height of the newly created figure if `ax=None`. Default is 4*(1+n_models).
     sharex
         Whether to share the x axes of the created plots. Default is True.
     sharey
@@ -70,22 +73,25 @@ def region_predictions(
     if 'share_y' in kwargs:
         kwargs['sharey'] = kwargs.pop('share_y')
         logger.warning("Argument `share_y` is deprecated since version 2.0.0; please use sharey instead to align with matplotlib.")
+    if 'adata' in kwargs:
+        data = kwargs.pop('adata')
+        logger.warning("Argument `adata` is deprecated since version 2.0.0; please use data instead to align with `region`.")
 
     # Check inputs
     @log_and_raise(ValueError)
     def _check_input_params():
-        if region not in list(adata.var_names):
-            raise ValueError(f"{region} not found in adata.var_names.")
+        if region not in list(data.var_names):
+            raise ValueError(f"{region} not found in data.var_names.")
 
         if model_names is not None:
             for model_name in model_names:
-                if model_name not in adata.layers:
-                    raise ValueError(f"Model {model_name} not found in adata.layers.")
+                if model_name not in data.layers:
+                    raise ValueError(f"Model {model_name} not found in data.layers.")
 
     if isinstance(model_names, str):
         model_names = [model_names]
     elif model_names is None:
-        model_names = list(adata.layers.keys())
+        model_names = list(data.layers.keys())
 
     _check_input_params()
 
@@ -103,7 +109,7 @@ def region_predictions(
         ax=None,
         kwargs_dict=kwargs,
         default_width=20,
-        default_height=3*(n_models+1),
+        default_height=4*(n_models+1),
         default_sharex=True,
         default_sharey=True,
         nrows=n_models+1
@@ -115,9 +121,10 @@ def region_predictions(
         plot_kws_pred['color'] = pred_color
     for i in range(n_models):
         _ = crested.pl.bar.region(
-            adata=adata,
+            data=data,
             region=region,
             target=model_names[i],
+            log_transform=log_transform,
             grid=False, # Disable here so that final render_plot can set it
             title=None,
             show=False,
@@ -130,9 +137,10 @@ def region_predictions(
     if 'color' not in plot_kws_truth:
         plot_kws_truth['color'] = truth_color
     _ = crested.pl.bar.region(
-        adata=adata,
+        data=data,
         region=region,
         target=None,
+        log_transform=log_transform,
         grid=False, # Disable here so that final render_plot can set it
         title=None,
         show=False,
@@ -142,11 +150,14 @@ def region_predictions(
     return render_plot(fig, axs, **kwargs)
 
 def region(
-    adata: AnnData,
-    region: str,
+    data: AnnData | np.ndarray,
+    region: str | None = None,
     target: str | None = None,
+    classes: list[str] | None = None,
+    log_transform: bool = False,
     plot_kws: dict | None = None,
     ax: plt.Axes | None = None,
+    adata: str = 'deprecated',
     **kwargs
 ) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
     """
@@ -154,12 +165,16 @@ def region(
 
     Parameters
     ----------
-    adata
-        AnnData object containing the genomic data in `var`.
+    data
+        AnnData object containing the genomic data in `var` (requiring the `region` argument), or single prediction (requiring the `classes` argument).
     region
-        Region name from the AnnData, generally in format 'chr:start-end'.
+        Region name from the AnnData, generally in format 'chr:start-end'. Required if providing an AnnData object.
     target
-        The target to plot the distribution for, either None (for the ground truth from adata.X) or the name of a prediction layer in adata.layers.
+        The target to plot the distribution for, either None (for the ground truth from adata.X) or the name of a prediction layer in adata.layers. Disregarded if plotting a single prediction.
+    classes
+        The class names to use. Required if providing a single prediction.
+    log_transform
+        Whether to apply a log1p transformation to the data.
     plot_kws
         Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.bar`. Defaults: `'alpha': 0.8`.
     ax
@@ -171,13 +186,12 @@ def region(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `region`: `xlabel="None"`, `ylabel="Ground truth"`/`target`, `title=region`, `grid='y'`.
+        Custom defaults for `region`: `ylabel="Ground truth"`/`target`, `title=region`, `grid='y'`.
 
     See Also
     --------
     crested.pl.render_plot
     crested.pl.bar.region_predictions
-    crested.pl.bar.prediction
 
     Example
     -------
@@ -189,33 +203,71 @@ def region(
     ...     height=3
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/bar_region.png
+    .. image:: ../../../../docs/_static/img/examples/bar_region_adata.png
+
+    >>> crested.pl.bar.region(
+    ...     pred,
+    ...     classes=adata.obs_names,
+    ...     title="Region chr18:61107770-61109884",
+    ...     width=20,
+    ...     height=3,
+    ... )
+
+    .. image:: ../../../../docs/_static/img/examples/bar_region_pred.png
     """
+    # Handle deprecated arguments
+    if adata != 'deprecated':
+        logger.warning("Argument 'adata' is deprecated, please use 'data' instead.")
+        data = adata
+
     # Check inputs
     @log_and_raise(ValueError)
-    def _check_input_params():
-        if target is not None and target not in adata.layers:
-            raise ValueError(f"Target {target} not found in adata.layers.")
-        if region not in list(adata.var_names):
-            raise ValueError(f"{region} not found in adata.var_names.")
+    def _check_adata_params():
+        if region is None:
+            raise ValueError("'region' must be provided if using an AnnData.")
+        if target is not None and target not in data.layers:
+            raise ValueError(f"Target {target} not found in data.layers.")
+        if region not in list(data.var_names):
+            raise ValueError(f"Region {region} not found in data.var_names.")
+
+    @log_and_raise(ValueError)
+    def _check_array_params():
+        if classes is None:
+            raise ValueError("Classes must be provided if using a single prediction.")
 
     if target == "groundtruth":
         target = None
 
-    _check_input_params()
-
-    # Gather inputs
-    classes = list(adata.obs_names)
-    if target is None:
-        data = adata.X[:, adata.var_names.get_loc(region)]
+    # Gather values
+    if isinstance(data, AnnData):
+        _check_adata_params()
+        if target is None:
+            values = data.X[:, data.var_names.get_loc(region)]
+        else:
+            values = data.layers[target][:, data.var_names.get_loc(region)]
     else:
-        data = adata.layers[target][:, adata.var_names.get_loc(region)]
+        _check_array_params()
+        values = data.squeeze()
+    if log_transform:
+        values = np.log1p(values)
+
+    n_classes = values.shape[0]
+
+    # Gather classes
+    if classes is None:
+        if hasattr(data, 'obs_names'):
+            classes = list(data.obs_names)
+        else:
+            classes = [f"Class {i+1}" for i in np.arange(n_classes)]
 
     # Set defaults
-    if 'xlabel' not in kwargs:
-        kwargs['xlabel'] = None
     if 'ylabel' not in kwargs:
-        kwargs['ylabel'] = 'Ground truth' if target is None else target
+        if isinstance(data, AnnData):
+            kwargs['ylabel'] = 'Ground truth' if target is None else target
+        else:
+            kwargs['ylabel'] = "Prediction"
+        if log_transform:
+            kwargs['ylabel'] = "Log1p-transformed " + kwargs['ylabel'].lower()
     if 'title' not in kwargs:
         kwargs['title'] = region
     if 'grid' not in kwargs:
@@ -226,7 +278,7 @@ def region(
 
     # Create plot
     fig, ax = create_plot(ax=ax, kwargs_dict=kwargs, default_width=18, default_height=6)
-    ax.bar(classes, data, **plot_kws)
+    ax.bar(classes, values, **plot_kws)
     return render_plot(fig, ax, **kwargs)
 
 
@@ -240,68 +292,13 @@ def prediction(
     """
     Bar plot for a single prediction, comparing different classes.
 
-    Parameters
-    ----------
-    prediction
-        An array containing the prediction values for each class or cell type. It is squeezed to remove 1-wide dimensions if necessary.
-    classes
-        A list of class or cell type labels corresponding to the predictions.
-    plot_kws
-        Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.bar`. Defaults: `'alpha': 0.8`.
-    ax
-        Axis to plot values on. If not supplied, creates a figure from scratch.
-    width
-        Width of the newly created figure if `ax=None`. Default is 18.
-    height
-        Height of the newly created figure if `ax=None`. Default is 3.
-    kwargs
-        Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
-        Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `prediction`: `xlabel='Cell types'`, `ylabel='Prediction'`, `grid="y"`.
-
-    See Also
-    --------
-    crested.pl.render_plot
-    crested.pl.bar.region
-    crested.pl.bar.region_predictions
-
-    Example
-    -------
-    >>> crested.pl.bar.prediction(
-    ...     pred,
-    ...     classes=adata.obs_names,
-    ...     title="Region chr18:61107770-61109884",
-    ... )
-
-    .. image:: ../../../../docs/_static/img/examples/bar_prediction.png
+    Deprecated in favor of :func:`~crested.pl.bar.region`. Please use `region(data=prediction, classes=classes)` instead.
     """
-    # Check inputs
-    @log_and_raise(ValueError)
-    def _check_input_params():
-        if len(prediction) != len(classes):
-            raise ValueError(
-                f"The length of prediction array ({len(prediction)}) must match the number of classes ({len(classes)})."
-            )
-
-    # Ensure the prediction array is 1-dimensional
-    prediction = prediction.squeeze()
-
-    _check_input_params()
-
-    # Set defaults
-    if 'xlabel' not in kwargs:
-        kwargs['xlabel'] = "Cell types"
-    if 'ylabel' not in kwargs:
-        kwargs['ylabel'] = "Prediction"
-    if 'grid' not in kwargs:
-        kwargs['grid'] = 'y'
-    plot_kws = {} if plot_kws is None else plot_kws.copy()
-    if 'alpha' not in plot_kws:
-        plot_kws['alpha'] = 0.8
-
-    # Create plot
-    fig, ax = create_plot(ax=ax, kwargs_dict=kwargs, default_width=18, default_height=3)
-    ax.bar(classes, prediction, **plot_kws)
-
-    # Use render_plot to finalize and return the figure
-    return render_plot(fig, ax, **kwargs)
+    logger.warning("prediction is deprecated as its functionality is moved into `region`. Please use `region(data=prediction, classes=classes, **kwargs)` instead.")
+    return region(
+        data=prediction,
+        classes=classes,
+        plot_kws=plot_kws,
+        ax=ax,
+        **kwargs
+    )
