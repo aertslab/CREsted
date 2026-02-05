@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import warnings
 from collections import defaultdict
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -190,14 +191,15 @@ def _split_by_regions(
 
 def train_val_test_split(
     adata: AnnData,
-    strategy: str = "region",
+    strategy: Literal['region', 'chr', 'chr_auto'] = "region",
     val_size: float = 0.1,
     test_size: float = 0.1,
-    val_chroms: list[str] = None,
-    test_chroms: list[str] = None,
+    val_chroms: str | list[str] = None,
+    test_chroms: str | list[str] = None,
     shuffle: bool = True,
     random_state: None | int = None,
-) -> None:
+    copy: bool = False,
+) -> AnnData | None:
     """
     Add 'train/val/test' split column to AnnData object.
 
@@ -230,19 +232,21 @@ def train_val_test_split(
     test_size
         Proportion of the dataset to include in the test split.
     val_chroms
-        List of chromosomes to include in the validation set. Required if strategy='chr'.
+        List of chromosomes or single chromosome to include in the validation set. Required if strategy='chr'.
     test_chroms
-        List of chromosomes to include in the test set. Required if strategy='chr'.
+        List of chromosomes or single chromosome to include in the test set. Required if strategy='chr'.
     shuffle
         Whether or not to shuffle the data before splitting (when strategy='region').
     random_state
         Random_state affects the ordering of the indices when shuffling in regions or
         auto splitting on chromosomes.
+    copy
+        Perform computation and modify `adata` in-place or return a resulting copy of the `adata` instead.
 
     Returns
     -------
-    Adds a new column inplace to `adata.var`:
-        'split': 'train', 'val', or 'test'
+    If `copy=False` (default), modifies the anndata in-place and doesn't return anything.
+    If `copy=True`, returns the AnnData object with the ['split'] column added to `.var`.
 
     Examples
     --------
@@ -279,6 +283,11 @@ def train_val_test_split(
             raise ValueError(
                 "If `strategy` is 'chr', `val_chroms` and `test_chroms` should be provided."
             )
+        # Turn chroms into lists if passed as single strings
+        if isinstance(val_chroms, str):
+            val_chroms = [val_chroms]
+        if isinstance(test_chroms, str):
+            test_chroms = [test_chroms]
 
     # Split
     regions = list(adata.var_names)
@@ -294,4 +303,9 @@ def train_val_test_split(
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        adata.var["split"] = split
+        if copy:
+            adata = adata.copy()
+            adata.var["split"] = split
+            return adata
+        else:
+            adata.var["split"] = split
