@@ -66,7 +66,7 @@ def class_density(
     model_names
         Model name or list of model names in `adata.layers`. If None, will create a plot per model in `adata.layers`.
     split
-        'train', 'val', 'test' subset or None. If None, will use all targets. If not None, expects a "split" column in adata.var.
+        'train', 'val', 'test' subset or None. If None, will use all splits. If not None, expects a "split" column in adata.var.
     log_transform
         Whether to log-transform the data before plotting.
     exclude_zeros
@@ -74,7 +74,7 @@ def class_density(
     density_indication
         Whether to indicate density in the scatter plot.
     square
-        Whether to force the plots to be square and have equal aspect ratios.
+        Whether to force the plots to be square, have equal aspect ratios, and equal shared axis ranges.
     identity_line
         Whether to plot a y=x line denoting perfect correlation.
     cbar
@@ -94,9 +94,9 @@ def class_density(
     height
         Height of the newly created figure if `ax=None`. Default is 8.
     sharex
-        Whether to share the x axes of the created plots. Default is False.
+        Whether to share the x axes of the created plots. Default is False. Setting `square=True` does equalize limits even if `sharex=False`
     sharey
-        Whether to share the y axes of the created plots. Default is True.
+        Whether to share the y axes of the created plots. Default is True. Setting `square=True` does equalize limits even if `sharey=False`
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
@@ -154,29 +154,25 @@ def class_density(
     # Gather data
     if split is not None:
         x = adata[:, adata.var["split"] == split].X[column_index, :].flatten()
-        predicted_values = {
-            model: adata[:, adata.var["split"] == split]
-            .layers[model][column_index, :]
-            .flatten()
+        predicted_values = np.array([
+            adata[:, adata.var["split"] == split].layers[model][column_index, :].flatten()
             for model in model_names
-        }
+        ])
     else:
         x = adata.X[column_index, :].flatten()
-        predicted_values = {
-            model: adata.layers[model][column_index, :].flatten()
+        predicted_values = np.array([
+            adata.layers[model][column_index, :].flatten()
             for model in model_names
-        }
+        ])
 
     if exclude_zeros:
         mask = x != 0
         x = x[mask]
-        for model in predicted_values:
-            predicted_values[model] = predicted_values[model][mask]
+        predicted_values = predicted_values[:, mask]
 
     if log_transform:
         x = np.log1p(x)
-        for model in predicted_values:
-            predicted_values[model] = np.log1p(predicted_values[model])
+        predicted_values = np.log1p(predicted_values)
 
     if class_name:
         logger.info(
@@ -225,7 +221,8 @@ def class_density(
         axs = [axs]
 
     # Plot values
-    for ax, y in zip(axs, predicted_values.values(), strict=True):
+    for i, ax in enumerate(axs):
+        y = predicted_values[i, ...]
         if identity_line:
             ax.axline((0, 0), slope=1, color = 'black', alpha = 0.5, linestyle='--')
         pearson_corr, _ = pearsonr(x, y)
@@ -255,6 +252,9 @@ def class_density(
         )
         if square:
             ax.set_box_aspect(1)
-            ax.set_aspect('equal', adjustable='datalim')
+            shared_range = np.min([np.min(x), np.min(predicted_values)]), np.max([np.max(x), np.max(predicted_values)])
+            absolute_margin=0.05*(shared_range[1]-shared_range[0])
+            ax.set_xlim(shared_range[0]-absolute_margin, shared_range[1]+absolute_margin)
+            ax.set_ylim(shared_range[0]-absolute_margin, shared_range[1]+absolute_margin)
 
     return render_plot(fig, axs, **kwargs)

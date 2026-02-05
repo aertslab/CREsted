@@ -11,4 +11,6 @@ Useful scatter plots.
     :toctree: _autosummary
 
     class_density
+    gini_filtering
+    region
 ```

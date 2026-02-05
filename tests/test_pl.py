@@ -508,6 +508,29 @@ def test_scatter_class_density(adata_preds):
     assert fig is not None and ax is not None
     plt.close()
 
+def test_scatter_gini_filtering(adata):
+    fig, ax = crested.pl.scatter.gini_filtering(
+        adata=adata,
+        plot_kws={'alpha': 0.5},
+        line_kws={'alpha': 0.5},
+        show=False
+    )
+    assert fig is not None and ax is not None
+    plt.close()
+
+def test_scatter_region(adata_preds):
+    fig, ax = crested.pl.scatter.region(
+        adata_preds,
+        adata_preds.var_names[0],
+        model_names='model_1',
+        log_transform=True,
+        identity_line=True,
+        show=False
+    )
+
+    assert fig is not None and ax is not None
+    plt.close()
+
 # ----------- Test violin -----------
 def test_violin_correlations(adata_preds):
     fig, ax = crested.pl.violin.correlations(
