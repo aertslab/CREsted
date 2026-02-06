@@ -14,6 +14,12 @@ HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "extensions"))
 import crested  # noqa
 
+# -- Intersphinx package version parsing -------------------------------------
+python_version = f"{sys.version_info[0]}.{sys.version_info[1]}"
+from numpy import __version__ as numpy_version_raw # noqa
+numpy_version = '.'.join(numpy_version_raw.split('.')[:2])
+from matplotlib import __version__ as matplotlib_version # noqa
+from pandas import __version__ as pandas_version # noqa
 
 # -- Project information -----------------------------------------------------
 
@@ -93,11 +99,11 @@ source_suffix = {
 }
 
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", None),
+    "python": (f"https://docs.python.org/{python_version}", None),
     "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
-    "numpy": ("https://numpy.org/doc/stable/", None),
-    "matplotlib": ("https://matplotlib.org/stable/", None),
-    "pandas": ("https://pandas.pydata.org/pandas-docs/version/2.3/", None),
+    "numpy": (f"https://numpy.org/doc/{numpy_version}/", None),
+    "matplotlib": (f"https://matplotlib.org/{matplotlib_version}/", None),
+    "pandas": (f"http://pandas.pydata.org/pandas-docs/version/{pandas_version}/", None),
     "seaborn": ("https://seaborn.pydata.org/", None),
 }
 
