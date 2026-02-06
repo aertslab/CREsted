@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import os
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Literal
 
 import keras
 import numpy as np
@@ -319,7 +319,7 @@ def contribution_scores(
     input: str | list[str] | np.array | AnnData,
     target_idx: int | list[int] | None,
     model: keras.Model | list[keras.Model],
-    method: str = "expected_integrated_grad",
+    method: Literal['integrated_grad', 'mutagenesis', 'expected_integrated_grad', 'saliency_map', 'window_shuffle', 'window_shuffle_uniform'] = "expected_integrated_grad",
     window_size: int | None = 7,
     n_shuffles: int | None = 24,
     genome: Genome | str | os.PathLike | None = None,

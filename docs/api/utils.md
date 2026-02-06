@@ -20,4 +20,5 @@ CREsted provides a few utility function to help with sequence encoding, function
     calculate_nucleotide_distribution
     derive_intermediate_sequences
     setup_logging
+    parse_region
 ```

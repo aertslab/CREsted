@@ -144,6 +144,55 @@ def adata():
     ]
     return create_anndata_with_regions(regions)
 
+@pytest.fixture(scope="module")
+def adata_preds():
+    """Anndata fixture with split column and predictions."""
+    regions = [
+        "chr1:194208032-194208532",
+        "chr1:92202766-92203266",
+        "chr1:92298990-92299490",
+        "chr1:3406052-3406552",
+        "chr1:183669567-183670067",
+        "chr1:109912183-109912683",
+        "chr1:92210697-92211197",
+        "chr1:59100954-59101454",
+        "chr1:84634055-84634555",
+        "chr1:48792527-48793027",
+        'chr1:171627739-171628239',
+        'chr1:36067104-36067604',
+        'chr1:33724139-33724639',
+        'chr1:22650114-22650614',
+        'chr1:174198946-174199446',
+        'chr1:156868938-156869438',
+        'chr1:186195127-186195627',
+        'chr1:5794689-5795189',
+        'chr1:44713252-44713752',
+        'chr1:30615742-30616242',
+        'chr1:118383312-118383812',
+        'chr1:24502394-24502894',
+        'chr1:135570179-135570679',
+        'chr1:121195147-121195647',
+        'chr1:161637083-161637583',
+        'chr1:100202479-100202979',
+        'chr1:128062735-128063235',
+        'chr1:28083226-28083726',
+        'chr1:72772755-72773255',
+        'chr1:173983858-173984358'
+    ]
+    adata = create_anndata_with_regions(regions, n_classes=10)
+    crested.pp.train_val_test_split(
+        adata,
+        strategy="region",
+        val_size=0.2,
+        test_size=0.2,
+        random_state=42,
+    )
+    rng1 = np.random.default_rng(43)
+    rng2 = np.random.default_rng(44)
+    adata.layers['model_1'] = np.abs(rng1.standard_normal((adata.n_obs, adata.n_vars)))
+    adata.layers['model_2'] = np.abs(rng2.standard_normal((adata.n_obs, adata.n_vars)))
+    return adata
+
 
 @pytest.fixture(scope="module")
 def genome():

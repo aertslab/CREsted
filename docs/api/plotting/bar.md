@@ -12,5 +12,6 @@ Bar plots to inspect per region ground truths and compare them to their predicti
 
     region
     region_predictions
+    prediction
     normalization_weights
 ```
