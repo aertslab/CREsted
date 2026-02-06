@@ -25,6 +25,7 @@ violin
 
     render_plot
     create_plot
+    renaming
 ```
 
 ## Patterns: Contribution scores and Modisco results
