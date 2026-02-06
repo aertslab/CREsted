@@ -1513,24 +1513,24 @@ def calculate_mean_expression_per_cell_type(
     A DataFrame containing the mean gene expression per cell type subclass.
     """
     # Read the AnnData object from the specified H5AD file
-    adata: anndata.AnnData = anndata.read_h5ad(file_path)
+    adata = anndata.read_h5ad(file_path)
 
     # CPM normalize the counts if necessary
     if cpm_normalize:
         sc.pp.normalize_total(adata)
 
     # Convert the AnnData object to a DataFrame containing the gene expression matrix
-    gene_expression_df: pd.DataFrame = adata.to_df()
+    gene_expression_df = adata.to_df()
 
     # Retrieve the cell metadata from the AnnData object
-    cell_metadata: pd.DataFrame = adata.obs
+    cell_metadata = adata.obs
 
     # Check if the specified cell type column exists in the cell metadata
     if cell_type_column not in cell_metadata.columns:
         raise ValueError(f"Column '{cell_type_column}' not found in cell metadata")
 
     # Calculate the mean gene expression per cell type subclass
-    mean_expression_per_cell_type: pd.DataFrame = gene_expression_df.groupby(
+    mean_expression_per_cell_type = gene_expression_df.groupby(
         cell_metadata[cell_type_column]
     ).mean()
 
