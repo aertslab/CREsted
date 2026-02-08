@@ -7,171 +7,49 @@ import numpy as np
 from anndata import AnnData
 from loguru import logger
 
-import crested
 from crested.pl._utils import create_plot, render_plot
 from crested.utils._logging import log_and_raise
 
 
-def region_predictions(
-    adata: AnnData,
-    region: str,
-    model_names: str | list[str] | None = None,
+def scores(
+    data: AnnData | np.ndarray,
+    region: str | None = None,
+    targets: str | list[str] | None = None,
+    classes: list[str] | None = None,
     log_transform: bool = False,
     pred_color: str = 'tab:blue',
     truth_color: str = 'green',
     plot_kws: dict | None = None,
-    **kwargs,
-) -> tuple[plt.Figure, list[plt.Axes]] | None:
-    """
-    Barplots of all predictions in .layers vs the ground truth for a specific region across comparing classes.
-
-    Parameters
-    ----------
-    adata
-        AnnData object containing the predictions in `layers`.
-    region
-        String in the format 'chr:start-end' representing the genomic location.
-    model_names
-        Single model name or list of model names in `adata.layers`. If None, will create a plot per model in `adata.layers`.
-    log_transform
-        Whether to apply a log1p transformation to the data.
-    pred_color
-        Plot color of the prediction barplot(s).
-    truth_color
-        Plot color of the ground truth barplot.
-    plot_kws
-        Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.bar`.
-    width
-        Width of the newly created figure if `ax=None`. Default is 20.
-    height
-        Height of the newly created figure if `ax=None`. Default is 4*(1+n_models).
-    sharex
-        Whether to share the x axes of the created plots. Default is True.
-    sharey
-        Whether to share the y axes of the created plots. Default is True.
-    kwargs
-        Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
-        Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `region_predictions`: `grid="y"`, `suptitle=region`.
-
-    See Also
-    --------
-    crested.pl.render_plot
-
-    Example
-    -------
-    >>> crested.pl.bar.region_predictions(
-    ...     adata,
-    ...     region='chr1:3093998-3096112',
-    ...     model_names=["Base model", "Fine-tuned"],
-    ...     sharey=False
-    ... )
-
-    .. image:: ../../../../docs/_static/img/examples/bar_region_predictions.png
-    """
-    # Handle deprecated arguments
-    if 'share_y' in kwargs:
-        kwargs['sharey'] = kwargs.pop('share_y')
-        logger.warning("Argument `share_y` is deprecated since version 2.0.0; please use sharey instead to align with matplotlib.")
-
-    # Check inputs
-    @log_and_raise(ValueError)
-    def _check_input_params():
-        if region not in list(adata.var_names):
-            raise ValueError(f"{region} not found in data.var_names.")
-
-        if model_names is not None:
-            for model_name in model_names:
-                if model_name not in adata.layers:
-                    raise ValueError(f"Model {model_name} not found in data.layers.")
-
-    if isinstance(model_names, str):
-        model_names = [model_names]
-    elif model_names is None:
-        model_names = list(adata.layers.keys())
-
-    _check_input_params()
-
-    n_models = len(model_names)
-
-    # Set defaults
-    if 'grid' not in kwargs:
-        kwargs['grid'] = 'y'
-    if 'suptitle' not in kwargs:
-        kwargs['suptitle'] = region
-    plot_kws = {} if plot_kws is None else plot_kws.copy()
-
-    # Create figure scaffold
-    fig, axs = create_plot(
-        ax=None,
-        kwargs_dict=kwargs,
-        default_width=20,
-        default_height=4*(n_models+1),
-        default_sharex=True,
-        default_sharey=True,
-        nrows=n_models+1
-    )
-
-    # Plot predictions
-    plot_kws_pred = plot_kws.copy()
-    if 'color' not in plot_kws_pred:
-        plot_kws_pred['color'] = pred_color
-    for i in range(n_models):
-        _ = crested.pl.bar.region(
-            data=adata,
-            region=region,
-            target=model_names[i],
-            log_transform=log_transform,
-            grid=False, # Disable here so that final render_plot can set it
-            title=None,
-            show=False,
-            plot_kws=plot_kws_pred,
-            ax=axs[i],
-        )
-
-    # Plot ground truth
-    plot_kws_truth = plot_kws.copy()
-    if 'color' not in plot_kws_truth:
-        plot_kws_truth['color'] = truth_color
-    _ = crested.pl.bar.region(
-        data=adata,
-        region=region,
-        target=None,
-        log_transform=log_transform,
-        grid=False, # Disable here so that final render_plot can set it
-        title=None,
-        show=False,
-        plot_kws=plot_kws_truth,
-        ax=axs[-1],
-    )
-    return render_plot(fig, axs, **kwargs)
-
-def region(
-    data: AnnData | np.ndarray,
-    region: str | None = None,
-    target: str | None = None,
-    classes: list[str] | None = None,
-    log_transform: bool = False,
-    plot_kws: dict | None = None,
     ax: plt.Axes | None = None,
     adata: str = 'deprecated',
+    target: str = 'deprecated',
     **kwargs
 ) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
     """
-    Barplot of ground truths or predictions for a specific region in your data, comparing different classes.
+    Barplot of ground truths and/or predictions for a specific region in your data.
+
+    Can plot either a region from an AnnData (`data=adata, region=region`) or manual prediction (`data=pred, classes=adata.obs_names`).
+    When plotting from AnnData, can plot the ground truth and any available predictions.
 
     Parameters
     ----------
     data
-        AnnData object containing the genomic data in `var` (requiring the `region` argument), or single prediction (requiring the `classes` argument).
+        AnnData object containing the genomic data in `var` (requiring the `region` argument), or single prediction numpy array (requiring the `classes` argument).
     region
         Region name from the AnnData, generally in format 'chr:start-end'. Required if providing an AnnData object.
-    target
-        The target to plot the distribution for, either None (for the ground truth from adata.X) or the name of a prediction layer in adata.layers. Disregarded if plotting a single prediction.
+    targets
+        Name or list of names of targets to plot.
+        Can be 'X'/'truth'/'groundtruth' for the ground truth from adata.X, or the name of prediction layers in adata.layers.
+        If None, plots the ground truth and all layers in the AnnData.
+        Disregarded if plotting a single prediction.
     classes
-        The class names to use. Required if providing a single prediction.
+        The class names to use. Required if providing a single prediction. If using an AnnData object, read from there by default.
     log_transform
         Whether to apply a log1p transformation to the data.
+    pred_color
+        Plot color of any prediction barplot.
+    truth_color
+        Plot color of any ground truth barplot.
     plot_kws
         Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.bar`. Defaults: `'alpha': 0.8`.
     ax
@@ -179,16 +57,15 @@ def region(
     width
         Width of the newly created figure if `ax=None`. Default is 18.
     height
-        Height of the newly created figure if `ax=None`. Default is 6.
+        Height of the newly created figure if `ax=None`. Default is 4*n_targets.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `region`: `ylabel="Ground truth"`/`target`, `title=region`, `grid='y'`.
+        Custom defaults for `region`: `title='Ground truth'`/`target`, `'color'=['tab:blue'`(for predictions)/`'green'`(for ground truth)`]`, `suptitle=region`, `ylabel="Ground truth"`/`"Prediction`, `grid='y'`.
 
     See Also
     --------
     crested.pl.render_plot
-    crested.pl.bar.region_predictions
 
     Example
     -------
@@ -216,57 +93,75 @@ def region(
     if adata != 'deprecated':
         logger.warning("Argument 'adata' is deprecated, please use 'data' instead.")
         data = adata
+    if target != 'deprecated':
+        logger.warning("Argument 'target' is deprecated, please use 'targets' instead.")
+        targets = target
 
-    # Check inputs
+    # Check input validity
     @log_and_raise(ValueError)
     def _check_adata_params():
         if region is None:
             raise ValueError("'region' must be provided if using an AnnData.")
-        if target is not None and target not in data.layers:
-            raise ValueError(f"Target {target} not found in data.layers.")
+        for target in targets:
+            if target is not None and (target not in data.layers and target != 'truth'):
+                raise ValueError(f"Target {target} not found in data.layers or recognised as ground truth ('x', 'truth', 'groundtruth').")
         if region not in list(data.var_names):
             raise ValueError(f"Region {region} not found in data.var_names.")
+        if ax is not None and len(targets) > 1:
+            raise ValueError("ax can only be set if plotting one target. Please pick one target in `targets`.")
 
     @log_and_raise(ValueError)
     def _check_array_params():
         if classes is None:
             raise ValueError("Classes must be provided if using a single prediction.")
+        if data.squeeze().ndim != 1:
+            raise ValueError(f"If plotting a single prediction, 'data' must be a one-dimensional array, not shape {data.squeeze().shape}.")
+        if len(classes) != data.squeeze().shape[-1]:
+            raise ValueError(f"Number of classes provided ({len(classes)}) must be the same as the number of classes in the data {data.squeeze().shape[-1]}")
+        if targets is not None:
+            logger.warning(f"'targets' ({targets}) provided when providing a single prediction rather than an adata for 'data'. 'targets' will be ignored.")
 
-    if target == "groundtruth":
-        target = None
-
-    # Gather values
-    if isinstance(data, AnnData):
-        _check_adata_params()
-        if target is None:
-            values = data.X[:, data.var_names.get_loc(region)]
-        else:
-            values = data.layers[target][:, data.var_names.get_loc(region)]
-    else:
+    # Handle raw prediction input mode
+    if not isinstance(data, AnnData):
+        # Check whether params are valid
         _check_array_params()
-        values = data.squeeze()
-    if log_transform:
-        values = np.log1p(values)
-
-    n_classes = values.shape[0]
-
-    # Gather classes
-    if classes is None:
-        if hasattr(data, 'obs_names'):
+        # Save values
+        values = [data.squeeze()]
+        targets = ["Prediction"]
+    # Handle adata input mode
+    else:
+        # Parse and clean up targets values
+        if targets is None:
+            targets = ["truth", *data.layers.keys()]
+        if isinstance(targets, str):
+            targets = [targets]
+        targets = ['truth' if target.lower() in ['x', 'truth', 'groundtruth'] else target for target in targets]
+        # Check whether params are valid
+        _check_adata_params()
+        # Gather values
+        region_idx = data.var_names.get_loc(region)
+        values = [data.X[:, region_idx] if target == 'truth' else data.layers[target][:, region_idx] for target in targets]
+        if classes is None:
             classes = list(data.obs_names)
-        else:
-            classes = [f"Class {i+1}" for i in np.arange(n_classes)]
+
+    # Log-transform data
+    if log_transform:
+        values = [np.log1p(v) for v in values]
+
+    n_targets = len(values)
 
     # Set defaults
     if 'ylabel' not in kwargs:
-        if isinstance(data, AnnData):
-            kwargs['ylabel'] = 'Ground truth' if target is None else target
-        else:
-            kwargs['ylabel'] = "Prediction"
+        kwargs['ylabel'] = ['Ground truth' if target == 'truth' else "Prediction" for target in targets]
         if log_transform:
-            kwargs['ylabel'] = "Log1p-transformed " + kwargs['ylabel'].lower()
+            kwargs['ylabel'] = ["Log1p-transformed " + label.lower() for label in kwargs['ylabel']]
     if 'title' not in kwargs:
-        kwargs['title'] = region
+        if n_targets > 1:
+            kwargs['title'] = ["Ground truth" if target == "truth" else target for target in targets]
+        else:
+            kwargs['title'] = f"{region} - {'Ground truth' if targets[0] == 'truth' else targets[0]}"
+    if 'suptitle' not in kwargs and n_targets > 1:
+        kwargs['suptitle'] = region
     if 'grid' not in kwargs:
         kwargs['grid'] = 'y'
     plot_kws = {} if plot_kws is None else plot_kws.copy()
@@ -274,10 +169,105 @@ def region(
         plot_kws['alpha'] = 0.8
 
     # Create plot
-    fig, ax = create_plot(ax=ax, kwargs_dict=kwargs, default_width=18, default_height=6)
-    ax.bar(classes, values, **plot_kws)
-    return render_plot(fig, ax, **kwargs)
+    fig, axs = create_plot(
+        ax=ax,
+        kwargs_dict=kwargs,
+        default_width=18,
+        default_height=4*(n_targets),
+        default_sharex=True,
+        default_sharey=True,
+        nrows=n_targets
+    )
+    if n_targets == 1:
+        axs = [axs]
+    for i, ax in enumerate(axs):
+        ax.bar(
+            classes,
+            values[i],
+            color=truth_color if targets[i] == 'truth' else pred_color,
+            **plot_kws
+        )
+    return render_plot(fig, axs, **kwargs)
 
+
+def region(
+    adata: AnnData | np.ndarray,
+    region: str | None = None,
+    target: str = "truth",
+    classes: list[str] | None = None,
+    log_transform: bool = False,
+    plot_kws: dict | None = None,
+    ax: plt.Axes | None = None,
+    **kwargs
+):
+    """
+    Bar plot for a single region, comparing different classes.
+
+    Deprecated in favor of :func:`~crested.pl.bar.scores`. Please use `scores(adata, region, targets=model_name)` or `scores(adata, region, targets='truth')` instead.
+    """
+    # Deprecation warnings
+    target_string = f"'{target}'"
+    logger.warning(
+        "region is deprecated since version 2.0.0 as its functionality is moved into `scores`. "
+        f"Please use `scores(adata, region, targets={target_string}, **kwargs)` instead."
+    )
+
+    return scores( # TODO: adjust when renamed
+        data=adata,
+        region=region,
+        targets=target,
+        classes=classes,
+        log_transform=log_transform,
+        plot_kws=plot_kws,
+        ax=ax,
+        **kwargs
+    )
+
+def region_predictions(
+    adata: AnnData,
+    region: str,
+    model_names: str | list[str] | None = None,
+    share_y: bool = True,
+    plot_kws: dict | None = None,
+    **kwargs
+):
+    """
+    Barplots of all predictions in .layers vs the ground truth for a specific region across comparing classes.
+
+    Deprecated in favor of :func:`~crested.pl.bar.scores`. Please use `scores(adata, region, targets=None)` or `scores(adata, region, targets=['model_name', 'truth'])` instead.
+    """
+    # Parse model_names into targets tuple
+    if model_names is not None:
+        if isinstance(model_names, str):
+            model_names = [model_names]
+        targets = [*model_names, 'truth']
+    else:
+        targets = [*adata.layers.keys(), 'truth']
+
+    # Deprecation warnings
+    targets_string = "None" if model_names is None else model_names
+    logger.warning(
+        "region_predictions is deprecated since version 2.0.0 as its functionality is moved into `scores`. "
+        f"Please use `scores(adata, region, targets={targets_string}, **kwargs)` instead."
+    )
+    if 'share_y' in kwargs:
+        kwargs['sharey'] = kwargs.pop('share_y')
+        logger.warning("Argument `share_y` is deprecated since version 2.0.0; please use sharey instead to align with matplotlib.")
+
+    # Mimic old behavior of names at ylabel rather than at title
+    if 'ylabel' not in kwargs:
+        kwargs['ylabel'] = ['Ground truth' if target == 'truth' else target for target in targets]
+    if 'title' not in kwargs:
+        kwargs['title'] = None
+
+    return scores(
+        data=adata,
+        region=region,
+        targets=targets,
+        plot_kws=plot_kws,
+        sharey=share_y,
+        **kwargs
+    )
 
 def prediction(
     prediction: np.ndarray,
@@ -289,10 +279,24 @@ def prediction(
     """
     Bar plot for a single prediction, comparing different classes.
 
-    Deprecated in favor of :func:`~crested.pl.bar.region`. Please use `region(data=prediction, classes=classes)` instead.
+    Deprecated in favor of :func:`~crested.pl.bar.scores`. Please use `scores(data=prediction, classes=classes)` instead.
     """
-    logger.warning("prediction is deprecated as its functionality is moved into `region`. Please use `region(data=prediction, classes=classes, **kwargs)` instead.")
-    return region(
+    logger.warning(
+        "`prediction` is deprecated since version 2.0.0 as its functionality is moved into `scores`. "
+        "Please use `scores(data=prediction, classes=classes, **kwargs)` instead."
+    )
+    plot_kws = {} if plot_kws is None else plot_kws.copy()
+    if 'xlabel' in kwargs:
+        logger.warning(f"'xlabel' is deprecated since v2.0.0. Please set it in 'plot_kws' instead: plot_kws={{xlabel={kwargs['xlabel']}}}")
+        plot_kws['xlabel'] = kwargs.pop('xlabel')
+    if 'ylabel' in kwargs:
+        logger.warning(f"'ylabel' is deprecated since v2.0.0. Please set it in 'plot_kws' instead: plot_kws={{ylabel={kwargs['ylabel']}}}")
+        plot_kws['ylabel'] = kwargs.pop('ylabel')
+    if 'title' in kwargs:
+        logger.warning(f"'title' is deprecated since v2.0.0. Please set it in 'plot_kws' instead: plot_kws={{title={kwargs['title']}}} or {{suptitle={kwargs['title']}}}")
+        plot_kws['title'] = kwargs.pop('title')
+
+    return scores(
         data=prediction,
         classes=classes,
         plot_kws=plot_kws,
