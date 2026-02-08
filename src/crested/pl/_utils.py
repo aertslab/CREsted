@@ -27,6 +27,7 @@ def render_plot(
     grid: bool | Literal['x', 'y', 'both'] = False,
     tight_layout: bool = False,
     tight_rect: tuple | None = None,
+    suptitle_align: bool = True,
     title_fontsize: int = 16,
     suptitle_fontsize: int = 18,
     xlabel_fontsize: int = 14,
@@ -85,6 +86,8 @@ def render_plot(
         Whether to run `fig.tight_layout()` after setting all plot properties. Default is False; constrained layout through `plt.subplots(layout='constrained')` is preferred.
     tight_rect
         Normalized coordinates in which subplots will fit, for `fig.tight_layout(tight_rect=tight_rect)`. Only does something if `tight_layout` is True.
+    suptitle_align
+        Whether to manually try and align suptitles closer to the axis titles.
     title_fontsize
         Font size for the title.
     xlabel_fontsize
@@ -197,14 +200,15 @@ def render_plot(
 
     # Set figure labels
     if suptitle:
-        fig.suptitle(suptitle, fontsize=suptitle_fontsize)
+        if suptitle_align:
+            suptitle_x = (fig.subplotpars.right + fig.subplotpars.left)/2
+        else:
+            suptitle_x = 0.5
+        fig.suptitle(suptitle, fontsize=suptitle_fontsize, x=suptitle_x)
     if supxlabel:
-        fig.supxlabel(supxlabel)
+        fig.supxlabel(supxlabel, fontsize=supxlabel_fontsize)
     if supylabel:
-        fig.supylabel(supylabel)
-    fig.supxlabel(fig.get_supxlabel(), fontsize=supxlabel_fontsize)
-    fig.supylabel(fig.get_supylabel(), fontsize=supylabel_fontsize)
-    fig.suptitle(fig.get_suptitle(), fontsize=suptitle_fontsize)
+        fig.supylabel(supylabel, fontsize=supylabel_fontsize)
 
     # Set axis traits
     for i, ax in enumerate(axs):
