@@ -14,7 +14,7 @@ from crested.utils._logging import log_and_raise
 
 def distribution(
     adata: AnnData,
-    target: str | None = None,
+    target: str = 'truth',
     class_names: list[str] | None = None,
     split: str | None = None,
     log_transform: bool = True,
@@ -30,7 +30,7 @@ def distribution(
     adata
         AnnData object containing the predictions in `layers`.
     target
-        The target to plot the distribution for, either None (for the ground truth) or the name of a prediction layer in adata.layers.
+        The target to plot the distribution for, either 'X'/'truth'/'groundtruth'/None (for the ground truth) or the name of a prediction layer in adata.layers.
     class_names
         Single class name or list of classes in `adata.obs`. If None, will create a plot per class in `adata.obs`.
     split
@@ -82,8 +82,8 @@ def distribution(
             if class_name not in list(adata.obs_names):
                 raise ValueError(f"{class_name} not found in adata.obs_names.")
 
-        if target is not None and target not in adata.layers:
-            raise ValueError(f"{target} not found in adata.layers.")
+        if target != 'truth' and target not in adata.layers:
+            raise ValueError(f"{target} not found in adata.layers or recognised as ground truth ('x', 'truth', 'groundtruth').")
 
         if split is not None:
             if "split" not in adata.var:
@@ -93,8 +93,8 @@ def distribution(
         if ax is not None and len(class_names) > 1:
             raise ValueError("ax can only be set if plotting one class. Please pick one class in `class_names`.")
 
-    if target == "groundtruth":
-        target = None
+    if target.lower() in ["x", 'truth', "groundtruth"]:
+        target = 'truth'
 
     if isinstance(class_names, str):
         class_names = [class_names]
@@ -111,7 +111,7 @@ def distribution(
     if 'grid' not in kwargs:
         kwargs['grid'] = 'both'
     if 'xlabel' not in kwargs:
-        kwargs['xlabel'] = 'Ground truth' if target is None else target
+        kwargs['xlabel'] = 'Ground truth' if target == 'truth' else target
         if log_transform:
             kwargs['xlabel'] = "Log1p-transformed " + kwargs['xlabel'].lower()
 
@@ -141,7 +141,7 @@ def distribution(
 
     for i, class_name in enumerate(class_names):
         # Gather data
-        if target is None:
+        if target == 'truth':
             data = adata.X[adata.obs_names.get_loc(class_name), :]
         else:
             data = adata.layers[target][adata.obs_names.get_loc(class_name), :]
