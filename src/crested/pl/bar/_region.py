@@ -219,6 +219,8 @@ def region(
         classes=classes,
         log_transform=log_transform,
         plot_kws=plot_kws,
+        pred_color='tab:blue',
+        truth_color='tab:blue',
         ax=ax,
         **kwargs
     )
