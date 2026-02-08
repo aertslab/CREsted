@@ -263,8 +263,8 @@ def create_plot(
     nrows: int = 1,
     ncols: int = 1,
     default_layout: Literal['constrained', 'compressed', 'tight', None] = 'constrained',
-    default_h_pad: float | None = 0.2,
-    default_w_pad: float | None = 0.2,
+    default_h_pad: float | None = 0.1,
+    default_w_pad: float | None = 0.1,
     **kwargs
 ) -> (plt.Figure, plt.Axes) | (plt.Figure, list[plt.Axes]):
     """
