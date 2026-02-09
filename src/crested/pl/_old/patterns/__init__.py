@@ -1,12 +1,11 @@
-"""Init file for the patterns module."""
+"""DEPRECATED: Initialize the patterns module aliases to renamed functions."""
 
 from importlib.util import find_spec
 
 from loguru import logger
 
-from crested.pl.design import step_contribution_scores as enhancer_design_steps_contribution_scores  # Alias, deprecated
-from crested.pl.design import step_predictions as enhancer_design_steps_predictions  # Alias, deprecated
-from crested.pl.explain import contribution_scores  # Alias, deprecated
+from ._contribution_scores import contribution_scores
+from ._design import enhancer_design_steps_contribution_scores, enhancer_design_steps_predictions
 
 
 # Modisco importing stuff - only for aliases since this used to be in here (deprecated)
@@ -27,7 +26,7 @@ if MODISCOLITE_AVAILABLE:
         import modiscolite
 
         # Import all necessary functions from _modisco_results
-        from crested.pl.modisco import (
+        from ._modisco import (
             class_instances,
             clustermap,
             clustermap_tf_motif,

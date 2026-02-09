@@ -7,8 +7,23 @@ import numpy as np
 from anndata import AnnData
 from loguru import logger
 
+import crested
 from crested.pl.region import bar
 
+
+def normalization_weights(*args, **kwargs):
+    """
+    Bar plot for normalization weights.
+
+    Deprecated in favor of :func:`~crested.pl.qc.normalization_weights`.
+
+    :meta private:
+    """
+    logger.info(
+        "`crested.pl.bar.normalization_weights` has been renamed to `crested.pl.qc.normalization_weights` in version 2.0.0"
+        " and this alias will be removed in a future release. Please use its new name instead."
+    )
+    return crested.pl.qc.normalization_weights(*args, **kwargs)
 
 def region(
     adata: AnnData | np.ndarray,
