@@ -17,6 +17,7 @@ def gini_filtering(
     adata: AnnData,
     cutoffs: Sequence = (1.5, 1, 0.5, 0),
     color_points: bool = True,
+    double_y_axis: bool = True,
     line_cmap: str | Sequence = 'tab10',
     plot_kws: dict | None = None,
     line_kws: dict | None = None,
@@ -35,6 +36,8 @@ def gini_filtering(
     color_points
         Whether to color the region points according to their position inside/outside the different cutoffs.
         If True (default), adds `'c': cutoff_index`, `'cmap': 'Greys'` and `'vmin': 0` to `plot_kws` (unless manually specified).
+    double_y_axis
+        Whether to add a secondary y axis on the right side showing the Gini scores, augmenting the default axis showing standard deviations from the Gini mean.
     line_cmap
         Colors or colormap to draw colors for the different `cutoffs` lines from.
         Any valid input to :func:`~seaborn.color_palette` works. Examples are a matplotlib or seaborn colormap name or a list of colors.
@@ -112,8 +115,13 @@ def gini_filtering(
     for i, level in enumerate(cutoffs):
         gini_cutoff = gini_mean+level*gini_std_dev
         n_regions = np.sum(y > level)
-        ax.axhline(level, color = line_palette[i], label = f"{level}: {n_regions} regions, ($\\mu$+{level}*$\\sigma$={gini_cutoff:.2f} Gini)", **line_kws)
+        ax.axhline(level, color = line_palette[i], label = f"{level}: {n_regions} regions ($\\mu$+{level}*$\\sigma$={gini_cutoff:.2f} Gini)", **line_kws)
+    if double_y_axis:
+        ylabel_fontsize = kwargs['ylabel_fontsize'] if 'ylabel_fontsize' in kwargs else 14
+        secax = ax.secondary_yaxis('right', functions=(lambda sd: sd*gini_std_dev+gini_mean, lambda gini: (gini-gini_mean)/gini_std_dev))
+        secax.set_ylabel("Gini score", fontsize=ylabel_fontsize)
     ax.legend()
     ax.margins(x=0.01)
 
     return render_plot(fig, ax, **kwargs)
+
