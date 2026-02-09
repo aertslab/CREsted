@@ -21,7 +21,7 @@ if MODISCOLITE_AVAILABLE:
         import modiscolite
 
         # Import all necessary functions from _modisco_results
-        from ._modisco_results import (
+        from ._modisco import (
             class_instances,
             clustermap,
             clustermap_tf_motif,
