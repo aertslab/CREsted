@@ -14,7 +14,7 @@ from crested.utils._logging import log_and_raise
 def scores(
     data: AnnData | np.ndarray,
     region: str | None = None,
-    targets: str | list[str] | None = None,
+    model_names: str | list[str] | None = None,
     classes: list[str] | None = None,
     log_transform: bool = False,
     pred_color: str = 'tab:blue',
@@ -37,7 +37,7 @@ def scores(
         AnnData object containing the genomic data in `var` (requiring the `region` argument), or single prediction numpy array (requiring the `classes` argument).
     region
         Region name from the AnnData, generally in format 'chr:start-end'. Required if providing an AnnData object.
-    targets
+    model_names
         Name or list of names of targets to plot.
         Can be 'X'/'truth'/'groundtruth' for the ground truth from adata.X, or the name of prediction layers in adata.layers.
         If None, plots the ground truth and all layers in the AnnData.
@@ -57,7 +57,7 @@ def scores(
     width
         Width of the newly created figure if `ax=None`. Default is 18.
     height
-        Height of the newly created figure if `ax=None`. Default is 4*n_targets.
+        Height of the newly created figure if `ax=None`. Default is 4*n_model_names.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
@@ -94,21 +94,21 @@ def scores(
         logger.warning("Argument 'adata' is deprecated, please use 'data' instead.")
         data = adata
     if target != 'deprecated':
-        logger.warning("Argument 'target' is deprecated, please use 'targets' instead.")
-        targets = target
+        logger.warning("Argument 'target' is deprecated, please use 'model_names' instead.")
+        model_names = target
 
     # Check input validity
     @log_and_raise(ValueError)
     def _check_adata_params():
         if region is None:
             raise ValueError("'region' must be provided if using an AnnData.")
-        for target in targets:
+        for target in model_names:
             if target is not None and (target not in data.layers and target != 'truth'):
                 raise ValueError(f"Target {target} not found in data.layers or recognised as ground truth ('x', 'truth', 'groundtruth').")
         if region not in list(data.var_names):
             raise ValueError(f"Region {region} not found in data.var_names.")
-        if ax is not None and len(targets) > 1:
-            raise ValueError("ax can only be set if plotting one target. Please pick one target in `targets`.")
+        if ax is not None and len(model_names) > 1:
+            raise ValueError("ax can only be set if plotting one target. Please pick one target in `model_names`.")
 
     @log_and_raise(ValueError)
     def _check_array_params():
@@ -118,8 +118,8 @@ def scores(
             raise ValueError(f"If plotting a single prediction, 'data' must be a one-dimensional array, not shape {data.squeeze().shape}.")
         if len(classes) != data.squeeze().shape[-1]:
             raise ValueError(f"Number of classes provided ({len(classes)}) must be the same as the number of classes in the data {data.squeeze().shape[-1]}")
-        if targets is not None:
-            logger.warning(f"'targets' ({targets}) provided when providing a single prediction rather than an adata for 'data'. 'targets' will be ignored.")
+        if model_names is not None:
+            logger.warning(f"'model_names' ({model_names}) provided when providing a single prediction rather than an adata for 'data'. 'model_names' will be ignored.")
 
     # Handle raw prediction input mode
     if not isinstance(data, AnnData):
@@ -130,17 +130,17 @@ def scores(
         targets = ["Prediction"]
     # Handle adata input mode
     else:
-        # Parse and clean up targets values
-        if targets is None:
-            targets = ["truth", *data.layers.keys()]
-        if isinstance(targets, str):
-            targets = [targets]
-        targets = ['truth' if target.lower() in ['x', 'truth', 'groundtruth'] else target for target in targets]
+        # Parse and clean up model_names values
+        if model_names is None:
+            model_names = ["truth", *data.layers.keys()]
+        if isinstance(model_names, str):
+            model_names = [model_names]
+        model_names = ['truth' if target.lower() in ['x', 'truth', 'groundtruth'] else target for target in model_names]
         # Check whether params are valid
         _check_adata_params()
         # Gather values
         region_idx = data.var_names.get_loc(region)
-        values = [data.X[:, region_idx] if target == 'truth' else data.layers[target][:, region_idx] for target in targets]
+        values = [data.X[:, region_idx] if target == 'truth' else data.layers[target][:, region_idx] for target in model_names]
         if classes is None:
             classes = list(data.obs_names)
 
@@ -148,19 +148,19 @@ def scores(
     if log_transform:
         values = [np.log1p(v) for v in values]
 
-    n_targets = len(values)
+    n_model_names = len(values)
 
     # Set defaults
     if 'ylabel' not in kwargs:
-        kwargs['ylabel'] = ['Ground truth' if target == 'truth' else "Prediction" for target in targets]
+        kwargs['ylabel'] = ['Ground truth' if target == 'truth' else "Prediction" for target in model_names]
         if log_transform:
             kwargs['ylabel'] = ["Log1p-transformed " + label.lower() for label in kwargs['ylabel']]
     if 'title' not in kwargs:
-        if n_targets > 1:
-            kwargs['title'] = ["Ground truth" if target == "truth" else target for target in targets]
+        if n_model_names > 1:
+            kwargs['title'] = ["Ground truth" if target == "truth" else target for target in model_names]
         else:
-            kwargs['title'] = f"{region} - {'Ground truth' if targets[0] == 'truth' else targets[0]}"
-    if 'suptitle' not in kwargs and n_targets > 1:
+            kwargs['title'] = f"{region} - {'Ground truth' if model_names[0] == 'truth' else model_names[0]}"
+    if 'suptitle' not in kwargs and n_model_names > 1:
         kwargs['suptitle'] = region
     if 'grid' not in kwargs:
         kwargs['grid'] = 'y'
@@ -173,18 +173,18 @@ def scores(
         ax=ax,
         kwargs_dict=kwargs,
         default_width=18,
-        default_height=4*(n_targets),
+        default_height=4*(n_model_names),
         default_sharex=True,
         default_sharey=True,
-        nrows=n_targets
+        nrows=n_model_names
     )
-    if n_targets == 1:
+    if n_model_names == 1:
         axs = [axs]
     for i, ax in enumerate(axs):
         ax.bar(
             classes,
             values[i],
-            color=truth_color if targets[i] == 'truth' else pred_color,
+            color=truth_color if model_names[i] == 'truth' else pred_color,
             **plot_kws
         )
     return render_plot(fig, axs, **kwargs)
