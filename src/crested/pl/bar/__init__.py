@@ -1,4 +1,5 @@
-"""Initialize the bar module."""
+"""DEPRECATED: Initialize the bar module alibis to renamed functions."""
 
-from ._normalization_weights import normalization_weights
-from ._region import prediction, region, region_predictions, scores
+from crested.pl.qc import normalization_weights  # Alias, deprecated
+
+from ._alibis import prediction, region, region_predictions  # Alias, deprecated

@@ -1,3 +1,4 @@
-"""Init file for the heatmap module."""
+"""DEPRECATED: Initialize the heatmap module alibis to renamed functions."""
 
-from ._correlations import correlations_predictions, correlations_self
+from crested.pl.corr import heatmap_predictions as correlations_predictions  # Alias, deprecated
+from crested.pl.corr import heatmap_self as correlations_self  # Alias, deprecated

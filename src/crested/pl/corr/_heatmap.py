@@ -86,7 +86,7 @@ def _generate_heatmap(
     return ax
 
 
-def correlations_self(
+def heatmap_self(
     adata: AnnData,
     log_transform: bool = False,
     vmin: float | None = None,
@@ -180,7 +180,7 @@ def correlations_self(
     return render_plot(fig, ax, **kwargs)
 
 
-def correlations_predictions(
+def heatmap_predictions(
     adata: AnnData,
     model_names: str | list[str] | None = None,
     split: str | None = "test",

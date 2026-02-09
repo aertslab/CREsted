@@ -1,5 +1,4 @@
-"""Initialize the hist module."""
+"""DEPRECATED: Initialize the hist module alibis to renamed functions."""
 
-from crested.pl.locus._locus_scoring import locus_scoring
-
-from ._distribution import distribution
+from crested.pl.dist import histogram as distribution  # Alias, deprecated
+from crested.pl.locus import locus_scoring  # Alias, deprecated

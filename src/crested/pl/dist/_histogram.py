@@ -12,7 +12,7 @@ from crested.pl._utils import create_plot, render_plot
 from crested.utils._logging import log_and_raise
 
 
-def distribution(
+def histogram(
     adata: AnnData,
     model_name: str = 'truth',
     class_names: list[str] | None = None,

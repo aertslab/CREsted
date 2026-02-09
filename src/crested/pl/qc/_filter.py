@@ -15,7 +15,7 @@ from crested.pl._utils import create_plot, render_plot
 from crested.pp._utils import _calc_gini, _calc_proportion
 
 
-def gini_filtering(
+def filter_regions(
     adata: AnnData,
     cutoffs: Sequence = (1.5, 1, 0.5, 0),
     model_name: str | None = None,
@@ -142,7 +142,7 @@ def gini_filtering(
     return render_plot(fig, ax, **kwargs)
 
 
-def gini_filtering_class(
+def sort_and_filter_regions(
     adata: AnnData,
     cutoffs: list[int] | None = None,
     method: Literal['gini', 'proportion'] = 'gini',

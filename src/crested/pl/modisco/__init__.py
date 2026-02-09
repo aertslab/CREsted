@@ -1,22 +1,15 @@
-"""Init file for the patterns module."""
+"""Initialize the modisco module."""
 
 from importlib.util import find_spec
 
 from loguru import logger
 
-from crested.pl.design import contribution_scores as enhancer_design_steps_contribution_scores  # Alias, deprecated
-from crested.pl.design import predictions as enhancer_design_steps_predictions  # Alias, deprecated
 
-from ._contribution_scores import contribution_scores
-
-
-# Modisco importing stuff - only for aliases since this used to be in here (deprecated)
 def _optional_function_warning(*args, **kwargs):
     logger.error(
         "The requested functionality requires the 'tfmodisco' package, which is not installed. "
         "Please install it with `pip install modisco-lite>=2.2.1.",
     )
-
 
 if find_spec("modiscolite") is not None:
     MODISCOLITE_AVAILABLE = True
@@ -28,7 +21,7 @@ if MODISCOLITE_AVAILABLE:
         import modiscolite
 
         # Import all necessary functions from _modisco_results
-        from crested.pl.modisco import (
+        from ._modisco_results import (
             class_instances,
             clustermap,
             clustermap_tf_motif,
@@ -54,11 +47,7 @@ else:
     clustermap_with_pwm_logos = _optional_function_warning
 
 # Export these functions for public use
-__all__ = [
-    "contribution_scores",
-    "enhancer_design_steps_contribution_scores",
-    "enhancer_design_steps_predictions",
-]
+__all__ = []
 
 if MODISCOLITE_AVAILABLE:
     __all__.extend(

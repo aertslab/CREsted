@@ -1,5 +1,3 @@
-"""Init file for scatter module."""
+"""DEPRECATED: Initialize the scatter module alibis to renamed functions."""
 
-from ._class_density import class_density
-from ._gini_filtering import gini_filtering, gini_filtering_class
-from ._region import region
+from crested.pl.corr import scatter as class_density  # Alias, deprecated

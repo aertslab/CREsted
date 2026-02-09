@@ -37,7 +37,7 @@ def _fit_kde(x, y, downsample_density, max_threads):
         z = kde(xy)
     return z
 
-def class_density(
+def scatter(
     adata: AnnData,
     class_name: str | None = None,
     model_names: str | list[str] | None = None,

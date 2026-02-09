@@ -41,7 +41,7 @@ def _check_target_classes(target_classes: list[str], obs_names: pd.Index | list[
                 f"target class {target} not in obs_names. All targets must be in obs_names."
             )
 
-def enhancer_design_steps_contribution_scores(
+def contribution_scores(
     intermediate: list[dict] | dict,
     scores_all: list[np.ndarray] | np.ndarray,
     seqs_one_hot_all: list[np.ndarray] | np.ndarray,
@@ -228,7 +228,7 @@ def enhancer_design_steps_contribution_scores(
     else:
         return return_list[0] if len(return_list) == 1 else return_list
 
-def enhancer_design_steps_predictions(
+def predictions(
     intermediate: list[dict],
     target_classes: str | list[str],
     obs_names: pd.Index | list[str],

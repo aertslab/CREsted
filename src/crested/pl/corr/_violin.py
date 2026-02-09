@@ -12,7 +12,7 @@ from crested.pl._utils import create_plot, render_plot
 from crested.utils._logging import log_and_raise
 
 
-def correlations(
+def violin(
     adata: AnnData,
     model_names: str | list[str] | None = None,
     split: str | None = "test",

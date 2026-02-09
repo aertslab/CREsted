@@ -1,3 +1,3 @@
-"""Initialize the violin module."""
+"""DEPRECATED: Initialize the violin module alibis to renamed functions."""
 
-from ._correlations import correlations
+from crested.pl.corr import violin as correlations  # Alias, deprecated
