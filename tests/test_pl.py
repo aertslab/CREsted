@@ -252,7 +252,7 @@ def test_qc_normalization_weights():
     plt.close()
 
 def test_qc_sort_cutoff(adata):
-    fig, ax = crested.pl.qc.filtercutoff(
+    fig, ax = crested.pl.qc.filter_cutoff(
         adata=adata,
         plot_kws={'alpha': 0.5},
         line_kws={'alpha': 0.5},
@@ -382,7 +382,7 @@ def test_corr_heatmap_self(adata_preds):
 
 def test_corr_heatmap_pred(adata_preds):
     # Plot single model with default-ish plot
-    fig, ax = crested.pl.corr.heatmap_predictions(
+    fig, ax = crested.pl.corr.heatmap(
         adata=adata_preds,
         model_names='model_1',
         split='test',
@@ -393,7 +393,7 @@ def test_corr_heatmap_pred(adata_preds):
     plt.close()
 
     # Plot all models with very custom plot
-    fig, axs = crested.pl.corr.heatmap_predictions(
+    fig, axs = crested.pl.corr.heatmap(
         adata=adata_preds,
         model_names=None,
         split=None,
