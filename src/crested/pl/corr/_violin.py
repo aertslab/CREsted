@@ -54,10 +54,11 @@ def violin(
     See Also
     --------
     crested.pl.render_plot
+    crested.pl.corr.heatmap_predictions
 
     Examples
     --------
-    >>> crested.pl.violin.correlations(
+    >>> crested.pl.corr.violin(
     ...     adata,
     ...     model_names=["Base DilatedCNN", "Fine-tuned DilatedCNN"],
     ...     split="test",

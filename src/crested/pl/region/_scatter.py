@@ -70,11 +70,11 @@ def scatter(
     See Also
     --------
     crested.pl.render_plot
-    crested.pl.bar.scores
+    crested.pl.region.bar
 
     Example
     -------
-    >>> crested.pl.scatter.region(
+    >>> crested.pl.region.scatter(
     ...     adata,
     ...     "chr1:3111367-3113481",
     ...     model_names='Base model',

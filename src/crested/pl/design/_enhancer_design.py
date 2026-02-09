@@ -100,7 +100,7 @@ def step_contribution_scores(
     sharey
         Whether to share the y axes of the created subplots within each figure. Default is False.
     kwargs
-        Additional arguments passed to :func:`~crested.pl.explain_contribution_scores` to control contribution score settings and on to :func:`~crested.pl.render_plot` to control the final plot output.
+        Additional arguments passed to :func:`~crested.pl.explain.contribution_scores` to control contribution score settings and on to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.explain.contribution_scores` and :func:`~crested.pl.render_plot` for details.
         Custom defaults for `enhancer_design_steps_contribution_scores`: `suptitle_fontsize=26`, `tight_rect=[0, 0, 1, 0.98]`.
 
@@ -115,7 +115,7 @@ def step_contribution_scores(
 
     Example
     --------
-    >>> crested.pl.patterns.enhancer_design_steps_contribution_scores(
+    >>> crested.pl.design.step_contribution_scores(
     ...     intermediate_results,
     ...     scores,
     ...     one_hot_encoded_sequences,
@@ -291,7 +291,7 @@ def step_predictions(
 
     Example
     --------
-    >>> crested.pl.patterns.enhancer_design_steps_predictions(
+    >>> crested.pl.design.step_predictions(
     ...     intermediate_results,
     ...     target_classes="L5ET",
     ...     obs_names=adata.obs_names,

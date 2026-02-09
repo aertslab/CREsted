@@ -41,7 +41,7 @@ def normalization_weights(
 
     Example
     -------
-    >>> crested.pl.bar.normalization_weights(
+    >>> crested.pl.qc.normalization_weights(
     ...     adata,
     ...     width=20,
     ...     height=3,

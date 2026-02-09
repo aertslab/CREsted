@@ -90,7 +90,7 @@ def modisco_results(
 
     Examples
     --------
-    >>> crested.pl.patterns.modisco_results(
+    >>> crested.pl.modisco.modisco_results(
     ...     classes=["Lamp5", "Pvalb", "Sst", ""Sst-Chodl", "Vip"],
     ...     contribution="positive",
     ...     contribution_dir="/path/to/modisco_results",
@@ -497,7 +497,7 @@ def clustermap(
     Examples
     --------
     >>> pat_seqs = crested.tl.modisco.generate_nucleotide_sequences(all_patterns)
-    >>> crested.pl.patterns.clustermap(
+    >>> crested.pl.modisco.clustermap(
     ...     pattern_matrix,
     ...     classes=list(adata.obs_names)
     ...     subset=["Lamp5", "Pvalb", "Sst", "Sst-Chodl", "Vip"],
@@ -835,7 +835,7 @@ def selected_instances(
     Examples
     --------
     >>> pattern_indices = [0, 1, 2]
-    >>> crested.pl.patterns.selected_instances(pattern_dict, pattern_indices)
+    >>> crested.pl.modisco.selected_instances(pattern_dict, pattern_indices)
 
     .. image:: ../../../../docs/_static/img/examples/pattern_selected_instances.png
     """
@@ -909,7 +909,7 @@ def class_instances(
 
     Examples
     --------
-    >>> crested.pl.patterns.class_instances(pattern_dict, 0, class_representative=False)
+    >>> crested.pl.modisco.class_instances(pattern_dict, 0, class_representative=False)
 
     .. image:: ../../../../docs/_static/img/examples/pattern_class_instances.png
     """
@@ -989,7 +989,7 @@ def similarity_heatmap(
     >>> sim_matrix, indices = crested.tl.modisco.calculate_similarity_matrix(
     ...     all_patterns
     ... )
-    >>> crested.pl.patterns.similarity_heatmap(sim_matrix, indices, fig_size=(42, 17))
+    >>> crested.pl.modisco.similarity_heatmap(sim_matrix, indices, fig_size=(42, 17))
 
     .. image:: ../../../../docs/_static/img/examples/pattern_similarity_heatmap.png
     """

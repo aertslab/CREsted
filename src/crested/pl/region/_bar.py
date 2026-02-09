@@ -66,10 +66,11 @@ def bar(
     See Also
     --------
     crested.pl.render_plot
+    crested.pl.region.scatter
 
     Example
     -------
-    >>> crested.pl.bar.region(
+    >>> crested.pl.region.bar(
     ...     adata,
     ...     region='chr1:3093998-3096112',
     ...     target="Base model",

@@ -336,7 +336,7 @@ def contribution_scores(
     If multiple models are provided, the contribution scores will be averaged across all models.
 
     These scores can then be plotted to visualize the importance of each base in the sequence
-    using :func:`~crested.pl.patterns.contribution_scores`.
+    using :func:`~crested.pl.explain.contribution_scores`.
 
     Parameters
     ----------
@@ -381,7 +381,7 @@ def contribution_scores(
 
     See Also
     --------
-    crested.pl.patterns.contribution_scores
+    crested.pl.explain.contribution_scores
     """
 
     @log_and_raise(ValueError)
@@ -537,7 +537,7 @@ def contribution_scores_specific(
     If multiple models are provided, the contribution scores will be averaged across all models.
 
     These scores can then be plotted to visualize the importance of each base in the sequence
-    using :func:`~crested.pl.patterns.contribution_scores`.
+    using :func:`~crested.pl.explain.contribution_scores`.
 
     Parameters
     ----------
@@ -575,7 +575,7 @@ def contribution_scores_specific(
 
     See Also
     --------
-    crested.pl.patterns.contribution_scores
+    crested.pl.explain.contribution_scores
     crested.pp.sort_and_filter_regions_on_specificity
     """
     assert isinstance(input, AnnData), "Input should be an anndata object."

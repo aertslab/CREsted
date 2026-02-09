@@ -112,7 +112,7 @@ def scatter(
 
     Example
     -------
-    >>> crested.pl.scatter.class_density(
+    >>> crested.pl.corr.scatter(
     ...     adata,
     ...     class_name="Astro",
     ...     model_names=["Base model", "Fine-tuned"],

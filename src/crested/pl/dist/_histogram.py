@@ -62,7 +62,7 @@ def histogram(
 
     Example
     --------
-    >>> crested.pl.hist.distribution(
+    >>> crested.pl.dist.histogram(
     ...     adata,
     ...     split="test",
     ...     sharey=False,

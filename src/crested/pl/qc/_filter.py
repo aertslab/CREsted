@@ -70,7 +70,7 @@ def filter_cutoff(
 
     Example
     -------
-    >>> crested.pl.scatter.gini(adata)
+    >>> crested.pl.qc.filter_cutoff(adata)
 
     .. image:: ../../../../docs/_static/img/examples/scatter_gini_filtering.png
     """
@@ -203,7 +203,7 @@ def sort_and_filter_cutoff(
 
     Example
     -------
-    >>> crested.pl.scatter.gini_filtering_class(adata, cutoffs = [350, 750])
+    >>> crested.pl.qc.sort_and_filter_cutoff(adata, cutoffs = [350, 750])
 
     .. image:: ../../../../docs/_static/img/examples/scatter_gini_filtering_class.png
     """

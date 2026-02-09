@@ -96,7 +96,7 @@ def contribution_scores(
     >>> seqs_one_hot = np.eye(4)[None, np.random.randint(4, size=200)]
     >>> class_of_interest = "celltype_A"
     >>> region_of_interest = "chr1:100-300"
-    >>> crested.pl.patterns.contribution_scores(
+    >>> crested.pl.explain.contribution_scores(
     ...     scores=scores,
     ...     seqs_one_hot=seqs_one_hot,
     ...     sequence_labels=region_of_interest,

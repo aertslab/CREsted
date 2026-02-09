@@ -141,7 +141,7 @@ def heatmap_self(
 
     Examples
     --------
-    >>> crested.pl.heatmap.correlations_self(
+    >>> crested.pl.corr.heatmap_self(
     ...     adata,
     ...     log_transform=True,
     ...     vmin=0,
@@ -238,10 +238,11 @@ def heatmap_predictions(
     See Also
     --------
     crested.pl.render_plot
+    crested.pl.corr.violin
 
     Examples
     --------
-    >>> crested.pl.heatmap.correlations_predictions(
+    >>> crested.pl.corr.heatmap_predictions(
     ...     adata,
     ...     model_names=None,
     ...     split="test",
