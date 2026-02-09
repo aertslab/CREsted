@@ -226,36 +226,32 @@ def test_patterns_class_instances(all_patterns, save_dir):
     )
     plt.close()
 
-class TestModisco:
-    def __init__(self):
-        pytest.importorskip("crested.tl.modisco")
 
-    @pytest.fixture(scope="module")
-    def pattern_matrix(all_patterns, all_classes):
-        pattern_matrix = crested.tl.modisco.create_pattern_matrix(
-            classes=all_classes, all_patterns=all_patterns, normalize=True
-        )
-        return pattern_matrix
+def test_patterns_clustermap(all_patterns, all_classes, save_dir):
+    pytest.importorskip("modiscolite")
+    pattern_matrix = crested.tl.modisco.create_pattern_matrix(
+        classes=all_classes, all_patterns=all_patterns, normalize=True
+    )
+    pat_seqs = crested.tl.modisco.generate_nucleotide_sequences(all_patterns)
+    crested.pl.patterns.clustermap(
+        pattern_matrix,
+        classes=all_classes,
+        subset=["Astro", "OPC", "Oligo"],
+        pat_seqs=pat_seqs,
+        grid=True,
+        height=2,
+        width=20,
+    )
+    plt.close()
 
-    def test_patterns_clustermap(all_patterns, all_classes, pattern_matrix, save_dir):
-        pat_seqs = crested.tl.modisco.generate_nucleotide_sequences(all_patterns)
-        crested.pl.patterns.clustermap(
-            pattern_matrix,
-            classes=all_classes,
-            subset=["Astro", "OPC", "Oligo"],
-            pat_seqs=pat_seqs,
-            grid=True,
-            height=2,
-            width=20,
-        )
-        plt.close()
-
-    def test_patterns_similarity_heatmap(all_patterns, save_dir):
-        sim_matrix, indices = crested.tl.modisco.calculate_similarity_matrix(all_patterns)
-        crested.pl.patterns.similarity_heatmap(
-            sim_matrix, indices=indices
-        )
-        plt.close()
+def test_patterns_similarity_heatmap(all_patterns, save_dir):
+    pytest.importorskip("modiscolite")
+    pytest.importorskip("memelite")
+    sim_matrix, indices = crested.tl.modisco.calculate_similarity_matrix(all_patterns)
+    crested.pl.patterns.similarity_heatmap(
+        sim_matrix, indices=indices
+    )
+    plt.close()
 
 if __name__ == "__main__":
     pytest.main()
