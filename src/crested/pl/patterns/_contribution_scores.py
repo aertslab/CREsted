@@ -83,7 +83,7 @@ def contribution_scores(
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
-        Custom defaults for `contribution_scores`: `ylabel='Scores'`.
+        Custom defaults for `contribution_scores`: `ylabel='Scores'`, `h_pad=0.2` (for :func:`~crested.pl.create_plot`).
 
     See Also
     --------
@@ -188,7 +188,8 @@ def contribution_scores(
         default_height=0.5+2.25*total_plots,
         nrows=total_plots,
         default_sharex=False,
-        default_sharey=False
+        default_sharey=False,
+        default_h_pad=0.2,
     )
 
     if total_plots == 1:

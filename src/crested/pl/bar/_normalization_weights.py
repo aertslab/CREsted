@@ -27,9 +27,9 @@ def normalization_weights(
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width
-        Width of the newly created figure if `ax=None`. Default is 11.
+        Width of the newly created figure if `ax=None`. Default is 20.
     height
-        Height of the newly created figure if `ax=None`. Default is 8.
+        Height of the newly created figure if `ax=None`. Default is 5.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
@@ -71,6 +71,6 @@ def normalization_weights(
     weights = adata.obsm["weights"].squeeze()
 
     # Plot
-    fig, ax = create_plot(ax=ax, kwargs_dict=kwargs, default_width=20, default_height=3)
+    fig, ax = create_plot(ax=ax, kwargs_dict=kwargs, default_width=20, default_height=5)
     ax.bar(x=classes, height=weights, **plot_kws)
     return render_plot(fig, ax, **kwargs)

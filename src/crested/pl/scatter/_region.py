@@ -70,7 +70,7 @@ def region(
     See Also
     --------
     crested.pl.render_plot
-    crested.pl.bar.region
+    crested.pl.bar.scores
 
     Example
     -------

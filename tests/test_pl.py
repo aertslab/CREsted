@@ -254,7 +254,7 @@ def test_bar_normalization_weights():
 def test_bar_region(adata_preds):
     # Plot all models
     fig, ax = crested.pl.bar.region(
-        adata=adata_preds,
+        adata_preds,
         region="chr1:194208032-194208532",
         target=None,
         plot_kws={'alpha': 0.5},
@@ -265,7 +265,7 @@ def test_bar_region(adata_preds):
 
     # Plot one model
     fig, ax = crested.pl.bar.region(
-        adata=adata_preds,
+        adata_preds,
         region="chr1:194208032-194208532",
         target='model_1',
         show=False

@@ -51,6 +51,7 @@ def class_density(
     downsample_density: int = 10000,
     max_threads: int = 8,
     plot_kws: dict | None = None,
+    cbar_kws: dict | None = None,
     ax: plt.Axes | None = None,
     **kwargs,
 ) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
@@ -87,6 +88,8 @@ def class_density(
         Maximum number of threads to use when evaluating the density if using the density indication. If 1, will not parallelize.
     plot_kws
         Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.scatter`. Defaults: `{'alpha': 0.25, 'edgecolor': 'k'}`.
+    cbar_kws
+        Extra keyworde arguments passed to :meth:`~matplotlib.figure.Figure.colorbar`. Defaults: `{'label': 'Density', 'shrink': 0.8}`
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width
@@ -205,6 +208,11 @@ def class_density(
         plot_kws['alpha'] = 0.25
     if 'edgecolor' not in plot_kws:
         plot_kws['edgecolor'] = "k"
+    cbar_kws = {} if cbar_kws is None else cbar_kws.copy()
+    if 'label' not in cbar_kws:
+        cbar_kws['label'] = "Density"
+    if 'shrink' not in cbar_kws:
+        cbar_kws['shrink'] = 0.8
 
     # Create plot
     default_width = 8*n_models if (cbar and density_indication) else 7*n_models
@@ -234,7 +242,7 @@ def class_density(
             scatter_pathcoll = ax.scatter(x, y, c=z, s=50, **plot_kws)
             scatter_pathcoll.set_rasterized(True)  # Rasterize only the scatter points
             if cbar:
-                fig.colorbar(ScalarMappable(cmap=scatter_pathcoll.cmap, norm=scatter_pathcoll.norm), ax = ax, label="Density")
+                fig.colorbar(ScalarMappable(cmap=scatter_pathcoll.cmap, norm=scatter_pathcoll.norm), ax = ax, **cbar_kws)
         else:
             ax.scatter(x, y, **plot_kws)
 

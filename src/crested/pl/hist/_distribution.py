@@ -14,12 +14,13 @@ from crested.utils._logging import log_and_raise
 
 def distribution(
     adata: AnnData,
-    target: str | None = None,
+    model_name: str = 'truth',
     class_names: list[str] | None = None,
     split: str | None = None,
     log_transform: bool = True,
     plot_kws: dict | None = None,
     ax: plt.Axes | None = None,
+    target: str = 'deprecated',
     **kwargs,
 ) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
     """
@@ -29,12 +30,12 @@ def distribution(
     ----------
     adata
         AnnData object containing the predictions in `layers`.
-    target
-        The target to plot the distribution for, either None (for the ground truth) or the name of a prediction layer in adata.layers.
+    model_name
+        The target to plot the distribution for, either 'X'/'truth'/'groundtruth'/None (for the ground truth) or the name of a prediction layer in adata.layers.
     class_names
         Single class name or list of classes in `adata.obs`. If None, will create a plot per class in `adata.obs`.
     split
-        'train', 'val', 'test' subset or None. If None, will use all targets. If not None, expects a "split" column in adata.var.
+        'train', 'val', 'test' subset or None. If None, will use all splits. If not None, expects a "split" column in adata.var.
     log_transform
         Whether to log-transform the data before plotting.
     plot_kws
@@ -74,6 +75,9 @@ def distribution(
     if 'share_y' in kwargs:
         kwargs['sharey'] = kwargs.pop('share_y')
         logger.warning("Argument `share_y` is deprecated since version 2.0.0; please use sharey instead to align with matplotlib.")
+    if target != 'deprecated':
+        model_name = target
+        logger.warning("Argument `target` is deprecated since version 2.0.0; please use model_name instead to align with matplotlib.")
 
     # Check params
     @log_and_raise(ValueError)
@@ -82,8 +86,8 @@ def distribution(
             if class_name not in list(adata.obs_names):
                 raise ValueError(f"{class_name} not found in adata.obs_names.")
 
-        if target is not None and target not in adata.layers:
-            raise ValueError(f"{target} not found in adata.layers.")
+        if model_name != 'truth' and model_name not in adata.layers:
+            raise ValueError(f"{model_name} not found in adata.layers or recognised as ground truth ('x', 'truth', 'groundtruth').")
 
         if split is not None:
             if "split" not in adata.var:
@@ -93,8 +97,8 @@ def distribution(
         if ax is not None and len(class_names) > 1:
             raise ValueError("ax can only be set if plotting one class. Please pick one class in `class_names`.")
 
-    if target == "groundtruth":
-        target = None
+    if model_name.lower() in ["x", 'truth', "groundtruth"]:
+        model_name = 'truth'
 
     if isinstance(class_names, str):
         class_names = [class_names]
@@ -111,7 +115,7 @@ def distribution(
     if 'grid' not in kwargs:
         kwargs['grid'] = 'both'
     if 'xlabel' not in kwargs:
-        kwargs['xlabel'] = 'Ground truth' if target is None else target
+        kwargs['xlabel'] = 'Ground truth' if model_name == 'truth' else model_name
         if log_transform:
             kwargs['xlabel'] = "Log1p-transformed " + kwargs['xlabel'].lower()
 
@@ -141,10 +145,10 @@ def distribution(
 
     for i, class_name in enumerate(class_names):
         # Gather data
-        if target is None:
+        if model_name == 'truth':
             data = adata.X[adata.obs_names.get_loc(class_name), :]
         else:
-            data = adata.layers[target][adata.obs_names.get_loc(class_name), :]
+            data = adata.layers[model_name][adata.obs_names.get_loc(class_name), :]
         if split is not None:
             data = data[adata.var["split"] == split]
         if log_transform:

@@ -49,9 +49,7 @@ violin
 
 ```{eval-rst}
 .. autosummary::
-    bar.region
-    bar.region_predictions
-    bar.prediction
+    bar.scores
     bar.normalization_weights
 ```
 
@@ -83,6 +81,9 @@ violin
 ```{eval-rst}
 .. autosummary::
     scatter.class_density
+    scatter.region
+    scatter.gini_filtering
+    scatter.gini_filtering_class
 ```
 
 ## Violin plots

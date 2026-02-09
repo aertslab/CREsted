@@ -10,8 +10,6 @@ Bar plots to inspect per region ground truths and compare them to their predicti
 .. autosummary::
     :toctree: _autosummary
 
-    region
-    region_predictions
-    prediction
+    scores
     normalization_weights
 ```

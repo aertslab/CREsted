@@ -20,7 +20,7 @@ def filter_regions_on_specificity(
     This function filters regions based on their specificity using Gini scores.
     The regions with high Gini scores are retained.
     If model_name is provided, will look for the corresponding predictions in the
-    adata.layers[model_name] layer. Else, it will use the targets in adata.X to decide
+    adata.layers[model_name] layer. Else, it will use the values in adata.X to decide
     which regions to keep.
     To get an idea for the impact of different possible `gini_std_threshold` values, see :func:`~crested.pl.scatter.gini_filtering`.
 
@@ -29,11 +29,10 @@ def filter_regions_on_specificity(
     adata
         The AnnData object containing the matrix (celltypes, regions) to be filtered.
     gini_std_threshold
-        The number of standard deviations above the mean Gini score used to determine
-        the threshold for high variability.
+        The number of standard deviations above the mean Gini score used to determine the threshold for high variability.
     model_name
         The name of the model to look for in adata.layers[model_name] for predictions.
-        If None, will use the targets in adata.X to select specific regions.
+        If None or 'truth'/'groundtruth'/'X', will use the values in adata.X to select specific regions.
     copy
         Perform computation and modify `adata` in-place or return a resulting copy of the `adata` instead.
 
@@ -53,7 +52,7 @@ def filter_regions_on_specificity(
     ...     gini_std_threshold=1.0,
     ... )
     """
-    if model_name is None:
+    if model_name is None or model_name in ['X', 'truth', 'groundtruth']:
         if isinstance(adata.X, csr_matrix):
             target_matrix = (
                 adata.X.toarray().T
@@ -99,6 +98,7 @@ def sort_and_filter_regions_on_specificity(
 
     Combines them into a single AnnData object with extra columns indicating the original class name,
     the rank per column, and the score.
+    To get an idea for the impact of different possible `top_k` values, see :func:`~crested.pl.scatter.gini_filtering_class`.
 
     Parameters
     ----------
@@ -121,6 +121,10 @@ def sort_and_filter_regions_on_specificity(
     indicating the original class name, the rank per column, and the score.
     If `copy=True`, returns a modified copy of the AnnData object instead.
 
+    See Also
+    --------
+    crested.pl.scatter.gini_filtering_class
+
     Example
     -------
     >>> crested.pp.sort_and_filter_regions_on_specificity(
@@ -130,7 +134,7 @@ def sort_and_filter_regions_on_specificity(
     ... )
     """
     class_names = list(adata.obs_names)
-    if model_name is None:
+    if model_name is None or model_name in ['X', 'truth', 'groundtruth']:
         if isinstance(adata.X, csr_matrix):
             target_matrix = (
                 adata.X.toarray().T
