@@ -238,12 +238,12 @@ def test_render_plot_saving(tmp_path):
     crested.pl.render_plot(fig=fig, axs=ax, save_path=tmp_path/'test_render_plot_saving.png')
     plt.close()
 
-# ----------- Test bar -----------
-def test_bar_normalization_weights():
+# ---------- Test qc -------------
+def test_qc_normalization_weights():
     regions = [f"chr{chr_i}:{start}-{start+100}" for chr_i in range(10) for start in range(100, 2000, 100)]
     adata = create_anndata_with_regions(regions, random_state=42)
     crested.pp.normalize_peaks(adata, gini_std_threshold = 0.1, top_k_percent=0.5)
-    fig, ax = crested.pl.bar.normalization_weights(
+    fig, ax = crested.pl.qc.normalization_weights(
         adata=adata,
         plot_kws={'color': 'red'},
         show=False
@@ -251,58 +251,88 @@ def test_bar_normalization_weights():
     assert fig is not None and ax is not None
     plt.close()
 
-def test_bar_region(adata_preds):
-    # Plot all models
-    fig, ax = crested.pl.bar.region(
-        adata_preds,
-        region="chr1:194208032-194208532",
-        target=None,
+def test_qc_sort_cutoff(adata):
+    fig, ax = crested.pl.qc.filtercutoff(
+        adata=adata,
         plot_kws={'alpha': 0.5},
+        line_kws={'alpha': 0.5},
         show=False
     )
     assert fig is not None and ax is not None
     plt.close()
 
-    # Plot one model
-    fig, ax = crested.pl.bar.region(
+def test_qc_sort_and_filter_cutoff(adata):
+    # Test gini
+    fig, ax = crested.pl.qc.sort_and_filter_cutoff(
+        adata=adata,
+        cutoffs=[300, 450],
+        method='gini',
+        plot_kws={'alpha': 0.5},
+        line_kws={'alpha': 0.5},
+        show=False
+    )
+    assert fig is not None and ax is not None
+    plt.close()
+
+    # Test proportion
+    fig, ax = crested.pl.qc.sort_and_cutoff(
+        adata=adata,
+        cutoffs=[300, 450],
+        method='proportion',
+        plot_kws={'alpha': 0.5},
+        line_kws={'alpha': 0.5},
+        show=False
+    )
+    assert fig is not None and ax is not None
+    plt.close()
+
+# ---------- Test region -------------
+
+def test_region_bar_all(adata_preds):
+    # Plot all models
+    fig, axs = crested.pl.region.bar(
         adata_preds,
         region="chr1:194208032-194208532",
-        target='model_1',
-        show=False
-    )
-    assert fig is not None and ax is not None
-    plt.close()
-
-def test_bar_region_predictions(adata_preds):
-    # Default function
-    fig, axs = crested.pl.bar.region_predictions(
-        adata=adata_preds,
-        region="chr1:92202766-92203266",
+        model_names=None,
+        log_transform=True,
+        pred_color='pink',
+        truth_color='purple',
+        plot_kws={'alpha': 0.5},
         show=False
     )
     assert len(axs) == 3
     assert fig is not None and axs is not None
     plt.close()
 
-    # Changed parameters
-    fig, axs = crested.pl.bar.region_predictions(
-        adata=adata_preds,
-        region="chr1:92202766-92203266",
+def test_region_bar_single(adata_preds):
+    # Plot one model
+    fig, ax = crested.pl.region.bar(
+        adata_preds,
+        region="chr1:194208032-194208532",
         model_names='model_1',
-        pred_color='pink',
-        truth_color='purple',
-        plot_kws={'alpha': 0.5},
         show=False
     )
-    assert len(axs) == 2
-    assert fig is not None and axs is not None
+    assert isinstance(ax, plt.Axes)
+    assert fig is not None and ax is not None
     plt.close()
 
-def test_bar_predictions():
+    # Plot ground truth
+    fig, ax = crested.pl.region.bar(
+        adata_preds,
+        region="chr1:194208032-194208532",
+        model_names='truth',
+        show=False
+    )
+    assert isinstance(ax, plt.Axes)
+    assert fig is not None and ax is not None
+    plt.close()
+
+def test_region_bar_prediction():
+    # Plot manual prediction
     prediction = np.abs(np.random.randn(19))
     classes = [f"class_{i}" for i in range(19)]
-    fig, ax = crested.pl.bar.prediction(
-        prediction=prediction,
+    fig, ax = crested.pl.region.bar(
+        data=prediction,
         classes=classes,
         plot_kws={'alpha': 0.5},
         show=False
@@ -310,10 +340,24 @@ def test_bar_predictions():
     assert fig is not None and ax is not None
     plt.close()
 
-# ----------- Test heatmap -----------
-def test_heatmap_self(adata_preds):
+def test_region_scatter(adata_preds):
+    fig, ax = crested.pl.region.scatter(
+        adata_preds,
+        adata_preds.var_names[0],
+        model_names='model_1',
+        log_transform=True,
+        identity_line=True,
+        show=False
+    )
+
+    assert fig is not None and ax is not None
+    plt.close()
+
+# ---------- Test corr -------------
+
+def test_corr_heatmap_self(adata_preds):
     # Default function
-    fig, ax = crested.pl.heatmap.correlations_self(
+    fig, ax = crested.pl.corr.heatmap_self(
         adata=adata_preds,
         show=False
     )
@@ -321,7 +365,7 @@ def test_heatmap_self(adata_preds):
     plt.close()
 
     # Changed parameters
-    fig, ax = crested.pl.heatmap.correlations_self(
+    fig, ax = crested.pl.corr.heatmap_self(
         adata=adata_preds,
         log_transform=True,
         vmin=0.,
@@ -336,9 +380,9 @@ def test_heatmap_self(adata_preds):
     assert fig is not None and ax is not None
     plt.close()
 
-def test_heatmap_pred(adata_preds):
+def test_corr_heatmap_pred(adata_preds):
     # Plot single model with default-ish plot
-    fig, ax = crested.pl.heatmap.correlations_predictions(
+    fig, ax = crested.pl.corr.heatmap_predictions(
         adata=adata_preds,
         model_names='model_1',
         split='test',
@@ -349,7 +393,7 @@ def test_heatmap_pred(adata_preds):
     plt.close()
 
     # Plot all models with very custom plot
-    fig, axs = crested.pl.heatmap.correlations_predictions(
+    fig, axs = crested.pl.corr.heatmap_predictions(
         adata=adata_preds,
         model_names=None,
         split=None,
@@ -367,10 +411,59 @@ def test_heatmap_pred(adata_preds):
     assert fig is not None and axs is not None
     plt.close()
 
-# ----------- Test hist -----------
-def test_hist_distribution(adata_preds):
+
+def test_corr_scatter(adata_preds):
+    # Plot single class for two models without density
+    fig, ax = crested.pl.corr.scatter(
+        adata=adata_preds,
+        split=None,
+        class_name=adata_preds.obs_names[1],
+        log_transform=False,
+        exclude_zeros=False,
+        density_indication=False,
+        square=False,
+        identity_line=False,
+        cbar=False,
+        show=False
+    )
+    assert fig is not None and ax is not None
+    plt.close()
+
+    # Plot all classes for single model with density
+    fig, ax = crested.pl.corr.scatter(
+        adata=adata_preds,
+        model_names='model_1',
+        split="test",
+        log_transform=True,
+        exclude_zeros=True,
+        density_indication=True,
+        square=True,
+        identity_line=True,
+        cbar=True,
+        downsample_density=40, # Since adata only has 100 points
+        max_threads=1, # Not sure how many threads we have on the CI runner
+        plot_kws={'alpha': 0.5},
+        show=False
+    )
+    assert fig is not None and ax is not None
+    plt.close()
+
+
+def test_corr_violin(adata_preds):
+    fig, ax = crested.pl.corr.violin(
+        adata=adata_preds,
+        split=None,
+        log_transform=True,
+        plot_kws={'saturation': 0.5},
+        show=False
+    )
+    assert fig is not None and ax is not None
+    plt.close()
+
+# ---------- Test dist -------------
+def test_dist_histogram(adata_preds):
     # Test simple plot
-    fig, axs = crested.pl.hist.distribution(
+    fig, axs = crested.pl.dist.histogram(
         adata=adata_preds,
         split="test",
         show=False
@@ -380,13 +473,68 @@ def test_hist_distribution(adata_preds):
     plt.close()
 
     # Test custom plot
-    fig, ax = crested.pl.hist.distribution(
+    fig, ax = crested.pl.dist.histogram(
         adata=adata_preds,
         target='model_1',
         class_names=adata_preds.obs_names[2],
         split=None,
         log_transform=False,
         plot_kws={'color': 'pink'},
+        show=False
+    )
+    assert fig is not None and ax is not None
+    plt.close()
+
+
+# ---------- Test explain -------------
+
+def test_patterns_contribution_scores():
+    scores = np.random.uniform(-1, 3, (1, 1, 100, 4))
+    seqs_one_hot = np.eye(4)[None, np.random.randint(4, size=100)]
+    # Simple plot
+    fig, ax = crested.pl.explain.contribution_scores(
+        scores, seqs_one_hot, show=False
+    )
+    assert fig is not None and ax is not None
+    # Extensive plot
+    fig, ax = crested.pl.explain.contribution_scores(
+        scores,
+        seqs_one_hot,
+        "chr1:100-200",
+        "celltype_A",
+        zoom_n_bases=50,
+        highlight_positions=(50, 60),
+        show=False
+    )
+    assert fig is not None and ax is not None
+    plt.close()
+
+def test_patterns_contribution_scores_mutagenesis():
+    scores = np.random.uniform(-3, 1, (1, 1, 100, 4))
+    seqs_one_hot = np.eye(4)[None, np.random.randint(4, size=100)]
+    # Plot mutagenesis scatter
+    fig, ax = crested.pl.explain.contribution_scores(
+        scores,
+        seqs_one_hot,
+        "chr1:100-200",
+        "celltype_A",
+        zoom_n_bases=50,
+        highlight_positions=(50, 60),
+        method="mutagenesis",
+        show=False
+    )
+    assert fig is not None and ax is not None
+    plt.close()
+
+    # Plot mutagenesis letters
+    fig, ax = crested.pl.explain.contribution_scores(
+        scores,
+        seqs_one_hot,
+        "chr1:100-200",
+        "celltype_A",
+        zoom_n_bases=50,
+        highlight_positions=(50, 60),
+        method="mutagenesis_letters",
         show=False
     )
     assert fig is not None and ax is not None
@@ -470,131 +618,10 @@ def test_locus_scoring_with_bigwig():
     assert fig is not None and axs is not None
     plt.close()
 
+# ---------- Test design -------------
+# to add
 
-# ----------- Test scatter -----------
-def test_scatter_class_density(adata_preds):
-    # Plot single class for two models without density
-    fig, ax = crested.pl.scatter.class_density(
-        adata=adata_preds,
-        split=None,
-        class_name=adata_preds.obs_names[1],
-        log_transform=False,
-        exclude_zeros=False,
-        density_indication=False,
-        square=False,
-        identity_line=False,
-        cbar=False,
-        show=False
-    )
-    assert fig is not None and ax is not None
-    plt.close()
-
-    # Plot all classes for single model with density
-    fig, ax = crested.pl.scatter.class_density(
-        adata=adata_preds,
-        model_names='model_1',
-        split="test",
-        log_transform=True,
-        exclude_zeros=True,
-        density_indication=True,
-        square=True,
-        identity_line=True,
-        cbar=True,
-        downsample_density=40, # Since adata only has 100 points
-        max_threads=1, # Not sure how many threads we have on the CI runner
-        plot_kws={'alpha': 0.5},
-        show=False
-    )
-    assert fig is not None and ax is not None
-    plt.close()
-
-def test_scatter_gini_filtering(adata):
-    fig, ax = crested.pl.scatter.gini_filtering(
-        adata=adata,
-        plot_kws={'alpha': 0.5},
-        line_kws={'alpha': 0.5},
-        show=False
-    )
-    assert fig is not None and ax is not None
-    plt.close()
-
-def test_scatter_region(adata_preds):
-    fig, ax = crested.pl.scatter.region(
-        adata_preds,
-        adata_preds.var_names[0],
-        model_names='model_1',
-        log_transform=True,
-        identity_line=True,
-        show=False
-    )
-
-    assert fig is not None and ax is not None
-    plt.close()
-
-# ----------- Test violin -----------
-def test_violin_correlations(adata_preds):
-    fig, ax = crested.pl.violin.correlations(
-        adata=adata_preds,
-        split=None,
-        log_transform=True,
-        plot_kws={'saturation': 0.5},
-        show=False
-    )
-    assert fig is not None and ax is not None
-    plt.close()
-
-# ----------- Test patterns -----------
-def test_patterns_contribution_scores():
-    scores = np.random.uniform(-1, 3, (1, 1, 100, 4))
-    seqs_one_hot = np.eye(4)[None, np.random.randint(4, size=100)]
-    # Simple plot
-    fig, ax = crested.pl.patterns.contribution_scores(
-        scores, seqs_one_hot, show=False
-    )
-    assert fig is not None and ax is not None
-    # Extensive plot
-    fig, ax = crested.pl.patterns.contribution_scores(
-        scores,
-        seqs_one_hot,
-        "chr1:100-200",
-        "celltype_A",
-        zoom_n_bases=50,
-        highlight_positions=(50, 60),
-        show=False
-    )
-    assert fig is not None and ax is not None
-    plt.close()
-
-def test_patterns_contribution_scores_mutagenesis():
-    scores = np.random.uniform(-3, 1, (1, 1, 100, 4))
-    seqs_one_hot = np.eye(4)[None, np.random.randint(4, size=100)]
-    # Plot mutagenesis scatter
-    fig, ax = crested.pl.patterns.contribution_scores(
-        scores,
-        seqs_one_hot,
-        "chr1:100-200",
-        "celltype_A",
-        zoom_n_bases=50,
-        highlight_positions=(50, 60),
-        method="mutagenesis",
-        show=False
-    )
-    assert fig is not None and ax is not None
-    plt.close()
-
-    # Plot mutagenesis letters
-    fig, ax = crested.pl.patterns.contribution_scores(
-        scores,
-        seqs_one_hot,
-        "chr1:100-200",
-        "celltype_A",
-        zoom_n_bases=50,
-        highlight_positions=(50, 60),
-        method="mutagenesis_letters",
-        show=False
-    )
-    assert fig is not None and ax is not None
-    plt.close()
+# ---------- Test modisco -------------
 
 @pytest.fixture(scope="module")
 def all_patterns():
@@ -637,7 +664,7 @@ def save_dir():
 def test_patterns_selected_instances(all_patterns, save_dir):
     pattern_indices = [0, 1]
     save_path = os.path.join(save_dir, "patterns_selected_instances.png")
-    crested.pl.patterns.selected_instances(
+    crested.pl.modisco.selected_instances(
         pattern_dict=all_patterns,
         idcs=pattern_indices,
         save_path=save_path
@@ -647,7 +674,7 @@ def test_patterns_selected_instances(all_patterns, save_dir):
 
 def test_patterns_class_instances(all_patterns, save_dir):
     save_path = os.path.join(save_dir, "patterns_class_instances.png")
-    crested.pl.patterns.class_instances(
+    crested.pl.modisco.class_instances(
         all_patterns, idx=2, class_representative=True, save_path=save_path
     )
     plt.close()
@@ -666,7 +693,7 @@ class TestModisco:
     def test_patterns_clustermap(all_patterns, all_classes, pattern_matrix, save_dir):
         pat_seqs = crested.tl.modisco.generate_nucleotide_sequences(all_patterns)
         save_path = os.path.join(save_dir, "patterns_clustermap.png")
-        crested.pl.patterns.clustermap(
+        crested.pl.modisco.clustermap(
             pattern_matrix,
             classes=all_classes,
             subset=["Astro", "OPC", "Oligo"],
@@ -681,10 +708,33 @@ class TestModisco:
     def test_patterns_similarity_heatmap(all_patterns, save_dir):
         save_path = os.path.join(save_dir, "patterns_similarity_heatmap.png")
         sim_matrix, indices = crested.tl.modisco.calculate_similarity_matrix(all_patterns)
-        crested.pl.patterns.similarity_heatmap(
+        crested.pl.modisco.similarity_heatmap(
             sim_matrix, indices=indices, save_path=save_path
         )
         plt.close()
+
+
+
+
+
+
+
+
+
+
+# ----------- Test bar -----------
+
+# ----------- Test heatmap -----------
+
+# ----------- Test hist -----------
+
+# ----------- Test scatter -----------
+
+# ----------- Test violin -----------
+
+
+# ----------- Test patterns -----------
+
 
 if __name__ == "__main__":
     pytest.main()
