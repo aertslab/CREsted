@@ -261,7 +261,7 @@ def sort_and_filter_cutoff(
     # Plot values
     for i, class_name in enumerate(adata.obs_names):
         class_max_gini = np.sort(scores[:, i])[::-1][:max_k]
-        ax.scatter(x=np.arange(max_k), y=class_max_gini, label=class_name, color = colors[i], **plot_kws)
+        ax.scatter(x=np.arange(class_max_gini.shape[0]), y=class_max_gini, label=class_name, color = colors[i], **plot_kws)
         if class_labels:
             ax.annotate(class_name, (max_k, class_max_gini[-1]), ha='right', va='center')
     if cutoffs is not None:
