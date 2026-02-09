@@ -38,7 +38,7 @@ def scores(
     region
         Region name from the AnnData, generally in format 'chr:start-end'. Required if providing an AnnData object.
     model_names
-        Name or list of names of targets to plot.
+        Source of the values to plot, as a name or list of names.
         Can be 'X'/'truth'/'groundtruth' for the ground truth from adata.X, or the name of prediction layers in adata.layers.
         If None, plots the ground truth and all layers in the AnnData.
         Disregarded if plotting a single prediction.
@@ -127,7 +127,7 @@ def scores(
         _check_array_params()
         # Save values
         values = [data.squeeze()]
-        targets = ["Prediction"]
+        model_names = ["Prediction"]
     # Handle adata input mode
     else:
         # Parse and clean up model_names values
@@ -203,7 +203,7 @@ def region(
     """
     Bar plot for a single region, comparing different classes.
 
-    Deprecated in favor of :func:`~crested.pl.bar.scores`. Please use `scores(adata, region, targets=model_name)` or `scores(adata, region, targets='truth')` instead.
+    Deprecated in favor of :func:`~crested.pl.bar.scores`. Please use `scores(adata, region, model_names=model_name)` or `scores(adata, region, model_names='truth')` instead.
 
     :meta private:
     """
@@ -211,13 +211,13 @@ def region(
     target_string = f"'{target}'"
     logger.warning(
         "region is deprecated since version 2.0.0 as its functionality is moved into `scores`. "
-        f"Please use `scores(adata, region, targets={target_string}, **kwargs)` instead."
+        f"Please use `scores(adata, region, model_names={target_string}, **kwargs)` instead."
     )
 
     return scores( # TODO: adjust when renamed
         data=adata,
         region=region,
-        targets=target,
+        model_names=target,
         classes=classes,
         log_transform=log_transform,
         plot_kws=plot_kws,
@@ -238,7 +238,7 @@ def region_predictions(
     """
     Barplots of all predictions in .layers vs the ground truth for a specific region across comparing classes.
 
-    Deprecated in favor of :func:`~crested.pl.bar.scores`. Please use `scores(adata, region, targets=None)` or `scores(adata, region, targets=['model_name', 'truth'])` instead.
+    Deprecated in favor of :func:`~crested.pl.bar.scores`. Please use `scores(adata, region, model_names=None)` or `scores(adata, region, model_names=['model_name', 'truth'])` instead.
 
     :meta private:
     """
@@ -246,15 +246,15 @@ def region_predictions(
     if model_names is not None:
         if isinstance(model_names, str):
             model_names = [model_names]
-        targets = [*model_names, 'truth']
+        model_names = [*model_names, 'truth']
     else:
-        targets = [*adata.layers.keys(), 'truth']
+        model_names = [*adata.layers.keys(), 'truth']
 
     # Deprecation warnings
     targets_string = "None" if model_names is None else model_names
     logger.warning(
         "region_predictions is deprecated since version 2.0.0 as its functionality is moved into `scores`. "
-        f"Please use `scores(adata, region, targets={targets_string}, **kwargs)` instead."
+        f"Please use `scores(adata, region, model_names={targets_string}, **kwargs)` instead."
     )
     if 'share_y' in kwargs:
         kwargs['sharey'] = kwargs.pop('share_y')
@@ -262,14 +262,14 @@ def region_predictions(
 
     # Mimic old behavior of names at ylabel rather than at title
     if 'ylabel' not in kwargs:
-        kwargs['ylabel'] = ['Ground truth' if target == 'truth' else target for target in targets]
+        kwargs['ylabel'] = ['Ground truth' if target == 'truth' else target for target in model_names]
     if 'title' not in kwargs:
         kwargs['title'] = None
 
     return scores(
         data=adata,
         region=region,
-        targets=targets,
+        model_names=model_names,
         plot_kws=plot_kws,
         sharey=share_y,
         **kwargs
