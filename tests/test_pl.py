@@ -275,7 +275,7 @@ def test_qc_sort_and_filter_cutoff(adata):
     plt.close()
 
     # Test proportion
-    fig, ax = crested.pl.qc.sort_and_cutoff(
+    fig, ax = crested.pl.qc.sort_and_filter_cutoff(
         adata=adata,
         cutoffs=[300, 450],
         method='proportion',
