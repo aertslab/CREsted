@@ -9,9 +9,8 @@ import pandas as pd
 from loguru import logger
 
 from crested.pl._utils import create_plot, render_plot
+from crested.pl.explain import contribution_scores
 from crested.utils._logging import log_and_raise
-
-from ._contribution_scores import contribution_scores
 
 
 @log_and_raise(ValueError)
@@ -41,7 +40,7 @@ def _check_target_classes(target_classes: list[str], obs_names: pd.Index | list[
                 f"target class {target} not in obs_names. All targets must be in obs_names."
             )
 
-def contribution_scores(
+def step_contribution_scores(
     intermediate: list[dict] | dict,
     scores_all: list[np.ndarray] | np.ndarray,
     seqs_one_hot_all: list[np.ndarray] | np.ndarray,
@@ -101,8 +100,8 @@ def contribution_scores(
     sharey
         Whether to share the y axes of the created subplots within each figure. Default is False.
     kwargs
-        Additional arguments passed to :func:`~crested.pl.patterns.contribution_scores` to control contribution score settings and on to :func:`~crested.pl.render_plot` to control the final plot output.
-        Please see :func:`~crested.pl.patterns.contribution_scores` and :func:`~crested.pl.render_plot` for details.
+        Additional arguments passed to :func:`~crested.pl.explain_contribution_scores` to control contribution score settings and on to :func:`~crested.pl.render_plot` to control the final plot output.
+        Please see :func:`~crested.pl.explain.contribution_scores` and :func:`~crested.pl.render_plot` for details.
         Custom defaults for `enhancer_design_steps_contribution_scores`: `suptitle_fontsize=26`, `tight_rect=[0, 0, 1, 0.98]`.
 
     Returns
@@ -112,7 +111,7 @@ def contribution_scores(
     See Also
     --------
     crested.pl.render_plot
-    crested.pl.patterns.contribution_scores
+    crested.pl.explain.contribution_scores
 
     Example
     --------
@@ -228,7 +227,7 @@ def contribution_scores(
     else:
         return return_list[0] if len(return_list) == 1 else return_list
 
-def predictions(
+def step_predictions(
     intermediate: list[dict],
     target_classes: str | list[str],
     obs_names: pd.Index | list[str],

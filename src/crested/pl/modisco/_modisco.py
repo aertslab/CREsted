@@ -13,14 +13,13 @@ from matplotlib.patches import Patch
 from scipy.cluster.hierarchy import dendrogram, leaves_list, linkage
 
 from crested.pl._utils import create_plot, render_plot
+from crested.pl.explain._utils import _plot_attribution_map
 from crested.tl.modisco._modisco_utils import (
     _pattern_to_ppm,
     _trim_pattern_by_ic,
     compute_ic,
 )
 from crested.utils._logging import log_and_raise
-
-from ._utils import _plot_attribution_map
 
 
 def modisco_results(

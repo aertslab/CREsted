@@ -4,10 +4,9 @@ from importlib.util import find_spec
 
 from loguru import logger
 
-from crested.pl.design import contribution_scores as enhancer_design_steps_contribution_scores  # Alias, deprecated
-from crested.pl.design import predictions as enhancer_design_steps_predictions  # Alias, deprecated
-
-from ._contribution_scores import contribution_scores
+from crested.pl.design import step_contribution_scores as enhancer_design_steps_contribution_scores  # Alias, deprecated
+from crested.pl.design import step_predictions as enhancer_design_steps_predictions  # Alias, deprecated
+from crested.pl.explain import contribution_scores  # Alias, deprecated
 
 
 # Modisco importing stuff - only for aliases since this used to be in here (deprecated)

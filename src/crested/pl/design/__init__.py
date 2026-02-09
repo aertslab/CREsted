@@ -1,3 +1,3 @@
 """Initialize the design module."""
 
-from ._enhancer_design import contribution_scores, predictions
+from ._enhancer_design import step_contribution_scores, step_predictions
