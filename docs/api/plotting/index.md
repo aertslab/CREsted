@@ -48,9 +48,7 @@ violin
 
 ```{eval-rst}
 .. autosummary::
-    bar.region
-    bar.region_predictions
-    bar.prediction
+    bar.scores
     bar.normalization_weights
 ```
 
