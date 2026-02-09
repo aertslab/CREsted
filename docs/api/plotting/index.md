@@ -80,6 +80,9 @@ violin
 ```{eval-rst}
 .. autosummary::
     scatter.class_density
+    scatter.region
+    scatter.gini_filtering
+    scatter.gini_filtering_class
 ```
 
 ## Violin plots
