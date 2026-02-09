@@ -10,13 +10,14 @@ Functions to visualize your model's predictions or contribution scores.
 :maxdepth: 2
 :hidden:
 
-patterns
-bar
-hist
-heatmap
+renaming
+corr
+design
+dist
+explain
 locus
-scatter
-violin
+qc
+region
 ```
 
 ```{eval-rst}
@@ -25,10 +26,9 @@ violin
 
     render_plot
     create_plot
-    renaming
 ```
 
-## Patterns: Contribution scores and Modisco results
+<!-- ## Patterns: Contribution scores and Modisco results
 
 ```{eval-rst}
 .. autosummary::
@@ -91,4 +91,4 @@ violin
 ```{eval-rst}
 .. autosummary::
     violin.correlations
-```
+``` -->
