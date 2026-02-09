@@ -204,6 +204,8 @@ def region(
     Bar plot for a single region, comparing different classes.
 
     Deprecated in favor of :func:`~crested.pl.bar.scores`. Please use `scores(adata, region, targets=model_name)` or `scores(adata, region, targets='truth')` instead.
+
+    :meta private:
     """
     # Deprecation warnings
     target_string = f"'{target}'"
@@ -237,6 +239,8 @@ def region_predictions(
     Barplots of all predictions in .layers vs the ground truth for a specific region across comparing classes.
 
     Deprecated in favor of :func:`~crested.pl.bar.scores`. Please use `scores(adata, region, targets=None)` or `scores(adata, region, targets=['model_name', 'truth'])` instead.
+
+    :meta private:
     """
     # Parse model_names into targets tuple
     if model_names is not None:
@@ -282,6 +286,8 @@ def prediction(
     Bar plot for a single prediction, comparing different classes.
 
     Deprecated in favor of :func:`~crested.pl.bar.scores`. Please use `scores(data=prediction, classes=classes)` instead.
+
+    :meta private:
     """
     logger.warning(
         "`prediction` is deprecated since version 2.0.0 as its functionality is moved into `scores`. "
