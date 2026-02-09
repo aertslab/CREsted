@@ -11,7 +11,7 @@ Plot correlations between the ground truth and the predictions, across the datas
     :toctree: _autosummary
 
     heatmap_self
-    heatmap_predictions
+    heatmap
     scatter
     violin
 ```

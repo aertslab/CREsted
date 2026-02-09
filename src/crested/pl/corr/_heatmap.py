@@ -138,6 +138,7 @@ def heatmap_self(
     See Also
     --------
     crested.pl.render_plot
+    crested.pl.corr.heatmap
 
     Examples
     --------
@@ -180,7 +181,7 @@ def heatmap_self(
     return render_plot(fig, ax, **kwargs)
 
 
-def heatmap_predictions(
+def heatmap(
     adata: AnnData,
     model_names: str | list[str] | None = None,
     split: str | None = "test",
@@ -238,11 +239,12 @@ def heatmap_predictions(
     See Also
     --------
     crested.pl.render_plot
+    crested.pl.corr.heatmap_self
     crested.pl.corr.violin
 
     Examples
     --------
-    >>> crested.pl.corr.heatmap_predictions(
+    >>> crested.pl.corr.heatmap(
     ...     adata,
     ...     model_names=None,
     ...     split="test",
