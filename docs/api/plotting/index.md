@@ -16,6 +16,7 @@ design
 dist
 explain
 locus
+modisco
 qc
 region
 ```
