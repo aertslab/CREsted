@@ -54,7 +54,7 @@ def violin(
     See Also
     --------
     crested.pl.render_plot
-    crested.pl.corr.heatmap_predictions
+    crested.pl.corr.heatmap
 
     Examples
     --------

@@ -83,7 +83,7 @@ def tfmodisco(
 
     See Also
     --------
-    crested.tl.Crested.calculate_contribution_scores
+    crested.tl.contribution_scores_specific
 
     Examples
     --------
@@ -950,7 +950,7 @@ def create_pattern_matrix(
     See Also
     --------
     crested.tl.modisco.process_patterns
-    crested.pl.patterns.clustermap
+    crested.pl.modisco.clustermap
 
     Returns
     -------
@@ -1012,7 +1012,7 @@ def calculate_similarity_matrix(all_patterns: dict) -> np.ndarray:
 
     See Also
     --------
-    crested.pl.patterns.similarity_heatmap
+    crested.pl.modisco.similarity_heatmap
     """
     indices = list(all_patterns.keys())
     num_patterns = len(indices)
