@@ -1,6 +1,6 @@
 # Preprocessing `pp`
 
-Preparing Anndata object for CREsted training/evaluations.
+Preparing an AnnData object for CREsted training/evaluations.
 
 ```{eval-rst}
 .. currentmodule:: crested.pp
