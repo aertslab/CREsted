@@ -72,7 +72,7 @@ def filter_cutoff(
     -------
     >>> crested.pl.qc.filter_cutoff(adata)
 
-    .. image:: ../../../../docs/_static/img/examples/scatter_gini_filtering.png
+    .. image:: /_static/img/examples/scatter_gini_filtering.png
     """
     if not isinstance(cutoffs, Sequence):
         cutoffs = [cutoffs]
@@ -205,7 +205,7 @@ def sort_and_filter_cutoff(
     -------
     >>> crested.pl.qc.sort_and_filter_cutoff(adata, cutoffs = [350, 750])
 
-    .. image:: ../../../../docs/_static/img/examples/scatter_gini_filtering_class.png
+    .. image:: /_static/img/examples/scatter_gini_filtering_class.png
     """
     # Validate cutoffs
     if cutoffs is not None:

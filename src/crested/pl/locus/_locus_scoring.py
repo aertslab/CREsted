@@ -94,7 +94,7 @@ def locus_scoring(
     ...     suptitle="CREsted prediction around Elavl2 gene locus for Sst"
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/locus_locus_scoring.png
+    .. image:: /_static/img/examples/locus_locus_scoring.png
     """
     # Handle deprecated arguments
     if 'range' in kwargs:

@@ -120,7 +120,7 @@ def scatter(
     ...     log_transform=True,
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/scatter_class_density.png
+    .. image:: /_static/img/examples/scatter_class_density.png
     """
     # Check params
     @log_and_raise(ValueError)

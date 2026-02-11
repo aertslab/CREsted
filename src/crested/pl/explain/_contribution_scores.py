@@ -104,7 +104,7 @@ def contribution_scores(
     ...     coordinates=region_of_interest
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/patterns_contribution_scores.png
+    .. image:: /_static/img/examples/patterns_contribution_scores.png
     """
 
     @log_and_raise(ValueError)

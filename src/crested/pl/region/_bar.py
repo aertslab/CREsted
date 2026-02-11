@@ -78,7 +78,7 @@ def bar(
     ...     height=3
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/bar_region_adata.png
+    .. image:: /_static/img/examples/bar_region_adata.png
 
     >>> crested.pl.bar.region(
     ...     pred,
@@ -88,7 +88,7 @@ def bar(
     ...     height=3,
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/bar_region_pred.png
+    .. image:: /_static/img/examples/bar_region_pred.png
     """
     # Handle deprecated arguments
     if adata != 'deprecated':

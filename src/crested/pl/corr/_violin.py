@@ -66,7 +66,7 @@ def violin(
     ...     title="Per-class model correlation",
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/violin_correlations.png
+    .. image:: /_static/img/examples/violin_correlations.png
     """
 
     @log_and_raise(ValueError)

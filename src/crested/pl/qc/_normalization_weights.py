@@ -48,7 +48,7 @@ def normalization_weights(
     ...     title="Normalization scaling factors",
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/bar_normalization_weights.png
+    .. image:: /_static/img/examples/bar_normalization_weights.png
     """
     # Check inputs
     @log_and_raise(ValueError)

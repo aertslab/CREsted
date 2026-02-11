@@ -123,7 +123,7 @@ def step_contribution_scores(
     ...     highlight_kws={'facecolor': 'green', 'edgecolor': 'green', 'alpha': 0.1},
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/patterns_enhancer_design_steps_contribution_scores.png
+    .. image:: /_static/img/examples/patterns_enhancer_design_steps_contribution_scores.png
     """
     if labels != 'deprecated':
         class_labels = labels
@@ -298,7 +298,7 @@ def step_predictions(
     ...     separate=True,
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/patterns_enhancer_design_steps_predictions.png
+    .. image:: /_static/img/examples/patterns_enhancer_design_steps_predictions.png
     """
     if 'seperate' in kwargs:
         separate = kwargs.pop('seperate')

@@ -99,7 +99,7 @@ def modisco_results(
     ...     save_path="/path/to/genomic_contributions.png",
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/genomic_contributions.png
+    .. image:: /_static/img/examples/genomic_contributions.png
     """
 
     @log_and_raise(ValueError)
@@ -505,7 +505,7 @@ def clustermap(
     ...     grid=True,
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/pattern_clustermap.png
+    .. image:: /_static/img/examples/pattern_clustermap.png
     """
     if figsize != 'deprecated':
         width, height = figsize
@@ -837,7 +837,7 @@ def selected_instances(
     >>> pattern_indices = [0, 1, 2]
     >>> crested.pl.modisco.selected_instances(pattern_dict, pattern_indices)
 
-    .. image:: ../../../../docs/_static/img/examples/pattern_selected_instances.png
+    .. image:: /_static/img/examples/pattern_selected_instances.png
     """
     if isinstance(idcs, str):
         idcs = [idcs]
@@ -911,7 +911,7 @@ def class_instances(
     --------
     >>> crested.pl.modisco.class_instances(pattern_dict, 0, class_representative=False)
 
-    .. image:: ../../../../docs/_static/img/examples/pattern_class_instances.png
+    .. image:: /_static/img/examples/pattern_class_instances.png
     """
     if class_representative:
         key = "classes"
@@ -991,7 +991,7 @@ def similarity_heatmap(
     ... )
     >>> crested.pl.modisco.similarity_heatmap(sim_matrix, indices, fig_size=(42, 17))
 
-    .. image:: ../../../../docs/_static/img/examples/pattern_similarity_heatmap.png
+    .. image:: /_static/img/examples/pattern_similarity_heatmap.png
     """
     # Handle deprecated arguments
     if fig_size != 'deprecated':

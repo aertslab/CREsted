@@ -150,7 +150,7 @@ def heatmap_self(
     ...     title="Self correlations heatmap",
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/heatmap_self_correlations.png
+    .. image:: /_static/img/examples/heatmap_self_correlations.png
     """
     # Set defaults
     if 'xtick_rotation' not in kwargs:
@@ -254,7 +254,7 @@ def heatmap(
     ...     suptitle="Correlations: predictions vs ground truth",
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/heatmap_correlations_predictions.png
+    .. image:: /_static/img/examples/heatmap_correlations_predictions.png
     """
     # Check inputs
     @log_and_raise(ValueError)
