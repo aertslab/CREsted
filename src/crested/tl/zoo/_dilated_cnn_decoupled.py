@@ -5,21 +5,6 @@ import warnings
 import keras
 
 
-def chrombpnet_decoupled(*args, **kwargs):
-    """
-    Use dilatedcnn_decoupled instead.
-
-    :meta private:
-    """
-    warnings.warn(
-        "'chrombpnet_decoupled' is deprecated and will be removed in a future release. "
-        "Use its new name 'dilated_cnn_decoupled' instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return dilated_cnn_decoupled(*args, **kwargs)
-
-
 def dilated_cnn_decoupled(
     seq_len: int,
     num_classes: int,
