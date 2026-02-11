@@ -88,6 +88,7 @@ def contribution_scores(
     See Also
     --------
     crested.pl.render_plot
+    crested.tl.contribution_scores
 
     Examples
     --------

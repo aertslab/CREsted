@@ -16,7 +16,7 @@ def normalization_weights(
     **kwargs
 ) -> tuple[plt.Figure, plt.Axes] | None:
     """
-    Plot the distribution of normalization scaling factors per cell type.
+    Plot the distribution of normalization scaling factors per cell type after running :func:`~crested.pp.normalize_peaks`.
 
     Parameters
     ----------
@@ -38,6 +38,7 @@ def normalization_weights(
     See Also
     --------
     crested.pl.render_plot
+    crested.pp.normalize_peaks
 
     Example
     -------

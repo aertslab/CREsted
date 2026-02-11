@@ -142,6 +142,7 @@ def predict(
     Make predictions using the model(s) on some input that represents sequences.
 
     If a list of models is provided, the predictions will be averaged across all models.
+    Predictions can be visualized with the functions in :mod:`~crested.pl.region`.
 
     Parameters
     ----------
@@ -203,7 +204,7 @@ def score_gene_locus(
     """
     Score regions upstream and downstream of a gene locus using the model's prediction.
 
-    The model predicts a value for the {central_size} of each window.
+    The model predicts a value for the {central_size} of each window. These scores can be visualized with :func:`~crested.pl.locus.locus_scoring`.
 
     Parameters
     ----------
@@ -249,6 +250,7 @@ def score_gene_locus(
     See Also
     --------
     crested.tl.predict
+    crested.pl.locus.locus_scoring
     """
     # Detect window size from the model input shape
     if not isinstance(target_idx, int):
@@ -575,8 +577,8 @@ def contribution_scores_specific(
 
     See Also
     --------
-    crested.pl.explain.contribution_scores
     crested.pp.sort_and_filter_regions_on_specificity
+    crested.pl.explain.contribution_scores
     """
     assert isinstance(input, AnnData), "Input should be an anndata object."
     if "Class name" not in input.var.columns:
@@ -649,7 +651,7 @@ def enhancer_design_in_silico_evolution(
         Number of enhancers to design
     return_intermediate
         If True, returns a dictionary with predictions and changes made in intermediate steps for selected
-        sequences
+        sequences, which can be visualized in :func:`~crested.pl.design.step_predictions` and :func:`~crested.pl.design.step_contribution_scores`.
     no_mutation_flanks
         A tuple of integers which determine the regions in each flank to not do insertions.
     target_len
@@ -673,17 +675,16 @@ def enhancer_design_in_silico_evolution(
     --------
     crested.utils.EnhancerOptimizer
     crested.utils.calculate_nucleotide_distribution
+    crested.pl.design.step_predictions
+    crested.pl.design.step_contribution_scores
 
     Examples
     --------
     >>> acgt_distribution = crested.utils.calculate_nucleotide_distribution(
-    ...     my_anndata, genome, per_position=True
+    ...     adata, genome, per_position=True
     ... )  # shape (L, 4)
-    >>> target_idx = my_anndata.obs_names.index("my_celltype")
-    >>> (
-    ...     intermediate_results,
-    ...     designed_sequences,
-    ... ) = crested.tl.enhancer_design_in_silico_evolution(
+    >>> target_idx = adata.obs_names.index("my_celltype")
+    >>> intermediate_results, designed_sequences = crested.tl.enhancer_design_in_silico_evolution(
     ...     n_mutations=20,
     ...     target=target_idx,
     ...     model=my_trained_model,

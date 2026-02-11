@@ -27,7 +27,7 @@ def locus_scoring(
     **kwargs
 ) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
     """
-    Plot model predictions over a genomic locus and optionally indicate the gene body.
+    Plot model predictions over a genomic locus from :func:`~crested.tl.score_gene_locus` and optionally indicate the gene body.
 
     Also plots values from a bigWig file if provided.
 
@@ -78,7 +78,7 @@ def locus_scoring(
 
     See Also
     --------
-    crested.tl.Crested.score_gene_locus
+    crested.tl.score_gene_locus
     crested.utils.read_bigwig_region
 
     Example
