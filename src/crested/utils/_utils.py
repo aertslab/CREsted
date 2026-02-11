@@ -9,9 +9,7 @@ from collections.abc import Callable
 from typing import Any
 
 import numpy as np
-import pandas as pd
 from anndata import AnnData
-from loguru import logger
 
 from crested._genome import Genome, _resolve_genome
 from crested._io import _extract_tracks_from_bigwig
@@ -174,80 +172,6 @@ def _transform_input(
         [one_hot_encode_sequence(seq, expand_dim=False) for seq in sequences]
     )
     return one_hot_data
-
-
-def get_value_from_dataframe(df: pd.DataFrame, row_name: str, column_name: str):
-    """
-    Retrieve a single value from a DataFrame based on the given row index and column name.
-
-    Parameters
-    ----------
-    df
-        The DataFrame to retrieve the value from.
-    row_name
-        The name of the row.
-    column_name
-        The name of the column.
-
-    Returns
-    -------
-    The value at the specified row index and column name, or an error message if the column is not found.
-    """
-    try:
-        # Check if the column exists in the DataFrame
-        if column_name not in df.columns:
-            raise KeyError(f"Column '{column_name}' not found in DataFrame.")
-
-        # Retrieve the value
-        value = df.loc[row_name, column_name]
-        return value
-    except KeyError as e:
-        # Handle the case where the column is not found
-        return str(e)
-    except IndexError:
-        # Handle the case where the row index is out of bounds
-        return f"Row index is out of bounds for DataFrame with {len(df)} rows."
-
-
-def extract_bigwig_values_per_bp(
-    bigwig_file: str | os.PathLike, coordinates: list[tuple[str, int, int]]
-) -> tuple[np.ndarray, list[int]]:
-    """
-    Extract per-base pair values from a bigWig file for the given genomic coordinates.
-
-    Parameters
-    ----------
-    bigwig_file
-        Path to the bigWig file.
-    coordinates
-        An array of tuples, each containing the chromosome name and the start and end positions of the sequence.
-
-    Returns
-    -------
-    bw_values
-        A numpy array of values from the bigWig file for each base pair in the specified range.
-    all_midpoints
-        A list of all base pair positions covered in the specified coordinates.
-    """
-    logger.warning(
-        "extract_bigwig_values_per_bp() is deprecated. Please use crested.utils.read_bigwig_region(bw_file, (chr, start, end)) instead."
-    )
-    # Calculate the full range of coordinates
-    min_coord = min([int(start) for _, start, _ in coordinates])
-    max_coord = max([int(end) for _, _, end in coordinates])
-
-    # Initialize the list to store values
-    bw_values = []
-
-    # Get chromosome
-    chrom = coordinates[0][0]  # Assuming all coordinates are for the same chromosome
-
-    # Extract per-base values
-    bw_values, all_midpoints = read_bigwig_region(
-        bigwig_file, (chrom, min_coord, max_coord), missing=0.0
-    )
-
-    return bw_values, all_midpoints
 
 
 def fetch_sequences(
