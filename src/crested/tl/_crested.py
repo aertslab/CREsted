@@ -13,12 +13,6 @@ from anndata import AnnData
 from loguru import logger
 
 from crested.tl import TaskConfig
-
-if os.environ["KERAS_BACKEND"] == "tensorflow":
-    pass
-elif os.environ["KERAS_BACKEND"] == "torch":
-    pass
-
 from crested.tl.data import AnnDataModule
 from crested.tl.data._dataset import SequenceLoader
 from crested.utils import (
