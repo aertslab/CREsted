@@ -1,13 +1,13 @@
-"""Import all modules and classes from the 'crested.tl' package."""
+"""The tools module `crested.tl` provides everything you need to train and interpret models."""
 
-from importlib.util import find_spec
+import importlib.util
 
 from loguru import logger
 
 # Setup backend before importing any keras-dependent modules
-from crested._backend import setup_backend
+import crested._backend
 
-setup_backend()
+crested._backend.setup_backend()
 
 from . import data, losses, metrics, zoo  # noqa: E402
 from ._configs import TaskConfig, default_configs  # noqa: E402
@@ -22,7 +22,7 @@ from ._tools import (  # noqa: E402
     score_gene_locus,
 )
 
-if find_spec("modiscolite") is not None:
+if importlib.util.find_spec("modiscolite") is not None:
     MODISCOLITE_AVAILABLE = True
 else:
     MODISCOLITE_AVAILABLE = False

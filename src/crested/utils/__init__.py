@@ -1,4 +1,4 @@
-"""Import all utility functions and classes."""
+"""General utility functions used across CREsted."""
 
 from ._logging import setup_logging
 from ._seq_utils import (

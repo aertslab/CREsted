@@ -1,6 +1,10 @@
-"""Init file for the pl module."""
+"""
+The plotting module `crested.pl` provides a variety of functions to visualize your results.
 
-from importlib.util import find_spec
+It's organised into submodules, according to what kind of data you would like to plot.
+"""
+
+import importlib.util
 
 from loguru import logger
 
@@ -8,7 +12,7 @@ from . import corr, design, dist, explain, locus, modisco, qc, region
 from ._old import bar, heatmap, hist, patterns, scatter, violin
 from ._utils import create_plot, render_plot
 
-if find_spec("modiscolite") is not None:
+if importlib.util.find_spec("modiscolite") is not None:
     MODISCOLITE_AVAILABLE = True
 else:
     MODISCOLITE_AVAILABLE = False
