@@ -49,7 +49,7 @@ Usage
     model_path, output_names = crested.get_model("borzoiprime_human_rep0")
 
     # load model
-    model = keras.models.load_model(model_path)
+    model = keras.models./load_model(model_path, compile=False)
 
     # make predictions
     sequence = "A" * 524288
