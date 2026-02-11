@@ -1,4 +1,4 @@
-"""Initialize the modisco module."""
+"""Visualize results of the :mod:`~crested.tl.modisco` pipeline."""
 
 from ._modisco import (
         class_instances,

@@ -1,3 +1,3 @@
-"""Initialize the dist module."""
+"""Visualize data distributions."""
 
 from ._histogram import histogram

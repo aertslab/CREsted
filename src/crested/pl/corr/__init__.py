@@ -1,4 +1,4 @@
-"""Initialize the corr module."""
+"""Visualize correlations for the entire dataset."""
 
 
 from ._heatmap import heatmap, heatmap_self
