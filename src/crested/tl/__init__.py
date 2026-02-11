@@ -5,9 +5,9 @@ import importlib.util
 from loguru import logger
 
 # Setup backend before importing any keras-dependent modules
-import crested._backend
+from crested._backend import _setup_backend
 
-crested._backend.setup_backend()
+_setup_backend()
 
 from . import data, losses, metrics, zoo  # noqa: E402
 from ._configs import TaskConfig, default_configs  # noqa: E402
