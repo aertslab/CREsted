@@ -1,7 +1,5 @@
 """Chrombpnet like model architecture for peak regression."""
 
-import warnings
-
 import keras
 
 
