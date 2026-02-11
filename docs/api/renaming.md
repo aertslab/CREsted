@@ -19,6 +19,14 @@ With CREsted v2.0.0, we've reorganised the plotting functions, to align by _what
 | `patterns.enhancer_design_steps_contribution_scores` | {func}`design.step_contribution_scores <crested.pl.design.step_contribution_scores>` |
 | `patterns.enhancer_design_steps_predictions` | {func}`design.step_predictions <crested.pl.design.step_predictions>` |
 
+We've also slightly reorganised the enhancer design functions in `tl`:
+
+| Old name | New name |
+| ------------- | ------------- |
+| `tl.enhancer_design_in_silico_evolution` | {func}`tl.design.in_silico_evolution <crested.tl.design.in_silico_evolution>` |
+| `tl.enhancer_design_motif_insertion` | {func}`tl.design.motif_insertion <crested.tl.design.motif_insertion>` |
+| `utils.EnhancerOptimizer` | {func}`tl.design.EnhancerOptimizer <crested.tl.design.EnhancerOptimizer>` |
+| `utils.derive_intermediate_sequences` | {func}`tl.design.derive_intermediate_sequences <crested.tl.design.derive_intermediate_sequences>` |
 
  We've also cleaned up functions and methods that have long been marked as deprecated:
  - The methods of {class}`~crested.tl.Crested` which were superseded by {mod}`~crested.tl` functions:
@@ -33,8 +41,9 @@ With CREsted v2.0.0, we've reorganised the plotting functions, to align by _what
     - `calculate_contribution_scores_enhancer_design` -> {func}`~crested.tl.contribution_scores`
     - `tfmodisco_calculate_and_save_contribution_scores_sequences` -> {func}`~crested.tl.contribution_scores_specific`
     - `tfmodisco_calculate_and_save_contribution_scores` -> {func}`~crested.tl.contribution_scores_specific`
-    - `enhancer_design_motif_implementation` -> {func}`~crested.tl.enhancer_design_motif_insertion`
-    - `enhancer_design_in_silico_evolution` -> {func}`~crested.tl.enhancer_design_in_silico_evolution`
+    - `enhancer_design_motif_implementation` -> {func}`~crested.tl.design.motif_insertion`
+    - `enhancer_design_in_silico_evolution` -> {func}`~crested.tl.design.in_silico_evolution`
+    - `_derive_intermediate_sequences` -> {func}`~crested.tl.design.derive_intermediate_sequences`
 - Aliases for models that didn't properly reflect their nature:
     - `chrombpnet` -> {func}`~crested.tl.zoo.dilated_cnn`
     - `chrombpnet_decoupled` -> {func}`~crested.tl.zoo.dilated_cnn_decoupled`
