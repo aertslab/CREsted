@@ -17,7 +17,7 @@ class EnhancerOptimizer:
             "`crested.utils.EnhancerOptimizer` has been moved to `crested.pl.design.EnhancerOptimizer` in version 2.0.0"
             " and this alias will be removed in a future release. Please use its new name instead."
         )
-        return EnhancerOptimizerNew.__init__(*args, **kwargs)
+        return EnhancerOptimizerNew(*args, **kwargs)
 
 def _weighted_difference(*args, **kwargs):
     """
