@@ -96,7 +96,7 @@ run = "pytest -v --cov --color=yes {args}"
 [[tool.hatch.envs.hatch-test.matrix]]
 python = [ "3.11", "3.12"]
 backend = [ "tensorflow", "pytorch" ]
-feature = [ "motif" ]
+optional_deps = [ "motif" ]
 
 [[tool.hatch.envs.hatch-test.matrix]]
 python = [ "3.13" ]
@@ -107,6 +107,10 @@ matrix.backend.extra-dependencies = [
   { value = "tensorflow", if = [ "tensorflow" ] },
   { value = "torch", if = [ "pytorch" ] },
 ]
+matrix.optional_deps.features = [
+  { value = "motif", if = [ "motif" ] },
+]
+
 
 [tool.ruff]
 line-length = 120
