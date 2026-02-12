@@ -1,5 +1,3 @@
-"""Redirections for the new plotting function"""
-
 from __future__ import annotations
 
 import matplotlib.pyplot as plt

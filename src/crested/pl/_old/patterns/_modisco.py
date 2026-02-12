@@ -6,7 +6,7 @@ import crested
 
 def class_instances(*args, **kwargs):
     """
-    Deprecated in favor of :func:`~crested.pl.modisco.class_instances`.
+    Use :func:`~crested.pl.modisco.class_instances` instead, this alias is deprecated.
 
     :meta private:
     """
@@ -19,7 +19,7 @@ def class_instances(*args, **kwargs):
 
 def clustermap(*args, **kwargs):
     """
-    Deprecated in favor of :func:`~crested.pl.modisco.clustermap`.
+    Use :func:`~crested.pl.modisco.clustermap` instead, this alias is deprecated.
 
     :meta private:
     """
@@ -32,7 +32,7 @@ def clustermap(*args, **kwargs):
 
 def clustermap_tf_motif(*args, **kwargs):
     """
-    Deprecated in favor of :func:`~crested.pl.modisco.clustermap_tf_motif`.
+    Use :func:`~crested.pl.modisco.clustermap_tf_motif` instead, this alias is deprecated.
 
     :meta private:
     """
@@ -45,7 +45,7 @@ def clustermap_tf_motif(*args, **kwargs):
 
 def clustermap_tomtom_similarities(*args, **kwargs):
     """
-    Deprecated in favor of :func:`~crested.pl.modisco.clustermap_tomtom_similarities`.
+    Use :func:`~crested.pl.modisco.clustermap_tomtom_similarities` instead, this alias is deprecated.
 
     :meta private:
     """
@@ -58,7 +58,7 @@ def clustermap_tomtom_similarities(*args, **kwargs):
 
 def clustermap_with_pwm_logos(*args, **kwargs):
     """
-    Deprecated in favor of :func:`~crested.pl.modisco.clustermap_with_pwm_logos`.
+    Use :func:`~crested.pl.modisco.clustermap_with_pwm_logos` instead, this alias is deprecated.
 
     :meta private:
     """
@@ -71,7 +71,7 @@ def clustermap_with_pwm_logos(*args, **kwargs):
 
 def modisco_results(*args, **kwargs):
     """
-    Deprecated in favor of :func:`~crested.pl.modisco.modisco_results`.
+    Use :func:`~crested.pl.modisco.modisco_results` instead, this alias is deprecated.
 
     :meta private:
     """
@@ -84,7 +84,7 @@ def modisco_results(*args, **kwargs):
 
 def selected_instances(*args, **kwargs):
     """
-    Deprecated in favor of :func:`~crested.pl.modisco.selected_instances`.
+    Use :func:`~crested.pl.modisco.selected_instances` instead, this alias is deprecated.
 
     :meta private:
     """
@@ -96,7 +96,7 @@ def selected_instances(*args, **kwargs):
 
 def similarity_heatmap(*args, **kwargs):
     """
-    Deprecated in favor of :func:`~crested.pl.modisco.similarity_heatmap`.
+    Use :func:`~crested.pl.modisco.similarity_heatmap` instead, this alias is deprecated.
 
     :meta private:
     """
@@ -108,7 +108,7 @@ def similarity_heatmap(*args, **kwargs):
 
 def tf_expression_per_cell_type(*args, **kwargs):
     """
-    Deprecated in favor of :func:`~crested.pl.modisco.tf_expression_per_cell_type`.
+    Use :func:`~crested.pl.modisco.tf_expression_per_cell_type` instead, this alias is deprecated.
 
     :meta private:
     """

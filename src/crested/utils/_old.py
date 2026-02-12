@@ -18,7 +18,7 @@ def EnhancerOptimizer(*args, **kwargs):
 
 def _weighted_difference(*args, **kwargs):
     """
-    Deprecated in favor of :func:`~crested.tl.design._optimizer._weighted_difference`.
+    Use :func:`~crested.tl.design._optimizer._weighted_difference` instead, this alias is deprecated.
 
     :meta private:
     """
@@ -31,9 +31,7 @@ def _weighted_difference(*args, **kwargs):
 
 def derive_intermediate_sequences(*args, **kwargs):
     """
-    Derive intermediate sequences of enhancer design
-
-    Moved to :func:`~crested.tl.design.derive_intermediate_sequences`.
+    Use :func:`~crested.tl.design.derive_intermediate_sequences` instead, this alias is deprecated.
 
     :meta private:
     """
