@@ -129,15 +129,6 @@ def prediction(
         "Please use `crested.pl.region.bar(data=prediction, classes=classes, **kwargs)` instead."
     )
     plot_kws = {} if plot_kws is None else plot_kws.copy()
-    if 'xlabel' in kwargs:
-        logger.warning(f"'xlabel' is deprecated since v2.0.0. Please set it in 'plot_kws' instead: plot_kws={{xlabel={kwargs['xlabel']}}}")
-        plot_kws['xlabel'] = kwargs.pop('xlabel')
-    if 'ylabel' in kwargs:
-        logger.warning(f"'ylabel' is deprecated since v2.0.0. Please set it in 'plot_kws' instead: plot_kws={{ylabel={kwargs['ylabel']}}}")
-        plot_kws['ylabel'] = kwargs.pop('ylabel')
-    if 'title' in kwargs:
-        logger.warning(f"'title' is deprecated since v2.0.0. Please set it in 'plot_kws' instead: plot_kws={{title={kwargs['title']}}} or {{suptitle={kwargs['title']}}}")
-        plot_kws['title'] = kwargs.pop('title')
 
     return bar(
         data=prediction,
