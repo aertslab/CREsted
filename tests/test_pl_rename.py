@@ -1,6 +1,4 @@
 """Test the old plotting function names, while we still support them."""
-import os
-import shutil
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -204,9 +202,8 @@ def all_classes():
 
 
 def test_patterns_selected_instances(all_patterns):
-    pytest.importorskip("modiscolite")
     pattern_indices = [0, 1]
-    crested.pl.modisco.selected_instances(
+    crested.pl.patterns.selected_instances(
         pattern_dict=all_patterns,
         idcs=pattern_indices,
     )
@@ -214,8 +211,7 @@ def test_patterns_selected_instances(all_patterns):
 
 
 def test_patterns_class_instances(all_patterns):
-    pytest.importorskip("modiscolite")
-    crested.pl.modisco.class_instances(
+    crested.pl.patterns.class_instances(
         all_patterns, idx=2, class_representative=True
     )
     plt.close()
