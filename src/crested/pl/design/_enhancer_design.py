@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from os.path import splitext
 from typing import Literal
 
 import matplotlib.pyplot as plt
@@ -99,6 +100,8 @@ def step_contribution_scores(
         Whether to share the x axes of the created subplots within each figure. Default is False.
     sharey
         Whether to share the y axes of the created subplots within each figure. Default is False.
+    save_path
+        If provided, where to save the figure(s). If more than one plot is created (like with multiple sequences and/or multiple classes), will append _1/_2/... to the filename.
     kwargs
         Additional arguments passed to :func:`~crested.pl.explain.contribution_scores` to control contribution score settings and on to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.explain.contribution_scores` and :func:`~crested.pl.render_plot` for details.
@@ -143,6 +146,9 @@ def step_contribution_scores(
         highlight_kws['facecolor'] = "none"
     if 'linewidth' not in highlight_kws:
         highlight_kws['linewidth'] = 0.5
+
+    # Handle save_path separately since we have multiple figures
+    save_path_template = kwargs.pop('save_path') if 'save_path' in kwargs else None
 
     if not isinstance(intermediate, list):
         intermediate = [intermediate]
@@ -222,9 +228,16 @@ def step_contribution_scores(
             elif global_ylim == 'per_design':
                 ax.set_ylim(ylim_per_design[design_idx])
 
+    if save_path_template is not None:
+        if len(return_list) == 1:
+            return_list[0][0].savefig(save_path_template, bbox_inches='tight')
+        else:
+            path_bulk, path_ext = splitext(save_path_template)
+            for i, (fig, _) in enumerate(return_list):
+                fig.savefig(path_bulk+f"_{i+1}"+path_ext)
     if show:
         plt.show()
-    else:
+    if not show and save_path_template is not None:
         return return_list[0] if len(return_list) == 1 else return_list
 
 def step_predictions(
