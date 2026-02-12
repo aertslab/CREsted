@@ -198,7 +198,7 @@ def train_val_test_split(
     test_chroms: str | list[str] = None,
     shuffle: bool = True,
     random_state: None | int = None,
-    copy: bool = False,
+    inplace: bool = True,
 ) -> AnnData | None:
     """
     Add 'train/val/test' split column to AnnData object.
@@ -240,13 +240,13 @@ def train_val_test_split(
     random_state
         Random_state affects the ordering of the indices when shuffling in regions or
         auto splitting on chromosomes.
-    copy
+    inplace
         Perform computation and modify `adata` in-place or return a resulting copy of the `adata` instead.
 
     Returns
     -------
-    If `copy=False` (default), modifies the anndata in-place and doesn't return anything.
-    If `copy=True`, returns the AnnData object with the ['split'] column added to `.var`.
+    If `inplace=True` (default), modifies the anndata in-place and doesn't return anything.
+    If `inplace=False`, returns the AnnData object with the ['split'] column added to `.var`.
 
     Examples
     --------
@@ -303,9 +303,9 @@ def train_val_test_split(
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        if copy:
+        if inplace:
+            adata.var["split"] = split
+        else:
             adata = adata.copy()
             adata.var["split"] = split
             return adata
-        else:
-            adata.var["split"] = split

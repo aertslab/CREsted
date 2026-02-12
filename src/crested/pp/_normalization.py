@@ -16,7 +16,7 @@ def normalize_peaks(
     peak_threshold: int = 0,
     gini_std_threshold: float = 1.0,
     top_k_percent: float = 0.01,
-    copy: bool = False
+    inplace: bool = True
 ) -> DataFrame | (AnnData | DataFrame):
     """
     Normalize the adata.X based on variability of the top values per cell type.
@@ -24,7 +24,7 @@ def normalize_peaks(
     This function applies a normalization factor to each cell type,
     focusing on regions with the most significant peaks above
     a defined threshold and considering the variability within those peaks.
-    Only used on continuous .X data. Modifies the input AnnData.X in place if `copy=False`.
+    Only used on continuous .X data. Modifies the input AnnData.X in place if `inplace=True`.
 
     Parameters
     ----------
@@ -39,13 +39,13 @@ def normalize_peaks(
     top_k_percent
         The percentage (expressed as a fraction) of top values
         to consider for Gini score calculation.
-    copy
+    inplace
         Perform computation and modify `adata` in-place or return a resulting copy of the `adata` instead.
 
     Returns
     -------
-    If `copy=False` (default), modifies the AnnData in-place with the normalized matrix and normalization weights saved to `adata.obsm['weights']`, and returns the filtered .var of the significant peaks, as a DataFrame.
-    If `copy=True`, returns (adata, filtered_df): a modified copy of the AnnData object instead, along with a the filtered .var of the significant peaks, as a DataFrame.
+    If `inplace=True` (default), modifies the AnnData in-place with the normalized matrix and normalization weights saved to `adata.obsm['weights']`, and returns the filtered .var of the significant peaks, as a DataFrame.
+    If `inplace=False`, returns (adata, filtered_df): a modified copy of the AnnData object instead, along with a the filtered .var of the significant peaks, as a DataFrame.
 
     Example
     -------
@@ -106,12 +106,12 @@ def normalize_peaks(
     filtered_regions_df = regions_df.iloc[list(all_low_gini_indices)]
 
     # Modify the adata
-    if copy:
+    if not inplace:
         adata = adata.copy()
     logger.info("Added normalization weights to adata.obsm['weights']...")
     adata.obsm["weights"] = weights
     adata.X = normalized_matrix
-    if copy:
-        return adata, filtered_regions_df
-    else:
+    if inplace:
         return filtered_regions_df
+    else:
+        return adata, filtered_regions_df
