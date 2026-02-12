@@ -158,7 +158,7 @@ def get_dataset(dataset: str):
     )
     targets_url, cregions_url = dataset_mapping[dataset]
     targets_paths = _get_dataset_index().fetch(
-        targets_url, processor=UntarDelete(), progressbar=True
+        targets_url, processor=pooch.Untar(), progressbar=True
     )
     cregions_path = _get_dataset_index().fetch(cregions_url, progressbar=True)
     targets_dir = os.path.dirname(targets_paths[0])
