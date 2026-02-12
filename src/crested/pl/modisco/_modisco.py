@@ -504,7 +504,7 @@ def clustermap(
     ...     grid=True,
     ... )
 
-    .. image:: /_static/img/examples/pattern_clustermap.png
+    .. image:: /_static/img/examples/modisco_clustermap.png
     """
     if figsize != 'deprecated':
         width, height = figsize
