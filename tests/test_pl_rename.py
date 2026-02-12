@@ -202,32 +202,26 @@ def all_classes():
         "Vip",
     ]
 
-@pytest.fixture(scope="module")
-def save_dir():
-    path = "tests/data/pl_output"
-    if os.path.exists(path):
-        shutil.rmtree(path)
-    os.makedirs(path)
-    return path
 
-
-def test_patterns_selected_instances(all_patterns, save_dir):
+def test_patterns_selected_instances(all_patterns):
+    pytest.importorskip("modiscolite")
     pattern_indices = [0, 1]
-    crested.pl.patterns.selected_instances(
+    crested.pl.modisco.selected_instances(
         pattern_dict=all_patterns,
         idcs=pattern_indices,
     )
     plt.close()
 
 
-def test_patterns_class_instances(all_patterns, save_dir):
-    crested.pl.patterns.class_instances(
+def test_patterns_class_instances(all_patterns):
+    pytest.importorskip("modiscolite")
+    crested.pl.modisco.class_instances(
         all_patterns, idx=2, class_representative=True
     )
     plt.close()
 
 
-def test_patterns_clustermap(all_patterns, all_classes, save_dir):
+def test_patterns_clustermap(all_patterns, all_classes):
     pytest.importorskip("modiscolite")
     pattern_matrix = crested.tl.modisco.create_pattern_matrix(
         classes=all_classes, all_patterns=all_patterns, normalize=True
@@ -244,7 +238,7 @@ def test_patterns_clustermap(all_patterns, all_classes, save_dir):
     )
     plt.close()
 
-def test_patterns_similarity_heatmap(all_patterns, save_dir):
+def test_patterns_similarity_heatmap(all_patterns):
     pytest.importorskip("modiscolite")
     pytest.importorskip("memelite")
     sim_matrix, indices = crested.tl.modisco.calculate_similarity_matrix(all_patterns)
