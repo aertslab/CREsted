@@ -1,4 +1,5 @@
 import pytest
+from numpy import array_equiv
 
 import crested
 
@@ -88,6 +89,76 @@ def test_train_val_test_split_by_chromosome_auto():
     assert val_count / total_count == pytest.approx(val_fraction, rel=1e-2)
     assert test_count / total_count == pytest.approx(test_fraction, rel=1e-2)
     assert train_count / total_count == pytest.approx(train_fraction, rel=1e-2)
+
+def test_train_val_test_split_inplace():
+    regions = [
+        "chr1:100-200",
+        "chr1:300-400",
+        "chr2:100-200",
+        "chr2:300-400",
+        "chr3:100-200",
+    ]
+
+    adata = create_anndata_with_regions(regions)
+    adata_inplace = adata.copy()
+
+    adata_copy = crested.pp.train_val_test_split(
+        adata,
+        strategy="chr",
+        val_chroms=["chr1"],
+        test_chroms=["chr2"],
+        inplace=False
+    )
+    crested.pp.train_val_test_split(
+        adata_inplace,
+        strategy="chr",
+        val_chroms=["chr1"],
+        test_chroms=["chr2"],
+        inplace=True
+    )
+
+    assert adata_inplace.var.equals(adata_copy.var)
+    assert not adata.var.equals(adata_inplace.var)
+    assert not adata.var.equals(adata_copy.var)
+
+def test_filter_regions_on_specificity_inplace(adata_function):
+    adata_inplace = adata_function.copy()
+
+    adata_copy = crested.pp.filter_regions_on_specificity(adata_function, inplace=False)
+    crested.pp.filter_regions_on_specificity(adata_inplace, inplace=True)
+    assert array_equiv(adata_inplace.X, adata_copy.X)
+    assert not adata_function.X == pytest.approx(adata_inplace.X)
+    assert not adata_function.X == pytest.approx(adata_copy.X)
+
+def test_sort_and_filter_regions_on_specificity_inplace(adata_function):
+    adata_inplace = adata_function.copy()
+
+    adata_copy = crested.pp.sort_and_filter_regions_on_specificity(adata_function, top_k=3, inplace=False)
+    crested.pp.sort_and_filter_regions_on_specificity(adata_inplace, top_k=3, inplace=True)
+    assert array_equiv(adata_inplace.X, adata_copy.X)
+    assert not adata_function.X == pytest.approx(adata_inplace.X)
+    assert not adata_function.X == pytest.approx(adata_copy.X)
+
+def test_normalize_peaks_inplace():
+    # Create larger anndata to prevent zero division issues from presumably normalizing on 0/1 peak
+    adata = create_anndata_with_regions([f'chr{chr_i}:{start}-{start+100}' for chr_i in range(1, 10) for start in range(0, 1000, 100)])
+    adata_inplace = adata.copy()
+
+    adata_copy, _ = crested.pp.normalize_peaks(adata, peak_threshold=0.2, gini_std_threshold=0, top_k_percent=0.2, inplace=False)
+    _ = crested.pp.normalize_peaks(adata_inplace, peak_threshold=0.2, gini_std_threshold=0, top_k_percent=0.2, inplace=True)
+    assert adata_inplace.X == pytest.approx(adata_copy.X)
+    assert not adata.X == pytest.approx(adata_inplace.X)
+    assert not adata.X == pytest.approx(adata_copy.X)
+
+def test_change_regions_width_inplace(adata_function):
+    adata_inplace = adata_function.copy()
+
+    adata_copy = crested.pp.change_regions_width(adata_function, width=888, inplace=False)
+    crested.pp.change_regions_width(adata_inplace, width=888, inplace=True)
+
+    assert adata_inplace.var.equals(adata_copy.var)
+    assert not adata_function.var.equals(adata_inplace.var)
+    assert not adata_function.var.equals(adata_copy.var)
 
 
 # def test_normalization_consistency():
