@@ -129,7 +129,24 @@ def keras_model():
 
 @pytest.fixture(scope="module")
 def adata():
-    """Anndata fixture."""
+    """Anndata fixture, available to use in the Crested object."""
+    regions = [
+        "chr1:194208032-194208532",
+        "chr1:92202766-92203266",
+        "chr1:92298990-92299490",
+        "chr1:3406052-3406552",
+        "chr1:183669567-183670067",
+        "chr1:109912183-109912683",
+        "chr1:92210697-92211197",
+        "chr1:59100954-59101454",
+        "chr1:84634055-84634555",
+        "chr1:48792527-48793027",
+    ]
+    return create_anndata_with_regions(regions)
+
+@pytest.fixture(scope="function")
+def adata_function():
+    """Anndata fixture, renews between every function."""
     regions = [
         "chr1:194208032-194208532",
         "chr1:92202766-92203266",
@@ -203,9 +220,9 @@ def genome():
 @pytest.fixture(scope="module")
 def adata_specific():
     """Specific anndata fixture."""
-    ann_data = crested.import_bigwigs(
+    adata = crested.import_bigwigs(
         bigwigs_folder="tests/data/test_bigwigs",
         regions_file="tests/data/test_bigwigs/consensus_peaks_subset.bed",
     )
-    crested.pp.sort_and_filter_regions_on_specificity(ann_data, top_k=3)
-    return ann_data
+    crested.pp.sort_and_filter_regions_on_specificity(adata, top_k=3)
+    return adata
