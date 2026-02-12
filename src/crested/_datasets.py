@@ -301,7 +301,7 @@ def get_model(model: str) -> tuple[str, list[str]]:
 
     model_folder = model_mapping[model]
     model_folder_paths = _get_dataset_index().fetch(
-        model_folder, processor=UntarDelete(), progressbar=True
+        model_folder, processor=pooch.Untar(), progressbar=True
     )
     for path in model_folder_paths:
         if path.endswith(".keras"):
@@ -313,13 +313,3 @@ def get_model(model: str) -> tuple[str, list[str]]:
         else:
             raise ValueError(f"Unexpected file found in model folder: {path}")
     return model_file, model_output_classes
-
-
-class UntarDelete(pooch.Untar):
-    """Pooch's 'Untar', but deleting the tarball after it's been extracted."""
-
-    def _extract_file(self, fname, extract_dir):
-        """Extract the tarfile and delete the file afterwards, as we only need the extracted directory."""
-        super()._extract_file(fname, extract_dir)
-        pooch.get_logger().info(f"Deleting file {fname} after untarring its contents to {extract_dir}")
-        os.remove(fname)
