@@ -156,12 +156,13 @@ def bar(
         kwargs['ylabel'] = ['Ground truth' if target == 'truth' else "Prediction" for target in model_names]
         if log_transform:
             kwargs['ylabel'] = ["Log1p-transformed " + label.lower() for label in kwargs['ylabel']]
-    if 'title' not in kwargs:
+    # Skip adding a title/suptitle if plotting direct prediction (i.e. 1 plot and no region provided)
+    if 'title' not in kwargs and region is not None:
         if n_model_names > 1:
             kwargs['title'] = ["Ground truth" if target == "truth" else target for target in model_names]
         else:
             kwargs['title'] = f"{region} - {'Ground truth' if model_names[0] == 'truth' else model_names[0]}"
-    if 'suptitle' not in kwargs and n_model_names > 1:
+    if 'suptitle' not in kwargs and n_model_names > 1 and region is not None:
         kwargs['suptitle'] = region
     if 'grid' not in kwargs:
         kwargs['grid'] = 'y'
