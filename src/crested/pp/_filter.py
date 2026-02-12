@@ -22,7 +22,7 @@ def filter_regions_on_specificity(
     If model_name is provided, will look for the corresponding predictions in the
     adata.layers[model_name] layer. Else, it will use the values in adata.X to decide
     which regions to keep.
-    To get an idea for the impact of different possible `gini_std_threshold` values, see :func:`~crested.pl.scatter.gini_filtering`.
+    To get an idea for the impact of different possible `gini_std_threshold` values, see :func:`~crested.pl.qc.filter_cutoff`.
 
     Parameters
     ----------
@@ -43,7 +43,7 @@ def filter_regions_on_specificity(
 
     See Also
     --------
-    crested.pl.scatter.gini_filtering
+    crested.pl.qc.filter_cutoff
 
     Example
     -------
@@ -98,7 +98,7 @@ def sort_and_filter_regions_on_specificity(
 
     Combines them into a single AnnData object with extra columns indicating the original class name,
     the rank per column, and the score.
-    To get an idea for the impact of different possible `top_k` values, see :func:`~crested.pl.scatter.gini_filtering_class`.
+    To get an idea for the impact of different possible `top_k` values, see :func:`~crested.pl.qc.sort_and_filter_cutoff`.
 
     Parameters
     ----------
@@ -123,7 +123,7 @@ def sort_and_filter_regions_on_specificity(
 
     See Also
     --------
-    crested.pl.scatter.gini_filtering_class
+    crested.pl.qc.sort_and_filter_cutoff
 
     Example
     -------

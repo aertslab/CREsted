@@ -27,6 +27,7 @@ Details of the data and the model can be found in the original publication.
 .. warning::
 
     The Borzoi (Prime) architecture uses custom layers that are serialized inside the CREsted package. To ensure that the model is loaded correctly, make sure that CREsted is imported before loading the model.
+    If it still refuses to load, add `MultiheadAttention` as a custom object, as in the example.
 
 .. admonition:: Citation
 
@@ -44,12 +45,21 @@ Usage
 
     import crested
     import keras
+    from crested.tl.zoo.utils._attention import MultiheadAttention
 
     # download model
     model_path, output_names = crested.get_model("borzoiprime_human_rep0")
 
     # load model
-    model = keras.models.load_model(model_path)
+    model = keras.models.load_model(model_path, compile=False)
+
+    # load the model with custom_objects as fallback
+    # model = keras.models.load_model(
+    #     model_path, 
+    #     custom_objects={
+    #         'MultiheadAttention': MultiheadAttention
+    #     }
+    # )
 
     # make predictions
     sequence = "A" * 524288

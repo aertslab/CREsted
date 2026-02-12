@@ -47,6 +47,10 @@ def normalize_peaks(
     If `copy=False` (default), modifies the AnnData in-place with the normalized matrix and normalization weights saved to `adata.obsm['weights']`, and returns the filtered .var of the significant peaks, as a DataFrame.
     If `copy=True`, returns (adata, filtered_df): a modified copy of the AnnData object instead, along with a the filtered .var of the significant peaks, as a DataFrame.
 
+    See Also
+    --------
+    crested.pl.qc.normalization_weights
+
     Example
     -------
     >>> crested.pp.normalize_peaks(

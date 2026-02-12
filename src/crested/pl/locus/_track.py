@@ -85,7 +85,7 @@ def track(
     ...     suptitle="Mouse Borzoi predictions around the FIRE enhancer",
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/locus_track_pred.png
+    .. image:: /_static/img/examples/locus_track_pred.png
 
     >>> bw_values, midpoints = crested.utils.read_bigwig_region(bw_path, (chrom, start, end))
     >>> crested.pl.locus.track(
@@ -94,7 +94,7 @@ def track(
     ...     title="Mouse Borzoi microglia values around the FIRE enhancer",
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/locus_track_bw.png
+    .. image:: /_static/img/examples/locus_track_bw.png
 
     """
     if 'range' in kwargs:

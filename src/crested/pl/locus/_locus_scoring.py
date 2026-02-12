@@ -27,7 +27,7 @@ def locus_scoring(
     **kwargs
 ) -> tuple[plt.Figure, plt.Axes] | tuple[plt.Figure, list[plt.Axes]] | None:
     """
-    Plot model predictions over a genomic locus and optionally indicate the gene body.
+    Plot model predictions over a genomic locus from :func:`~crested.tl.score_gene_locus` and optionally indicate the gene body.
 
     Also plots values from a bigWig file if provided.
 
@@ -78,7 +78,7 @@ def locus_scoring(
 
     See Also
     --------
-    crested.tl.Crested.score_gene_locus
+    crested.tl.score_gene_locus
     crested.utils.read_bigwig_region
 
     Example
@@ -94,9 +94,9 @@ def locus_scoring(
     ...     suptitle="CREsted prediction around Elavl2 gene locus for Sst"
     ... )
 
-    .. image:: ../../../../docs/_static/img/examples/locus_locus_scoring.png
+    .. image:: /_static/img/examples/locus_locus_scoring.png
     """
-    # Handle deprecated arguments
+    # Handle deprecated arguments passed into kwargs
     if 'range' in kwargs:
         logger.warning("Argument `range` is renamed since version 2.0.0; please use `coordinates` instead.")
         coordinates = kwargs.pop('range')
@@ -107,6 +107,16 @@ def locus_scoring(
         figsize = kwargs.pop('figsize')
         kwargs['width'] = figsize[0]
         kwargs['height'] = figsize[1]
+    if 'title' in kwargs and isinstance(kwargs['title'], str) and bigwig_values is not None:
+        logger.warning(f"Argument `title` only applying to the top plot is deprecated since version 2.0.0 to make behavior consistent. To keep a primary title, please use `suptitle='{kwargs['title']}'` or `title=['{kwargs['title']}', '']`.")
+        kwargs['title'] = [kwargs['title'], None]
+    if 'ylim' in kwargs and not isinstance(kwargs['ylim'][0], Sequence) and bigwig_values is not None:
+        logger.warning(f"Argument `ylim` only applying to the top plot is deprecated since version 2.0.0 to make behavior consistent. To apply only to the top plot, please use `ylim=[{kwargs['ylim']}, None]`.")
+        kwargs['ylim'] = [kwargs['ylim'], None]
+
+    locus_plot_kws = {} if locus_plot_kws is None else locus_plot_kws.copy()
+    bigwig_plot_kws = {} if bigwig_plot_kws is None else bigwig_plot_kws.copy()
+    # Handle deprecated arguments passed into plot_kws
     if 'marker_size' in kwargs:
         logger.warning("Argument `marker_size` is deprecated since version 2.0.0; please use `locus_plot_kws={markersize=?}` instead. Note the lack of underscore in the new argument, to unify with matplotlib.")
         locus_plot_kws['markersize'] = kwargs.pop('marker_size')
@@ -118,12 +128,8 @@ def locus_scoring(
         line_colors = kwargs.pop('line_colors')
         locus_plot_kws['color'] = line_colors[0]
         bigwig_plot_kws['color'] = line_colors[1]
-    if 'title' in kwargs and isinstance(kwargs['title'], str) and bigwig_values is not None:
-        logger.warning(f"Argument `title` only applying to the top plot is deprecated since version 2.0.0 to make behavior consistent. To keep a primary title, please use `suptitle='{kwargs['title']}'` or `title=['{kwargs['title']}', '']`.")
-        kwargs['title'] = [kwargs['title'], None]
-    if 'ylim' in kwargs and not isinstance(kwargs['ylim'][0], Sequence) and bigwig_values is not None:
-        logger.warning(f"Argument `ylim` only applying to the top plot is deprecated since version 2.0.0 to make behavior consistent. To apply only to the top plot, please use `ylim=[{kwargs['ylim']}, None]`.")
-        kwargs['ylim'] = [kwargs['ylim'], None]
+
+
 
     # Check params
     @log_and_raise(ValueError)
@@ -147,7 +153,7 @@ def locus_scoring(
     chrom, start, end, _ = _parse_coordinates_input(coordinates)
     bigwig_included = bigwig_values is not None and bigwig_midpoints is not None
 
-    # Set defaults
+    # Set general defaults
     if 'title' not in kwargs:
         kwargs['title'] = "Predictions across genomic regions"
         if bigwig_included: # Add empty title for bottom plot
@@ -159,7 +165,7 @@ def locus_scoring(
     if 'grid' not in kwargs:
         kwargs['grid'] = 'both'
 
-    locus_plot_kws = {} if locus_plot_kws is None else locus_plot_kws.copy()
+    # Set locus plot defaults
     if 'markersize' not in locus_plot_kws:
         locus_plot_kws['markersize'] = 5.0
     if 'linewidth' not in locus_plot_kws:
@@ -173,7 +179,7 @@ def locus_scoring(
     if 'rasterized' not in locus_plot_kws:
         locus_plot_kws['rasterized'] = True
 
-    bigwig_plot_kws = {} if bigwig_plot_kws is None else bigwig_plot_kws.copy()
+    # Set bigwig plot defaults
     if 'color' not in bigwig_plot_kws:
         bigwig_plot_kws['color'] = 'g'
     if 'linestyle' not in bigwig_plot_kws:

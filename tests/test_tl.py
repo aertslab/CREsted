@@ -289,19 +289,19 @@ def test_explainer_dtype_handling(keras_model):
 
 def test_enhancer_design_in_silico_evolution(keras_model, adata, genome):
     # one model
-    seqs = crested.tl.enhancer_design_in_silico_evolution(n_mutations=2, target=0, model=keras_model, n_sequences=1)
+    seqs = crested.tl.design.in_silico_evolution(n_mutations=2, target=0, model=keras_model, n_sequences=1)
     assert len(seqs) == 1, len(seqs)
     assert len(seqs[0]) == keras_model.input_shape[1], len(seqs[0])
 
     # multiple models
-    seqs = crested.tl.enhancer_design_in_silico_evolution(
+    seqs = crested.tl.design.in_silico_evolution(
         n_mutations=2, target=1, model=[keras_model, keras_model], n_sequences=2
     )
     assert len(seqs) == 2, len(seqs)
 
     # acgt distribution provided
     acgt_disbtibution = crested.utils.calculate_nucleotide_distribution(input=adata, genome=genome, per_position=True)
-    seqs = crested.tl.enhancer_design_in_silico_evolution(
+    seqs = crested.tl.design.in_silico_evolution(
         n_mutations=1,
         target=0,
         model=keras_model,
@@ -310,7 +310,7 @@ def test_enhancer_design_in_silico_evolution(keras_model, adata, genome):
 
     # starting sequences provided
     starting_sequences = ["A" * keras_model.input_shape[1]]
-    seqs = crested.tl.enhancer_design_in_silico_evolution(
+    seqs = crested.tl.design.in_silico_evolution(
         n_mutations=1,
         target=0,
         model=keras_model,
