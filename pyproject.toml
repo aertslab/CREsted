@@ -94,7 +94,12 @@ features = [ "dev", "test" ]
 run = "pytest -v --cov --color=yes {args}"
 
 [[tool.hatch.envs.hatch-test.matrix]]
-python = [ "3.11", "3.12", "3.13" ]
+python = [ "3.11", "3.12"]
+backend = [ "tensorflow", "pytorch" ]
+features = [ "motif" ]
+
+[[tool.hatch.envs.hatch-test.matrix]]
+python = [ "3.13" ]
 backend = [ "tensorflow", "pytorch" ]
 
 [tool.hatch.envs.hatch-test.overrides]
