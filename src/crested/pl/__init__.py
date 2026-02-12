@@ -8,7 +8,7 @@ import importlib.util
 
 from loguru import logger
 
-from . import corr, design, dist, explain, locus, modisco, qc, region
+from . import corr, design, dist, explain, locus, qc, region
 from ._old import bar, heatmap, hist, patterns, scatter, violin
 from ._utils import create_plot, render_plot
 
