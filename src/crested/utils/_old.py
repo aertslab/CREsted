@@ -1,23 +1,20 @@
 from loguru import logger
 
 
-class EnhancerOptimizer:
+def EnhancerOptimizer(*args, **kwargs):
     """
-    Class to optimize the mutated sequence based on the original prediction.
+    (Alias function for the) class to optimize the mutated sequence based on the original prediction.
 
     Deprecated in favor of :func:`~crested.tl.design.EnhancerOptimizer`.
 
     :meta private:
     """
-
-    def __init__(self, *args, **kwargs):
-        """Deprecated in favor of :func:`~crested.tl.design.EnhancerOptimizer`."""
-        from crested.tl.design import EnhancerOptimizer as EnhancerOptimizerNew
-        logger.info(
-            "`crested.utils.EnhancerOptimizer` has been moved to `crested.pl.design.EnhancerOptimizer` in version 2.0.0"
-            " and this alias will be removed in a future release. Please use its new name instead."
-        )
-        return EnhancerOptimizerNew(*args, **kwargs)
+    from crested.tl.design import EnhancerOptimizer as EnhancerOptimizerNew
+    logger.info(
+        "`crested.utils.EnhancerOptimizer` has been moved to `crested.pl.design.EnhancerOptimizer` in version 2.0.0"
+        " and this alias will be removed in a future release. Please use its new name instead."
+    )
+    return EnhancerOptimizerNew(*args, **kwargs)
 
 def _weighted_difference(*args, **kwargs):
     """
