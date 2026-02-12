@@ -59,14 +59,15 @@ def violin(
     Examples
     --------
     >>> crested.pl.corr.violin(
-    ...     adata,
-    ...     model_names=["Base DilatedCNN", "Fine-tuned DilatedCNN"],
+    ...     adata_specific,
+    ...     model_names=["Base model", "Fine-tuned"],
     ...     split="test",
     ...     log_transform=True,
+    ...     plot_kws={'palette': 'Paired', 'order': ["Base model", "Fine-tuned"]},
     ...     title="Per-class model correlation",
     ... )
 
-    .. image:: /_static/img/examples/violin_correlations.png
+    .. image:: /_static/img/examples/corr_violin.png
     """
 
     @log_and_raise(ValueError)

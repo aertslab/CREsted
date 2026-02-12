@@ -119,11 +119,11 @@ def step_contribution_scores(
     ...     intermediate_results,
     ...     scores,
     ...     one_hot_encoded_sequences,
-    ...     labels=["L5ET"],
+    ...     class_labels=["L5ET"],
     ...     highlight_kws={'facecolor': 'green', 'edgecolor': 'green', 'alpha': 0.1},
     ... )
 
-    .. image:: /_static/img/examples/patterns_enhancer_design_steps_contribution_scores.png
+    .. image:: /_static/img/examples/design_step_contribution_scores.png
     """
     if labels != 'deprecated':
         class_labels = labels
@@ -298,7 +298,7 @@ def step_predictions(
     ...     separate=True,
     ... )
 
-    .. image:: /_static/img/examples/patterns_enhancer_design_steps_predictions.png
+    .. image:: /_static/img/examples/design_step_predictions.png
     """
     if 'seperate' in kwargs:
         separate = kwargs.pop('seperate')

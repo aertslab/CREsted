@@ -82,7 +82,7 @@ def scatter(
     ...     identity_line=True,
     ... )
 
-    .. image:: /_static/img/examples/scatter_region.png
+    .. image:: /_static/img/examples/region_scatter.png
     """
     # Check inputs
     @log_and_raise(ValueError)

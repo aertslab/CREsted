@@ -69,7 +69,7 @@ def histogram(
     ...     class_names=["Astro", "Vip"]
     ... )
 
-    .. image:: /_static/img/examples/hist_distribution.png
+    .. image:: /_static/img/examples/dist_histogram.png
     """
     # Handle deprecated arguments
     if 'share_y' in kwargs:

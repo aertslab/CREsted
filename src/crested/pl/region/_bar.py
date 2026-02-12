@@ -73,22 +73,29 @@ def bar(
     >>> crested.pl.region.bar(
     ...     adata,
     ...     region='chr1:3093998-3096112',
-    ...     target="Base model",
+    ...     model_names="Base model",
     ...     width=20,
     ...     height=3
     ... )
 
-    .. image:: /_static/img/examples/bar_region_adata.png
+    .. image:: /_static/img/examples/region_bar_single.png
 
-    >>> crested.pl.bar.region(
-    ...     pred,
-    ...     classes=adata.obs_names,
-    ...     title="Region chr18:61107770-61109884",
+    >>> crested.pl.region.bar(
+    ...     adata,
+    ...     region="chr1:3093998-3096112",
+    ...     pred_color="royalblue",
     ...     width=20,
-    ...     height=3,
     ... )
 
-    .. image:: /_static/img/examples/bar_region_pred.png
+    .. image:: /_static/img/examples/region_bar_all.png
+
+    >>> crested.pl.region.bar(
+    ...     pred,
+    ...     classes=adata.obs_names,
+    ...     title="Designed Micro-PVM enhancer",
+    ... )
+
+    .. image:: /_static/img/examples/region_bar_pred.png
     """
     # Handle deprecated arguments
     if adata != 'deprecated':

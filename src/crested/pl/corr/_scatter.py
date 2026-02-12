@@ -118,9 +118,14 @@ def scatter(
     ...     model_names=["Base model", "Fine-tuned"],
     ...     split="test",
     ...     log_transform=True,
+    ...     density_indication=True,
+    ...     square=True,
+    ...     identity_line=True,
+    ...     save_path="temp_figs/corr_scatter.png"
     ... )
 
-    .. image:: /_static/img/examples/scatter_class_density.png
+
+    .. image:: /_static/img/examples/corr_scatter.png
     """
     # Check params
     @log_and_raise(ValueError)
