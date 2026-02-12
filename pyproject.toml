@@ -96,7 +96,7 @@ run = "pytest -v --cov --color=yes {args}"
 [[tool.hatch.envs.hatch-test.matrix]]
 python = [ "3.11", "3.12"]
 backend = [ "tensorflow", "pytorch" ]
-features = [ "motif" ]
+feature = [ "motif" ]
 
 [[tool.hatch.envs.hatch-test.matrix]]
 python = [ "3.13" ]
