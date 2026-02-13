@@ -156,6 +156,10 @@ def step_contribution_scores(
         scores_all = [scores_all]
     if not isinstance(seqs_one_hot_all, list):
         seqs_one_hot_all = [seqs_one_hot_all]
+    if isinstance(class_labels, str):
+        class_labels = [class_labels]
+    if isinstance(sequence_labels, str):
+        sequence_labels = [sequence_labels]
     if ylim is not None and not isinstance(ylim[0], Sequence):
         ylim = [ylim]*len(scores_all)
 
@@ -287,9 +291,9 @@ def step_predictions(
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width
-        Width of the newly created figure if not supplying `ax`. Default is `fig_rescale`*10*`n_rows`.
+        Width of the newly created figure if not supplying `ax`. Default is `fig_rescale`*7*`n_rows`.
     height
-        Height of the newly created figure if not supplying `ax`. Default is `fig_rescale`*10*`n_cols`.
+        Height of the newly created figure if not supplying `ax`. Default is `fig_rescale`*7*`n_cols`.
     sharex
         Whether to share the x axes of the created plots. Default is False.
     sharey
@@ -313,6 +317,7 @@ def step_predictions(
 
     .. image:: /_static/img/examples/design_step_predictions.png
     """
+    # Handle deprecated args
     if 'seperate' in kwargs:
         separate = kwargs.pop('seperate')
         logger.warning("Please use argument `separate` instead of `seperate`.")
@@ -336,16 +341,18 @@ def step_predictions(
             kwargs['ylim'] = (0, 1)
         del kwargs['global_ylim']
 
+    # Parse inputs so that it's a list where we expect it
     if not isinstance(obs_names, list):
         obs_names = list(obs_names)
-
     if isinstance(target_classes, str):
         target_classes = [target_classes]
 
+    # Check inputs
     _check_target_classes(target_classes, obs_names)
     if len(target_classes) > 1 and ax is not None:
         raise ValueError("A pre-existing axis can only be used if plotting a single target class.")
 
+    # Set up subplots
     n_of_plots = len(target_classes)
     target_indexes = [obs_names.index(target_class) for target_class in target_classes]
     if n_rows is not None and n_cols is not None:
@@ -357,6 +364,8 @@ def step_predictions(
     elif n_rows is None and n_cols is None:
         n_cols = int(np.ceil(np.sqrt(n_of_plots)))
         n_rows = int(np.ceil(n_of_plots / n_cols))
+
+    n_of_plots_grid = n_rows * n_cols
 
     predictions_per_class = {}
     all_predictions = []
@@ -376,6 +385,9 @@ def step_predictions(
     # Set defaults
     if 'title' not in kwargs:
         kwargs['title'] = [f"Class {target}" for target in target_classes]
+        # Expand with Nones if we have some empty leftover entries in the grid
+        if len(kwargs['title']) < n_of_plots_grid:
+            kwargs['title'] += [None]*(n_of_plots_grid-len(kwargs['title']))
     if 'xlabel' not in kwargs:
         kwargs['xlabel'] = "Steps"
     if 'ylabel' not in kwargs:
@@ -384,34 +396,40 @@ def step_predictions(
         kwargs['grid'] = 'y'
     if 'ylim' not in kwargs:
         kwargs['ylim'] = (0, None)
+
+    # Create plot
     fig, axs = create_plot(
         ax=ax,
         kwargs_dict=kwargs,
-        default_width=fig_rescale*10*n_cols,
-        default_height=fig_rescale*10*n_rows,
+        default_width=fig_rescale*7*n_cols,
+        default_height=fig_rescale*7*n_rows,
         nrows=n_rows,
         ncols=n_cols,
         default_sharex=False,
         default_sharey=True,
         squeeze=False
     )
-    separate_plot_kws = {
-        'marker' : "o",
-        'markersize': 7,
-        'linewidth': 0.5
-    }
-    separate_plot_kws.update(plot_kws)
-    box_plot_kws = {
-        "showfliers": False,
-        "capprops": {"color": plot_color},
-        "boxprops": {"color": plot_color},
-        "whiskerprops": {"color": plot_color},
-        "flierprops": {"markeredgecolor": plot_color},
-        "medianprops": {"color": plot_color},
-        "meanprops": {"color": plot_color}
-    }
-    box_plot_kws.update(plot_kws)
 
+    # Handle defaults and update with plot_kws
+    if separate:
+        final_plot_kws = {
+            'marker' : "o",
+            'markersize': 7,
+            'linewidth': 0.5
+        }
+    else:
+        final_plot_kws = {
+            "showfliers": False,
+            "capprops": {"color": plot_color},
+            "boxprops": {"color": plot_color},
+            "whiskerprops": {"color": plot_color},
+            "flierprops": {"markeredgecolor": plot_color},
+            "medianprops": {"color": plot_color},
+            "meanprops": {"color": plot_color}
+        }
+    final_plot_kws.update(plot_kws)
+
+    # Actually plot values
     for idx in range(n_rows * n_cols):
         i, j = idx // n_cols, idx % n_cols
 
@@ -424,14 +442,14 @@ def step_predictions(
         if separate:
             axs[i, j].plot(
                 predictions_per_class[target],
-                **separate_plot_kws
+                **final_plot_kws
             )
             if legend_separate:
                 axs[i, j].legend(range(len(intermediate)))
         else:
             axs[i, j].boxplot(
                 predictions_per_class[target].T,
-                **box_plot_kws
+                **final_plot_kws
             )
 
     return render_plot(fig, axs, **kwargs)
