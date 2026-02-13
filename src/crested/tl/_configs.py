@@ -12,7 +12,6 @@ from crested.tl.metrics import (
     ConcordanceCorrelationCoefficient,
     PearsonCorrelation,
     PearsonCorrelationLog,
-    ZeroPenaltyMetric,
 )
 
 
@@ -104,7 +103,6 @@ class PeakRegressionMeanConfig(BaseConfig):
             PearsonCorrelation(),
             ConcordanceCorrelationCoefficient(),
             PearsonCorrelationLog(),
-            ZeroPenaltyMetric(),
         ]
         return metrics
 
@@ -136,7 +134,6 @@ class PeakRegressionCountConfig(BaseConfig):
             PearsonCorrelation(),
             ConcordanceCorrelationCoefficient(),
             PearsonCorrelationLog(),
-            ZeroPenaltyMetric(),
         ]
         return metrics
 
