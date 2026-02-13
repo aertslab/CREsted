@@ -55,9 +55,9 @@ def filter_cutoff(
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width
-        Width of the newly created figure if `ax=None`. Default is 10.
+        Width of the newly created figure if `ax=None`. Default is 8.
     height
-        Height of the newly created figure if `ax=None`. Default is 8.
+        Height of the newly created figure if `ax=None`. Default is 6.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
@@ -123,7 +123,12 @@ def filter_cutoff(
             plot_kws['c'] = 'black'
 
     # Create plot
-    fig, ax = create_plot(ax=ax, kwargs_dict=kwargs, default_width=10, default_height=8)
+    fig, ax = create_plot(
+        ax=ax,
+        kwargs_dict=kwargs,
+        default_width=8,
+        default_height=6
+    )
     line_palette = sns.color_palette(line_cmap, len(cutoffs))
 
     # Plot values
@@ -188,9 +193,9 @@ def sort_and_filter_cutoff(
     line_kws
         Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.axvline`. Defaults: `'color': 'black'`, `'linestyle': '--'`.
     width
-        Width of the newly created figure if `ax=None`. Default is 10.
+        Width of the newly created figure if `ax=None`. Default is 8.
     height
-        Height of the newly created figure if `ax=None`. Default is 6.
+        Height of the newly created figure if `ax=None`. Default is 5.
     kwargs
         Additional arguments passed to :func:`~crested.pl.render_plot` to control the final plot output.
         Please see :func:`~crested.pl.render_plot` for details.
@@ -255,8 +260,8 @@ def sort_and_filter_cutoff(
     fig, ax = create_plot(
         ax=ax,
         kwargs_dict=kwargs,
-        default_width=10,
-        default_height=6,
+        default_width=8,
+        default_height=5,
     )
 
     # Get colormap
