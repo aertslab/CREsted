@@ -68,3 +68,6 @@ class PoissonLoss(keras.losses.Loss):
         config = super().get_config()
         config.update({"log_transform": self.log_transform, "eps": self.eps})
         return config
+
+    def __repr__(self):
+        return f"{self.name}: {self.get_config()}"

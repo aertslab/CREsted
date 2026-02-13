@@ -82,3 +82,6 @@ class CosineMSELoss(keras.losses.Loss):
     def from_config(cls, config):
         """Create a loss function from the configuration."""
         return cls(**config)
+
+    def __repr__(self):
+        return f"{self.name}: {self.get_config()}"
