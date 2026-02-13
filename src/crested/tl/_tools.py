@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import math
 import os
 from collections.abc import Sequence
@@ -14,6 +15,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from crested._genome import Genome
+from crested.tl import TaskConfig
 from crested.tl._explainer import (
     integrated_grad,
     mutagenesis,
@@ -172,6 +174,71 @@ def predict(
         if not isinstance(model, keras.Model):
             raise ValueError("Model must be a Keras model or a list of Keras models.")
         return model.predict(dataset, **kwargs)
+
+
+def test(
+    adata: AnnData,
+    model: keras.Model | list[keras.Model],
+    metrics: TaskConfig | list[keras.metrics.Metric | keras.losses.Loss]| None = None,
+    return_metrics: bool = False,
+    **kwargs
+):
+    """
+    Calculate metrics on the test set.
+
+    If a list of models is provided, the predictions will be averaged across all models.
+
+    Parameters
+    ----------
+    adata
+        The AnnData to retrieve ground truth and region info from. Must have 'test' in `adata.var['split']`.
+    model
+        A (list of) trained keras model(s) to make predictions with.
+    metrics
+        A {func}`~crested.tl.TaskConfig` object, a list of keras metrics and/or losses, or None (in which case it will try to use the metrics compiled with the model).
+    return_metrics
+        Whether to return a dict of the results.
+    kwargs
+        Arguments passed on to {func}`~crested.tl.predict`, like `batch_size`.
+
+    Returns
+    -------
+    If `return_metrics=True`, a dict with of shape {metric_name: metric_value, ...}.
+
+    Example
+    -------
+    >>> crested.tl.test(adata, model, config)
+    """
+    # Predict values
+    adata_test = adata[:, adata.var['split'] == 'test']
+    truth = adata_test.X.T
+    preds = predict(adata_test, model)
+
+    # If model is compiled and config is none, use metrics from there
+    metrics_results = {}
+    if metrics is None:
+        assert model.compiled, "Model must be compiled if not providing a config or list of metrics."
+        metrics_results['loss'] = model.metrics[0](truth, preds).numpy()
+        for metric_name, metric_value in model.metrics[1](truth, preds).items():
+            metrics_results[metric_name] = metric_value.numpy()
+    # else, use provided config or list of metrics
+    else:
+        if model.compiled:
+            logger.warning("Ignoring metrics from the compiled model in favor of provided metrics.")
+        if isinstance(metrics, TaskConfig):
+            metrics = [metrics.loss, *metrics.metrics]
+        # Calculate metrics
+        for metric in metrics:
+            if hasattr(metric, 'reset_states'):
+                metric.reset_states()
+            metrics_results[metric.name] = metric(truth, preds).numpy()
+
+    # Print results
+    for metric_name, metric_result in metrics_results.items():
+        logger.info(f"Test {metric_name}: {metric_result:.4f}")
+    gc.collect()
+    if return_metrics:
+        return metrics_results
 
 
 def score_gene_locus(
