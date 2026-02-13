@@ -103,8 +103,8 @@ def locus_scoring(
     elif 'range' not in kwargs and coordinates is None:
         raise TypeError("locus_scoring() missing 1 required positional argument: 'coordinates'. This was previously called 'range'.")
     if 'figsize' in kwargs:
-        logger.warning("Argument `figsize` is deprecated since version 2.0.0; please use width and height instead.")
         figsize = kwargs.pop('figsize')
+        logger.warning(f"Argument `figsize` is deprecated since version 2.0.0; please use width={figsize[0]}, height={figsize[1]} instead.")
         kwargs['width'] = figsize[0]
         kwargs['height'] = figsize[1]
     if 'title' in kwargs and isinstance(kwargs['title'], str) and bigwig_values is not None:
@@ -118,14 +118,14 @@ def locus_scoring(
     bigwig_plot_kws = {} if bigwig_plot_kws is None else bigwig_plot_kws.copy()
     # Handle deprecated arguments passed into plot_kws
     if 'marker_size' in kwargs:
-        logger.warning("Argument `marker_size` is deprecated since version 2.0.0; please use `locus_plot_kws={markersize=?}` instead. Note the lack of underscore in the new argument, to unify with matplotlib.")
         locus_plot_kws['markersize'] = kwargs.pop('marker_size')
+        logger.warning(f"Argument `marker_size` is deprecated since version 2.0.0; please use `locus_plot_kws={{'markersize'={locus_plot_kws['markersize']}}}` instead. Note the lack of underscore in the new argument, to unify with matplotlib.")
     if 'line_width' in kwargs:
-        logger.warning("Argument `line_width` is deprecated since version 2.0.0; please use `shared_plot_kws={linewidth=?}` instead. Note the lack of underscore in the new argument, to unify with matplotlib.")
         locus_plot_kws['linewidth'] = kwargs.pop('line_width')
+        logger.warning(f"Argument `line_width` is deprecated since version 2.0.0; please use `locus_plot_kws={{'linewidth'={locus_plot_kws['linewidth']}}}` instead. Note the lack of underscore in the new argument, to unify with matplotlib.")
     if 'line_colors' in kwargs:
-        logger.warning("Argument `line_colors` is deprecated since version 2.0.0; please use `locus_plot_kws={color=?}`/`bigwig_plot_kws={color=?}` instead.")
         line_colors = kwargs.pop('line_colors')
+        logger.warning(f"Argument `line_colors` is deprecated since version 2.0.0; please use `locus_plot_kws={{color={line_colors[0]}}}`/`bigwig_plot_kws={{color={line_colors[1]}}}` instead.")
         locus_plot_kws['color'] = line_colors[0]
         bigwig_plot_kws['color'] = line_colors[1]
 
