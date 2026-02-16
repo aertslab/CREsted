@@ -12,7 +12,7 @@ maintainers = [
   { name = "Lukas Mahieu", email = "lukas.mahieu@kuleuven.be" },
 ]
 authors = [
-  { name = "Stein Aerts Lab" },
+  { name = "Aerts lab @ VIB.AI" },
 ]
 requires-python = ">=3.11,<3.14"
 classifiers = [
@@ -32,7 +32,6 @@ dependencies = [
   "pooch",
   "pybigtools>=0.2",
   "pysam",
-  "scanpy>=1.10",
   "scikit-learn",
   "seaborn",
   "tqdm",
@@ -65,6 +64,7 @@ optional-dependencies.doc = [
 optional-dependencies.motif = [
   "memelite; python_version<'3.13'",
   "modisco-lite>=2.2.1",
+  "scanpy>=1.10",
 ]
 optional-dependencies.test = [
   "anndata",
