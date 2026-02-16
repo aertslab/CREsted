@@ -205,7 +205,7 @@ def scatter(
         if class_name is not None:
             kwargs['title'] = [f"{class_name} - " + ax_title for ax_title in kwargs['title']]
     if "suptitle" not in kwargs and n_models > 1:
-        kwargs["suptitle"] = "Targets vs predictions"
+        kwargs["suptitle"] = "Ground truth vs predictions"
         if class_name is not None:
             kwargs["suptitle"] += f" for {class_name}"
     plot_kws = {} if plot_kws is None else plot_kws.copy()
