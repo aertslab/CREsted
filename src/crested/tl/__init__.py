@@ -17,10 +17,10 @@ from ._tools import (  # noqa: E402
     contribution_scores_specific,
     enhancer_design_in_silico_evolution,
     enhancer_design_motif_insertion,
+    evaluate,
     extract_layer_embeddings,
     predict,
     score_gene_locus,
-    test,
 )
 
 if importlib.util.find_spec("modiscolite") is not None:

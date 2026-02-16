@@ -176,10 +176,11 @@ def predict(
         return model.predict(dataset, **kwargs)
 
 
-def test(
+def evaluate(
     adata: AnnData,
-    model: keras.Model | list[keras.Model],
+    model: keras.Model | list[keras.Model] | str,
     metrics: TaskConfig | list[keras.metrics.Metric | keras.losses.Loss]| None = None,
+    split: str | None = "test",
     return_metrics: bool = False,
     **kwargs
 ):
@@ -193,9 +194,11 @@ def test(
     adata
         The AnnData to retrieve ground truth and region info from. Must have 'test' in `adata.var['split']`.
     model
-        A (list of) trained keras model(s) to make predictions with.
+        A (list of) trained keras model(s) to make predictions with, or a name of a saved prediction layer.
     metrics
         A {func}`~crested.tl.TaskConfig` object, a list of keras metrics and/or losses, or None (in which case it will try to use the metrics compiled with the model).
+    split
+        Which split to evaluate. Must be one of the values encoded in adata.var['split'], or None to evaluate the entire dataset.
     return_metrics
         Whether to return a dict of the results.
     kwargs
@@ -209,28 +212,38 @@ def test(
     -------
     >>> crested.tl.test(adata, model, config)
     """
-    # Predict values
-    adata_test = adata[:, adata.var['split'] == 'test']
-    truth = adata_test.X.T
-    preds = predict(adata_test, model)
+    # Predict or extract values
+    if split is not None and split not in adata.var['split'].values:
+        raise ValueError(f"split {split} must be in adata.var['split'] or be None.")
+    adata_split = adata[:, adata.var['split'] == split] if split is not None else adata
+    truth = adata_split.X.T
+    if isinstance(model, str):
+        if model not in adata.layers:
+            raise ValueError(f"model name {model} must be in adata.layers if providing a string.")
+        preds = adata_split.layers[model].T
+    else:
+        preds = predict(adata_split, model)
 
-    # If model is compiled and config is none, use metrics from there
+    # If model is compiled and config is None, use metrics from there
     metrics_results = {}
     if metrics is None:
-        assert model.compiled, "Model must be compiled if not providing a config or list of metrics."
+        if not isinstance(model, str) and not model.compiled:
+            raise ValueError("Model must be compiled if not providing a config or list of metrics.")
         metrics_results['loss'] = model.metrics[0](truth, preds).numpy()
         for metric_name, metric_value in model.metrics[1](truth, preds).items():
             metrics_results[metric_name] = metric_value.numpy()
     # else, use provided config or list of metrics
     else:
-        if model.compiled:
+        if not isinstance(model, str) and model.compiled:
             logger.warning("Ignoring metrics from the compiled model in favor of provided metrics.")
         if isinstance(metrics, TaskConfig):
             metrics = [metrics.loss, *metrics.metrics]
         # Calculate metrics
         for metric in metrics:
-            if hasattr(metric, 'reset_states'):
+            try:
                 metric.reset_states()
+            except AttributeError:
+                pass
             metrics_results[metric.name] = metric(truth, preds).numpy()
 
     # Print results
