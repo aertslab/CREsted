@@ -23,7 +23,6 @@ classifiers = [
 ]
 dependencies = [
   "anndata",
-  "biothings-client<0.4",
   "keras>=3.4",
   "logomaker",
   "loguru",
