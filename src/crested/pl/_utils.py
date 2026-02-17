@@ -323,6 +323,7 @@ def create_plot(
         for kwarg in ['width', 'height', 'sharex', 'sharey', 'layout', 'h_pad', 'w_pad']:
             if kwarg in kwargs_dict:
                 logger.warning(f"Using keyword argument {kwarg} does not do anything when passing a pre-existing axis.")
+                del kwargs_dict[kwarg]
         fig = ax.get_figure()
     else:
         raise ValueError(f"ax must be a single matplotlib ax or None, not {type(ax)}.")
