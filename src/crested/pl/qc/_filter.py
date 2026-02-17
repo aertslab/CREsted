@@ -244,7 +244,10 @@ def sort_and_filter_cutoff(
     if 'xlabel' not in kwargs:
         kwargs['xlabel'] = "Rank"
     if 'ylabel' not in kwargs:
-        kwargs['ylabel'] = "Gini score"
+        if method == 'gini':
+            kwargs['ylabel'] = "Gini score"
+        elif method == 'proportion':
+            kwargs['ylabel'] = "Proportion score"
     if 'grid' not in kwargs:
         kwargs['grid'] = 'x'
     plot_kws = {} if plot_kws is None else plot_kws.copy()
