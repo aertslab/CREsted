@@ -64,6 +64,7 @@ optional-dependencies.motif = [
   "memelite; python_version<'3.13'",
   "modisco-lite>=2.2.1",
   "scanpy>=1.10",
+  "lxml"
 ]
 optional-dependencies.test = [
   "anndata",
