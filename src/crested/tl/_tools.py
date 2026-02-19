@@ -202,7 +202,7 @@ def evaluate(
     return_metrics
         Whether to return a dict of the results.
     kwargs
-        Arguments passed on to {func}`~crested.tl.predict`, like `batch_size`.
+        Arguments passed on to {func}`~crested.tl.predict`, like `batch_size` or `genome`.
 
     Returns
     -------
@@ -222,7 +222,7 @@ def evaluate(
             raise ValueError(f"model name {model} must be in adata.layers if providing a string.")
         preds = adata_split.layers[model].T
     else:
-        preds = predict(adata_split, model)
+        preds = predict(adata_split, model, **kwargs)
 
     # If model is compiled and config is None, use metrics from there
     metrics_results = {}
