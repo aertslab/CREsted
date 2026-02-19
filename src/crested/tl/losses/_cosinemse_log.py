@@ -95,4 +95,5 @@ class CosineMSELogLoss(keras.losses.Loss):
         return cls(**config)
 
     def __repr__(self):
+        """Return a string representation of the loss."""
         return f"{self.name}: {self.get_config()}"
