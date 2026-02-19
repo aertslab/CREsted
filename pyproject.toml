@@ -49,6 +49,7 @@ optional-dependencies.doc = [
   "ipykernel",
   "ipython",
   "modisco-lite",
+  "scanpy>=1.10",
   "myst-nb",
   "pandas",
   "ruff",
