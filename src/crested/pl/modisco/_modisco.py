@@ -626,6 +626,7 @@ def clustermap_with_pwm_logos(
     importance_threshold: float = 0,
     logo_height_fraction: float = 0.35,
     logo_y_padding: float = 0.3,
+    logo_x_multiplier: float = 1,
     pwm_or_contrib: str = "pwm",
     width: int | float = 25,
     height: int | float = 8,
@@ -663,6 +664,8 @@ def clustermap_with_pwm_logos(
         Fraction of clustermap height to allocate for PWM logos. Default is 0.35.
     logo_y_padding:
         Relative vertical padding for the PWM logos relative to the heatmap. Default is 0.3.
+    logo_x_multiplier
+        Relative width multiplier of the PWM logos. Lower this to shrink their width.
     pwm_or_contrib:
         Whether to use the pwm or contrib score representation of the pattern in the plotting.
     width
@@ -734,7 +737,7 @@ def clustermap_with_pwm_logos(
     # Adjust width and height of logos
     logo_width = g.ax_heatmap.get_position().width / len(reordered_patterns)
     logo_height = logo_height_fraction * g.ax_heatmap.get_position().height
-    ratio = logo_height / logo_width
+    ratio = (logo_height*total_height) / (logo_width*width*logo_x_multiplier)
 
     for i, pattern in enumerate(reordered_patterns):
         plot_start_x = (
