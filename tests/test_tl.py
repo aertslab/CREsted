@@ -8,6 +8,8 @@ import pytest
 import crested
 from crested.utils._utils import _detect_input_type, _transform_input
 
+from ._utils import create_anndata_with_regions
+
 
 def test_input_type(adata):
     assert _detect_input_type(adata) == "anndata"
@@ -100,6 +102,21 @@ def test_score_gene_locus(keras_model, genome):
     assert max_loc == 201500
     assert tss_pos == 200000
 
+def test_evaluate(adata_preds, keras_model, genome):
+    config = crested.tl.default_configs("peak_regression_count")
+    # Test with presaved data, full data, config
+    metrics = crested.tl.evaluate(adata=adata_preds, model="model_1", metrics=config, split=None, return_metrics=True)
+    assert metrics is not None
+
+    # Test with presaved data, specific split, metrics list
+    metrics = crested.tl.evaluate(adata=adata_preds, model="model_1", metrics=config.metrics, split="test", return_metrics=True)
+    assert metrics is not None
+
+    # Test with model
+    regions = [f'chr1:{start}-{start+500}' for start in np.arange(1500, step=500)]
+    adata = create_anndata_with_regions(regions, n_classes=5)
+    metrics = crested.tl.evaluate(adata=adata, model=keras_model, metrics=config.metrics, split=None, return_metrics=True, genome=genome)
+    assert metrics is not None
 
 def test_contribution_scores(keras_model, genome):
     sequence = "ATCGA" * 100
