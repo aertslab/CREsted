@@ -28,7 +28,7 @@ from pandas import __version__ as pandas_version # noqa
 info = metadata("crested")
 project_name = info["Name"]
 author = info["Author"]
-copyright = f"{datetime.now():%Y}, {author}."
+copyright = f"{datetime.now():%Y}, {author}"
 version = info["Version"]
 urls = dict(pu.split(", ") for pu in info.get_all("Project-URL"))
 repository_url = "https://github.com/aertslab/CREsted/"
