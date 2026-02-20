@@ -26,9 +26,7 @@ __all__ = [
     "one_hot_encode_sequence",
     "parse_region",
     "reverse_complement",
-    "EnhancerOptimizer",
     "calculate_nucleotide_distribution",
-    "derive_intermediate_sequences",
     "fetch_sequences",
     "read_bigwig_region",
     "permute_model",  # Lazy-loaded

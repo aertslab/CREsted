@@ -12,11 +12,10 @@ _setup_backend()
 from . import data, losses, metrics, zoo  # noqa: E402
 from ._configs import TaskConfig, default_configs  # noqa: E402
 from ._crested import Crested  # noqa: E402
+from ._old import enhancer_design_in_silico_evolution, enhancer_design_motif_insertion  # noqa: E402
 from ._tools import (  # noqa: E402
     contribution_scores,
     contribution_scores_specific,
-    enhancer_design_in_silico_evolution,
-    enhancer_design_motif_insertion,
     evaluate,
     extract_layer_embeddings,
     predict,
@@ -55,8 +54,6 @@ __all__ = [
     "predict",
     "contribution_scores",
     "contribution_scores_specific",
-    "enhancer_design_in_silico_evolution",
-    "enhancer_design_motif_insertion",
     "score_gene_locus",
 ]
 

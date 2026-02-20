@@ -95,8 +95,8 @@ def derive_intermediate_sequences(
 
     See Also
     --------
-    crested.tl.enhancer_design_in_silico_evolution
-    crested.tl.enhancer_design_motif_insertion
+    crested.tl.design.in_silico_evolution
+    crested.tl.design.motif_insertion
     """
     all_designed_list = []
     for intermediate_dict in enhancer_design_intermediate:
