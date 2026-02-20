@@ -5,91 +5,13 @@ from __future__ import annotations
 import os
 import random
 import re
-from collections.abc import Callable
-from typing import Any
 
 import numpy as np
-import pandas as pd
 from anndata import AnnData
-from loguru import logger
 
 from crested._genome import Genome, _resolve_genome
 from crested._io import _extract_tracks_from_bigwig
 from crested.utils._seq_utils import one_hot_encode_sequence
-
-
-class EnhancerOptimizer:
-    """
-    Class to optimize the mutated sequence based on the original prediction.
-
-    Can be passed as the 'enhancer_optimizer' argument to :func:`crested.tl.enhancer_design_in_silico_evolution`
-
-    Parameters
-    ----------
-    optimize_func
-        Function to optimize the mutated sequence based on the original prediction.
-
-    See Also
-    --------
-    crested.tl.enhancer_design_in_silico_evolution
-    """
-
-    def __init__(self, optimize_func: Callable[..., int]) -> None:
-        """Initialize the EnhancerOptimizer class."""
-        self.optimize_func = optimize_func
-
-    def get_best(
-        self,
-        mutated_predictions: np.ndarray,
-        original_prediction: np.ndarray,
-        target: int | np.ndarray,
-        **kwargs: dict[str, Any],
-    ) -> int:
-        """
-        Get the index of the best mutated sequence based on the original prediction.
-
-        Parameters
-        ----------
-        mutated_predictions
-            The predictions of the mutated sequences.
-        original_prediction
-            The prediction of the original sequence.
-        target
-            An integer or array representing some target to optimize for.
-            For example, this can be the target class index, or an array of target values to maximize.
-            Depends on the optimization function used.
-        **kwargs
-            Additional keyword arguments to pass to the optimization function.
-        """
-        return self.optimize_func(
-            mutated_predictions, original_prediction, target, **kwargs
-        )
-
-
-def _weighted_difference(
-    mutated_predictions: np.ndarray,
-    original_prediction: np.ndarray,
-    target: int,
-    class_penalty_weights: np.ndarray | None = None,
-):
-    if len(original_prediction.shape) == 1:
-        original_prediction = original_prediction[None]
-    n_classes = original_prediction.shape[1]
-    penalty_factor = 1 / n_classes
-
-    target_increase = mutated_predictions[:, target] - original_prediction[:, target]
-    other_increases = mutated_predictions - original_prediction
-
-    other_increases[:, target] = 0
-
-    if class_penalty_weights is None:
-        class_penalty_weights = np.ones(n_classes)
-
-    score = target_increase - penalty_factor * np.sum(
-        other_increases * class_penalty_weights, axis=1
-    )
-
-    return np.argmax(score)
 
 
 def _detect_input_type(input: str | list[str] | np.array | AnnData) -> str:
@@ -174,80 +96,6 @@ def _transform_input(
         [one_hot_encode_sequence(seq, expand_dim=False) for seq in sequences]
     )
     return one_hot_data
-
-
-def get_value_from_dataframe(df: pd.DataFrame, row_name: str, column_name: str):
-    """
-    Retrieve a single value from a DataFrame based on the given row index and column name.
-
-    Parameters
-    ----------
-    df
-        The DataFrame to retrieve the value from.
-    row_name
-        The name of the row.
-    column_name
-        The name of the column.
-
-    Returns
-    -------
-    The value at the specified row index and column name, or an error message if the column is not found.
-    """
-    try:
-        # Check if the column exists in the DataFrame
-        if column_name not in df.columns:
-            raise KeyError(f"Column '{column_name}' not found in DataFrame.")
-
-        # Retrieve the value
-        value = df.loc[row_name, column_name]
-        return value
-    except KeyError as e:
-        # Handle the case where the column is not found
-        return str(e)
-    except IndexError:
-        # Handle the case where the row index is out of bounds
-        return f"Row index is out of bounds for DataFrame with {len(df)} rows."
-
-
-def extract_bigwig_values_per_bp(
-    bigwig_file: str | os.PathLike, coordinates: list[tuple[str, int, int]]
-) -> tuple[np.ndarray, list[int]]:
-    """
-    Extract per-base pair values from a bigWig file for the given genomic coordinates.
-
-    Parameters
-    ----------
-    bigwig_file
-        Path to the bigWig file.
-    coordinates
-        An array of tuples, each containing the chromosome name and the start and end positions of the sequence.
-
-    Returns
-    -------
-    bw_values
-        A numpy array of values from the bigWig file for each base pair in the specified range.
-    all_midpoints
-        A list of all base pair positions covered in the specified coordinates.
-    """
-    logger.warning(
-        "extract_bigwig_values_per_bp() is deprecated. Please use crested.utils.read_bigwig_region(bw_file, (chr, start, end)) instead."
-    )
-    # Calculate the full range of coordinates
-    min_coord = min([int(start) for _, start, _ in coordinates])
-    max_coord = max([int(end) for _, _, end in coordinates])
-
-    # Initialize the list to store values
-    bw_values = []
-
-    # Get chromosome
-    chrom = coordinates[0][0]  # Assuming all coordinates are for the same chromosome
-
-    # Extract per-base values
-    bw_values, all_midpoints = read_bigwig_region(
-        bigwig_file, (chrom, min_coord, max_coord), missing=0.0
-    )
-
-    return bw_values, all_midpoints
 
 
 def fetch_sequences(
@@ -404,39 +252,3 @@ def calculate_nucleotide_distribution(
     return distribution / distribution.sum(axis=-1, keepdims=True)
 
 
-def derive_intermediate_sequences(
-    enhancer_design_intermediate: dict,
-) -> list[list[str]]:
-    """
-    Derive the intermediate sequences from the enhancer design intermediate dictionary.
-
-    Parameters
-    ----------
-    enhancer_design_intermediate
-        The enhancer design intermediate dictionary.
-
-    Returns
-    -------
-    The intermediate sequences.
-
-    See Also
-    --------
-    crested.tl.enhancer_design_in_silico_evolution
-    crested.tl.enhancer_design_motif_insertion
-    """
-    all_designed_list = []
-    for intermediate_dict in enhancer_design_intermediate:
-        current_sequence = intermediate_dict["initial_sequence"]
-        sequence_list = [current_sequence]
-        for loc, change in intermediate_dict["changes"]:
-            if loc == -1:
-                continue
-            else:
-                current_sequence = (
-                    current_sequence[:loc]
-                    + change
-                    + current_sequence[loc + len(change) :]
-                )
-                sequence_list.append(current_sequence)
-        all_designed_list.append(sequence_list)
-    return all_designed_list

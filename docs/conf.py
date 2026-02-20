@@ -26,9 +26,10 @@ from pandas import __version__ as pandas_version # noqa
 # NOTE: If you installed your project in editable mode, this might be stale.
 #       If this is the case, reinstall it to refresh the metadata
 info = metadata("crested")
+project = info["Name"]
 project_name = info["Name"]
 author = info["Author"]
-copyright = f"{datetime.now():%Y}, {author}."
+copyright = f"{datetime.now():%Y}, {author}"
 version = info["Version"]
 urls = dict(pu.split(", ") for pu in info.get_all("Project-URL"))
 repository_url = "https://github.com/aertslab/CREsted/"
@@ -69,7 +70,9 @@ extensions = [
 ]
 
 autosummary_generate = True
+autosummary_imported_members = True  # Required to have the recursive docs generation recognise our structure of importing everything in their specific __init__.py
 autodoc_member_order = "groupwise"
+autodoc_default_flags = ['members']
 bibtex_reference_style = "author_year"
 default_role = "literal"
 napoleon_google_docstring = False
@@ -146,6 +149,7 @@ nitpick_ignore = [
     ("py:class", "keras.metrics.Metric"),
     ("py:class", "keras.src.losses.loss.Loss"),
     ("py:class", "keras.src.metrics.metric.Metric"),
+    ("py:class", "keras.src.backend.common.keras_tensor.KerasTensor"),
     ("py:class", "seaborn.matrix.ClusterGrid"),
     ("py:class", "pysam.libcfaidx.FastaFile"),
     ("py:class", "pathlib._local.Path"),  # Internal pathlib implementation detail

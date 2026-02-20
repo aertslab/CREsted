@@ -9,8 +9,9 @@ import crested
 
 datasets
 io
-preprocessing
-tools/index.md
-plotting/index.md
-utils
+_autosummary/crested.pp
+_autosummary/crested.tl
+_autosummary/crested.pl
+_autosummary/crested.utils
+renaming
 ```

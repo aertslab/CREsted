@@ -83,7 +83,7 @@ def tfmodisco(
 
     See Also
     --------
-    crested.tl.Crested.calculate_contribution_scores
+    crested.tl.contribution_scores_specific
 
     Examples
     --------
@@ -950,7 +950,7 @@ def create_pattern_matrix(
     See Also
     --------
     crested.tl.modisco.process_patterns
-    crested.pl.patterns.clustermap
+    crested.pl.modisco.clustermap
 
     Returns
     -------
@@ -1012,7 +1012,7 @@ def calculate_similarity_matrix(all_patterns: dict) -> np.ndarray:
 
     See Also
     --------
-    crested.pl.patterns.similarity_heatmap
+    crested.pl.modisco.similarity_heatmap
     """
     indices = list(all_patterns.keys())
     num_patterns = len(indices)
@@ -1149,7 +1149,7 @@ def generate_html_paths(
 
 
 def find_pattern_matches(
-    all_patterns: dict, html_paths: list[str], q_val_thr: float = 0.05
+    all_patterns: dict, html_paths: list[str], p_val_thr: float = 0.05, q_val_thr: str = 'deprecated'
 ) -> dict[int, dict[str, list[str]]]:
     """
     Find and filter pattern matches from the modisco-lite list of patterns to the motif database from the corresponding HTML paths.
@@ -1160,13 +1160,16 @@ def find_pattern_matches(
         A dictionary of patterns with metadata.
     html_paths
         A list of file paths to HTML files containing motif databases.
-    q_val_thr
-        The threshold for q-value filtering. Default is 0.05.
+    p_val_thr
+        The threshold for p-value filtering if a q-value or p-value column is present. Default is 0.05.
 
     Returns
     -------
     A dictionary with pattern indices as keys and a dictionary of matches as values.
     """
+    if q_val_thr != 'deprecated':
+        p_val_thr = q_val_thr
+        logger.warning(f"Modisco renamed the `qval` column to `pval`, so `q_val_thr` is now called `p_val_thr` as well. Please use `p_val_thr={q_val_thr}`.")
     pattern_match_dict: dict[int, dict[str, list[str]]] = {}
 
     for i, p_idx in enumerate(all_patterns):
@@ -1206,16 +1209,17 @@ def find_pattern_matches(
             for i, matching_row in enumerate(matching_rows):
                 if not matching_row.empty:
                     for j in range(3):
+                        pval_column = f"pval{j}"
                         qval_column = f"qval{j}"
                         match_column = f"match{j}"
-                        if (
-                            qval_column in matching_row.columns
-                            and match_column in matching_row.columns
-                        ):
-                            qval = matching_row[qval_column].values[0]
-                            if qval < q_val_thr:
-                                match = matching_row[match_column].values[0]
-                                matches.append(match)
+                        pval = None
+                        if pval_column in matching_row.columns and match_column in matching_row.columns:
+                            pval = matching_row[pval_column].values[0]
+                        elif qval_column in matching_row.columns and match_column in matching_row.columns:
+                            pval = matching_row[qval_column].values[0]
+                        if pval is not None and pval < p_val_thr:
+                            match = matching_row[match_column].values[0]
+                            matches.append(match)
 
                     for match in matches:
                         if match.startswith("metacluster"):
