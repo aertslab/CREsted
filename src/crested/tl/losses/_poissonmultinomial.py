@@ -103,4 +103,5 @@ class PoissonMultinomialLoss(keras.losses.Loss):
         return config
 
     def __repr__(self):
+        """Return a string representation of the loss."""
         return f"{self.name}: {self.get_config()}"
