@@ -121,11 +121,13 @@ class BaseDataWrapper:
         self.split_expanded_indices = {}
         self.split_expanded_indices['predict'] = self._expand_indices(self.indices, expand_revcomp = False)
         # Get stranded indices per split, expanding with revcomp for training set
-        self.split_expanded_indices['train'] =  self._expand_indices(self.split_indices['train'], expand_revcomp = self.always_reverse_complement)
+        self.split_expanded_indices['train'] = self._expand_indices(self.split_indices['train'], expand_revcomp = self.always_reverse_complement)
         for split in ('val', 'test'):
-            self.split_expanded_indices[split] =  self._expand_indices(self.split_indices[split], expand_revcomp = False)
+            self.split_expanded_indices[split] = self._expand_indices(self.split_indices[split], expand_revcomp = False)
         # Get total set of expanded indices across all possibilities
         self.full_expanded_indices = list({aug_index for aug_index_list in self.split_expanded_indices.values() for aug_index in aug_index_list})
+        # Get forward mapping (non-expanded to expanded) from predict
+        self.expanded_indices_forward_map = dict(zip(self.indices, self.split_expanded_indices['predict'], strict=True))
 
     # ----- Primary methods to implement/overwrite in the inherited versions: -----
     def _get_indices(self):
@@ -207,6 +209,18 @@ class BaseDataWrapper:
             -self.max_stochastic_shift, self.max_stochastic_shift + 1
         )
 
+    def _get_expanded_index(self, index):
+        """Get an expanded index from on the original index.
+
+        By default, assumes the index is a region string and adds a strand if not provided.
+        If using another way to get transformed indices, like looking up in .var columns, overwrite this.
+        If not using transformed indices, simply pass the original index back.
+        """
+        if not self.stranded:
+            stranded_region = f"{index}:+"
+        else:
+            stranded_region = index
+        return stranded_region
 
     # ----- Index management -----
     def _split_indices(self, split: str) -> list[str]:
@@ -231,16 +245,13 @@ class BaseDataWrapper:
         if not hasattr(self, 'expanded_indices_map'):
             self.expanded_indices_map = {}
         expanded_indices = []
-        for region in indices:
-            if not self.stranded:
-                stranded_region = f"{region}:+"
-            else:
-                stranded_region = region
-            expanded_indices.append(stranded_region)
-            self.expanded_indices_map[stranded_region] = region # Update shared backmapping with the original indices
+        for index in indices:
+            expanded_index = self._get_expanded_index(index) # also adds strand if not included
+            expanded_indices.append(expanded_index)
+            self.expanded_indices_map[expanded_index] = index # Update shared backmapping with the original indices
             if expand_revcomp:
-                expanded_indices.append(flip_region_strand(stranded_region))
-                self.expanded_indices_map[flip_region_strand(stranded_region)] = region
+                expanded_indices.append(flip_region_strand(expanded_index))
+                self.expanded_indices_map[flip_region_strand(expanded_index)] = index
         return expanded_indices
 
 
@@ -287,6 +298,8 @@ class BaseDataWrapper:
             raise ValueError("Need to provide one of expanded_index or original_index to retrieve items.")
         elif original_index is None:
             original_index = self.expanded_indices_map[expanded_index]
+        elif expanded_index is None:
+            expanded_index = self.expanded_indices_forward_map[original_index]
 
         # Get stochastic shift amount
         if augment and self.max_stochastic_shift > 0:
