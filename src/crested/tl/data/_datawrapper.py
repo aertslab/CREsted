@@ -29,28 +29,18 @@ class BaseDataWrapper:
     Please inherit this and implement self._get_sequence(), self._get_target(), self._get_indices() and self._get_splits().
     If training on sequences extracted from the genome, have a look at BaseGenomicDataWrapper for built-in sequence loading.
 
-    Parameters
-    ----------
-    batch_size
-        Batch size to use during training and evaluation.
-    random_reverse_complement
-        If True, the sequences will be randomly reverse complemented during training.
-        Incompatible with always_reverse_complement.
-    always_reverse_complement
-        If True, the dataset will be expanded to include both the forward and reverse-complemented versions of every entry in the training set.
-        Incompatible with random_reverse_complement.
-    max_stochastic_shift
-        Maximum stochastic shift (n base pairs in either direction) to apply randomly to each sequence during training.
-        Default is 0 (disabled).
-    drop_remainder
-        If True, drop the last batch if it is not the full batch_size. Default is False.
-    train_splits
-        The values in your split labeling that correspond to the training set as string or list of strings, i.e 'train' or ['fold0', 'fold1', 'fold2']
-        If None, uses the values that aren't `val_splits` or `test_splits`.
-    val_splits
-        The values in your split labeling that correspond to the validation set as string or list of strings, i.e 'val' or ['fold3', 'fold4']
-    test_splits
-        The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
+    .. note ::
+        A note on index types:
+        - 'index'/'original_index': an identifier of a sample from the input data, before augmentation or anything.
+            Think .var_names from your adata (whether that's regions or gene names).
+            Returned by `_get_indices` in your inheriting function, and should have matching split values from `_get_splits`.
+        - 'expanded_index': an identifier after expanding the indices. This often means adding the reverse complement, but it can be more if you implement it.
+            Multiple expanded indices can map back to one index (i.e. forward and backward sequence map back to the same originating sequence and its linked value in the anndata).
+            Note that due to TensorFlow limitations, this should be something convertable to numpy values and still usable as a dictionary key, so e.g. a string or an integer but not a tuple.
+            If you don't have any use for expansion, you can change _expand_indices to simply return a 1-to-1 {index: index} mapping.
+        - 'parsed_index': an expanded index parsed to a non-string/integer format, if useful.
+            In the genomic context this is often from a string to a (chrom, start, end, strand) tuple, to prevent having to parse the region multiple times.
+            If you don't have any use for parsing, you can keep `_parse_index` to just return the index as is (which is the default for BaseDataWrapper, but not BaseGenomicDataWrapper).
     """
 
     # ----- Object initialization -----
@@ -65,7 +55,31 @@ class BaseDataWrapper:
         val_splits: str | list = 'val',
         test_splits: str | list = 'test',
     ):
-        """Initialize the DataWrapper with the provided dataset and options."""
+        """Initialize the DataWrapper with the provided dataset and options.
+
+        Parameters
+        ----------
+        batch_size
+            Batch size to use during training and evaluation.
+        random_reverse_complement
+            If True, the sequences will be randomly reverse complemented during training.
+            Incompatible with always_reverse_complement.
+        always_reverse_complement
+            If True, the dataset will be expanded to include both the forward and reverse-complemented versions of every entry in the training set.
+            Incompatible with random_reverse_complement.
+        max_stochastic_shift
+            Maximum stochastic shift (n base pairs in either direction) to apply randomly to each sequence during training.
+            Default is 0 (disabled).
+        drop_remainder
+            If True, drop the last batch if it is not the full batch_size. Default is False.
+        train_splits
+            The values in your split labeling that correspond to the training set as string or list of strings, i.e 'train' or ['fold0', 'fold1', 'fold2']
+            If None, uses the values that aren't `val_splits` or `test_splits`.
+        val_splits
+            The values in your split labeling that correspond to the validation set as string or list of strings, i.e 'val' or ['fold3', 'fold4']
+        test_splits
+            The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
+        """
         # Dataset
         # Split parameters
         if isinstance(train_splits, str):
@@ -128,6 +142,8 @@ class BaseDataWrapper:
         self.full_expanded_indices = list({aug_index for aug_index_list in self.split_expanded_indices.values() for aug_index in aug_index_list})
         # Get forward mapping (non-expanded to expanded) from predict
         self.expanded_indices_forward_map = dict(zip(self.indices, self.split_expanded_indices['predict'], strict=True))
+        # Get mapping of expanded indices to parsed indices
+        self.parsed_indices_map = {expanded_index: self._parse_index(expanded_index) for expanded_index in self.full_expanded_indices}
 
     # ----- Primary methods to implement/overwrite in the inherited versions: -----
     def _get_indices(self):
@@ -144,7 +160,15 @@ class BaseDataWrapper:
         # Pseudocode: return self.data.metadata[self.split_column]
         raise NotImplementedError("Please define `self._get_splits()` to extract a split identifier per sample from your dataset, i.e. AnnData var['split'].")
 
-    def _get_sequence(self, original_index: str, expanded_index: str, revcomp: bool = False, shift: int = 0, **kwargs) -> str:
+    def _get_sequence(
+        self,
+        original_index: str,
+        expanded_index: str,
+        parsed_index: tuple[str, int, int, str],
+        revcomp: bool = False,
+        shift: int = 0,
+        **kwargs
+    ) -> str:
         """Retrieve the sequence (as a string) of a certain index.
 
         Use the parameters you need and disregard the rest through **kwargs.
@@ -155,6 +179,8 @@ class BaseDataWrapper:
             The original index of the sequence (i.e. before always_reverse_complement or other expansion).
         expanded_index
             The expanded index of the sequence (guaranteed to be stranded).
+        parsed_index
+            The expanded index of the sequence, parsed into a (chrom, start, end, strand) tuple if using genomic data.
         revcomp
             Whether to reverse-complement the string (like because of stochastic reverse complementing) relative to the requested original index.
         shift
@@ -177,7 +203,15 @@ class BaseDataWrapper:
         """
         return one_hot_encode_sequence(seq, expand_dim=False)
 
-    def _get_target(self, original_index: str, expanded_index: str, revcomp: bool = False, shift: int = 0, **kwargs) -> np.ndarray:
+    def _get_target(
+        self,
+        original_index: str,
+        expanded_index: str,
+        parsed_index: tuple[str, int, int, str],
+        revcomp: bool = False,
+        shift: int = 0,
+        **kwargs
+    ) -> np.ndarray:
         """Get target for a given index. Returned value should not have a batch dimension yet.
 
         If not using certain arguments in your implementation (like only using one of original_index/expanded_index), please keep **kwargs to absorb the un-used other arguments.
@@ -186,10 +220,13 @@ class BaseDataWrapper:
         ----------
         original_index
             The original index of the sequence (i.e. before always_reverse_complement or other expansion).
-            The inherited version will generally use only original_index or expanded_index, depending on desired functionality.
+            The inherited version will generally use only original_index, expanded_index or parsed_index, depending on desired functionality.
         expanded_index
             The expanded index of the sequence (guaranteed to be stranded).
-            The inherited version will generally use only original_index or expanded_index, depending on desired functionality.
+            The inherited version will generally use only original_index, expanded_index or parsed_index, depending on desired functionality.
+        parsed_index
+            The expanded index, parsed into a more usable format. By default, into a (chrom, start, end, strand) tuple if using genomic data.
+            The inherited version will generally use only original_index, expanded_index or parsed_index, depending on desired functionality.
         revcomp
             Whether to reverse-complement the string (like because of stochastic reverse complementing) relative to the requested index.
         shift
@@ -221,6 +258,15 @@ class BaseDataWrapper:
         else:
             stranded_region = index
         return stranded_region
+
+    def _parse_index(self, index):
+        """Parse an index into an easier-to-use format.
+
+        In certain setups, like when loading sequences on the fly or when extracting values from tracks, it pays to parse the expanded index
+        (which must be a string or integer or the like, to to allow using as dictionary keys even when transformed to numpy) only once.
+        In those cases, this function can be inherited to split them, which results in parsed_index for the sequence/target/etc data.
+        """
+        return index
 
     # ----- Index management -----
     def _split_indices(self, split: str) -> list[str]:
@@ -301,9 +347,11 @@ class BaseDataWrapper:
         elif expanded_index is None:
             expanded_index = self.expanded_indices_forward_map[original_index]
 
+        parsed_index = self.parsed_indices_map[expanded_index]
+
         # Get stochastic shift amount
         if augment and self.max_stochastic_shift > 0:
-            shift = self._get_shift(original_index=original_index, expanded_index=expanded_index)
+            shift = self._get_shift(original_index=original_index, expanded_index=expanded_index, parsed_index=parsed_index)
         else:
             shift = 0
         # Get whether to random reverse complement (always_reverse_complement is done in the sequence loader by encoding the strand in the index)
@@ -313,13 +361,13 @@ class BaseDataWrapper:
             revcomp = False
         # Get sequence as string and apply stochastic shift/revcomp augmentations, letting the function choose
         # whether to use original (like when grabbing from dataframe) or expanded index (like when extracting from genome)
-        x = self._get_sequence(original_index=original_index, expanded_index=expanded_index, revcomp=revcomp, shift=shift)
+        x = self._get_sequence(original_index=original_index, expanded_index=expanded_index, parsed_index=parsed_index, revcomp=revcomp, shift=shift)
 
         # Encode sequence (one-hot by default, but can override for i.e. tokenisation)
         x = self._encode_sequence(x)
 
         # Get targets, letting the function choose whether to use original (like with scalars) or expanded index (like with tracks)
-        y = self._get_target(original_index=original_index, expanded_index=expanded_index, revcomp=revcomp, shift=shift)
+        y = self._get_target(original_index=original_index, expanded_index=expanded_index, parsed_index=parsed_index, revcomp=revcomp, shift=shift)
 
         return x, y
 
@@ -566,15 +614,16 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
             genome,
             in_memory=in_memory,
             max_stochastic_shift=self.max_stochastic_shift,
-            regions=self.full_expanded_indices,
+            regions=list(self.parsed_indices_map.values()),
         )
 
         # Save input shape now that we've created the function to retrieve one
         # Also pass original_index just in case we override _get_sequence in an inheriting class and use it
         example_index = self.split_expanded_indices['predict'][0]
         self.input_shape_cache = self._encode_sequence(self._get_sequence(
-            expanded_index = example_index,
-            original_index = self.expanded_indices_map[example_index],
+            parsed_index=self.parsed_indices_map[example_index],
+            expanded_index=example_index,
+            original_index=self.expanded_indices_map[example_index],
         )).shape
 
         if self.input_shape_cache[-1] > self.input_shape_cache[-2]:
@@ -583,50 +632,69 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
                 f"Your input shape appears to be flipped: {self.input_shape_cache}"
             )
 
-    def _get_sequence(self, expanded_index: str, revcomp: bool = False, shift: int = 0, **kwargs) -> np.ndarray:
+    def _get_sequence(self, parsed_index: str, revcomp: bool = False, shift: int = 0, **kwargs) -> np.ndarray:
         """Get a sequence (as a string) given a certain index.
 
         Parameters
         ----------
-        expanded_index
-            The expanded index of the sequence (guaranteed to be stranded).
+        parsed_index
+            The parsed index of the sequence (a (chrom, start, end, str) tuple).
         revcomp
             Whether to reverse-complement the string (like because of stochastic reverse complementing) relative to the requested index.
         shift
             How much to shift the string left or right (like because of stochastic shifting) relative to the requested index.
             Can be positive or negative.
         kwargs
-            Catcher for unused arguments from `get_indexed_item()`, specifically `original_index`.
+            Catcher for unused arguments from `get_indexed_item()`, specifically `original_index` and `parsed_index`.
         """
         # We need the stranded information when extracting from the genome so use the expanded index
         x = self.sequence_loader.get_sequence(
-            expanded_index, stranded=True, shift=shift
+            parsed_index, stranded=True, shift=shift
         )
         if revcomp:
             x = self.sequence_loader._reverse_complement(x)
         return x
 
-    def _get_shift(self, expanded_index: str, **kwargs) -> int:
-        """Returns a stochastic shift value, accounting for genomic limits given the index to shift."""
+    def _get_shift(self, parsed_index: [str, int, int, str], **kwargs) -> int:
+        """Returns a stochastic shift value, accounting for genomic limits given the index to shift.
+
+        Parameters
+        ----------
+        parsed_index
+            The parsed index of the sequence (a (chrom, start, end, strand) tuple).
+        kwargs
+            Catcher for unused arguments from `get_indexed_item()`, specifically `original_index` and `expanded_index`.
+        """
         # Parse region
-        chrom, start, end, strand = parse_region(expanded_index)
+        chrom, start, end, strand = parsed_index
 
         chrom_size = self.sequence_loader.chromsizes[chrom] if self.sequence_loader.chromsizes is not None else inf
 
         # Get default stochastic shift
-        shift = super()._get_shift()
+        shift = super()._get_shift(**kwargs)
 
         # Account for negative strand also flipping shift direction
         real_shift = -shift if strand == "-" else shift
 
         # Check if within genomic boundaries, reroll otherwise
         while (start + real_shift) <= 0 or (end + real_shift) >= chrom_size:
-            shift = super()._get_shift()
+            shift = super()._get_shift(**kwargs)
             real_shift = -shift if strand == "-" else shift
 
         # Undo negative strand flipping
         shift = -real_shift if strand == "-" else real_shift
         return shift
+
+    def _parse_index(self, index):
+        """Parse an index into an easier-to-use format.
+
+        For BaseGenomicDataWrapper, we parse to (chrom, start, end, strand) tuples with `parse_region`.
+        This is useful since we have to parse to check the genomic boundaries during _get_shift anyway,
+        and it can be useful for inheriting classes in _get_sequence/_get_target/etc.
+        """
+        # Run any parse_region of base class (which likely doesn't exist)
+        index = super()._parse_index(index)
+        return parse_region(index)
 
 
 def recursive_tensor_spec(output):
