@@ -1,10 +1,10 @@
 import numpy as np
 from anndata import AnnData
-from scipy.sparse import spmatrix
 
 from crested._genome import Genome
 from crested.tl.data import TrackData
 
+from ._anndatawrapper import AnnDataWrapper
 from ._datawrapper import BaseGenomicDataWrapper
 
 
@@ -15,7 +15,7 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
         regions: list[str],
         splits: list[str],
         genome: Genome | None = None,
-        batch_size: int = 256,
+        batch_size: int = 32,
         random_reverse_complement: bool = False,
         always_reverse_complement: bool = True,
         max_stochastic_shift: int = 0,
@@ -29,7 +29,7 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
     ):
         """""" # TODO: ADD DOCS
         # Set some basic values (esp those required for _get_indices and _get_splits)
-        self.data = data
+        self.trackdata = data
         self.regions = regions
         self.splits = splits
 
@@ -54,7 +54,17 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
 
     def _get_splits(self):
         """"""
-        return self.splits
+        return self.split
+
+    def _get_shift(self, **kwargs) -> int:
+        """Return a stochastic shift value.
+
+        If the trackdata is pre-binned, rounds to the nearest fitting bin size.
+        """
+        shift = super()._get_shift(**kwargs)
+        if self.trackdata.prebinned:
+            shift = int(np.round(shift / self.trackdata.bin_size) * self.trackdata.bin_size)
+        return shift
 
     def _get_target(self, parsed_index: tuple[str, int, int, str], revcomp: bool, shift: int, **kwargs) -> np.ndarray:
         """Get target for a given index."""
@@ -63,17 +73,38 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
             track = np.flip(track, axis=1)
         return track
 
+    def _get_expanded_index(self, index):
+        """Get an expanded index from on the original index.
+
+        Apply inherited transformations from BaseGenomicDataWrapper.
+        If the trackdata object is prebinned, rounds the start and end to the nearest binsize.
+        """
+        # Apply transform of inheriting object (generally adding a strand)
+        expanded_index = super()._get_expanded_index(index)
+
+        # If pre-binned: align with bin edges
+        if self.trackdata.prebinned:
+            # Parse transformed into values
+            chrom, start, end, strand = self._parse_index(expanded_index)
+            # Shift values
+            start = int(np.round(start / self.trackdata.bin_size) * self.trackdata.bin_size)
+            end = int(np.round(end / self.trackdata.bin_size) * self.trackdata.bin_size)
+            # Transform back into string
+            expanded_index = self._unparse_index((chrom, start, end, strand))
+        return expanded_index
+
     def __repr__(self):
-        return f"TrackDataWrapper: (n_samples={len(self)}, batch_size={self.batch_size}, batched_length={self.batched_length()}, data shape: {self.data.shape}, input_shape={self.input_shape}, output_shape={self.output_shape})" #TODO: finish
+        return f"TrackDataWrapper: (n_samples={len(self)}, batch_size={self.batch_size}, batched_length={self.batched_length()}, data shape: {self.trackdata.shape}, input_shape={self.input_shape}, output_shape={self.output_shape})" #TODO: finish
 
-
-class GeckoDataWrapper(BaseGenomicDataWrapper):
+# Inherit AnnDataWrapper for anndata support w.r.t. indexing, sequence retrieval, etc. and add TrackDataWrapper things manually
+# I tried dual inheritance but it makes the AnnDataWrapper's super().__init__ call TrackDataWrapper's, which is not what we want
+class GeckoDataWrapper(AnnDataWrapper):
     def __init__(
         self,
         anndata: AnnData,
         trackdata: TrackData,
         genome: Genome | None = None,
-        batch_size: int = 256,
+        batch_size: int = 32,
         random_reverse_complement: bool = False,
         always_reverse_complement: bool = True,
         max_stochastic_shift: int = 0,
@@ -86,14 +117,12 @@ class GeckoDataWrapper(BaseGenomicDataWrapper):
         **kwargs
     ): # TODO: ADD ARGS
         """"""
-        # Set some basic values (esp those required for _get_indices and _get_splits)
-        self.data = anndata
+        # Set track-specific things not set by AnnDataWrapper's init
         self.trackdata = trackdata
-        self.split_column = split_column
-        self.compressed = isinstance(self.data.X, spmatrix)
 
-        # Initialize base genomicdatawrapper functionality (creating indices and interfacing with the genome)
+        # Initialize AnnDataWrapper functionality (handle anndata indexing and through to genomicdatawrapper functionality)
         super().__init__(
+            data=anndata,
             genome=genome,
             batch_size=batch_size,
             random_reverse_complement=random_reverse_complement,
@@ -104,6 +133,7 @@ class GeckoDataWrapper(BaseGenomicDataWrapper):
             train_splits=train_splits,
             val_splits=val_splits,
             test_splits=test_splits,
+            split_column=split_column,
             **kwargs
         )
 
@@ -132,8 +162,37 @@ class GeckoDataWrapper(BaseGenomicDataWrapper):
             if self.compressed
             else self.data.X[:, y_index].astype('float32')
         )
-
         return y1, y2
 
+    def _get_shift(self, **kwargs) -> int:
+        """Return a stochastic shift value.
+
+        If the trackdata is pre-binned, rounds to the nearest fitting bin size.
+        """
+        shift = super()._get_shift(**kwargs)
+        if self.trackdata.prebinned:
+            shift = int(np.fix(shift / self.trackdata.bin_size) * self.trackdata.bin_size)
+        return shift
+
+    def _get_expanded_index(self, index):
+        """Get an expanded index from on the original index.
+
+        Apply inherited transformations from BaseGenomicDataWrapper.
+        If the trackdata object is prebinned, rounds the start and end to the nearest binsize.
+        """
+        # Apply transform of inheriting object (generally adding a strand)
+        expanded_index = super()._get_expanded_index(index)
+
+        # If pre-binned: align with bin edges
+        if self.trackdata.prebinned:
+            # Parse transformed into values
+            chrom, start, end, strand = self._parse_index(expanded_index)
+            # Shift values
+            start = int(np.round(start / self.trackdata.bin_size) * self.trackdata.bin_size)
+            end = int(np.round(end / self.trackdata.bin_size) * self.trackdata.bin_size)
+            # Transform back into string
+            expanded_index = self._unparse_index((chrom, start, end, strand))
+        return expanded_index
+
     def __repr__(self):
-        return f"TrackAnnDataWrapper: (n_samples={len(self)}, batch_size={self.batch_size}, batched_length={self.batched_length()}, input_shape={self.input_shape}, output_shape={self.output_shape})" #TODO: finish
+        return f"GeckoDataWrapper: (n_samples={len(self)}, batch_size={self.batch_size}, batched_length={self.batched_length()}, input_shape={self.input_shape}, output_shape={self.output_shape})" #TODO: finish

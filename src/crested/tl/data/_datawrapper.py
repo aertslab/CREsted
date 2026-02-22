@@ -242,8 +242,9 @@ class BaseDataWrapper:
 
         If there are constraints to your stochastic shift, like genomic limits, this function can be overwritten.
         """
-        return np.random.randint(
-            -self.max_stochastic_shift, self.max_stochastic_shift + 1
+        rng = np.random.default_rng()
+        return rng.integers(
+            -self.max_stochastic_shift, self.max_stochastic_shift, endpoint=True
         )
 
     def _get_expanded_index(self, index):
@@ -266,6 +267,10 @@ class BaseDataWrapper:
         (which must be a string or integer or the like, to to allow using as dictionary keys even when transformed to numpy) only once.
         In those cases, this function can be inherited to split them, which results in parsed_index for the sequence/target/etc data.
         """
+        return index
+
+    def _unparse_index(self, index):
+        """Turn a parsed index back into an indexable state (str, int, etc) from the parsed state."""
         return index
 
     # ----- Index management -----
@@ -695,6 +700,11 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         # Run any parse_region of base class (which likely doesn't exist)
         index = super()._parse_index(index)
         return parse_region(index)
+
+    def _unparse_index(self, index):
+        """Turn a parsed index back into an indexable state (str, int, etc) from the parsed state."""
+        chrom, start, end, strand = index
+        return f"{chrom}:{start}-{end}:{strand}"
 
 
 def recursive_tensor_spec(output):
