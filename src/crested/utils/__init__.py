@@ -1,16 +1,19 @@
-"""Import all utility functions and classes."""
+"""General utility functions used across CREsted."""
 
 from ._logging import setup_logging
+from ._old import (
+    EnhancerOptimizer,
+    derive_intermediate_sequences,
+)
 from ._seq_utils import (
+    flip_region_strand,
     hot_encoding_to_sequence,
     one_hot_encode_sequence,
+    parse_region,
     reverse_complement,
 )
 from ._utils import (
-    EnhancerOptimizer,
     calculate_nucleotide_distribution,
-    derive_intermediate_sequences,
-    extract_bigwig_values_per_bp,
     fetch_sequences,
     read_bigwig_region,
 )
@@ -18,13 +21,12 @@ from ._utils import (
 # Lazy imports for functions that require keras
 __all__ = [
     "setup_logging",
+    "flip_region_strand",
     "hot_encoding_to_sequence",
     "one_hot_encode_sequence",
+    "parse_region",
     "reverse_complement",
-    "EnhancerOptimizer",
     "calculate_nucleotide_distribution",
-    "derive_intermediate_sequences",
-    "extract_bigwig_values_per_bp",
     "fetch_sequences",
     "read_bigwig_region",
     "permute_model",  # Lazy-loaded

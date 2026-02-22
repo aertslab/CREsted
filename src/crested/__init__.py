@@ -2,6 +2,8 @@
 
 from importlib.metadata import version
 
+from loguru import logger
+
 # Import utils eagerly (needed for logging setup)
 from . import utils
 
@@ -28,6 +30,7 @@ def __getattr__(name):
     if name in _LAZY_MODULES:
         import importlib
 
+        logger.info(f"Lazily importing module crested.{name}. This could take a second...")
         module = importlib.import_module(_LAZY_MODULES[name], __name__)
         globals()[name] = module
         return module

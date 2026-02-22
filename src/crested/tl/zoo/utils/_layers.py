@@ -7,18 +7,6 @@ import numpy as np
 
 from ._attention import AttentionPool1D, MultiheadAttention
 
-__all__ = [
-    "dense_block",
-    "conv_block",
-    "activate",
-    "pool",
-    "get_output",
-    "conv_block_bs",
-    "mha_block_enf",
-    "ffn_block_enf",
-    "dilated_residual",
-]
-
 
 def dense_block(
     inputs: keras.KerasTensor,
