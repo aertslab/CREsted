@@ -115,19 +115,17 @@ class BaseDataWrapper:
             self.stranded = False
 
         # Set up sequence index handling to match deterministic augmentation (always_reverse_complement) to original output values
-        # Pass all values through _expand_indices, for training also actually add the reverse complement version (if always_rev_comp=True)
+        # Pass all values through _expand_indices (since it makes sure all values are stranded), for training also actually add the reverse complement version (if always_rev_comp=True)
 
         # Get stranded indices for entire dataset (for prediction)
         self.split_expanded_indices = {}
         self.split_expanded_indices['predict'] = self._expand_indices(self.indices, expand_revcomp = False)
         # Get stranded indices per split, expanding with revcomp for training set
-        self.split_expanded_indices['train'] = self._expand_indices(self.split_indices['train'], expand_revcomp = self.always_reverse_complement)
+        self.split_expanded_indices['train'] =  self._expand_indices(self.split_indices['train'], expand_revcomp = self.always_reverse_complement)
         for split in ('val', 'test'):
-            self.split_expanded_indices[split] = self._expand_indices(self.split_indices[split], expand_revcomp = False)
+            self.split_expanded_indices[split] =  self._expand_indices(self.split_indices[split], expand_revcomp = False)
         # Get total set of expanded indices across all possibilities
         self.full_expanded_indices = list({aug_index for aug_index_list in self.split_expanded_indices.values() for aug_index in aug_index_list})
-        # Get forward mapping (non-expanded to expanded) from predict
-        self.expanded_indices_forward_map = dict(zip(self.indices, self.split_expanded_indices['predict'], strict=True))
 
     # ----- Primary methods to implement/overwrite in the inherited versions: -----
     def _get_indices(self):
@@ -144,7 +142,7 @@ class BaseDataWrapper:
         # Pseudocode: return self.data.metadata[self.split_column]
         raise NotImplementedError("Please define `self._get_splits()` to extract a split identifier per sample from your dataset, i.e. AnnData var['split'].")
 
-    def _get_sequence(self, original_index: str, expanded_index: tuple[str, int, int, str], revcomp: bool = False, shift: int = 0, **kwargs) -> str:
+    def _get_sequence(self, original_index: str, expanded_index: str, revcomp: bool = False, shift: int = 0, **kwargs) -> str:
         """Retrieve the sequence (as a string) of a certain index.
 
         Use the parameters you need and disregard the rest through **kwargs.
@@ -177,7 +175,7 @@ class BaseDataWrapper:
         """
         return one_hot_encode_sequence(seq, expand_dim=False)
 
-    def _get_target(self, original_index: str, expanded_index: tuple[str, int, int, str], revcomp: bool = False, shift: int = 0, **kwargs) -> np.ndarray:
+    def _get_target(self, original_index: str, expanded_index: str, revcomp: bool = False, shift: int = 0, **kwargs) -> np.ndarray:
         """Get target for a given index. Returned value should not have a batch dimension yet.
 
         If not using certain arguments in your implementation (like only using one of original_index/expanded_index), please keep **kwargs to absorb the un-used other arguments.
@@ -209,14 +207,6 @@ class BaseDataWrapper:
             -self.max_stochastic_shift, self.max_stochastic_shift + 1
         )
 
-    def _get_transformed_index(self, index):
-        """Get an expanded index from on the original index.
-
-        By default, assumes the index is a region string and splits it to create a (chr, start, end, string) tuple.
-        If using another way to get transformed indices, like looking up in .var columns, overwrite this.
-        If not using transformed indices, simply pass the original index back.
-        """
-        return parse_region(index)
 
     # ----- Index management -----
     def _split_indices(self, split: str) -> list[str]:
@@ -229,31 +219,33 @@ class BaseDataWrapper:
         return [index for index, index_split in zip(self.indices, self._get_splits(), strict=True) if index_split in self.split_values[split]]
 
     def _expand_indices(self, indices: list[str], expand_revcomp: bool) -> list[str]:
-        """Turn a list of simple indices into transformed indices (stranded tuples, by default), and handle expansion and backmapping.
-
-        Optionally expands total set of indices by adding the reverse complement version index.
+        """Add strand information to indices, if not already present. Optionally also expands total set of indices by adding the reverse complement version index.
 
         Parameters
         ----------
         indices
-            List of string-based indices to use, to be expanded with self._get_transformed_index().
+            List of string-based indices to use.
         expand_revcomp
             Whether to expand the dataset by including both strands of every input index.
         """
         if not hasattr(self, 'expanded_indices_map'):
             self.expanded_indices_map = {}
         expanded_indices = []
-        for index in indices:
-            expanded_index = self._get_transformed_index(index) # also adds strand if not included
-            expanded_indices.append(expanded_index)
-            self.expanded_indices_map[expanded_index] = index # Update shared backmapping with the original indices
+        for region in indices:
+            if not self.stranded:
+                stranded_region = f"{region}:+"
+            else:
+                stranded_region = region
+            expanded_indices.append(stranded_region)
+            self.expanded_indices_map[stranded_region] = region # Update shared backmapping with the original indices
             if expand_revcomp:
-                expanded_indices.append(flip_region_strand(expanded_index))
-                self.expanded_indices_map[flip_region_strand(expanded_index)] = index
+                expanded_indices.append(flip_region_strand(stranded_region))
+                self.expanded_indices_map[flip_region_strand(stranded_region)] = region
         return expanded_indices
 
+
     # ----- Item retrieval -----
-    def __getitem__(self, idx: int | tuple[str, int, int, str]) -> tuple[np.ndarray, np.ndarray]:
+    def __getitem__(self, idx: int | str) -> tuple[np.ndarray, np.ndarray]:
         """
         Return sequence and target for a given numeric or expanded str index. Not used too much: primary indexing function is get_indexed_item().
 
@@ -272,7 +264,7 @@ class BaseDataWrapper:
         else:
             return self.get_indexed_item(expanded_index=idx)
 
-    def get_indexed_item(self, expanded_index: tuple[str, int, int, str] | None = None, original_index: str | None = None, augment: bool = False) -> tuple[np.ndarray, np.ndarray]:
+    def get_indexed_item(self, expanded_index: str | None = None, original_index: str | None = None, augment: bool = False) -> tuple[np.ndarray, np.ndarray]:
         """Retrieve sequence and target for an expanded index.
 
         Parameters
@@ -295,8 +287,6 @@ class BaseDataWrapper:
             raise ValueError("Need to provide one of expanded_index or original_index to retrieve items.")
         elif original_index is None:
             original_index = self.expanded_indices_map[expanded_index]
-        elif expanded_index is None:
-            expanded_index = self.expanded_indices_forward_map[original_index]
 
         # Get stochastic shift amount
         if augment and self.max_stochastic_shift > 0:
@@ -580,7 +570,7 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
                 f"Your input shape appears to be flipped: {self.input_shape_cache}"
             )
 
-    def _get_sequence(self, expanded_index: tuple[str, int, int, str], revcomp: bool = False, shift: int = 0, **kwargs) -> np.ndarray:
+    def _get_sequence(self, expanded_index: str, revcomp: bool = False, shift: int = 0, **kwargs) -> np.ndarray:
         """Get a sequence (as a string) given a certain index.
 
         Parameters
@@ -603,7 +593,7 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
             x = self.sequence_loader._reverse_complement(x)
         return x
 
-    def _get_shift(self, expanded_index: tuple[str, int, int, str], **kwargs) -> int:
+    def _get_shift(self, expanded_index: str, **kwargs) -> int:
         """Returns a stochastic shift value, accounting for genomic limits given the index to shift."""
         # Parse region
         chrom, start, end, strand = parse_region(expanded_index)
