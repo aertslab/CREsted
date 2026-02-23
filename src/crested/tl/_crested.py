@@ -551,15 +551,19 @@ class Crested:
         """
         self._check_test_params()
 
-        self.data.setup("test")
-        test_loader = self.data.test_dataloader
+        if isinstance(self.data, BaseDataWrapper):
+            test_loader = self.data.create_dataloader(split='test')
+        else:
+            if self.data.test_dataset is None:
+                self.data.setup("test")
+            test_loader = self.data.test_dataloader.data
 
         n_test_steps = (
             len(test_loader) if keras.config.backend() == "tensorflow" else None
         )
         try:
             evaluation_metrics = self.model.evaluate(
-                test_loader.data, steps=n_test_steps, return_dict=True
+                test_loader, steps=n_test_steps, return_dict=True
             )
         except AttributeError as e:
             logger.error(
