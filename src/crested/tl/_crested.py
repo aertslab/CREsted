@@ -103,7 +103,7 @@ class Crested:
         seed: int = None,
     ):
         """Initialize the Crested object."""
-        self.anndatamodule = data
+        self.data = data
         self.model = model
         self.config = config
         if project_name is None:
@@ -336,47 +336,26 @@ class Crested:
         print(self.model.summary())
 
         # setup data
-        if isinstance(self.anndatamodule, BaseDataWrapper):
-            train_loader = self.anndatamodule.create_dataloader(split='train', augment=True, shuffle=True)
-            val_loader = self.anndatamodule.create_dataloader(split='val')
-            n_train_steps_per_epoch = self.anndatamodule.batched_length('train')
-            n_val_steps_per_epoch = self.anndatamodule.batched_length('val')
-            n_train = self.anndatamodule.split_len('train')
-            n_val =  self.anndatamodule.split_len('val')
-            seq_len = self.anndatamodule.input_shape[-2]
-            train_values = self.anndatamodule.split_values['train']
-            val_values = self.anndatamodule.split_values['val']
-            test_values = self.anndatamodule.split_values['test']
+        if isinstance(self.data, BaseDataWrapper):
+            train_loader = self.data.create_dataloader(split='train', augment=True, shuffle=True)
+            val_loader = self.data.create_dataloader(split='val')
         else:
-            if (
-                self.anndatamodule.train_dataset is None
-                or self.anndatamodule.val_dataset is None
-            ):
-                self.anndatamodule.setup("fit")
-            train_loader = self.anndatamodule.train_dataloader.data
-            val_loader = self.anndatamodule.val_dataloader.data
-            n_train_steps_per_epoch = len(self.anndatamodule.train_dataloader)
-            n_val_steps_per_epoch = len(self.anndatamodule.val_dataloader)
-            n_train = len(self.anndatamodule.train_dataset)
-            n_val = len(self.anndatamodule.val_dataset)
-            seq_len = self.anndatamodule.train_dataset.seq_len
-            train_values = 'train'
-            val_values = 'val'
-            test_values = 'test'
+            if self.data.train_dataset is None or self.data.val_dataset is None:
+                self.data.setup("fit")
+            train_loader = self.data.train_dataloader.data
+            val_loader = self.data.val_dataloader.data
+        n_train_steps_per_epoch = self.data.get_config()['n_train_steps_per_epoch']
+        n_val_steps_per_epoch = self.data.get_config()['n_val_steps_per_epoch']
 
         if run:
+            # Update with TaskConfig object (optimizer, loss, metrics)
             run.config.update(self.config.to_dict())
+            # Update with DataWrapper/DataModule config
+            run.config.update(self.data.get_config())
+            # Update with Crested object configs
             run.config.update(
                 {
                     "epochs": epochs,
-                    "n_train": n_train,
-                    "n_val": n_val,
-                    "batch_size": self.anndatamodule.batch_size,
-                    "n_train_steps_per_epoch": n_train_steps_per_epoch,
-                    "n_val_steps_per_epoch": n_val_steps_per_epoch,
-                    "seq_len": seq_len,
-                    "random_reverse_complement": self.anndatamodule.random_reverse_complement,
-                    "max_stochastic_shift": self.anndatamodule.max_stochastic_shift,
                     "mixed_precision": mixed_precision,
                     "model_checkpointing": model_checkpointing,
                     "model_checkpointing_best_only": model_checkpointing_best_only,
@@ -384,9 +363,6 @@ class Crested:
                     "early_stopping_patience": early_stopping_patience,
                     "learning_rate_reduce": learning_rate_reduce,
                     "learning_rate_reduce_patience": learning_rate_reduce_patience,
-                    "train_values": train_values,
-                    "val_values": val_values,
-                    "test_values": test_values
                 }
             )
 
@@ -513,7 +489,7 @@ class Crested:
         else:
             activation = old_activation
 
-        new_output_units = self.anndatamodule.adata.X.shape[0]
+        new_output_units = self.data.adata.X.shape[0]
 
         new_output_layer = keras.layers.Dense(
             new_output_units, name="dense_out_transfer", trainable=True
@@ -575,8 +551,8 @@ class Crested:
         """
         self._check_test_params()
 
-        self.anndatamodule.setup("test")
-        test_loader = self.anndatamodule.test_dataloader
+        self.data.setup("test")
+        test_loader = self.data.test_dataloader
 
         n_test_steps = (
             len(test_loader) if keras.config.backend() == "tensorflow" else None
@@ -636,9 +612,9 @@ class Crested:
         embedding_model = keras.models.Model(
             inputs=self.model.input, outputs=self.model.get_layer(layer_name).output
         )
-        if self.anndatamodule.predict_dataset is None:
-            self.anndatamodule.setup("predict")
-        predict_loader = self.anndatamodule.predict_dataloader
+        if self.data.predict_dataset is None:
+            self.data.setup("predict")
+        predict_loader = self.data.predict_dataloader
         n_predict_steps = (
             len(predict_loader) if keras.config.backend() == "tensorflow" else None
         )
@@ -682,9 +658,9 @@ class Crested:
         )
         self._check_predict_params(anndata, model_name)
 
-        if self.anndatamodule.predict_dataset is None:
-            self.anndatamodule.setup("predict")
-        predict_loader = self.anndatamodule.predict_dataloader
+        if self.data.predict_dataset is None:
+            self.data.setup("predict")
+        predict_loader = self.data.predict_dataloader
 
         n_predict_steps = (
             len(predict_loader) if keras.config.backend() == "tensorflow" else None
@@ -726,15 +702,15 @@ class Crested:
             DeprecationWarning,
             stacklevel=2,
         )
-        if self.anndatamodule.predict_dataset is None:
-            self.anndatamodule.setup("predict")
+        if self.data.predict_dataset is None:
+            self.data.setup("predict")
         if isinstance(region_idx, str):
             region_idx = [region_idx]
 
         all_predictions = []
 
         for region in region_idx:
-            sequence = self.anndatamodule.predict_dataset.sequence_loader.get_sequence(
+            sequence = self.data.predict_dataset.sequence_loader.get_sequence(
                 region
             )
             x = one_hot_encode_sequence(sequence)
@@ -862,11 +838,11 @@ class Crested:
         scores = np.zeros(total_length)
 
         # Get class index
-        all_class_names = list(self.anndatamodule.adata.obs_names)
+        all_class_names = list(self.data.adata.obs_names)
         idx = all_class_names.index(class_name)
 
         if genome is None:
-            genome = self.anndatamodule.genome.fasta
+            genome = self.data.genome.fasta
 
         # Generate all windows and one-hot encode the sequences in parallel
         all_sequences = []
@@ -970,14 +946,14 @@ class Crested:
             class_names = [class_names]
         self._check_contribution_scores_params(class_names)
 
-        if self.anndatamodule.predict_dataset is None:
-            self.anndatamodule.setup("predict")
-        predict_loader = self.anndatamodule.predict_dataloader
+        if self.data.predict_dataset is None:
+            self.data.setup("predict")
+        predict_loader = self.data.predict_dataloader
 
         all_scores = []
         all_one_hot_sequences = []
 
-        all_class_names = list(self.anndatamodule.adata.obs_names)
+        all_class_names = list(self.data.adata.obs_names)
 
         if len(class_names) > 0:
             n_classes = len(class_names)
@@ -1113,13 +1089,13 @@ class Crested:
         if isinstance(class_names, str):
             class_names = [class_names]
 
-        if self.anndatamodule.predict_dataset is None:
-            self.anndatamodule.setup("predict")
+        if self.data.predict_dataset is None:
+            self.data.setup("predict")
 
         sequences = []
         for region in region_idx:
             sequences.append(
-                self.anndatamodule.predict_dataset.sequence_loader.get_sequence(region)
+                self.data.predict_dataset.sequence_loader.get_sequence(region)
             )
         return self.calculate_contribution_scores_sequence(
             sequences=sequences,
@@ -1179,14 +1155,14 @@ class Crested:
             class_names = [class_names]
 
         self._check_contrib_params(method)
-        if self.anndatamodule.predict_dataset is None:
-            self.anndatamodule.setup("predict")
+        if self.data.predict_dataset is None:
+            self.data.setup("predict")
         self._check_contribution_scores_params(class_names)
 
         all_scores = []
         all_one_hot_sequences = []
 
-        all_class_names = list(self.anndatamodule.adata.obs_names)
+        all_class_names = list(self.data.adata.obs_names)
 
         if len(class_names) > 0:
             n_classes = len(class_names)
@@ -1574,7 +1550,7 @@ class Crested:
         if target_class is not None:
             self._check_contribution_scores_params([target_class])
 
-            all_class_names = list(self.anndatamodule.adata.obs_names)
+            all_class_names = list(self.data.adata.obs_names)
 
             target = all_class_names.index(target_class)
 
@@ -1790,7 +1766,7 @@ class Crested:
         if target_class is not None:
             self._check_contribution_scores_params([target_class])
 
-            all_class_names = list(self.anndatamodule.adata.obs_names)
+            all_class_names = list(self.data.adata.obs_names)
 
             target = all_class_names.index(target_class)
 
@@ -1971,9 +1947,9 @@ class Crested:
         return starting_sequences_array
 
     def _calculate_location_gc_frequencies(self) -> np.ndarray:
-        regions = self.anndatamodule.adata.var
+        regions = self.data.adata.var
         sequence_loader = SequenceLoader(
-            genome=self.anndatamodule.genome,
+            genome=self.data.genome,
             in_memory=True,
             max_stochastic_shift=0,
             regions=list(regions.index),
@@ -2090,7 +2066,7 @@ class Crested:
                 "Model not set. Please load a model from pretrained using Crested.load_model(...) before calling calculate_contribution_scores_(regions)."
             )
 
-        all_class_names = list(self.anndatamodule.adata.obs_names)
+        all_class_names = list(self.data.adata.obs_names)
         for class_name in class_names:
             if class_name not in all_class_names:
                 raise ValueError(
@@ -2126,4 +2102,4 @@ class Crested:
 
     def __repr__(self):
         """Return the string representation of the object."""
-        return f"Crested(data={self.anndatamodule is not None}, model={self.model is not None}, config={self.config is not None})"
+        return f"Crested(data={self.data is not None}, model={self.model is not None}, config={self.config is not None})"

@@ -203,6 +203,23 @@ class AnnDataModule:
             drop_remainder=False,
         )
 
+    def get_config(self):
+        return {
+            'n_train_steps_per_epoch': len(self.train_dataloader),
+            'n_val_steps_per_epoch': len(self.val_dataloader),
+            'n_train': len(self.train_dataset),
+            'n_val': len(self.val_dataset),
+            'seq_len': self.train_dataset.seq_len,
+            "random_reverse_complement": self.random_reverse_complement,
+            "always_reverse_complement": self.always_reverse_complement,
+            "max_stochastic_shift": self.max_stochastic_shift,
+            "deterministic_shift": self.deterministic_shift,
+            "shuffle": self.shuffle,
+            "in_memory": self.in_memory,
+            "batch_size": self.batch_size,
+            "drop_remainder": False
+        }
+
     def __repr__(self):
         """Return a string representation of the AnndataModule."""
         return (

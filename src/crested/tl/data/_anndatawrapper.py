@@ -113,3 +113,11 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
             if self.compressed
             else self.data.X[:, y_index].astype('float32')
         )
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "split_column": self.split_column,
+            "compressed": self.compressed
+        })
+        return config

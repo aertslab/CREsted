@@ -24,7 +24,6 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
         train_splits: str | list | None = None,
         val_splits: str | list = 'val',
         test_splits: str | list = 'test',
-        split_column = 'split',
         **kwargs
     ):
         """""" # TODO: ADD DOCS

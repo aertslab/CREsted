@@ -91,7 +91,7 @@ class BaseDataWrapper:
         if train_splits is None:
             train_splits = list(set(self._get_splits()) - (set(val_splits) | set(test_splits)))
             logger.info(f"Training split labels inferred to be {train_splits}.")
-        self.split_values = {'train': train_splits, 'val': val_splits, 'test': test_splits}
+        self.split_labels = {'train': train_splits, 'val': val_splits, 'test': test_splits}
 
         # Data augmentation parameters
         self.random_reverse_complement = random_reverse_complement
@@ -277,10 +277,11 @@ class BaseDataWrapper:
     def _split_indices(self, split: str) -> list[str]:
         """Split the list of indices according to the split they belong to."""
         # Check whether train/val/test values are in the split column
-        for split_value in self.split_values[split]:
-            if split_value not in self._get_splits():
-                raise ValueError(f"Could not find {split} split value {split_value} in your split data. Split data example: {self._get_splits()[:5]}")
-        return [index for index, index_split in zip(self.indices, self._get_splits(), strict=True) if index_split in self.split_values[split]]
+        for split_label in self.split_labels[split]:
+            if split_label not in self._get_splits():
+                raise ValueError(f"Could not find {split} split value {split_label} in your split data. Split data example: {self._get_splits()[:5]}")
+        # Get list of indices that have a split label in the split_labels for that split (i.e. 'fold0' for split 'train')
+        return [index for index, index_split in zip(self.indices, self._get_splits(), strict=True) if index_split in self.split_labels[split]]
 
     def _expand_indices(self, indices: list[str], expand_revcomp: bool) -> list[str]:
         """Add strand information to indices, if not already present. Optionally also expands total set of indices by adding the reverse complement version index.
@@ -457,6 +458,27 @@ class BaseDataWrapper:
         return self.create_dataloader('predict', augment=False, shuffle=False)
 
     # ----- Dataset properties -----
+    def get_config(self):
+        return {
+            'batch_size': self.batch_size,
+            'drop_remainder': self.drop_remainder,
+            'n_train_steps_per_epoch': self.batched_length('train'),
+            'n_val_steps_per_epoch': self.batched_length('val'),
+            'n_test_steps_per_epoch': self.batched_length('test'),
+            'n_train': self.split_len('train'),
+            'n_val': self.split_len('val'),
+            'n_test': self.split_len('test'),
+            'seq_len': self.input_shape[-2],
+            'input_shape': self.input_shape,
+            'output_shape': self.output_shape,
+            "random_reverse_complement": self.random_reverse_complement,
+            "always_reverse_complement": self.always_reverse_complement,
+            "max_stochastic_shift": self.max_stochastic_shift,
+            "train_splits": self.split_labels['train'],
+            "val_splits": self.split_labels['val'],
+            "test_splits": self.split_labels['test'],
+        }
+
     def batched_length(self, split = None) -> int:
         """Return the number of batches in the DataLoader based on the dataset size and batch size."""
         if split is None:
@@ -704,6 +726,13 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         """Turn a parsed index back into an indexable state (str, int, etc) from the parsed state."""
         chrom, start, end, strand = index
         return f"{chrom}:{start}-{end}:{strand}"
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "in_memory": self.sequence_loader.in_memory,
+        })
+        return config
 
 
 def recursive_tensor_spec(output):
