@@ -75,6 +75,9 @@ class TrackData:
         if self.prebinned and self.bin_size == 1:
             raise ValueError("'prebinned' cannot be True if not binning (bin_size is 1/None).")
 
+        if self.prebinned and not self.in_memory:
+            raise ValueError("'prebinned' is currently not compatible with out-of-memory loading ('in_memory=False')")
+
         # If paths is a single directory, gather files
         if isinstance(paths, str) or isinstance(paths, PathLike):
             paths = [file for file in os.listdir(paths) if os.path.isfile(os.path.join(paths, file))]

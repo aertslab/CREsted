@@ -87,8 +87,9 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
             # Parse transformed into values
             chrom, start, end, strand = self._parse_index(expanded_index)
             # Shift values
+            seq_len = end-start
             start = int(np.round(start / self.trackdata.bin_size) * self.trackdata.bin_size)
-            end = int(np.round(end / self.trackdata.bin_size) * self.trackdata.bin_size)
+            end = start+seq_len
             # Transform back into string
             expanded_index = self._unparse_index((chrom, start, end, strand))
         return expanded_index
@@ -188,8 +189,9 @@ class GeckoDataWrapper(AnnDataWrapper):
             # Parse transformed into values
             chrom, start, end, strand = self._parse_index(expanded_index)
             # Shift values
+            seq_len = end-start
             start = int(np.round(start / self.trackdata.bin_size) * self.trackdata.bin_size)
-            end = int(np.round(end / self.trackdata.bin_size) * self.trackdata.bin_size)
+            end = start+seq_len
             # Transform back into string
             expanded_index = self._unparse_index((chrom, start, end, strand))
         return expanded_index
