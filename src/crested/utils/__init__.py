@@ -44,7 +44,7 @@ def __getattr__(name):
     """Lazy import certain functions only when accessed."""
     if name in _LAZY_FUNCTIONS:
         import importlib
-        module = importlib.import_module(+_LAZY_FUNCTIONS[name], __name__)
+        module = importlib.import_module(_LAZY_FUNCTIONS[name], __name__)
         func = getattr(module, name)
         globals()[name] = func
         return func
