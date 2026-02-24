@@ -25,7 +25,7 @@ Details of the data and the model can be found in the original publication.
 
 .. warning::
 
-    The Borzoi architecture uses custom layers that are serialized inside the CREsted package. To ensure that the model is loaded correctly, make sure that CREsted is imported before loading the model.
+    The Borzoi architecture uses custom layers that are serialized inside the CREsted package. To ensure that the model is loaded correctly, make sure that CREsted and specifically `crested.tl`  is imported before loading the model.
     If it still refuses to load, add `MultiheadAttention` as a custom object, as in the example.
 
 .. admonition:: Citation
@@ -43,6 +43,7 @@ Usage
     :linenos:
 
     import crested
+    import crested.tl
     import keras
     from crested.tl.zoo.utils._attention import MultiheadAttention
 
