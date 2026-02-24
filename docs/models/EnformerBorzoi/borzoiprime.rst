@@ -14,9 +14,11 @@ The **Borzoi Prime** model is a large model trained on pseudobulked scRNA tracks
 It predicts 12288 bins of 16bp, corresponding to the core 196608 bp of the input sequence.
 
 It was originally provided based on the Baskerville package, and its weights and architecture have been ported to CREsted.
-The model was trained on sequences tiled across the genome, which can be found in the `original Borzoi repository <https://github.com/calico/borzoi/tree/main/data>`_, with fold 4 as validation set, test 3 as test set, and the rest as training set. All replicates are trained on the same data folds.
+The model was trained on sequences tiled across the genome, which can be found in the `original Borzoi repository <https://github.com/calico/borzoi/tree/main/data>`_, 
+with fold 4 as validation set, test 3 as test set, and the rest as training set. All replicates are trained on the same data folds. `'borzoi_human'` and `'borzoi_mouse'` are aliases for `'rep0'`.
 Note that the original human training used a modified hg38 genome, where the allele with maximum frequency in gnomAD was substituted at each position.
 The original model has a shared trunk and two organism-specific heads, which are provided as two specific models for human and mouse here, resulting in models `borzoiprime_human_rep0`-`borzoiprime_human_rep3` and `borzoiprime_mouse_rep0`-`borzoiprime_mouse_rep3`.
+
 
 The model is a CNN+Transformer+Upsampling model using the :func:`~crested.tl.zoo.borzoi_prime` architecture.
 
@@ -44,7 +46,6 @@ Usage
     :linenos:
 
     import crested
-    import crested.tl
     import keras
     from crested.tl.zoo.utils._attention import MultiheadAttention
 

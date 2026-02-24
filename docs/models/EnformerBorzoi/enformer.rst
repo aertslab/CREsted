@@ -43,7 +43,6 @@ Usage
     :linenos:
 
     import crested
-    import crested.tl
     import keras
     from crested.tl.zoo.utils._attention import AttentionPool1D, MultiheadAttention
 
