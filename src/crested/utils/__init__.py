@@ -30,14 +30,23 @@ __all__ = [
     "fetch_sequences",
     "read_bigwig_region",
     "permute_model",  # Lazy-loaded
+    "load_model",  # Lazy-loaded
 ]
 
 
-def __getattr__(name):
-    """Lazy import for keras-dependent utilities."""
-    if name == "permute_model":
-        from ._model_utils import permute_model
+# Lazy import keras-dependent functions
+_LAZY_FUNCTIONS = {
+    "permute_model": '._model_utils',
+    "load_model": '._model_utils',
+}
 
-        globals()["permute_model"] = permute_model
-        return permute_model
+def __getattr__(name):
+    """Lazy import certain functions only when accessed."""
+    if name in _LAZY_FUNCTIONS:
+        import importlib
+        module = importlib.import_module(+_LAZY_FUNCTIONS[name], __name__)
+        func = getattr(module, name)
+        globals()[name] = func
+        return func
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+

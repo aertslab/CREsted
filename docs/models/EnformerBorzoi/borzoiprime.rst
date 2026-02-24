@@ -52,10 +52,11 @@ Usage
     model_path, output_names = crested.get_model("borzoiprime_human_rep0")
 
     # load model
-    model = keras.models.load_model(model_path, compile=False)
+    model = crested.utils.load_model(model_path)
 
     # load the model with custom_objects as fallback
-    # model = keras.models.load_model(
+    # from crested.tl.zoo.utils._attention import MultiheadAttention
+    # model = crested.utils.load_model(
     #     model_path, 
     #     custom_objects={
     #         'MultiheadAttention': MultiheadAttention
