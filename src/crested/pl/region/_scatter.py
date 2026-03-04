@@ -121,8 +121,6 @@ def scatter(
             kwargs['title'] = model_names
     if 'suptitle' not in kwargs and n_models > 1:
         kwargs['suptitle'] = region
-    if 'layout' not in kwargs:
-        kwargs['layout'] = 'compressed'
     plot_kws = {} if plot_kws is None else plot_kws.copy()
     if 's' not in plot_kws:
         plot_kws['s'] = 10
@@ -144,7 +142,8 @@ def scatter(
         default_height=7,
         ncols=n_models,
         default_sharex=False,
-        default_sharey=True
+        default_sharey=True,
+        default_layout='compressed',
     )
     if n_models == 1:
         axs = [axs]

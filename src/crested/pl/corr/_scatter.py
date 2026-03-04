@@ -228,7 +228,8 @@ def scatter(
         default_height=8,
         ncols=n_models,
         default_sharex=False,
-        default_sharey=True
+        default_sharey=True,
+        default_layout='compressed',
     )
     if n_models == 1:
         axs = [axs]
