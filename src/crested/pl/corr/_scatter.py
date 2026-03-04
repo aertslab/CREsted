@@ -134,6 +134,8 @@ def scatter(
             for model_name in model_names:
                 if model_name not in adata.layers:
                     raise ValueError(f"Model {model_name} not found in adata.layers.")
+        if len(adata.layers) == 0:
+            raise ValueError("Your adata does not contain prediction values. Please add predictions to adata.layers.")
         if split is not None and "split" not in adata.var:
             raise ValueError(
                 "No split column found in anndata.var. Run `pp.train_val_test_split` first if 'split' is not None."
