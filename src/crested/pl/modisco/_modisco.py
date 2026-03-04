@@ -857,7 +857,7 @@ def selected_instances(
         default_sharex=False,
         default_sharey=False,
     )
-    if len(idcs) == 1:
+    if isinstance(axs, plt.Axes):
         axs = [axs]
     if 'title' not in kwargs:
         kwargs['title'] = [pattern_dict[str(idx)]["pattern"]["id"] for idx in idcs]

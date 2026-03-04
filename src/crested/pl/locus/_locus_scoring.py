@@ -207,7 +207,7 @@ def locus_scoring(
         default_sharex=False,
         default_sharey=False
     )
-    if nrows == 1:
+    if isinstance(axs, plt.Axes):
         axs = [axs]
 
     # Top plot: Model predictions

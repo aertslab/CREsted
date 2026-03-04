@@ -231,7 +231,7 @@ def scatter(
         default_sharey=True,
         default_layout='compressed',
     )
-    if n_models == 1:
+    if isinstance(axs, plt.Axes):
         axs = [axs]
 
     # Plot values

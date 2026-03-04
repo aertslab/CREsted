@@ -193,7 +193,7 @@ def contribution_scores(
         default_h_pad=0.2,
     )
 
-    if total_plots == 1:
+    if isinstance(axs, plt.Axes):
         axs = [axs]
 
     plot_idx = 0
