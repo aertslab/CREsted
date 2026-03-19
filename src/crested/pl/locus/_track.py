@@ -175,7 +175,7 @@ def track(
         default_sharex=False,
         default_sharey=True
     )
-    if n_classes == 1:
+    if isinstance(axs, plt.Axes):
         axs = [axs]
 
     # Plot figure

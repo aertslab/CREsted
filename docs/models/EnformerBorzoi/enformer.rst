@@ -25,7 +25,7 @@ Details of the data and the model can be found in the original publication.
 
 .. warning::
 
-    The Enformer architecture uses custom layers that are serialized inside the CREsted package. To ensure that the model is loaded correctly, make sure that CREsted is imported before loading the model.
+    The Enformer architecture uses custom layers that are serialized inside the CREsted package. To ensure that the model is loaded correctly, make sure that CREsted and specifically `crested.tl`  is imported before loading the model.
     If it still refuses to load, add `AttentionPool1D` and `MultiheadAttention` as custom objects, as in the example.
 
 .. admonition:: Citation
@@ -44,17 +44,19 @@ Usage
 
     import crested
     import keras
+    from crested.tl.zoo.utils._attention import AttentionPool1D, MultiheadAttention
 
     # download model
     model_path, output_names = crested.get_model("enformer_human")
 
     # load model
-    model = keras.models.load_model(model_path, compile=False)
+    model = crested.utils.load_model(model_path)
 
     # load the model with custom_objects as fallback
-    # model = keras.models.load_model(
+    # model = crested.utils.load_model(
     #     model_path, 
     #     custom_objects={
+    #         'AttentionPool1D': AttentionPool1D,
     #         'MultiheadAttention': MultiheadAttention
     #     }
     # )

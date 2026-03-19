@@ -138,7 +138,7 @@ def histogram(
         default_sharex=True,
         default_sharey=True
     )
-    if n_classes == 1:
+    if isinstance(axs, plt.Axes):
         axs = [axs]
     else:
         axs = axs.ravel()

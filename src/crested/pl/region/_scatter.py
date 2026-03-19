@@ -90,6 +90,10 @@ def scatter(
         for model_name in model_names:
             if model_name not in adata.layers:
                 raise ValueError(f"Model name {model_name} not found in adata.layers.")
+        if len(adata.layers) == 0:
+            raise ValueError("Your adata does not contain prediction values. Please add predictions to adata.layers.")
+        if len(model_names) == 0:
+            raise ValueError("No model names found. Either your're providing an empty list or the adata does not contain model names.")
         if region not in list(adata.var_names):
             raise ValueError(f"{region} not found in adata.var_names.")
         if n_models > 1 and ax is not None:
@@ -121,8 +125,6 @@ def scatter(
             kwargs['title'] = model_names
     if 'suptitle' not in kwargs and n_models > 1:
         kwargs['suptitle'] = region
-    if 'layout' not in kwargs:
-        kwargs['layout'] = 'compressed'
     plot_kws = {} if plot_kws is None else plot_kws.copy()
     if 's' not in plot_kws:
         plot_kws['s'] = 10
@@ -144,9 +146,10 @@ def scatter(
         default_height=7,
         ncols=n_models,
         default_sharex=False,
-        default_sharey=True
+        default_sharey=True,
+        default_layout='compressed',
     )
-    if n_models == 1:
+    if isinstance(axs, plt.Axes):
         axs = [axs]
 
     # Gather data

@@ -18,7 +18,7 @@ def test_get_model_invalid_model():
 
 def test_all_data_http_responses():
     """
-    Test whether all available data in the registry return a valid HTTP response.
+    Test whether all available data (datasets and models) in the registry return a valid HTTP response.
     """
     dataset_index = _get_dataset_index()
     registry = {key: dataset_index.get_url(key) for key in dataset_index.registry}

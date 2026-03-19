@@ -310,7 +310,7 @@ def heatmap(
     # Create plots
     default_width = 10*n_models if cbar else 8*n_models
     fig, axs = create_plot(ax=ax, kwargs_dict=kwargs, default_width=default_width, default_height=8, ncols=n_models)
-    if n_models == 1:
+    if isinstance(axs, plt.Axes):
         axs = [axs]
 
     # Calculate correlation coefficients with predictions and plot

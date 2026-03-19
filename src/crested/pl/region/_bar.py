@@ -187,7 +187,7 @@ def bar(
         default_sharey=True,
         nrows=n_model_names
     )
-    if n_model_names == 1:
+    if isinstance(axs, plt.Axes):
         axs = [axs]
     for i, ax in enumerate(axs):
         ax.bar(

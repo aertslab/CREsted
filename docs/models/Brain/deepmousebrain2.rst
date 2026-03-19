@@ -42,7 +42,7 @@ Usage
     model_path, output_names = crested.get_model("DeepMouseBrain2")
 
     # load model
-    model = keras.models./load_model(model_path, compile=False)
+    model = crested.utils.load_model(model_path)
 
     # make predictions
     sequence = "A" * 500
