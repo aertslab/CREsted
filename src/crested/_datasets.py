@@ -169,8 +169,6 @@ def get_motif_db():
     """
     Fetch the motif database. This function retrieves the Aerts lab motif database for use in motif analysis, downloading if not already cached, and returns the paths to the dataset.
 
-    These two paths can be passed to :func:`crested.import_bigwigs()` / :func:`crested.import_beds()`.
-
     Note
     ----
     The cache location can be changed by setting environment variable $CRESTED_DATA_DIR.
@@ -196,8 +194,8 @@ def get_model(model: str) -> tuple[str, list[str]]:
     """
     Fetch a model.
 
-    This function retrieves the model files, downloading if not already cached, and returns the paths to the model and a list of output classnames.
-    The model folder contains the model.keras file and the output classnames file (.tsv).
+    This function retrieves the model files, downloading if not already cached, and returns the paths to the model and a list of output class names.
+    The model folder contains the model.keras file and the output class names file (.tsv).
 
     Note
     ----
@@ -231,13 +229,13 @@ def get_model(model: str) -> tuple[str, list[str]]:
           - 'Enformer_human'
           - 'Enformer_mouse'
           - 'BorzoiBICCN'
-          - 'Borzoi_human_rep[0-3]'
-          - 'Borzoi_mouse_rep[0-3]'
+          - 'Borzoi_human_rep[0-3]' (and alias 'Borzoi_human' for rep0)
+          - 'Borzoi_mouse_rep[0-3]' (and alias 'Borzoi_mouse' for rep0)
           - 'Embryo10x"
           - 'EmbryoHydrop'
           - 'MouseCortexHydrop'
-          - 'BorzoiPrime_human_rep[0-3]'
-          - 'BorzoiPrime_mouse_rep[0-3]'
+          - 'BorzoiPrime_human_rep[0-3]' (and alias 'BorzoiPrime_human' for rep0)
+          - 'BorzoiPrime_mouse_rep[0-3]' (and alias 'BorzoiPrime_mouse' for rep0)
 
     Returns
     -------
@@ -274,10 +272,12 @@ def get_model(model: str) -> tuple[str, list[str]]:
         "enformer_human": ("models/enformer_human.tar.gz"),
         "enformer_mouse": ("models/enformer_mouse.tar.gz"),
         "borzoibiccn": ("models/borzoi_biccn.tar.gz"),
+        "borzoi_human": ("models/borzoi_human_rep0.tar.gz"),
         "borzoi_human_rep0": ("models/borzoi_human_rep0.tar.gz"),
         "borzoi_human_rep1": ("models/borzoi_human_rep1.tar.gz"),
         "borzoi_human_rep2": ("models/borzoi_human_rep2.tar.gz"),
         "borzoi_human_rep3": ("models/borzoi_human_rep3.tar.gz"),
+        "borzoi_mouse": ("models/borzoi_mouse_rep0.tar.gz"),
         "borzoi_mouse_rep0": ("models/borzoi_mouse_rep0.tar.gz"),
         "borzoi_mouse_rep1": ("models/borzoi_mouse_rep1.tar.gz"),
         "borzoi_mouse_rep2": ("models/borzoi_mouse_rep2.tar.gz"),
@@ -285,10 +285,12 @@ def get_model(model: str) -> tuple[str, list[str]]:
         "embryo10x": ("models/embryo_10x.tar.gz"),
         "embryohydrop": ("models/embryo_hydrop.tar.gz"),
         "mousecortexhydrop": ("models/mousecortex_hydrop.tar.gz"),
+        "borzoiprime_human": ("models/borzoiprime_human_rep0.tar.gz"),
         "borzoiprime_human_rep0": ("models/borzoiprime_human_rep0.tar.gz"),
         "borzoiprime_human_rep1": ("models/borzoiprime_human_rep1.tar.gz"),
         "borzoiprime_human_rep2": ("models/borzoiprime_human_rep2.tar.gz"),
         "borzoiprime_human_rep3": ("models/borzoiprime_human_rep3.tar.gz"),
+        "borzoiprime_mouse": ("models/borzoiprime_mouse_rep0.tar.gz"),
         "borzoiprime_mouse_rep0": ("models/borzoiprime_mouse_rep0.tar.gz"),
         "borzoiprime_mouse_rep1": ("models/borzoiprime_mouse_rep1.tar.gz"),
         "borzoiprime_mouse_rep2": ("models/borzoiprime_mouse_rep2.tar.gz"),

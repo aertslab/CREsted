@@ -266,14 +266,18 @@ def flip_region_strand(region: str | tuple[str, int, int, str]) -> str | tuple[s
         return region[:-1] + tuple(strand_reverser[region[-1]])
 
 def parse_region(region: tuple[str, int, int] | tuple[str, int, int, str] | str) -> tuple[str, int, int, str]:
-    """Parse a region string or tuple, returning a consistent (chr, start, end, strand) tuple.
+    """Parse a region string or tuple, returning a consistent `(chr, start, end, strand)` tuple.
 
     If strand is not provided, infers + to keep output consistent.
 
     Parameters
     ----------
     region
-    A region tuple ((chrom, start, end) or (chrom, start, end, strand)), or a region strand ()
+        A region tuple (`(chrom, start, end)` or `(chrom, start, end, strand)`), or a region strand.
+
+    Returns
+    -------
+    The region, as a consistent (chrom, start, end, strand) tuple.
     """
     # Try most straightforward option
     try:

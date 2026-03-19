@@ -15,7 +15,8 @@ It predicts 6144 bins of 32bp, corresponding to the core 196608 bp of the input 
 
 It was originally provided based on the Baskerville package, and its weights and architecture have been ported to CREsted.
 The model was trained on sequences tiled across the genome, which can be found in the `original repository <https://github.com/calico/borzoi/tree/main/data>`_, with fold 4 as validation set, test 3 as test set, and the rest as training set. All replicates are trained on the same data folds.
-The original model has a shared trunk and two organism-specific heads, which are provided as two specific models for human and mouse here, resulting in models `borzoi_human_rep0`-`borzoi_human_rep3` and `borzoi_mouse_rep0`-`borzoi_mouse_rep3`.
+The original model has a shared trunk and two organism-specific heads, which are provided as two specific models for human and mouse here, 
+resulting in models `borzoi_human_rep0`-`borzoi_human_rep3` and `borzoi_mouse_rep0`-`borzoi_mouse_rep3`. `'borzoi_human'` and `'borzoi_mouse'` are aliases for `'rep0'`.
 
 The model is a CNN+Transformer+Upsampling model using the :func:`~crested.tl.zoo.borzoi` architecture.
 
@@ -25,7 +26,8 @@ Details of the data and the model can be found in the original publication.
 
 .. warning::
 
-    The Borzoi architecture uses custom layers that are serialized inside the CREsted package. To ensure that the model is loaded correctly, make sure that CREsted is imported before loading the model.
+    The Borzoi architecture uses custom layers that are serialized inside the CREsted package. To ensure that the model is loaded correctly, make sure that CREsted and specifically `crested.tl`  is imported before loading the model.
+    If it still refuses to load, add `MultiheadAttention` as a custom object, as in the example.
 
 .. admonition:: Citation
 
@@ -48,7 +50,16 @@ Usage
     model_path, output_names = crested.get_model("borzoi_human_rep0")
 
     # load model
-    model = keras.models.load_model(model_path)
+    model = crested.utils.load_model(model_path)
+
+    # load the model with custom_objects as fallback
+    # from crested.tl.zoo.utils._attention import MultiheadAttention
+    # model = crested.utils.load_model(
+    #     model_path, 
+    #     custom_objects={
+    #         'MultiheadAttention': MultiheadAttention
+    #     }
+    # )
 
     # make predictions
     sequence = "A" * 524288

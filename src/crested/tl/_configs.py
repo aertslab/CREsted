@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
 import keras
 
@@ -12,7 +12,6 @@ from crested.tl.metrics import (
     ConcordanceCorrelationCoefficient,
     PearsonCorrelation,
     PearsonCorrelationLog,
-    ZeroPenaltyMetric,
 )
 
 
@@ -77,7 +76,7 @@ class TopicClassificationConfig(BaseConfig):
         ]
 
 
-class PeakRegressionConfig(BaseConfig):
+class PeakRegressionMeanConfig(BaseConfig):
     """Default configuration for peak regression task."""
 
     def __init__(self, num_classes=None):
@@ -87,7 +86,7 @@ class PeakRegressionConfig(BaseConfig):
     @property
     def loss(self) -> keras.losses.Loss:
         """Get default loss."""
-        return CosineMSELogLoss()
+        return CosineMSELogLoss(max_weight=1, multiplier=1000)
 
     @property
     def optimizer(self) -> keras.optimizers.Optimizer:
@@ -104,7 +103,37 @@ class PeakRegressionConfig(BaseConfig):
             PearsonCorrelation(),
             ConcordanceCorrelationCoefficient(),
             PearsonCorrelationLog(),
-            ZeroPenaltyMetric(),
+        ]
+        return metrics
+
+
+class PeakRegressionCountConfig(BaseConfig):
+    """Default configuration for the peak regression task with count-summed data."""
+
+    def __init__(self, num_classes=None):
+        """Initialize the configuration."""
+        self.num_classes = num_classes
+
+    @property
+    def loss(self) -> keras.losses.Loss:
+        """Get default loss."""
+        return CosineMSELogLoss(max_weight=100, multiplier=1)
+
+    @property
+    def optimizer(self) -> keras.optimizers.Optimizer:
+        """Get default optimizer."""
+        return keras.optimizers.Adam(learning_rate=1e-3)
+
+    @property
+    def metrics(self) -> list[keras.metrics.Metric]:
+        """Get default metrics."""
+        metrics = [
+            keras.metrics.MeanAbsoluteError(),
+            keras.metrics.MeanSquaredError(),
+            keras.metrics.CosineSimilarity(axis=1),
+            PearsonCorrelation(),
+            ConcordanceCorrelationCoefficient(),
+            PearsonCorrelationLog(),
         ]
         return metrics
 
@@ -169,13 +198,17 @@ class TaskConfig(NamedTuple):
         }
 
 
-def default_configs(task: str, num_classes: int | None = None) -> TaskConfig:
+def default_configs(
+    task: Literal['topic_classification', 'peak_regression', 'peak_regression_count'],
+    num_classes: int | None = None
+    ) -> TaskConfig:
     """
     Get default loss, optimizer, and metrics for an existing task.
 
     Possible tasks are:
     - "topic_classification"
-    - "peak_regression"
+    - "peak_regression_mean" (w/ alias "peak_regression")
+    - "peak_regression_count"
 
     If what you want to do is not supported, you can create your own by using the TaskConfig class.
 
@@ -202,7 +235,9 @@ def default_configs(task: str, num_classes: int | None = None) -> TaskConfig:
     """
     task_classes = {
         "topic_classification": TopicClassificationConfig,
-        "peak_regression": PeakRegressionConfig,
+        "peak_regression": PeakRegressionMeanConfig,
+        "peak_regression_mean": PeakRegressionMeanConfig,
+        "peak_regression_count": PeakRegressionCountConfig,
     }
 
     if task not in task_classes:

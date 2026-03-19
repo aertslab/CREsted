@@ -163,7 +163,7 @@ Some utility functions were hidden inside the Crested class but required to be m
 -   Overall support for stranded datasets while preserving support for non stranded datasets.
 -   DVC logging now available with tf backend
 -   New option to choose the starting sequences for motif implementation and ISE in enhancer design.
--   {func}`crested.tl.Crested.score_gene_locus` now accepts an optional genome as input.
+-   `crested.tl.Crested.score_gene_locus` now accepts an optional genome as input.
 -   output_activation now parameter for all models in zoo.
 -   {func}`crested.utils.reverse_complement` and {func}`crested.utils.fetch_sequences` now available.
 -   Spearman correlation metric implementation
@@ -178,7 +178,7 @@ Some utility functions were hidden inside the Crested class but required to be m
 
 ### Bug Fixes
 
--   {func}`crested.tl.Crested.get_embeddings` now correcly updates .varm if anndata is passed instead of .obsm.
+-   `crested.tl.Crested.get_embeddings` now correctly updates .varm if anndata is passed instead of .obsm.
 -   Tangermeme moved out of optional dependencies for tf vs torch breaking mismatches.
 -   Fixed calculation of contribution scores with torch backend when using incompatible numpy version.
 -   Fix incorrect None return in `Crested.test()`

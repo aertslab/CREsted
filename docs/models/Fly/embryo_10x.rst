@@ -43,7 +43,7 @@ Usage
     model_path, output_names = crested.get_model("Embryo10x")
 
     # load model
-    model = keras.models.load_model(model_path)
+    model = crested.utils.load_model(model_path)
 
     # make predictions
     sequence = "A" * 500
