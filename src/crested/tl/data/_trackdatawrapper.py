@@ -53,7 +53,7 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
 
     def _get_splits(self):
         """"""
-        return self.split
+        return self.splits
 
     def _get_shift(self, **kwargs) -> int:
         """Return a stochastic shift value.
@@ -67,7 +67,7 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
 
     def _get_target(self, parsed_index: tuple[str, int, int, str], revcomp: bool, shift: int, **kwargs) -> np.ndarray:
         """Get target for a given index."""
-        track = self.data.get_track(parsed_index, shift=shift)
+        track = self.trackdata.get_track(parsed_index, shift=shift)
         if revcomp:
             track = np.flip(track, axis=1)
         return track

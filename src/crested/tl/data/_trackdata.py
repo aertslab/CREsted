@@ -162,13 +162,13 @@ class TrackData:
         start += real_shift
         end += real_shift
 
-        # Validate length if binning
         if self.bin_size > 1:
-            assert start % self.bin_size == 0, f"Post-shift start {start} must be divisible by bin_size {self.bin_size} if binning data"
-            assert end % self.bin_size == 0, f"Post-shift end {end} must be divisible by bin_size {self.bin_size} if binning data"
+            assert (end-start) % self.bin_size == 0, f"Sequence length {end-start} must be divisible by bin_size {self.bin_size} if binning data"
 
-        # If pre-binned, divide by bin size to get bin coordinates rather than bp coordinates
-        if self.prebinned:
+        # If pre-binned, validate values and divide by bin size to get bin coordinates rather than bp coordinates
+        if self.prebinned and self.bin_size > 1:
+            assert start % self.bin_size == 0, f"Post-shift start {start} must be divisible by bin_size {self.bin_size} if using pre-binned data"
+            assert end % self.bin_size == 0, f"Post-shift end {end} must be divisible by bin_size {self.bin_size} if using pre-binned data"
             start = start//self.bin_size
             end = end//self.bin_size
 
