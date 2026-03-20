@@ -1,5 +1,20 @@
 # Release Notes
 
+## 1.6.2
+
+### Features
+- Add a notice when lazy-loading modules (fixes [#165](https://github.com/aertslab/CREsted/issues/165))
+- Add an `inplace` argument to all `crested.pp` functions
+
+### Bugfixes
+- Explicitly convert values to float32 in `crested.pl.contribution_scores` (fixes [#138](https://github.com/aertslab/CREsted/issues/138))
+- Fix `crested.Genome.fetch()` not working with start value 0
+- Fix bug in `crested.pl.bar.normalization_weights()` with modern versions of the AnnData package adding an extra dimension to data.
+- Allow single-string entries for the chromosomes in `crested.pp.train_val_test_split`, not only lists.
+- Point to versioned documentation of some external packages rather than latest. Mostly relevant for pandas' new update to 3.0.0. (fixes [#181](https://github.com/aertslab/CREsted/issues/181))
+- Use `crested[motif]` during tests for python versions that support it.
+
+
 ## 1.6.1
 
 Version fixing for scanpy (>=1.10) and python (<3.14).
