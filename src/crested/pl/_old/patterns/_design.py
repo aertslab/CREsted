@@ -12,7 +12,7 @@ def enhancer_design_steps_contribution_scores(*args, **kwargs):
     :meta private:
     """
     logger.info(
-        "`crested.pl.patterns.enhancer_design_steps_contribution_scores` has been renamed to `crested.pl.design.step_contribution_scores` in version 2.0.0"
+        "`crested.pl.patterns.enhancer_design_steps_contribution_scores` has been renamed to `crested.pl.design.step_contribution_scores` in version 1.7.0"
         " and this alias will be removed in a future release. Please use its new name instead."
     )
     return crested.pl.design.step_contribution_scores(*args, **kwargs)
@@ -26,7 +26,7 @@ def enhancer_design_steps_predictions(*args, **kwargs):
     :meta private:
     """
     logger.info(
-        "`crested.pl.patterns.enhancer_design_steps_predictions` has been renamed to `crested.pl.design.step_predictions` in version 2.0.0"
+        "`crested.pl.patterns.enhancer_design_steps_predictions` has been renamed to `crested.pl.design.step_predictions` in version 1.7.0"
         " and this alias will be removed in a future release. Please use its new name instead."
     )
     return crested.pl.design.step_predictions(*args, **kwargs)

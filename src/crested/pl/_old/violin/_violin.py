@@ -12,7 +12,7 @@ def correlations(*args, **kwargs):
     :meta private:
     """
     logger.info(
-        "`crested.pl.violin.correlations` has been renamed to `crested.pl.corr.violin` in version 2.0.0"
+        "`crested.pl.violin.correlations` has been renamed to `crested.pl.corr.violin` in version 1.7.0"
         " and this alias will be removed in a future release. Please use its new name instead."
     )
     return crested.pl.corr.violin(*args, **kwargs)

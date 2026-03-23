@@ -1,6 +1,6 @@
 # Release notes
 
-## 2.0.0
+## 1.7.0
 
 This major update reworks and reorganises the `crested.pl` module, alongside other new features and fixes.
 

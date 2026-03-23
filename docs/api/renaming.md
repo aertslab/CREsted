@@ -1,6 +1,6 @@
-# v2.0.0 renaming and deprecation
+# v1.7.0 renaming and deprecation
 
-With CREsted v2.0.0, we've reorganised the plotting functions, to align by _what_ they plot rather than _how_ they plot. All functions are still there, often with expanded functionality, and new ones have been added.
+With CREsted v1.7.0, we've reorganised the plotting functions, to align by _what_ they plot rather than _how_ they plot. All functions are still there, often with expanded functionality, and new ones have been added.
 
 | Old name | New name |
 | ------------- | ------------- |

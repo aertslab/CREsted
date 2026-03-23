@@ -13,7 +13,7 @@ def correlations_predictions(*args, **kwargs):
     :meta private:
     """
     logger.info(
-        "`crested.pl.heatmap.correlations_predictions` has been renamed to `crested.pl.corr.heatmap` in version 2.0.0"
+        "`crested.pl.heatmap.correlations_predictions` has been renamed to `crested.pl.corr.heatmap` in version 1.7.0"
         " and this alias will be removed in a future release. Please use its new name instead."
     )
     return crested.pl.corr.heatmap(*args, **kwargs)
@@ -28,7 +28,7 @@ def correlations_self(*args, **kwargs):
     :meta private:
     """
     logger.info(
-        "`crested.pl.heatmap.correlations_self` has been renamed to `crested.pl.corr.heatmap_self` in version 2.0.0"
+        "`crested.pl.heatmap.correlations_self` has been renamed to `crested.pl.corr.heatmap_self` in version 1.7.0"
         " and this alias will be removed in a future release. Please use its new name instead."
     )
     return crested.pl.corr.heatmap_self(*args, **kwargs)

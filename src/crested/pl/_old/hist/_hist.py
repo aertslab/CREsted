@@ -12,7 +12,7 @@ def distribution(*args, **kwargs):
     :meta private:
     """
     logger.info(
-        "`crested.pl.hist.distribution` has been renamed to `crested.pl.dist.histogram` in version 2.0.0"
+        "`crested.pl.hist.distribution` has been renamed to `crested.pl.dist.histogram` in version 1.7.0"
         " and this alias will be removed in a future release. Please use its new name instead."
     )
     return crested.pl.dist.histogram(*args, **kwargs)

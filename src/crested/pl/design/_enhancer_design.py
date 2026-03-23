@@ -130,7 +130,7 @@ def step_contribution_scores(
     """
     if labels != 'deprecated':
         class_labels = labels
-        logger.warning("Argument `labels` is renamed since version 2.0.0; please use `class_labels` instead.")
+        logger.warning("Argument `labels` is renamed since version 1.7.0; please use `class_labels` instead.")
 
     _check_ylim_params(global_ylim, ylim)
 

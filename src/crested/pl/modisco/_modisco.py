@@ -308,7 +308,7 @@ def clustermap_tomtom_similarities(
     """
     if figsize != 'deprecated':
         width, height = figsize
-        logger.warning("Argument `figsize` is deprecated since version 2.0.0; please use width and height instead.")
+        logger.warning("Argument `figsize` is deprecated since version 1.7.0; please use width and height instead.")
     if group_info is None:
         group_info = []
 
@@ -508,7 +508,7 @@ def clustermap(
     """
     if figsize != 'deprecated':
         width, height = figsize
-        logger.warning("Argument `figsize` is deprecated since version 2.0.0; please use width and height instead.")
+        logger.warning("Argument `figsize` is deprecated since version 1.7.0; please use width and height instead.")
     plot_kws = {} if plot_kws is None else plot_kws.copy()
     if 'cbar_pos' not in plot_kws:
         plot_kws['cbar_pos'] = (1.05, 0.4, 0.01, 0.3)
@@ -682,7 +682,7 @@ def clustermap_with_pwm_logos(
     """
     if figsize != 'deprecated':
         width, height = figsize
-        logger.warning("Argument `figsize` is deprecated since version 2.0.0; please use width and height instead.")
+        logger.warning("Argument `figsize` is deprecated since version 1.7.0; please use width and height instead.")
     plot_kws = {} if plot_kws is None else plot_kws.copy()
     if 'cbar_pos' not in plot_kws:
         plot_kws['cbar_pos'] = (1.05, 0.4, 0.01, 0.3)
@@ -998,10 +998,10 @@ def similarity_heatmap(
     # Handle deprecated arguments
     if fig_size != 'deprecated':
         kwargs['width'], kwargs['height'] = fig_size
-        logger.warning("`fig_size` is deprecated since version 2.0.0; please use arguments `width` and `height` instead.")
+        logger.warning("`fig_size` is deprecated since version 1.7.0; please use arguments `width` and `height` instead.")
     if fig_path != 'deprecated':
         kwargs['save_path'] = fig_path
-        logger.warning("`fig_path` is deprecated since version 2.0.0; please use arguments `save_path` instead.") # handled in render_plot
+        logger.warning("`fig_path` is deprecated since version 1.7.0; please use arguments `save_path` instead.") # handled in render_plot
 
     # Set defaults
     if 'title' not in kwargs:
@@ -1177,7 +1177,7 @@ def clustermap_tf_motif(
     """
     if fig_size != 'deprecated':
         kwargs['width'], kwargs['height'] = fig_size
-        logger.warning("`fig_size` is deprecated since version 2.0.0; please use `width` and `height` instead.")
+        logger.warning("`fig_size` is deprecated since version 1.7.0; please use `width` and `height` instead.")
     assert data.shape[2] == 2, "The third dimension of the data must be 2."
 
     # Set default labels if not provided
