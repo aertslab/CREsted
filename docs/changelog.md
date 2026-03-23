@@ -14,7 +14,7 @@ This major update reworks and reorganises the `crested.pl` module, alongside oth
 - New plotting functions:
   - {func}`crested.pl.qc.filter_cutoff` lets you visualize the impact of your gini specificity filtering with {func}`crested.pp.filter_regions_on_specificity`. 
   - {func}`crested.pl.qc.sort_and_filter_cutoff` lets you visualize the gini distributions of your top k regions when doing per-class specificity filtering with {func}`crested.pp.sort_and_filter_regions_on_specificity`.
-  - {fnc}`crested.pl.region.scatter` lets you plot a single region's ground truth vs predictions as a scatterplot. 
+  - {func}`crested.pl.region.scatter` lets you plot a single region's ground truth vs predictions as a scatterplot. 
 - Almost all plotting functions are now tested. 
 - Enhancer design functions are now grouped in `tl.design`. Again, see [the dedicated page](api/renaming) for an overview.
 - All tutorials are updated with new plotting function names and new functionality. 
