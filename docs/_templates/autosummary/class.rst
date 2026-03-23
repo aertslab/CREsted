@@ -14,7 +14,7 @@ Attributes table
 .. autosummary::
 {% for item in attributes %}
     {% if item not in inherited_members %}~{{ fullname }}.{{ item }}{% endif %}
-{% endfor %}
+{%- endfor %}
 {% endif %}
 {% endblock %}
 
@@ -24,9 +24,11 @@ Methods table
 ~~~~~~~~~~~~~
 
 .. autosummary::
-{% for item in methods %}{% if item != '__init__' %}{% if item not in inherited_members %}
+{% for item in methods %}
+    {%- if item != '__init__' %}{%- if item not in inherited_members %}
     ~{{ fullname }}.{{ item }}
-{% endif %}{% endif %}{% endfor %}
+    {%- endif -%}{%- endif -%}
+{%- endfor %}
 {% endif %}
 {% endblock %}
 
@@ -51,12 +53,10 @@ Methods
 ~~~~~~~
 
 {% for item in methods %}
-{%- if item != '__init__' -%}
-{%- if item not in inherited_members %}
+{%- if item != '__init__' %}{%- if item not in inherited_members %}
 
 .. automethod:: {{ [objname, item] | join(".") }}
-{%- endif -%}
-{%- endif -%}
+{%- endif -%}{%- endif -%}
 {%- endfor %}
 
 {% endif %}
