@@ -150,6 +150,7 @@ nitpick_ignore = [
     ("py:class", "keras.src.losses.loss.Loss"),
     ("py:class", "keras.src.metrics.metric.Metric"),
     ("py:class", "keras.src.backend.common.keras_tensor.KerasTensor"),
+    ("py:class", "keras.src.layers.layer.Layer"),
     ("py:class", "seaborn.matrix.ClusterGrid"),
     ("py:class", "pysam.libcfaidx.FastaFile"),
     ("py:class", "pathlib._local.Path"),  # Internal pathlib implementation detail
