@@ -141,19 +141,14 @@ nitpick_ignore = [
     # If building the documentation fails because of a missing link that is outside your control,
     # you can add an exception to this list.
     #     ("py:class", "igraph.Graph"),
-    ("py:class", "keras.Model"),
-    ("py:class", "keras.src.models.model.Model"),
-    ("py:class", "keras.src.optimizers.optimizer.Optimizer"),
-    ("py:class", "keras.optimizers.Optimizer"),
-    ("py:class", "keras.losses.Loss"),
-    ("py:class", "keras.metrics.Metric"),
-    ("py:class", "keras.src.losses.loss.Loss"),
-    ("py:class", "keras.src.metrics.metric.Metric"),
-    ("py:class", "keras.src.backend.common.keras_tensor.KerasTensor"),
-    ("py:class", "keras.src.layers.layer.Layer"),
     ("py:class", "seaborn.matrix.ClusterGrid"),
     ("py:class", "pysam.libcfaidx.FastaFile"),
     ("py:class", "pathlib._local.Path"),  # Internal pathlib implementation detail
+]
+nitpick_ignore_regex = [
+    # Ignore all keras funcs/classes since their docs just don't interlink with sphinx at all it seems
+    ("py:class", "keras.*"),
+    ("py:func", "keras.*"),
 ]
 
 suppress_warnings = [
