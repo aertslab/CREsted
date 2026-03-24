@@ -1,5 +1,9 @@
 # Release notes
 
+## 1.7.1
+
+A hotfix to fix the wrong version number in `pyproject.toml`.
+
 ## 1.7.0
 
 This major update reworks and reorganises the `crested.pl` module, alongside other new features and fixes.
