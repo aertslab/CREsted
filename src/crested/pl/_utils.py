@@ -123,25 +123,25 @@ def render_plot(
         logger.warning("Argument `x_label_fontsize` is renamed in v1.7.0; please use xlabel_fontsize instead.")
     if y_label_fontsize != 'deprecated':
         ylabel_fontsize = y_label_fontsize
-        logger.warning("Argument `y_label_fontsize` is renamedin v1.7.0; please use ylabel_fontsize instead.")
+        logger.warning("Argument `y_label_fontsize` is renamed in v1.7.0; please use ylabel_fontsize instead.")
     if x_tick_fontsize != 'deprecated':
         xtick_fontsize = x_tick_fontsize
-        logger.warning("Argument `x_tick_fontsize` is renamedin v1.7.0; please use xtick_fontsize instead.")
+        logger.warning("Argument `x_tick_fontsize` is renamed in v1.7.0; please use xtick_fontsize instead.")
     if y_tick_fontsize != 'deprecated':
         ytick_fontsize = y_tick_fontsize
-        logger.warning("Argument `y_tick_fontsize` is renamedin v1.7.0; please use ytick_fontsize instead.")
+        logger.warning("Argument `y_tick_fontsize` is renamed in v1.7.0; please use ytick_fontsize instead.")
     if x_label_rotation != 'deprecated':
         xtick_rotation = x_label_rotation
-        logger.warning("Argument `x_label_rotation` is renamedin v1.7.0; please use xtick_rotation instead.")
+        logger.warning("Argument `x_label_rotation` is renamed in v1.7.0; please use xtick_rotation instead.")
     if y_label_rotation != 'deprecated':
         ytick_rotation = y_label_rotation
-        logger.warning("Argument `y_label_rotation` is renamedin v1.7.0; please use ytick_rotation instead.")
+        logger.warning("Argument `y_label_rotation` is renamed in v1.7.0; please use ytick_rotation instead.")
     if xlabel_rotation != 'deprecated':
         xtick_rotation = xlabel_rotation
-        logger.warning("Argument `xlabel_rotation` is renamedin v1.7.0; please use xtick_rotation instead.")
+        logger.warning("Argument `xlabel_rotation` is renamed in v1.7.0; please use xtick_rotation instead.")
     if ylabel_rotation != 'deprecated':
         ytick_rotation = ylabel_rotation
-        logger.warning("Argument `ylabel_rotation` is renamedin v1.7.0; please use ytick_rotation instead.")
+        logger.warning("Argument `ylabel_rotation` is renamed in v1.7.0; please use ytick_rotation instead.")
 
     @log_and_raise(ValueError)
     def _check_input_lengths():

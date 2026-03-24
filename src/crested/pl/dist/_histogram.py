@@ -74,10 +74,10 @@ def histogram(
     # Handle deprecated arguments
     if 'share_y' in kwargs:
         kwargs['sharey'] = kwargs.pop('share_y')
-        logger.warning("Argument `share_y` is deprecated since version 1.7.0; please use sharey instead to align with matplotlib.")
+        logger.warning(f"Argument `share_y` is deprecated since version 1.7.0; please use `sharey={kwargs['sharey']}` instead to align with matplotlib.")
     if target != 'deprecated':
         model_name = target
-        logger.warning("Argument `target` is deprecated since version 1.7.0; please use model_name instead to align with matplotlib.")
+        logger.warning(f"Argument `target` is deprecated since version 1.7.0; please use `model_name={model_name}` instead to align with matplotlib.")
 
     # Check params
     @log_and_raise(ValueError)

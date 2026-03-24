@@ -99,11 +99,11 @@ def bar(
     """
     # Handle deprecated arguments
     if adata != 'deprecated':
-        logger.warning("Argument 'adata' is deprecated in v1.7.0, please use 'data' instead.")
         data = adata
+        logger.warning("Argument 'adata' is deprecated in v1.7.0, please use `data` instead.")
     if target != 'deprecated':
-        logger.warning("Argument 'target' is deprecated in v1.7.0, please use 'model_names' instead.")
         model_names = target
+        logger.warning(f"Argument 'target' is deprecated in v1.7.0, please use `model_names={model_names}` instead.")
 
     # Check input validity
     @log_and_raise(ValueError)

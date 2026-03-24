@@ -320,24 +320,24 @@ def step_predictions(
     # Handle deprecated args
     if 'seperate' in kwargs:
         separate = kwargs.pop('seperate')
-        logger.warning("Please use argument `separate` instead of `seperate`.")
+        logger.warning(f"`seperate` was renamed to `separate` in v1.7.0. Please use `separate={separate}`.")
     if 'legend_seperate' in kwargs:
         legend_separate = kwargs.pop('legend_seperate')
-        logger.warning("Please use argument `legend_separate` instead of `legend_seperate`.")
+        logger.warning(f"`legend_seperate` was renamed to `legend_separate` in v1.7.0. Please use `legend_separate={legend_separate}`.")
 
     plot_kws = {} if plot_kws is None else plot_kws.copy()
     if 'alpha_seperate' in kwargs:
-        logger.warning(f"Please use argument `plot_kws={{'alpha': {kwargs['alpha_seperate']}}}` instead of `alpha_seperate`.")
-        plot_kws['alpha'] = kwargs['alpha_seperate']
+        plot_kws['alpha'] = kwargs.pop('alpha_seperate')
+        logger.warning(f"`alpha_seperate` was moved to `plot_kws` in v1.7.0 for consistency. Please use argument `plot_kws={{'alpha': {plot_kws['alpha']}}}` instead of `alpha_seperate`.")
     if 'show_fliers' in kwargs:
-        logger.warning(f"Please use argument `plot_kws={{'showfliers': {kwargs['show_fliers']}}}` instead of `show_fliers`.")
-        plot_kws['showfliers'] = kwargs['show_fliers']
+        plot_kws['showfliers'] = kwargs.pop('show_fliers')
+        logger.warning(f"`show_fliers` was moved to `plot_kws` in v1.7.0 for consistency. Please use argument `plot_kws={{'showfliers': {plot_kws['showfliers']}}}` instead of `show_fliers`.")
     if 'global_ylim' in kwargs:
         if kwargs['global_ylim'] == 'minmax':
-            logger.warning("Argument `global_ylim` is superseded by `ylim` and `sharey`. Please set `sharey=True` instead of `global_ylim='minmax'`.")
+            logger.warning("Argument `global_ylim` is superseded by `ylim`/`sharey` in v1.7.0. Please set `sharey=True` instead of `global_ylim='minmax'`.")
             kwargs['sharey'] = True
         elif kwargs['global_ylim'] == 'classification':
-            logger.warning("Argument `global_ylim` is superseded by `ylim` and `sharey`. Please set `ylim=(0,1) instead of `global_ylim='classification'`.")
+            logger.warning("Argument `global_ylim` is superseded by `ylim`/`sharey` in v1.7.0. Please set `ylim=(0,1) instead of `global_ylim='classification'`.")
             kwargs['ylim'] = (0, 1)
         del kwargs['global_ylim']
 
