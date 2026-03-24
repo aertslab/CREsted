@@ -24,7 +24,9 @@ class CosineMSELogLoss(keras.losses.Loss):
     reduction
         Type of reduction to apply to loss.
     multiplier
-        Scalar to multiply the predicted value with. When predicting mean coverage, multiply by 1000 to get actual count. Keep to 1 when predicting insertion counts.
+        Scalar to multiply the predicted value with.
+        When predicting mean coverage, we recommend multiplying by number of bp averaged over to get actual counts (1000 by default, also the default here).
+        Recommended to keep to 1 when predicting insertion counts.
 
     Notes
     -----
@@ -91,3 +93,7 @@ class CosineMSELogLoss(keras.losses.Loss):
     def from_config(cls, config):
         """Create a loss function from the configuration."""
         return cls(**config)
+
+    def __repr__(self):
+        """Return a string representation of the loss."""
+        return f"{self.name}: {self.get_config()}"

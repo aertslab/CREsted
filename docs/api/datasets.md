@@ -1,6 +1,6 @@
-# Datasets
+# Retrieve datasets & models
 
-Downloading of use case datasets which ar explored in the example analyses.
+Download datasets, pre-trained models, and reference files.
 
 ```{eval-rst}
 .. currentmodule:: crested

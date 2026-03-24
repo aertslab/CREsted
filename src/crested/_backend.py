@@ -4,12 +4,14 @@ import os
 from importlib.util import find_spec
 
 
-def setup_backend():
+def _setup_backend():
     """
     Set up Keras backend.
 
     Called automatically when importing modules that require keras (e.g., crested.tl).
     Checks for available backends and sets KERAS_BACKEND environment variable.
+
+    :meta private:
     """
     if "KERAS_BACKEND" in os.environ:
         return  # Already set by user or previous call

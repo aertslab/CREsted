@@ -1,22 +1,6 @@
 """Chrombp net like model architecture for peak regression."""
 
-import warnings
-
 import keras
-
-
-def chrombpnet(*args, **kwargs):
-    """
-    Use dilated_cnn instead.
-
-    :meta private:
-    """
-    warnings.warn(
-        "'chrombpnet' is deprecated and will be removed in a future release. Use its new name 'dilated_cnn' instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return dilated_cnn(*args, **kwargs)
 
 
 def dilated_cnn(
