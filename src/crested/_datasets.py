@@ -84,6 +84,14 @@ def _get_dataset_index():
                 "models/embryo_10x.tar.gz": "sha256:3de62e6913ea491ebdad4bc2ef4e9f404250531093b29e67b5a1fa907f5cf41b",
                 "models/embryo_hydrop.tar.gz": "sha256:9036ef2f18ab894016c8adcd3bba5f1985b74bd2432f4e9b07e6128e43833636",
                 "models/mousecortex_hydrop.tar.gz": "sha256:a850edcd6f9cabd0efb7ea66f48287c1c05ff7c3466363259dfb9229a076c53c",
+                "models/borzoiprime_human_rep0.tar.gz": "sha256:c7a3c56fc8d95c33a01e08eee04ce88f57d2967f19c7cab175664d4fc87cc42c",
+                "models/borzoiprime_human_rep1.tar.gz": "sha256:cd8b2efec9399c575d255c5f775aa8a6881371865914ba024bc35042cb628be1",
+                "models/borzoiprime_human_rep2.tar.gz": "sha256:22d01951089c16b9c57780a707d8b755e300cd4c942265706c65974933ab3357",
+                "models/borzoiprime_human_rep3.tar.gz": "sha256:b64e58d16018dd0302eacbf33c63c95b88347c465f35649a2743628155c98277",
+                "models/borzoiprime_mouse_rep0.tar.gz": "sha256:71845dc7951c36bab3e8311fe6359a7dc1345b0232000d0986c74a1900c8f948",
+                "models/borzoiprime_mouse_rep1.tar.gz": "sha256:43b93701571210f61c09ae9b8ba89dc7e398262fe7deb5c740b330bac15ce0d8",
+                "models/borzoiprime_mouse_rep2.tar.gz": "sha256:9c14e38a1d54612ca0d6e7709609fefa5c770357fc7177941b2da5169b50a49d",
+                "models/borzoiprime_mouse_rep3.tar.gz": "sha256:a87f527226e4773cfca8a8804fdd1bd2210001cdce39baaa17b79b996903e6fa",
             },
         )
     return _datasets
@@ -123,6 +131,7 @@ def get_dataset(dataset: str):
     >>> adata = crested.import_beds(beds_folder=beds_folder, regions_file=regions_file)
     """
     # Mapping: "user_facing_name": ("tarball_name_in_registry.tar.gz", "cpeaks_name_in_registry.bed")
+    # THESE DATASET NAMES (KEYS) MUST BE ALL-LOWERCASE TO BE RECOGNISED!
     dataset_mapping = {
         "mouse_cortex_bed": (
             "data/mouse_biccn/beds.tar.gz",
@@ -141,10 +150,12 @@ def get_dataset(dataset: str):
             "data/mouse_biccn/consensus_peaks_biccn.bed",
         ),  # Deprecated
     }
-    assert (
-        dataset in dataset_mapping
-    ), f"Dataset {dataset} is not recognised. Available datasets: {tuple(dataset_mapping.keys())}"
 
+    dataset = dataset.lower()
+
+    assert dataset in dataset_mapping, (
+        f"Dataset {dataset} is not recognised. Available datasets: {tuple(dataset_mapping.keys())}"
+    )
     targets_url, cregions_url = dataset_mapping[dataset]
     targets_paths = _get_dataset_index().fetch(
         targets_url, processor=pooch.Untar(), progressbar=True
@@ -157,8 +168,6 @@ def get_dataset(dataset: str):
 def get_motif_db():
     """
     Fetch the motif database. This function retrieves the Aerts lab motif database for use in motif analysis, downloading if not already cached, and returns the paths to the dataset.
-
-    These two paths can be passed to :func:`crested.import_bigwigs()` / :func:`crested.import_beds()`.
 
     Note
     ----
@@ -185,8 +194,8 @@ def get_model(model: str) -> tuple[str, list[str]]:
     """
     Fetch a model.
 
-    This function retrieves the model files, downloading if not already cached, and returns the paths to the model and a list of output classnames.
-    The model folder contains the model.keras file and the output classnames file (.tsv).
+    This function retrieves the model files, downloading if not already cached, and returns the paths to the model and a list of output class names.
+    The model folder contains the model.keras file and the output class names file (.tsv).
 
     Note
     ----
@@ -195,7 +204,7 @@ def get_model(model: str) -> tuple[str, list[str]]:
     Parameters
     ----------
     model
-        The name of the model to fetch. Available options:
+        The name of the model to fetch, case-insensitive. Available options:
           - 'DeepBICCN'
           - 'DeepBICCN2'
           - 'DeepCCL'
@@ -220,11 +229,13 @@ def get_model(model: str) -> tuple[str, list[str]]:
           - 'Enformer_human'
           - 'Enformer_mouse'
           - 'BorzoiBICCN'
-          - 'Borzoi_human_rep[0-3]'
-          - 'Borzoi_mouse_rep[0-3]'
+          - 'Borzoi_human_rep[0-3]' (and alias 'Borzoi_human' for rep0)
+          - 'Borzoi_mouse_rep[0-3]' (and alias 'Borzoi_mouse' for rep0)
           - 'Embryo10x"
           - 'EmbryoHydrop'
           - 'MouseCortexHydrop'
+          - 'BorzoiPrime_human_rep[0-3]' (and alias 'BorzoiPrime_human' for rep0)
+          - 'BorzoiPrime_mouse_rep[0-3]' (and alias 'BorzoiPrime_mouse' for rep0)
 
     Returns
     -------
@@ -235,46 +246,60 @@ def get_model(model: str) -> tuple[str, list[str]]:
     >>> model_file, output_names = crested.get_model("DeepFlyBrain")
     """
     # Mapping: "user_facing_name": ("model_folder_in_registry.tar.gz")
+    # THESE MODEL NAMES (KEYS) MUST BE ALL-LOWERCASE TO BE RECOGNISED!
     model_mapping = {
-        "DeepBICCN": ("models/biccn.tar.gz"),
-        "DeepBICCN2": ("models/deepbiccn2.tar.gz"),
-        "DeepCCL": ("models/deepccl.tar.gz"),
-        "DeepChickenBrain1": ("models/deepchickenbrain1.tar.gz"),
-        "DeepChickenBrain2": ("models/deepchickenbrain2.tar.gz"),
-        "DeepFlyBrain": ("models/deepflybrain.tar.gz"),
-        "DeepGlioma": ("models/deepglioma.tar.gz"),
-        "DeepHumanBrain": ("models/deephumanbrain.tar.gz"),
-        "DeepHumanCortex1": ("models/deephumancortex1.tar.gz"),
-        "DeepHumanCortex2": ("models/deephumancortex2.tar.gz"),
-        "DeepLiver_accessibility": ("models/deepliver_accessibility.tar.gz"),
-        "DeepLiver_activity": ("models/deepliver_activity.tar.gz"),
-        "DeepLiver_zonation": ("models/deepliver_zonation.tar.gz"),
-        "DeepPBMC": ("models/deeppbmc.tar.gz"),
-        "DeepMEL1": ("models/deepmel1.tar.gz"),
-        "DeepMEL2": ("models/deepmel2.tar.gz"),
-        "DeepMEL2_gabpa": ("models/deepmel2_gabpa.tar.gz"),
-        "DeepMouseBrain1": ("models/deepmousebrain1.tar.gz"),
-        "DeepMouseBrain2": ("models/deepmousebrain2.tar.gz"),
-        "DeepMouseBrain3": ("models/deepmousebrain3.tar.gz"),
-        "DeepZebraFish": ("models/deepzebrafish.tar.gz"),
-        "Enformer_human": ("models/enformer_human.tar.gz"),
-        "Enformer_mouse": ("models/enformer_mouse.tar.gz"),
-        "BorzoiBICCN": ("models/borzoi_biccn.tar.gz"),
-        "Borzoi_human_rep0": ("models/borzoi_human_rep0.tar.gz"),
-        "Borzoi_human_rep1": ("models/borzoi_human_rep1.tar.gz"),
-        "Borzoi_human_rep2": ("models/borzoi_human_rep2.tar.gz"),
-        "Borzoi_human_rep3": ("models/borzoi_human_rep3.tar.gz"),
-        "Borzoi_mouse_rep0": ("models/borzoi_mouse_rep0.tar.gz"),
-        "Borzoi_mouse_rep1": ("models/borzoi_mouse_rep1.tar.gz"),
-        "Borzoi_mouse_rep2": ("models/borzoi_mouse_rep2.tar.gz"),
-        "Borzoi_mouse_rep3": ("models/borzoi_mouse_rep3.tar.gz"),
-        "Embryo10x": ("models/embryo_10x.tar.gz"),
-        "EmbryoHydrop": ("models/embryo_hydrop.tar.gz"),
-        "MouseCortexHydrop": ("models/mousecortex_hydrop.tar.gz"),
+        "deepbiccn": ("models/biccn.tar.gz"),
+        "deepbiccn2": ("models/deepbiccn2.tar.gz"),
+        "deepccl": ("models/deepccl.tar.gz"),
+        "deepchickenbrain1": ("models/deepchickenbrain1.tar.gz"),
+        "deepchickenbrain2": ("models/deepchickenbrain2.tar.gz"),
+        "deepflybrain": ("models/deepflybrain.tar.gz"),
+        "deepglioma": ("models/deepglioma.tar.gz"),
+        "deephumanbrain": ("models/deephumanbrain.tar.gz"),
+        "deephumancortex1": ("models/deephumancortex1.tar.gz"),
+        "deephumancortex2": ("models/deephumancortex2.tar.gz"),
+        "deepliver_accessibility": ("models/deepliver_accessibility.tar.gz"),
+        "deepliver_activity": ("models/deepliver_activity.tar.gz"),
+        "deepliver_zonation": ("models/deepliver_zonation.tar.gz"),
+        "deeppbmc": ("models/deeppbmc.tar.gz"),
+        "deepmel1": ("models/deepmel1.tar.gz"),
+        "deepmel2": ("models/deepmel2.tar.gz"),
+        "deepmel2_gabpa": ("models/deepmel2_gabpa.tar.gz"),
+        "deepmousebrain1": ("models/deepmousebrain1.tar.gz"),
+        "deepmousebrain2": ("models/deepmousebrain2.tar.gz"),
+        "deepmousebrain3": ("models/deepmousebrain3.tar.gz"),
+        "deepzebrafish": ("models/deepzebrafish.tar.gz"),
+        "enformer_human": ("models/enformer_human.tar.gz"),
+        "enformer_mouse": ("models/enformer_mouse.tar.gz"),
+        "borzoibiccn": ("models/borzoi_biccn.tar.gz"),
+        "borzoi_human": ("models/borzoi_human_rep0.tar.gz"),
+        "borzoi_human_rep0": ("models/borzoi_human_rep0.tar.gz"),
+        "borzoi_human_rep1": ("models/borzoi_human_rep1.tar.gz"),
+        "borzoi_human_rep2": ("models/borzoi_human_rep2.tar.gz"),
+        "borzoi_human_rep3": ("models/borzoi_human_rep3.tar.gz"),
+        "borzoi_mouse": ("models/borzoi_mouse_rep0.tar.gz"),
+        "borzoi_mouse_rep0": ("models/borzoi_mouse_rep0.tar.gz"),
+        "borzoi_mouse_rep1": ("models/borzoi_mouse_rep1.tar.gz"),
+        "borzoi_mouse_rep2": ("models/borzoi_mouse_rep2.tar.gz"),
+        "borzoi_mouse_rep3": ("models/borzoi_mouse_rep3.tar.gz"),
+        "embryo10x": ("models/embryo_10x.tar.gz"),
+        "embryohydrop": ("models/embryo_hydrop.tar.gz"),
+        "mousecortexhydrop": ("models/mousecortex_hydrop.tar.gz"),
+        "borzoiprime_human": ("models/borzoiprime_human_rep0.tar.gz"),
+        "borzoiprime_human_rep0": ("models/borzoiprime_human_rep0.tar.gz"),
+        "borzoiprime_human_rep1": ("models/borzoiprime_human_rep1.tar.gz"),
+        "borzoiprime_human_rep2": ("models/borzoiprime_human_rep2.tar.gz"),
+        "borzoiprime_human_rep3": ("models/borzoiprime_human_rep3.tar.gz"),
+        "borzoiprime_mouse": ("models/borzoiprime_mouse_rep0.tar.gz"),
+        "borzoiprime_mouse_rep0": ("models/borzoiprime_mouse_rep0.tar.gz"),
+        "borzoiprime_mouse_rep1": ("models/borzoiprime_mouse_rep1.tar.gz"),
+        "borzoiprime_mouse_rep2": ("models/borzoiprime_mouse_rep2.tar.gz"),
+        "borzoiprime_mouse_rep3": ("models/borzoiprime_mouse_rep3.tar.gz"),
     }
-    assert (
-        model in model_mapping
-    ), f"Model {model} is not recognised. Available models: {tuple(model_mapping.keys())}"
+    model = model.lower()
+    assert model in model_mapping, (
+        f"Model {model} is not recognised. Available models: {tuple(model_mapping.keys())}"
+    )
 
     model_folder = model_mapping[model]
     model_folder_paths = _get_dataset_index().fetch(

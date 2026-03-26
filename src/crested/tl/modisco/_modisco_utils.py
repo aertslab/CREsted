@@ -4,7 +4,6 @@ import modiscolite as modisco
 import numpy as np
 import pandas as pd
 from loguru import logger
-from memelite import tomtom
 
 
 def _trim_pattern_by_ic_old(
@@ -399,11 +398,11 @@ def pad_pattern(pattern: dict, pad_len: int = 2) -> dict:
 
 
 def match_score_patterns(
-        a: list[dict] | dict,
-        b: list[dict] | dict,
-        use_ppm: bool = False,
-        background_freqs: list | None = None,
-    ) -> float | np.ndarray:
+    a: list[dict] | dict,
+    b: list[dict] | dict,
+    use_ppm: bool = False,
+    background_freqs: list | None = None,
+) -> float | np.ndarray:
     """
     Compute the match score between two sets of patterns using TOMTOM through memesuite-lite.
 
@@ -422,6 +421,21 @@ def match_score_patterns(
     -------
     Match TOMTOM score (-log10(pval)) between the patterns. Return a float if it is a one vs one comparison, a 2D numpy array when comparing lists of motifs.
     """
+    try:
+        from memelite import tomtom
+    except ImportError as e:
+        import sys
+
+        if sys.version_info >= (3, 13):
+            raise ImportError(
+                "memelite (required for TOMTOM motif matching) is not compatible with Python 3.13+. "
+                "Please use Python 3.12 or earlier for TOMTOM functionality, or use other pattern matching methods."
+            ) from e
+        else:
+            raise ImportError(
+                "memelite is required for motif matching. Install with: pip install crested[motif]"
+            ) from e
+
     if background_freqs is None:
         background_freqs = [0.28, 0.22, 0.22, 0.28]
     background_freqs = np.array(background_freqs)
@@ -432,8 +446,12 @@ def match_score_patterns(
         b = [b]
 
     if not use_ppm:
-        a = [compute_ic(pat["ppm"], background_freqs=background_freqs)[2].T for pat in a]
-        b = [compute_ic(pat["ppm"], background_freqs=background_freqs)[2].T for pat in b]
+        a = [
+            compute_ic(pat["ppm"], background_freqs=background_freqs)[2].T for pat in a
+        ]
+        b = [
+            compute_ic(pat["ppm"], background_freqs=background_freqs)[2].T for pat in b
+        ]
     else:
         a = [pat["ppm"].T for pat in a]
         b = [pat["ppm"].T for pat in b]
@@ -442,18 +460,19 @@ def match_score_patterns(
         p, _, _, _, _ = tomtom(Qs=a, Ts=b)
 
     except Exception as e:  # noqa: BLE001
-        print(
-            "Warning: TOMTOM error while comparing patterns. Returning no match."
-        )
+        print("Warning: TOMTOM error while comparing patterns. Returning no match.")
         print(f"Error details: {e}")
         p = np.ones((len(a), len(b)))
 
-    p[p<=0]=1e-15 # Sometimes negative value returned
+    p[p <= 0] = 1e-15  # Sometimes negative value returned
 
     log_score = -np.log10(p)
 
-    if log_score.shape == (1, 1):# Return a float if it is only a one vs one comparison
-        return log_score[0,0]
+    if log_score.shape == (
+        1,
+        1,
+    ):  # Return a float if it is only a one vs one comparison
+        return log_score[0, 0]
 
     return log_score
 

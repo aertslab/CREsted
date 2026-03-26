@@ -4,7 +4,7 @@ DeepMEL2 GABPA
 .. sidebar:: Model Features
 
    - **Genome**: hg38
-   - **Type**: Topic Classification
+   - **Type**: Topic classification
    - **Parameters**: 6.4M
    - **Size**: 23MB
    - **Input shape**: (500, 4)
@@ -35,7 +35,7 @@ Usage
     model_path, output_names = crested.get_model("DeepMEL2_gabpa")
 
     # load model
-    model = keras.models.load_model(model_path)
+    model = crested.utils.load_model(model_path)
 
     # make predictions
     sequence = "A" * 500

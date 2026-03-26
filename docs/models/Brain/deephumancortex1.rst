@@ -4,7 +4,7 @@ DeepHumanCortex1
 .. sidebar:: Model Features
 
    - **Genome**: *hg38*
-   - **Type**: Topic Classification
+   - **Type**: Topic classification
    - **Parameters**: 11.1M
    - **Size**: 37MB
    - **Input shape**: (500, 4)
@@ -23,7 +23,11 @@ Details of the data and the model can be found in the original publication.
 
 .. admonition:: Citation
 
-    Hecker, N., Kempynck, N. et al. Enhancer-driven cell type comparison reveals similarities between the mammalian and bird pallium. bioRxiv (2024). https://doi.org/10.1101/2024.04.17.589795
+    Hecker, N., Kempynck, N. et al. Enhancer-driven cell type comparison reveals similarities between the mammalian and bird pallium. Science (2025). https://doi.org/10.1126/science.adp3957
+
+.. admonition:: Data source
+
+    Ma, S., Skarica, M., et al. Molecular and cellular evolution of the primate dorsolateral prefrontal cortex. Science (2022). https://doi.org/10.1126/science.abo7257
 
 Usage
 -------------------
@@ -38,7 +42,7 @@ Usage
     model_path, output_names = crested.get_model("DeepHumanCortex1")
 
     # load model
-    model = keras.models.load_model(model_path)
+    model = crested.utils.load_model(model_path)
 
     # make predictions
     sequence = "A" * 500

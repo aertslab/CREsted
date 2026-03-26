@@ -5,7 +5,7 @@ from __future__ import annotations
 import keras
 import numpy as np
 
-backend = keras.src.backend.config.backend()
+backend = keras.config.backend()
 if backend == "tensorflow":
     from tensorflow.math import lgamma
 elif backend == "torch":
@@ -17,6 +17,7 @@ else:
 
 
 # Attention pooling layer
+@keras.saving.register_keras_serializable(package="crested", name="AttentionPool1D")
 class AttentionPool1D(keras.layers.Layer):
     """
     AttentionPool from the FastISM repository. Does learnable Softmax pooling, for use in Enformer.
@@ -111,6 +112,8 @@ class AttentionPool1D(keras.layers.Layer):
 
 
 # Multi-head attention block from baskerville
+# Copyright DeepMind Technologies 2021 (Enformer)/Calico LLC 2023 (Borzoi)
+@keras.saving.register_keras_serializable(package="crested", name="MultiheadAttention")
 class MultiheadAttention(keras.layers.Layer):
     """
     Creates a MultiheadAttention module.
@@ -142,14 +145,13 @@ class MultiheadAttention(keras.layers.Layer):
     num_position_features
         Number of relative positional features to compute.
         If None, `value_size * num_heads` is used.
-    positional_dropout_rate: Dropout rate for the positional encodings if
-        relative positions are used.
-    zero_initialize:
+    positional_dropout_rate
+        Dropout rate for the positional encodings if relative positions are used.
+    zero_initialize
         if True, the final linear layer will be 0 initialized.
-    initializer:
+    initializer
         Initializer for the projection layers. If unspecified,
         VarianceScaling is used with scale = 2.0.
-
     """
 
     def __init__(

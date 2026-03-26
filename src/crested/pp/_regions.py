@@ -13,7 +13,7 @@ from crested import _conf as conf
 from crested.utils._logging import log_and_raise
 
 
-def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
+def _read_chromsizes(chromsizes_file: str | PathLike) -> dict[str, int]:
     """Read chromsizes file into a dictionary."""
     chromsizes = pd.read_csv(
         chromsizes_file, sep="\t", header=None, names=["chr", "size"]
@@ -25,8 +25,9 @@ def _read_chromsizes(chromsizes_file: PathLike) -> dict[str, int]:
 def change_regions_width(
     adata: AnnData,
     width: int,
-    chromsizes_file: PathLike | None = None,
-) -> None:
+    chromsizes_file: str | PathLike | None = None,
+    inplace: bool = True,
+) -> AnnData | None:
     """
     Change the widths of all regions in the adata object.
 
@@ -43,10 +44,14 @@ def change_regions_width(
         The new width of the regions.
     chromsizes_file
         File path of the chromsizes file. Used for checking if the new regions are within the chromosome boundaries.
+        If not provided, uses chromsizes from the registered Genome object, and if that doesn't exist either, doesn't check against chromosome boundaries.
+    inplace
+        Perform computation and modify `adata` in-place or return a resulting copy of the `adata` instead.
 
     Returns
     -------
-    The AnnData object with the modified regions.
+    If `inplace=True` (default), modifies the anndata in-place and doesn't return anything.
+    If `inplace=False`, returns the AnnData object with the modified regions.
 
     Example
     -------
@@ -77,6 +82,8 @@ def change_regions_width(
     centers = (adata.var["start"] + adata.var["end"]) / 2
     half_width = width / 2
 
+    if not inplace:
+        adata = adata.copy()
     adata.var = adata.var.copy()
 
     adata.var["start"] = (centers - half_width).astype(int)
@@ -98,6 +105,11 @@ def change_regions_width(
                 )
                 regions_to_keep.remove(idx)
         if len(regions_to_keep) < len(adata.var_names):
-            adata._inplace_subset_var(regions_to_keep)
+            if inplace:
+                adata._inplace_subset_var(regions_to_keep)
+            else:
+                adata = adata[:, regions_to_keep].copy()
 
     adata.var_names.name = "region"
+    if not inplace:
+        return adata

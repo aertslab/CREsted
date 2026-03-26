@@ -14,15 +14,22 @@ HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "extensions"))
 import crested  # noqa
 
+# -- Intersphinx package version parsing -------------------------------------
+python_version = f"{sys.version_info[0]}.{sys.version_info[1]}"
+from numpy import __version__ as numpy_version_raw # noqa
+numpy_version = '.'.join(numpy_version_raw.split('.')[:2])
+from matplotlib import __version__ as matplotlib_version # noqa
+from pandas import __version__ as pandas_version # noqa
 
 # -- Project information -----------------------------------------------------
 
 # NOTE: If you installed your project in editable mode, this might be stale.
 #       If this is the case, reinstall it to refresh the metadata
 info = metadata("crested")
+project = info["Name"]
 project_name = info["Name"]
 author = info["Author"]
-copyright = f"{datetime.now():%Y}, {author}."
+copyright = f"{datetime.now():%Y}, {author}"
 version = info["Version"]
 urls = dict(pu.split(", ") for pu in info.get_all("Project-URL"))
 repository_url = "https://github.com/aertslab/CREsted/"
@@ -63,7 +70,9 @@ extensions = [
 ]
 
 autosummary_generate = True
+autosummary_imported_members = True  # Required to have the recursive docs generation recognise our structure of importing everything in their specific __init__.py
 autodoc_member_order = "groupwise"
+autodoc_default_flags = ['members']
 bibtex_reference_style = "author_year"
 default_role = "literal"
 napoleon_google_docstring = False
@@ -93,11 +102,11 @@ source_suffix = {
 }
 
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", None),
+    "python": (f"https://docs.python.org/{python_version}", None),
     "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
-    "numpy": ("https://numpy.org/doc/stable/", None),
-    "matplotlib": ("https://matplotlib.org/stable/", None),
-    "pandas": ("http://pandas.pydata.org/pandas-docs/stable/", None),
+    "numpy": (f"https://numpy.org/doc/{numpy_version}/", None),
+    "matplotlib": (f"https://matplotlib.org/{matplotlib_version}/", None),
+    "pandas": (f"http://pandas.pydata.org/pandas-docs/version/{pandas_version}/", None),
     "seaborn": ("https://seaborn.pydata.org/", None),
 }
 
@@ -132,16 +141,14 @@ nitpick_ignore = [
     # If building the documentation fails because of a missing link that is outside your control,
     # you can add an exception to this list.
     #     ("py:class", "igraph.Graph"),
-    ("py:class", "keras.Model"),
-    ("py:class", "keras.src.models.model.Model"),
-    ("py:class", "keras.src.optimizers.optimizer.Optimizer"),
-    ("py:class", "keras.optimizers.Optimizer"),
-    ("py:class", "keras.losses.Loss"),
-    ("py:class", "keras.metrics.Metric"),
-    ("py:class", "keras.src.losses.loss.Loss"),
-    ("py:class", "keras.src.metrics.metric.Metric"),
     ("py:class", "seaborn.matrix.ClusterGrid"),
     ("py:class", "pysam.libcfaidx.FastaFile"),
+    ("py:class", "pathlib._local.Path"),  # Internal pathlib implementation detail
+]
+nitpick_ignore_regex = [
+    # Ignore all keras funcs/classes since their docs just don't interlink with sphinx at all it seems
+    ("py:class", "keras.*"),
+    ("py:func", "keras.*"),
 ]
 
 suppress_warnings = [

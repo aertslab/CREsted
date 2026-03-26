@@ -4,7 +4,7 @@ DeepMouseBrain1
 .. sidebar:: Model Features
 
    - **Genome**: *mm10*
-   - **Type**: Topic Classification
+   - **Type**: Topic classification
    - **Parameters**: 12.9M
    - **Size**: 44MB
    - **Input shape**: (500, 4)
@@ -23,7 +23,11 @@ Details of the data and the model can be found in the original publication.
 
 .. admonition:: Citation
 
-    Hecker, N., Kempynck, N. et al. Enhancer-driven cell type comparison reveals similarities between the mammalian and bird pallium. bioRxiv (2024). https://doi.org/10.1101/2024.04.17.589795
+    Hecker, N., Kempynck, N. et al. Enhancer-driven cell type comparison reveals similarities between the mammalian and bird pallium. Science (2025). https://doi.org/10.1126/science.adp3957
+
+.. admonition:: Data source
+
+    Bravo González-Blas, C., De Winter, S., et al. SCENIC+: single-cell multiomic inference of enhancers and gene regulatory networks. Nat Methods (2023). https://doi.org/10.1038/s41592-023-01938-4
 
 Usage
 -------------------
@@ -38,7 +42,7 @@ Usage
     model_path, output_names = crested.get_model("DeepMouseBrain1")
 
     # load model
-    model = keras.models.load_model(model_path)
+    model = crested.utils.load_model(model_path)
 
     # make predictions
     sequence = "A" * 500

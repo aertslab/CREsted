@@ -1,4 +1,7 @@
-"""Enformer model architecture. Adapted from github.com/casblaauw/enformer_keras."""
+"""Enformer model architecture. Adapted from github.com/casblaauw/enformer_keras.
+
+Enformer architecture: copyright 2021 DeepMind Technologies Limited
+"""
 
 from __future__ import annotations
 
@@ -143,7 +146,7 @@ def enformer(
             bn_sync=bn_sync,
             bn_epsilon=1e-5,
             kernel_initializer="he_normal",
-            name_prefix=f"tower_conv_{cidx+1}",
+            name_prefix=f"tower_conv_{cidx + 1}",
         )
         # Add residual pointwise conv block
         current = conv_block_bs(
@@ -161,7 +164,7 @@ def enformer(
             bn_sync=bn_sync,
             bn_epsilon=1e-5,
             kernel_initializer="he_normal",
-            name_prefix=f"tower_pointwise_{cidx+1}",
+            name_prefix=f"tower_pointwise_{cidx + 1}",
         )
 
     # Identity layer to use as stopping point for FastISM - after this operations are global
@@ -186,7 +189,7 @@ def enformer(
             zero_init=True,
             residual=True,
             ln_epsilon=1e-5,
-            name_prefix=f"transformer_mha_{tidx+1}",
+            name_prefix=f"transformer_mha_{tidx + 1}",
         )
         current = ffn_block_enf(
             inputs=current,
@@ -195,7 +198,7 @@ def enformer(
             activation=transformer_activation,
             residual=True,
             ln_epsilon=1e-5,
-            name_prefix=f"transformer_ff_{tidx+1}",
+            name_prefix=f"transformer_ff_{tidx + 1}",
         )
 
     # Build crop and pointwise final block

@@ -124,7 +124,9 @@ class Genome:
         A dictionary of chromosome sizes.
         """
         if self._chrom_sizes is None:
-            self._chrom_sizes = dict(zip(self.fasta.references, self.fasta.lengths))
+            self._chrom_sizes = dict(
+                zip(self.fasta.references, self.fasta.lengths, strict=False)
+            )
         elif isinstance(self._chrom_sizes, Path):
             from crested._io import _read_chromsizes
 
@@ -193,9 +195,13 @@ class Genome:
                 chrom, start_end = region.split(":")
             start, end = map(int, start_end.split("-"))
 
-        if not (chrom and start and end):
+        if chrom is None or start is None or end is None:
             raise ValueError(
-                "chrom/start/end must all be supplied to extract a sequence."
+                "chrom/start/end must all be provided or extracted from `region` to extract a sequence."
+            )
+        if start == end:
+            raise ValueError(
+                f"Cannot return 0-length sequences (start {start} is same as end {end}).  Did you accidentally input the same value twice?"
             )
 
         seq = self.fasta.fetch(reference=chrom, start=start, end=end)
@@ -239,9 +245,9 @@ def register_genome(genome: Genome):
 
 
 def _resolve_genome(
-    genome: os.PathLike | Genome | None,
-    chromsizes_file: os.PathLike | None = None,
-    annotation: os.PathLike | None = None,
+    genome: str | os.PathLike | Genome | None,
+    chromsizes_file: str | os.PathLike | None = None,
+    annotation: str | os.PathLike | None = None,
 ) -> Genome:
     """Resolve the input to a Genome object. Required to keep backwards compatibility with fasta and chromsizes paths as inputs."""
     if isinstance(genome, Genome):

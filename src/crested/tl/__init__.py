@@ -1,23 +1,28 @@
-"""Import all modules and classes from the 'crested.tl' package."""
+"""The tools module `crested.tl` provides everything you need to train and interpret models."""
 
-from importlib.util import find_spec
+import importlib.util
 
 from loguru import logger
 
-from . import data, losses, metrics, zoo
-from ._configs import TaskConfig, default_configs
-from ._crested import Crested
-from ._tools import (
+# Setup backend before importing any keras-dependent modules
+from crested._backend import _setup_backend
+
+_setup_backend()
+
+from . import data, losses, metrics, zoo  # noqa: E402
+from ._configs import TaskConfig, default_configs  # noqa: E402
+from ._crested import Crested  # noqa: E402
+from ._old import enhancer_design_in_silico_evolution, enhancer_design_motif_insertion  # noqa: E402
+from ._tools import (  # noqa: E402
     contribution_scores,
     contribution_scores_specific,
-    enhancer_design_in_silico_evolution,
-    enhancer_design_motif_insertion,
+    evaluate,
     extract_layer_embeddings,
     predict,
     score_gene_locus,
 )
 
-if find_spec("modiscolite") is not None:
+if importlib.util.find_spec("modiscolite") is not None:
     MODISCOLITE_AVAILABLE = True
 else:
     MODISCOLITE_AVAILABLE = False
@@ -32,7 +37,8 @@ if MODISCOLITE_AVAILABLE:
         raise
 else:
     logger.warning(
-        "modiscolite is not installed, 'crested.tl.modisco' module will not be available."
+        "modiscolite is not installed, 'crested.tl.modisco' module will not be available. "
+        "Install with: pip install crested[motif]"
     )
 
 
@@ -48,8 +54,6 @@ __all__ = [
     "predict",
     "contribution_scores",
     "contribution_scores_specific",
-    "enhancer_design_in_silico_evolution",
-    "enhancer_design_motif_insertion",
     "score_gene_locus",
 ]
 

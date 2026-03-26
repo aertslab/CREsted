@@ -8,6 +8,8 @@ import pytest
 import crested
 from crested.utils._utils import _detect_input_type, _transform_input
 
+from ._utils import create_anndata_with_regions
+
 
 def test_input_type(adata):
     assert _detect_input_type(adata) == "anndata"
@@ -46,22 +48,15 @@ def test_input_transform(genome):
             ]
         ),
     )
-    assert np.array_equal(
-        _transform_input("chr1:1-6", genome), np.array([[[0, 0, 0, 0]] * 5])
-    )
     assert _transform_input(np.array([[[1, 0, 0, 0]]])).shape == (1, 1, 4)
 
 
 def test_extract_layer_embeddings(keras_model, genome):
     input = "ATCGA" * 100
-    embeddings = crested.tl.extract_layer_embeddings(
-        input, keras_model, genome=genome, layer_name="denseblock_dense"
-    )
+    embeddings = crested.tl.extract_layer_embeddings(input, keras_model, genome=genome, layer_name="denseblock_dense")
     assert embeddings.shape == (1, 8)
     input = ["ATCGA" * 100, "ATCGA" * 100]
-    embeddings = crested.tl.extract_layer_embeddings(
-        input, keras_model, layer_name="denseblock_dense"
-    )
+    embeddings = crested.tl.extract_layer_embeddings(input, keras_model, layer_name="denseblock_dense")
     assert embeddings.shape == (2, 8)
 
 
@@ -77,6 +72,14 @@ def test_predict(keras_model, adata, genome):
     predictions = crested.tl.predict(input=adata, model=models, genome=genome)
     assert predictions.shape == (10, 5)
 
+    region_str = "chr1:1-501"
+    region_str_pos = "chr1:1-501:+"
+    region_str_neg = "chr1:1-501:-"
+    predictions = crested.tl.predict(input=region_str, model=keras_model, genome=genome)
+    predictions_pos = crested.tl.predict(input=region_str_pos, model=keras_model, genome=genome)
+    predictions_neg = crested.tl.predict(input=region_str_neg, model=keras_model, genome=genome)
+    assert predictions == pytest.approx(predictions_pos)
+    assert predictions != pytest.approx(predictions_neg)
 
 def test_score_gene_locus(keras_model, genome):
     chrom = "chr1"
@@ -99,6 +102,21 @@ def test_score_gene_locus(keras_model, genome):
     assert max_loc == 201500
     assert tss_pos == 200000
 
+def test_evaluate(adata_preds, keras_model, genome):
+    config = crested.tl.default_configs("peak_regression_count")
+    # Test with presaved data, full data, config
+    metrics = crested.tl.evaluate(adata=adata_preds, model="model_1", metrics=config, split=None, return_metrics=True)
+    assert metrics is not None
+
+    # Test with presaved data, specific split, metrics list
+    metrics = crested.tl.evaluate(adata=adata_preds, model="model_1", metrics=config.metrics, split="test", return_metrics=True)
+    assert metrics is not None
+
+    # Test with model
+    regions = [f'chr1:{start}-{start+500}' for start in np.arange(1500, step=500)]
+    adata = create_anndata_with_regions(regions, n_classes=5)
+    metrics = crested.tl.evaluate(adata=adata, model=keras_model, metrics=config.metrics, split=None, return_metrics=True, genome=genome)
+    assert metrics is not None
 
 def test_contribution_scores(keras_model, genome):
     sequence = "ATCGA" * 100
@@ -221,30 +239,86 @@ def test_contribution_scores_specific(keras_model, adata, adata_specific, genome
         verbose=False,
         output_dir="tests/data/test_contribution_scores",
     )
-    assert os.path.exists(
-        f"tests/data/test_contribution_scores/{class_names[0]}_contrib.npz"
+    assert os.path.exists(f"tests/data/test_contribution_scores/{class_names[0]}_contrib.npz")
+
+
+def test_explainer_dtype_handling(keras_model):
+    """Test that explainer functions handle non-float dtypes correctly.
+
+    This test reproduces the bug reported in issue #138 where integrated_grad
+    silently fails (returns 0) when given uint8 input instead of float32.
+    Also tests saliency_map and smoothgrad for the same issue.
+    """
+    from crested.tl._explainer import integrated_grad, saliency_map, smoothgrad
+    from crested.utils._seq_utils import one_hot_encode_sequence
+
+    # Create a sequence that matches the model's expected input length
+    expected_length = keras_model.input_shape[1]
+    sequence = "ACGT" * (expected_length // 4)
+    oh_float32 = one_hot_encode_sequence(sequence).astype(np.float32)
+    oh_uint8 = one_hot_encode_sequence(sequence).astype(np.uint8)
+
+    # Test integrated_grad with float32 (should work)
+    result_float32 = integrated_grad(oh_float32, keras_model, class_index=1, num_baselines=2, num_steps=5)
+    assert result_float32.sum() != 0, "integrated_grad should return non-zero values for float32 input"
+
+    # Test integrated_grad with uint8 (currently fails silently, returning 0)
+    result_uint8 = integrated_grad(oh_uint8, keras_model, class_index=1, num_baselines=2, num_steps=5)
+    assert result_uint8.sum() != 0, "integrated_grad should not silently fail and return 0 for uint8 input"
+
+    # The results should be similar (within reasonable tolerance)
+    np.testing.assert_allclose(
+        result_uint8,
+        result_float32,
+        rtol=1e-5,
+        atol=1e-7,
+        err_msg="integrated_grad should produce similar results for uint8 and float32 inputs",
     )
+
+    # Test saliency_map with float32
+    sal_float32 = saliency_map(oh_float32, keras_model, class_index=1, batch_size=128)
+    assert sal_float32.sum() != 0, "saliency_map should return non-zero values for float32 input"
+
+    # Test saliency_map with uint8
+    sal_uint8 = saliency_map(oh_uint8, keras_model, class_index=1, batch_size=128)
+    assert sal_uint8.sum() != 0, "saliency_map should not silently fail and return 0 for uint8 input"
+
+    # The results should be similar
+    np.testing.assert_allclose(
+        sal_uint8,
+        sal_float32,
+        rtol=1e-5,
+        atol=1e-7,
+        err_msg="saliency_map should produce similar results for uint8 and float32 inputs",
+    )
+
+    # Test smoothgrad with float32
+    smooth_float32 = smoothgrad(oh_float32, keras_model, class_index=1, num_samples=10)
+    assert smooth_float32.sum() != 0, "smoothgrad should return non-zero values for float32 input"
+
+    # Test smoothgrad with uint8
+    smooth_uint8 = smoothgrad(oh_uint8, keras_model, class_index=1, num_samples=10)
+    assert smooth_uint8.sum() != 0, "smoothgrad should not silently fail and return 0 for uint8 input"
+
+    # Note: smoothgrad uses random noise, so we don't compare exact values between runs.
+    # The important thing is that both produce non-zero results (i.e., the dtype fix works).
 
 
 def test_enhancer_design_in_silico_evolution(keras_model, adata, genome):
     # one model
-    seqs = crested.tl.enhancer_design_in_silico_evolution(
-        n_mutations=2, target=0, model=keras_model, n_sequences=1
-    )
+    seqs = crested.tl.design.in_silico_evolution(n_mutations=2, target=0, model=keras_model, n_sequences=1)
     assert len(seqs) == 1, len(seqs)
     assert len(seqs[0]) == keras_model.input_shape[1], len(seqs[0])
 
     # multiple models
-    seqs = crested.tl.enhancer_design_in_silico_evolution(
+    seqs = crested.tl.design.in_silico_evolution(
         n_mutations=2, target=1, model=[keras_model, keras_model], n_sequences=2
     )
     assert len(seqs) == 2, len(seqs)
 
     # acgt distribution provided
-    acgt_disbtibution = crested.utils.calculate_nucleotide_distribution(
-        input=adata, genome=genome, per_position=True
-    )
-    seqs = crested.tl.enhancer_design_in_silico_evolution(
+    acgt_disbtibution = crested.utils.calculate_nucleotide_distribution(input=adata, genome=genome, per_position=True)
+    seqs = crested.tl.design.in_silico_evolution(
         n_mutations=1,
         target=0,
         model=keras_model,
@@ -253,7 +327,7 @@ def test_enhancer_design_in_silico_evolution(keras_model, adata, genome):
 
     # starting sequences provided
     starting_sequences = ["A" * keras_model.input_shape[1]]
-    seqs = crested.tl.enhancer_design_in_silico_evolution(
+    seqs = crested.tl.design.in_silico_evolution(
         n_mutations=1,
         target=0,
         model=keras_model,

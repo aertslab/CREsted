@@ -4,7 +4,7 @@ DeepLiver Activity
 .. sidebar:: Model Features
 
    - **Genome**: *mm10*
-   - **Type**: Multi-Label Classification
+   - **Type**: Multi-label classification
    - **Parameters**: 12.2M
    - **Size**: 44MB
    - **Input shape**: (500, 4)
@@ -36,7 +36,7 @@ Usage
     model_path, output_names = crested.get_model("DeepLiver_activity")
 
     # load model
-    model = keras.models.load_model(model_path)
+    model = crested.utils.load_model(model_path)
 
     # make predictions
     sequence = "A" * 500

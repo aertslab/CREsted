@@ -1,23 +1,6 @@
 """Chrombpnet like model architecture for peak regression."""
 
-import warnings
-
 import keras
-
-
-def chrombpnet_decoupled(*args, **kwargs):
-    """
-    Use dilatedcnn_decoupled instead.
-
-    :meta private:
-    """
-    warnings.warn(
-        "'chrombpnet_decoupled' is deprecated and will be removed in a future release. "
-        "Use its new name 'dilated_cnn_decoupled' instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return dilated_cnn_decoupled(*args, **kwargs)
 
 
 def dilated_cnn_decoupled(
@@ -140,9 +123,9 @@ def dilated_cnn_decoupled(
         )(x)
         x = keras.layers.add([conv_x, x])
         if dropout > 0:
-            x = keras.layers.Dropout(dropout, name=f"bpnet_{layer_names[i-1]}dropout")(
-                x
-            )
+            x = keras.layers.Dropout(
+                dropout, name=f"bpnet_{layer_names[i - 1]}dropout"
+            )(x)
 
     x = keras.layers.GlobalAveragePooling1D()(x)
     # Decouple the dense layers

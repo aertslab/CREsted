@@ -1,4 +1,4 @@
-"""Init file for the pp module."""
+"""The preprocessing module `crested.pp` hosts functions that prepare an AnnData object for CREsted training and evaluation."""
 
 from ._filter import (
     filter_regions_on_specificity,

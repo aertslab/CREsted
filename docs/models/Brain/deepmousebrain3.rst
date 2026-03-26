@@ -4,7 +4,7 @@ DeepMouseBrain3
 .. sidebar:: Model Features
 
    - **Genome**: *mm10*
-   - **Type**: Peak Regression
+   - **Type**: Peak regression
    - **Parameters**: 25.4M
    - **Size**: 92MB
    - **Input shape**: (2114, 4)
@@ -24,7 +24,11 @@ Details of the data and the model can be found in the original publication.
 
 .. admonition:: Citation
 
-    Hecker, N., Kempynck, N. et al. Enhancer-driven cell type comparison reveals similarities between the mammalian and bird pallium. bioRxiv (2024). https://doi.org/10.1101/2024.04.17.589795
+    Hecker, N., Kempynck, N. et al. Enhancer-driven cell type comparison reveals similarities between the mammalian and bird pallium. Science (2025). https://doi.org/10.1126/science.adp3957
+
+.. admonition:: Data source
+
+    Zu, S., Li, Y.E., Wang, K. et al. Single-cell analysis of chromatin accessibility in the adult mouse brain. Nature (2023). https://doi.org/10.1038/s41586-023-06824-9
 
 Usage
 -------------------
@@ -39,7 +43,7 @@ Usage
     model_path, output_names = crested.get_model("DeepMouseBrain3")
 
     # load model
-    model = keras.models.load_model(model_path)
+    model = crested.utils.load_model(model_path)
 
     # make predictions
     sequence = "A" * 500

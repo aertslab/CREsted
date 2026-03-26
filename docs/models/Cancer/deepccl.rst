@@ -4,7 +4,7 @@ DeepCCL
 .. sidebar:: Model Features
 
    - **Genome**: *hg38*
-   - **Type**: Peak Regression
+   - **Type**: Peak regression
    - **Parameters**: 12.6M
    - **Size**: 47MB
    - **Input shape**: (2114, 4)
@@ -22,7 +22,7 @@ Details of the data and the model can be found in the original publication.
 
 .. admonition:: Citation
 
-   Kempynck, N., De Winter, S., et al. CREsted: modeling genomic and synthetic cell type-specific enhancers across tissues and species. Zenodo. https://doi.org/10.5281/zenodo.13918932
+   Kempynck, N., De Winter, S., et al. CREsted: modeling genomic and synthetic cell type-specific enhancers across tissues and species. bioRxiv (2025). https://doi.org/10.1101/2025.04.02.646812
 
 Usage
 -------------------
@@ -37,7 +37,7 @@ Usage
     model_path, output_names = crested.get_model("DeepCCL")
 
     # load model
-    model = keras.models.load_model(model_path)
+    model = crested.utils.load_model(model_path)
 
     # make predictions
     sequence = "A" * 2114
