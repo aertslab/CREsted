@@ -155,8 +155,6 @@ def heatmap_self(
     # Set defaults
     if 'xtick_rotation' not in kwargs:
         kwargs['xtick_rotation'] = 90
-    if 'layout' not in kwargs:
-        kwargs['layout'] = 'compressed'
     plot_kws = {} if plot_kws is None else plot_kws.copy() # Most plot defaults handled in _generate_heatmap() defaults
     cbar_kws = {} if cbar_kws is None else cbar_kws.copy()
     if 'label' not in cbar_kws:
@@ -175,7 +173,7 @@ def heatmap_self(
 
     # Plot heatmap
     default_width = 10 if cbar else 8
-    fig, ax = create_plot(ax=ax, kwargs_dict=kwargs, default_width=default_width, default_height=8)
+    fig, ax = create_plot(ax=ax, kwargs_dict=kwargs, default_width=default_width, default_height=8, default_layout='compressed')
     ax = _generate_heatmap(ax=ax, correlation_matrix=correlation_matrix, classes=classes, vmin=vmin, vmax=vmax, reorder=reorder, cmap=cmap, cbar=cbar, cbar_kws=cbar_kws, **plot_kws)
 
     return render_plot(fig, ax, **kwargs)
@@ -291,8 +289,6 @@ def heatmap(
     # Set defaults
     if 'xtick_rotation' not in kwargs:
         kwargs['xtick_rotation'] = 90
-    if 'layout' not in kwargs:
-        kwargs['layout'] = 'compressed'
     if 'title' not in kwargs:
         kwargs['title'] = list(model_names)
     plot_kws = {} if plot_kws is None else plot_kws.copy() # Most plot defaults handled in _generate_heatmap() defaults
@@ -309,7 +305,7 @@ def heatmap(
 
     # Create plots
     default_width = 10*n_models if cbar else 8*n_models
-    fig, axs = create_plot(ax=ax, kwargs_dict=kwargs, default_width=default_width, default_height=8, ncols=n_models)
+    fig, axs = create_plot(ax=ax, kwargs_dict=kwargs, default_width=default_width, default_height=8, ncols=n_models, default_layout='compressed')
     if isinstance(axs, plt.Axes):
         axs = [axs]
 
