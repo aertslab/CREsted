@@ -13,7 +13,7 @@ from ._datawrapper import BaseGenomicDataWrapper
 
 class AnnDataWrapper(BaseGenomicDataWrapper):
     """
-    Wrapper around your AnnData and genome, providing you with values to train a model with.
+    Wrapper around your AnnData and genome, providing you with one-hot encoded sequences and associated scalar values to train a model with.
 
     Required input for the `tl.Crested` class.
 
@@ -60,7 +60,7 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
         train_splits: str | list | None = None,
         val_splits: str | list = 'val',
         test_splits: str | list = 'test',
-        split_column = 'split',
+        split_column: str = 'split',
         **kwargs
     ):
         """Initialize the AnnDataWrapper with an AnnData and a genome."""
@@ -88,11 +88,11 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
         self.index_map = {index: i for i, index in enumerate(self.indices)}
 
     def _get_indices(self):
-        """Return a list of raw training sample indices, the anndata's var_names."""
+        """Return a full list of all included sample indices, aka the anndata's var_names."""
         return list(self.data.var_names)
 
     def _get_splits(self):
-        """Return a list of split values, for each index."""
+        """Return a list of split values, for each index from _get_indices()."""
         return list(self.data.var[self.split_column])
 
     def _get_target(self, original_index: str, **kwargs) -> np.ndarray:

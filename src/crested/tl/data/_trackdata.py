@@ -18,6 +18,40 @@ from crested.utils import parse_region
 
 
 class TrackData:
+    """
+    A class to extract track data from multiple BigWigs at once. Can extract either on the fly (in_memory=False) or read in all bigwigs (in_memory=True).
+
+    Parameters
+    ----------
+    paths
+        A list or dict of paths, or a path to a directory. If a dict, keys are kept as class_names. If a list or directory, class_names are inferred from the filenames.
+    bin_size
+        Size to bin the output values to, in basepairs. If None, doesn't do binning.
+    target
+        The manner in which to pool values. Can be 'mean', 'max', 'count', or 'logcount'
+    prebinned
+        Whether to save the dataset in binned mode (limiting augmentation to bin_size shifts but reducing memory usage)
+        or at base-pair resolution (allowing extraction of any sequence, but increasing memory usage)
+    crop
+        A single int or tuple of ints, denoting nucleotides to crop from the sides of regions before reading out the track.
+        A single value will remove half that from both flank, while a tuple will remove those amounts from either side.
+        Example: returning center 500bp tracks from 1000bp regions works with crop=500 or crop=(250, 250).
+    in_memory
+        Whether to save the bigwig values in memory, or read out tracks on the fly. If doing actual training, recommended to turn on,
+        since on-the-fly track retrieval is likely not fast enough to keep up. Default is True.
+    kept_chroms
+        Chromosomes to actually read in. if you want to skip i.e. the mitochondrial genome, drop it here.
+        Note that TrackData handles mixed presence/absence 'chr' prefixes by default when loading in data.
+    chrom_sizes
+        Chromosome sizes. Should be exactly the same between datasets.
+        Can be a dict or None. If None (default), uses the registered genome if available, and otherwise read in from the first bigwig listed.
+    compressed
+        Whether to save the data as compressed sparse rows. Currently not recommended since this increases memory usage peaks
+        while reading in data, while not resulting in large gains in terms of stable memory occupancy. Default is False.
+    verbose
+        Whether to print extra information when reading in data. Default is False.
+    """
+
     def __init__(
         self,
         paths: dict[str] | list[str] | str | PathLike,
@@ -31,39 +65,7 @@ class TrackData:
         compressed: bool = False,
         verbose: bool = False
     ):
-        """
-        A class to extract track data from multiple BigWigs at once. Can extract either on the fly (in_memory=False) or read in all bigwigs (in_memory=True).
-
-        Parameters
-        ----------
-        paths
-            A list or dict of paths, or a path to a directory. If a dict, keys are kept as class_names. If a list or directory, class_names are inferred from the filenames.
-        bin_size
-            Size to bin the output values to, in basepairs. If None, doesn't do binning.
-        target
-            The manner in which to pool values. Can be 'mean', 'max', 'count', or 'logcount'
-        prebinned
-            Whether to save the dataset in binned mode (limiting augmentation to bin_size shifts but reducing memory usage)
-            or at base-pair resolution (allowing extraction of any sequence, but increasing memory usage)
-        crop
-            A single int or tuple of ints, denoting nucleotides to crop from the sides of regions before reading out the track.
-            A single value will remove half that from both flank, while a tuple will remove those amounts from either side.
-            Example: returning center 500bp tracks from 1000bp regions works with crop=500 or crop=(250, 250).
-        in_memory
-            Whether to save the bigwig values in memory, or read out tracks on the fly. If doing actual training, recommended to turn on,
-            since on-the-fly track retrieval is likely not fast enough to keep up. Default is True.
-        kept_chroms
-            Chromosomes to actually read in. if you want to skip i.e. the mitochondrial genome, drop it here.
-            Note that TrackData handles mixed presence/absence 'chr' prefixes by default when loading in data.
-        chrom_sizes
-            Chromosome sizes. Should be exactly the same between datasets.
-            Can be a dict or None. If None (default), uses the registered genome if available, and otherwise read in from the first bigwig listed.
-        compressed
-            Whether to save the data as compressed sparse rows. Currently not recommended since this increases memory usage peaks
-            while reading in data, while not resulting in large gains in terms of stable memory occupancy. Default is False.
-        verbose
-            Whether to print extra information when reading in data. Default is False.
-        """
+        """Initialize your TrackData with file paths and various options."""
         # Save simple arguments
         self.bin_size = 1 if bin_size is None else bin_size
         self.prebinned = prebinned
@@ -145,12 +147,29 @@ class TrackData:
         # TODO maybe: add support for stranded bigwigs (provide pair of paths, save both in alternative version, but bit of a bother to implement)
         # TODO: implement region reading rather than full chromosomes
 
-    def __getitem__(self, idx: tuple[str, int, int] | tuple[str, int, int, str] | str):
+    def __getitem__(self, idx: tuple[str, int, int] | tuple[str, int, int, str] | str) -> np.ndarray:
+        """Retrieve values for a region, without any shift. Wrapper around `self.get_track`."""
         return self.get_track(idx, shift=0)
 
-    def get_track(self, idx: tuple[str, int, int] | tuple[str, int, int, str] | str, shift: int = 0):
-        """"""
-        # Parse index
+    def get_track(self, idx: tuple[str, int, int] | tuple[str, int, int, str] | str, shift: int = 0) -> np.ndarray:
+        """Retrieve tracks for a region given an index and shift.
+
+        Note that the region can shift slightly to align with bin axes if self.prebinned is True. It currently always rounds down for consistency.
+
+        Parameters
+        ----------
+        idx
+            The region to return values from the stored tracks for. Preferably a (chrom, start, end, strand) tuple, but accepts anything parsable by {func}`~crested.utils.parse_region`.
+            If self.prebinned is true, rounds down to nearest bin edges.
+        shift
+            A shift to move the read-out region by, in basepairs. Primarily for use with stochastic shifting.
+            Adds shift without regard to strand (i.e. to start and end directly). If self.prebinned is True, must be divisible by self.bin_size.
+
+        Returns
+        -------
+        A numpy array of shape (n_basepairs/self.bin_size, self.n_obs)
+        """
+        # Parse index if not yet parsed
         chrom, start, end, strand = parse_region(idx)
 
         if self.crop[0] > 0 or self.crop[1] > 0:
@@ -202,7 +221,7 @@ class TrackData:
         return values
 
     def _read_bws(self):
-        """"""
+        """Read in all bigwigs into memory."""
         # Initialize empty arrays per chromosome
         if self.prebinned:
             self.data = {chrom: np.zeros((chrom_size, len(self.paths)), dtype='float16') for chrom, chrom_size in self.binned_chrom_sizes.items()}
@@ -253,8 +272,26 @@ class TrackData:
             for path in file_objects:
                 file_objects[path].close()
 
-    def _get_single_region(self, chrom, start, end, strand = "+"):
-        """"""
+    def _get_single_region(self, chrom: str, start: int, end: int, strand: Literal['+', '-'] = "+") -> np.ndarray:
+        """Internal method to retrieve tracks from bigwigs on the fly.
+
+        Use `self.get_track` with self.in_memory=False rather than calling this function directly.
+
+        Parameters
+        ----------
+        chrom
+            Chromosome of region to retrieve values for. Must be in self.chrom_name_mapping for each path (which handles chr/no chr prefix inconsistencies for you, hopefully).
+        start
+            Start of the region to retrieve values for.
+        end
+            End of the region to retrieve values for.
+        strand
+            Strand of the region to retrieve values for. Positive strand by default.
+
+        Returns
+        -------
+        A numpy array of shape (n_basepairs, self.n_obs).
+        """
         values = np.concatenate([
             _extract_tracks_from_bigwig(
                 bw_file = bw_path,
@@ -268,29 +305,35 @@ class TrackData:
 
     @property
     def shape(self):
+        """Return the dataset shape as (n_classes, n_chroms)."""
         return len(self.class_names), len(self.chrom_sizes)
 
     @property
     def obs_names(self):
+        """Return the class/track/bigwig names."""
         return self.class_names
 
     @property
     def n_obs(self):
+        """Return the number of classes/tracks/bigwigs in the TrackData."""
         return len(self.class_names)
 
     @property
     def chrom_names(self):
+        """Return the chromosome names in the data."""
         return list(self.chrom_sizes.keys())
 
     @property
     def n_chroms(self):
+        """Return the number of chromosomes in the data."""
         return len(self.chrom_sizes)
 
     def __len__(self):
+        """Return the dataset length as the number of paths/datasets included."""
         return len(self.paths)
 
     def __repr__(self):
-        """String representation of the trackdata."""
+        """Return a string representation of the TrackData."""
         repr_str = (
             f"TrackData object with {self.n_obs} tracks and {self.n_chroms} chromosomes. \nin_memory: {self.in_memory}, prebinned: {self.prebinned}, bin_size: {self.bin_size}, target: {self.target}\n"
             f"Tracks: {self.obs_names}\n"

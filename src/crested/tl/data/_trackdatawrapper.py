@@ -9,6 +9,45 @@ from ._datawrapper import BaseGenomicDataWrapper
 
 
 class TrackDataWrapper(BaseGenomicDataWrapper):
+    """
+    Wrapper around your TrackData and genome, providing you with one-hot encoded sequences and associated track values to train a model with.
+
+    Parameters
+    ----------
+    data
+        A {obj}`~crested.tl.data.TrackData` object with the data you want to train on.
+    regions
+        A list of regions (as 'chr:start-end' or 'chr:start-end:strand') to train and evaluate on.
+    splits
+        A list of split labels, of the same length as `regions`, denoting which split they belong to.
+        Expects `'train'`/`'val'`/`'test'` by default, but split labels can be adjusted in `train_splits`/`val_splits`/`test_splits`.
+    genome
+        A {obj}`~crested.Genome` object. If None (default), will use a registered genome, if available.
+    batch_size
+        Batch size to use during training and evaluation.
+    random_reverse_complement
+        If True, the sequences will be randomly reverse complemented during training.
+        Incompatible with always_reverse_complement.
+    always_reverse_complement
+        If True, the dataset will be expanded to include both the forward and reverse-complemented versions of every entry in the training set.
+        Incompatible with random_reverse_complement.
+    max_stochastic_shift
+        Maximum stochastic shift (n base pairs in either direction) to apply randomly to each sequence during training.
+        Default is 0 (disabled).
+    in_memory
+        If True, load the sequences from the genome before training starts to memory, rather than extracting on the fly every time. Default is True.
+        Note that this only changes sequence loading behavior: track loading behavior is set in {obj}`~crested.tl.data.TrackData`.
+    drop_remainder
+        If True, drop the last batch if it is not the full batch_size. Default is False.
+    train_splits
+        The values in your split labeling that correspond to the training set as string or list of strings, i.e 'train' or ['fold0', 'fold1', 'fold2']
+        If None, uses the values that aren't `val_splits` or `test_splits`.
+    val_splits
+        The values in your split labeling that correspond to the validation set as string or list of strings, i.e 'val' or ['fold3', 'fold4']
+    test_splits
+        The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
+    """
+
     def __init__(
         self,
         data: TrackData,
@@ -26,7 +65,7 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
         test_splits: str | list = 'test',
         **kwargs
     ):
-        """""" # TODO: ADD DOCS
+        """Initialize the DataWrapper with the provided dataset and options."""
         # Set some basic values (esp those required for _get_indices and _get_splits)
         self.trackdata = data
         self.regions = regions
@@ -48,11 +87,11 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
         )
 
     def _get_indices(self):
-        """"""
+        """Return a full list of all included sample indices, aka `self.regions`."""
         return self.regions
 
     def _get_splits(self):
-        """"""
+        """Return a list of split values, for each index from _get_indices()."""
         return self.splits
 
     def _get_shift(self, **kwargs) -> int:
@@ -99,6 +138,47 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
 # Inherit AnnDataWrapper for anndata support w.r.t. indexing, sequence retrieval, etc. and add TrackDataWrapper things manually
 # I tried dual inheritance but it makes the AnnDataWrapper's super().__init__ call TrackDataWrapper's, which is not what we want
 class GeckoDataWrapper(AnnDataWrapper):
+    """
+    Wrapper around an AnnData, TrackData, and genome, providing you with one-hot encoded sequences and matched scalar and track values to train a model with.
+
+    Parameters
+    ----------
+    data
+        A {obj}`~crested.tl.data.TrackData` object with the data you want to train on.
+    regions
+        A list of regions (as 'chr:start-end' or 'chr:start-end:strand') to train and evaluate on.
+    splits
+        A list of split labels, of the same length as `regions`, denoting which split they belong to.
+        Expects `'train'`/`'val'`/`'test'` by default, but split labels can be adjusted in `train_splits`/`val_splits`/`test_splits`.
+    genome
+        A {obj}`~crested.Genome` object. If None (default), will use a registered genome, if available.
+    batch_size
+        Batch size to use during training and evaluation.
+    random_reverse_complement
+        If True, the sequences will be randomly reverse complemented during training.
+        Incompatible with always_reverse_complement.
+    always_reverse_complement
+        If True, the dataset will be expanded to include both the forward and reverse-complemented versions of every entry in the training set.
+        Incompatible with random_reverse_complement.
+    max_stochastic_shift
+        Maximum stochastic shift (n base pairs in either direction) to apply randomly to each sequence during training.
+        Default is 0 (disabled).
+    in_memory
+        If True, load the sequences from the genome before training starts to memory, rather than extracting on the fly every time. Default is True.
+        Note that this only changes sequence loading behavior: track loading behavior is set in {obj}`~crested.tl.data.TrackData`.
+    drop_remainder
+        If True, drop the last batch if it is not the full batch_size. Default is False.
+    train_splits
+        The values in your split labeling that correspond to the training set as string or list of strings, i.e 'train' or ['fold0', 'fold1', 'fold2']
+        If None, uses the values that aren't `val_splits` or `test_splits`.
+    val_splits
+        The values in your split labeling that correspond to the validation set as string or list of strings, i.e 'val' or ['fold3', 'fold4']
+    test_splits
+        The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
+    split_column
+        The column in adata.var that contains the values to split on (as provided to [train/val/test]_splits)
+    """
+
     def __init__(
         self,
         anndata: AnnData,
@@ -110,13 +190,13 @@ class GeckoDataWrapper(AnnDataWrapper):
         max_stochastic_shift: int = 0,
         in_memory: bool = True,
         drop_remainder: bool = False,
-        train_splits: str | list = 'train',
+        train_splits: str | list | None = None,
         val_splits: str | list = 'val',
         test_splits: str | list = 'test',
-        split_column = 'split', # TODO: add docs for these, maybe only keep this in downstream implementations
+        split_column: str = 'split',
         **kwargs
-    ): # TODO: ADD ARGS
-        """"""
+    ):
+        """Initialize the DataWrapper with the provided dataset and options."""
         # Set track-specific things not set by AnnDataWrapper's init
         self.trackdata = trackdata
 
@@ -141,11 +221,11 @@ class GeckoDataWrapper(AnnDataWrapper):
         self.index_map = {index: i for i, index in enumerate(self.indices)}
 
     def _get_indices(self):
-        """"""
+        """Return a full list of all included sample indices, aka the anndata's var_names."""
         return list(self.data.var_names)
 
     def _get_splits(self):
-        """"""
+        """Return a list of split values, for each index from _get_indices()."""
         return list(self.data.var[self.split_column])
 
     def _get_target(self, original_index: str, parsed_index: str, revcomp: bool, shift: int, **kwargs) -> np.ndarray:
