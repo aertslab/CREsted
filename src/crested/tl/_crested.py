@@ -8,16 +8,10 @@ import shutil
 from datetime import datetime
 
 import keras
-import numpy as np
-from anndata import AnnData
 from loguru import logger
 
 from crested.tl import TaskConfig
 from crested.tl.data import AnnDataModule
-from crested.tl.data._dataset import SequenceLoader
-from crested.utils import (
-    one_hot_encode_sequence,
-)
 from crested.utils._logging import log_and_raise
 
 
@@ -564,74 +558,6 @@ class Crested:
             return evaluation_metrics
         return None
 
-    def _create_random_sequences(self, n_sequences: int, seq_len: int) -> np.ndarray:
-        if self.acgt_distribution is None:
-            self._calculate_location_gc_frequencies()
-
-        random_sequences = np.empty((n_sequences), dtype=object)
-
-        for idx_seq in range(n_sequences):
-            current_sequence = []
-            for idx_loc in range(seq_len):
-                current_sequence.append(
-                    np.random.choice(
-                        ["A", "C", "G", "T"], p=list(self.acgt_distribution[idx_loc])
-                    )
-                )
-            random_sequences[idx_seq] = "".join(current_sequence)
-
-        return random_sequences
-
-    def _parse_starting_sequences(self, starting_sequences) -> np.ndarray:
-        if isinstance(starting_sequences, str):
-            starting_sequences = [starting_sequences]
-
-        n_sequences = len(starting_sequences)
-        starting_sequences_array = np.empty((n_sequences), dtype=object)
-        for idx, sequence in enumerate(starting_sequences):
-            starting_sequences_array[idx] = sequence
-
-        return starting_sequences_array
-
-    def _calculate_location_gc_frequencies(self) -> np.ndarray:
-        regions = self.anndatamodule.adata.var
-        sequence_loader = SequenceLoader(
-            genome=self.anndatamodule.genome,
-            in_memory=True,
-            always_reverse_complement=False,
-            max_stochastic_shift=0,
-            regions=list(regions.index),
-        )
-        all_sequences = list(sequence_loader.sequences.values())
-        sequence_length = len(all_sequences[0])
-        all_onehot_squeeze = np.array(
-            [one_hot_encode_sequence(seq) for seq in all_sequences]
-        ).squeeze(axis=1)
-        acgt_distribution = np.sum(all_onehot_squeeze, axis=0).astype(int) / np.reshape(
-            np.sum(np.sum(all_onehot_squeeze, axis=0), axis=1), (sequence_length, 1)
-        ).astype(int)
-
-        self.acgt_distribution = acgt_distribution
-        return acgt_distribution
-
-    def _derive_intermediate_sequences(self, enhancer_design_intermediate):
-        all_designed_list = []
-        for intermediate_dict in enhancer_design_intermediate:
-            current_sequence = intermediate_dict["initial_sequence"]
-            sequence_list = [current_sequence]
-            for loc, change in intermediate_dict["changes"]:
-                if loc == -1:
-                    continue
-                else:
-                    current_sequence = (
-                        current_sequence[:loc]
-                        + change
-                        + current_sequence[loc + len(change) :]
-                    )
-                    sequence_list.append(current_sequence)
-            all_designed_list.append(sequence_list)
-        return all_designed_list
-
     @staticmethod
     def _check_gpu_availability():
         """Check if GPUs are available."""
@@ -651,19 +577,6 @@ class Crested:
                 logger.warning("No GPUs available, falling back to CPU.")
                 devices = keras.distribution.list_devices("cpu")
             return devices
-
-    @log_and_raise(ValueError)
-    def _check_contrib_params(self, method):
-        if method not in [
-            "integrated_grad",
-            "smooth_grad",
-            "mutagenesis",
-            "saliency",
-            "expected_integrated_grad",
-        ]:
-            raise ValueError(
-                "Contribution score method not implemented. Choose out of the following options: integrated_grad, smooth_grad, mutagenesis, saliency, expected_integrated_grad."
-            )
 
     @log_and_raise(ValueError)
     def _check_fit_params(self):
@@ -691,35 +604,6 @@ class Crested:
             raise ValueError(
                 "Model not set. Please load a model from pretrained using Crested.load_model(...) before calling test."
             )
-
-    @log_and_raise(ValueError)
-    def _check_predict_params(self, anndata: AnnData | None, model_name: str | None):
-        """Check if the necessary parameters are set for the predict method."""
-        if not self.model:
-            raise ValueError(
-                "Model not set. Please load a model from pretrained using Crested.load_model(...) before calling predict."
-            )
-        if (anndata is not None and model_name is None) or (
-            anndata is None and model_name is not None
-        ):
-            raise ValueError(
-                "Both anndata and model_name must be provided if one of them is provided."
-            )
-
-    @log_and_raise(ValueError)
-    def _check_contribution_scores_params(self, class_names: list):
-        """Check if the necessary parameters are set for the calculate_contribution_scores method."""
-        if not self.model:
-            raise ValueError(
-                "Model not set. Please load a model from pretrained using Crested.load_model(...) before calling calculate_contribution_scores_(regions)."
-            )
-
-        all_class_names = list(self.anndatamodule.adata.obs_names)
-        for class_name in class_names:
-            if class_name not in all_class_names:
-                raise ValueError(
-                    f"Class name {class_name} not found in anndata.obs_names."
-                )
 
     def _check_continued_training(self):
         """Check if the model is already trained and load existing model if so."""
