@@ -132,9 +132,6 @@ class TrackDataWrapper(BaseGenomicDataWrapper):
             expanded_index = self._unparse_index((chrom, start, end, strand))
         return expanded_index
 
-    def __repr__(self):
-        return f"TrackDataWrapper: (n_samples={len(self)}, batch_size={self.batch_size}, batched_length={self.batched_length()}, data shape: {self.trackdata.shape}, input_shape={self.input_shape}, output_shape={self.output_shape})" #TODO: finish
-
 # Inherit AnnDataWrapper for anndata support w.r.t. indexing, sequence retrieval, etc. and add TrackDataWrapper things manually
 # I tried dual inheritance but it makes the AnnDataWrapper's super().__init__ call TrackDataWrapper's, which is not what we want
 class GeckoDataWrapper(AnnDataWrapper):
@@ -274,6 +271,3 @@ class GeckoDataWrapper(AnnDataWrapper):
             # Transform back into string
             expanded_index = self._unparse_index((chrom, start, end, strand))
         return expanded_index
-
-    def __repr__(self):
-        return f"GeckoDataWrapper: (n_samples={len(self)}, batch_size={self.batch_size}, batched_length={self.batched_length()}, input_shape={self.input_shape}, output_shape={self.output_shape})" #TODO: finish
