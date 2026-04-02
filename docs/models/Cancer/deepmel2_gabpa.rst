@@ -20,7 +20,7 @@ Details of the data and model can be found in the original publication.
 
 .. admonition:: Citation
 
-    Atak, Z.K., Taskiran, I.I. et al. Interpretation of allele-specific chromatin accessibility using cell state-aware deep learning. Genome Res. 31, 1082–1096 (2021). https://doi.org/10.1101/gr.260851.120
+    Atak, Z.K., Taskiran, I.I. et al. Interpretation of allele-specific chromatin accessibility using cell state-aware deep learning. Genome Research 31, 1082–1096 (2021). https://doi.org/10.1101/gr.260851.120
 
 Usage
 -------------------
