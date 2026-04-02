@@ -93,13 +93,13 @@ For questions and help requests, please use the [issue tracker][issue-tracker].
 
 ## Citation
 
-Kempynck, N., De Winter, S., et al. [CREsted: modeling genomic and synthetic cell type-specific enhancers across tissues and species.](https://www.biorxiv.org/content/10.1101/2025.04.02.646812v1)
+Kempynck, N., De Winter, S., et al. [CREsted: modeling genomic and synthetic cell type-specific enhancers across tissues and species.](https://www.nature.com/articles/s41592-026-03057-2)
 
 We also store CREsted version backups on Zenodo: [https://doi.org/10.5281/zenodo.15045960](https://doi.org/10.5281/zenodo.15045960)
 
 ## Choosing your backend
 
-CREsted is build on top of keras 3.0 and can therefore be used with your deep learning backend of choice (TensorFlow or PyTorch). If you don't have a preference, you can take the following into account:
+CREsted is build on top of Keras 3.0 and can therefore be used with your deep learning backend of choice (TensorFlow or PyTorch). If you don't have a preference, you can take the following into account:
 
 1. From our (and Keras' official) benchmarking, **TensorFlow** is generally faster than PyTorch for training (up to 2x) since TensorFlow operates in graph mode whereas PyTorch uses eager mode. If you plan on training many models, TensorFlow might be the better choice.
 2. **PyTorch** is easier to debug and get going. TensorFlow will easily throw a bunch of warnings or fail to detect CUDA if you don't have the exact right versions of CUDA and cuDNN installed. PyTorch seems more lenient in this regard. If you only plan on running predictions or training a few models, PyTorch might be the easier choice.
