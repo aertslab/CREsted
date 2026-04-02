@@ -21,7 +21,7 @@ Details of the data and model can be found in the original publication.
 
 .. admonition:: Citation
 
-    Bravo González-Blas, C., Matetovici, I., Hillen, H. et al. Single-cell spatial multi-omics and deep learning dissect enhancer-driven gene regulatory networks in liver zonation. Nat Cell Biol 26, 153-167 (2024). https://doi.org/10.1038/s41556-023-01316-4
+    Bravo González-Blas, C. et al. Single-cell spatial multi-omics and deep learning dissect enhancer-driven gene regulatory networks in liver zonation. Nature Cell Biology 26, 153-167 (2024). https://doi.org/10.1038/s41556-023-01316-4
 
 Usage
 -------------------

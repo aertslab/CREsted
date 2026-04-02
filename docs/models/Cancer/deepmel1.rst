@@ -25,7 +25,7 @@ Details of the data and model can be found in the original publication.
 
 .. admonition:: Citation
 
-    Minoye, L., Taskiran, I.I. et al. Cross-species analysis of enhancer logic using deep learning. Genome Res. 30, 1815–1834 (2020). https://doi.org/10.1101/gr.260844.120
+    Minoye, L., Taskiran, I.I. et al. Cross-species analysis of enhancer logic using deep learning. Genome Research 30, 1815–1834 (2020). https://doi.org/10.1101/gr.260844.120
 
 Usage
 -------------------
