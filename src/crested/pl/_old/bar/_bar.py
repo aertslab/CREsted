@@ -18,7 +18,7 @@ def normalization_weights(*args, **kwargs):
     :meta private:
     """
     logger.info(
-        "`crested.pl.bar.normalization_weights` has been renamed to `crested.pl.qc.normalization_weights` in version 2.0.0"
+        "`crested.pl.bar.normalization_weights` has been renamed to `crested.pl.qc.normalization_weights` in version 1.7.0"
         " and this alias will be removed in a future release. Please use its new name instead."
     )
     return crested.pl.qc.normalization_weights(*args, **kwargs)
@@ -43,7 +43,7 @@ def region(
     # Deprecation warnings
     target_string = f"'{target}'"
     logger.warning(
-        "region is deprecated since version 2.0.0 as its functionality is moved into `bar`. "
+        "region is deprecated since version 1.7.0 as its functionality is moved into `bar`. "
         f"Please use `crested.pl.region.bar(adata, region, model_names={target_string}, **kwargs)` instead."
     )
 
@@ -86,12 +86,12 @@ def region_predictions(
     # Deprecation warnings
     targets_string = "None" if model_names is None else model_names
     logger.warning(
-        "region_predictions is deprecated since version 2.0.0 as its functionality is moved into `bar`. "
+        "region_predictions is deprecated since version 1.7.0 as its functionality is moved into `bar`. "
         f"Please use `crested.pl.region.bar(adata, region, model_names={targets_string}, **kwargs)` instead."
     )
     if 'share_y' in kwargs:
         kwargs['sharey'] = kwargs.pop('share_y')
-        logger.warning("Argument `share_y` is deprecated since version 2.0.0; please use sharey instead to align with matplotlib.")
+        logger.warning("Argument `share_y` is deprecated since version 1.7.0; please use sharey instead to align with matplotlib.")
 
     # Mimic old behavior of names at ylabel rather than at title
     if 'ylabel' not in kwargs:
@@ -123,7 +123,7 @@ def prediction(
     :meta private:
     """
     logger.warning(
-        "`prediction` is deprecated since version 2.0.0 as its functionality is moved into `crested.pl.region.bar`. "
+        "`prediction` is deprecated since version 1.7.0 as its functionality is moved into `crested.pl.region.bar`. "
         "Please use `crested.pl.region.bar(data=prediction, classes=classes, **kwargs)` instead."
     )
     plot_kws = {} if plot_kws is None else plot_kws.copy()

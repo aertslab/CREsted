@@ -506,6 +506,48 @@ def test_patterns_contribution_scores():
     assert fig is not None and ax is not None
     plt.close()
 
+def test_patterns_contribution_scores_x_shift():
+    scores = np.random.uniform(-1, 3, (1, 1, 100, 4))
+    seqs_one_hot = np.eye(4)[None, np.random.randint(4, size=100)]
+
+    # Valid positive shift
+    fig, ax = crested.pl.explain.contribution_scores(
+        scores, seqs_one_hot,
+        zoom_n_bases=50,
+        x_shift=10,
+        show=False
+    )
+    assert fig is not None and ax is not None
+    plt.close()
+
+    # Valid negative shift
+    fig, ax = crested.pl.explain.contribution_scores(
+        scores, seqs_one_hot,
+        zoom_n_bases=50,
+        x_shift=-10,
+        show=False
+    )
+    assert fig is not None and ax is not None
+    plt.close()
+
+    # Shift that pushes window past the right edge
+    with pytest.raises(ValueError, match="x_shift"):
+        crested.pl.explain.contribution_scores(
+            scores, seqs_one_hot,
+            zoom_n_bases=50,
+            x_shift=30,
+            show=False
+        )
+
+    # Shift that pushes window before the left edge
+    with pytest.raises(ValueError, match="x_shift"):
+        crested.pl.explain.contribution_scores(
+            scores, seqs_one_hot,
+            zoom_n_bases=50,
+            x_shift=-30,
+            show=False
+        )
+
 def test_patterns_contribution_scores_mutagenesis():
     scores = np.random.uniform(-3, 1, (1, 1, 100, 4))
     seqs_one_hot = np.eye(4)[None, np.random.randint(4, size=100)]

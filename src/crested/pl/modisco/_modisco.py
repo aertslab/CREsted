@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from loguru import logger
+from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.patches import Patch
 from scipy.cluster.hierarchy import dendrogram, leaves_list, linkage
 
@@ -308,7 +309,7 @@ def clustermap_tomtom_similarities(
     """
     if figsize != 'deprecated':
         width, height = figsize
-        logger.warning("Argument `figsize` is deprecated since version 2.0.0; please use width and height instead.")
+        logger.warning(f"Argument `figsize` is deprecated since version 1.7.0; please use `width={width}, height={height}` instead.")
     if group_info is None:
         group_info = []
 
@@ -508,7 +509,7 @@ def clustermap(
     """
     if figsize != 'deprecated':
         width, height = figsize
-        logger.warning("Argument `figsize` is deprecated since version 2.0.0; please use width and height instead.")
+        logger.warning(f"Argument `figsize` is deprecated since version 1.7.0; please use `width={width}, height={height}` instead.")
     plot_kws = {} if plot_kws is None else plot_kws.copy()
     if 'cbar_pos' not in plot_kws:
         plot_kws['cbar_pos'] = (1.05, 0.4, 0.01, 0.3)
@@ -682,7 +683,7 @@ def clustermap_with_pwm_logos(
     """
     if figsize != 'deprecated':
         width, height = figsize
-        logger.warning("Argument `figsize` is deprecated since version 2.0.0; please use width and height instead.")
+        logger.warning(f"Argument `figsize` is deprecated since version 1.7.0; please use `width={width}, height={height}` instead.")
     plot_kws = {} if plot_kws is None else plot_kws.copy()
     if 'cbar_pos' not in plot_kws:
         plot_kws['cbar_pos'] = (1.05, 0.4, 0.01, 0.3)
@@ -998,10 +999,10 @@ def similarity_heatmap(
     # Handle deprecated arguments
     if fig_size != 'deprecated':
         kwargs['width'], kwargs['height'] = fig_size
-        logger.warning("`fig_size` is deprecated since version 2.0.0; please use arguments `width` and `height` instead.")
+        logger.warning(f"`fig_size` is deprecated since version 1.7.0; please use arguments `width={kwargs['width']}, height={kwargs['height']}` instead.")
     if fig_path != 'deprecated':
         kwargs['save_path'] = fig_path
-        logger.warning("`fig_path` is deprecated since version 2.0.0; please use arguments `save_path` instead.") # handled in render_plot
+        logger.warning(f"`fig_path` is deprecated since version 1.7.0; please use argument `save_path={kwargs['save_path']}` instead.") # handled in render_plot
 
     # Set defaults
     if 'title' not in kwargs:
@@ -1125,6 +1126,7 @@ def clustermap_tf_motif(
     pattern_labels: list[str] | None = None,
     cluster_rows: bool = True,
     cluster_columns: bool = True,
+    cbar_pad: float = 0.05,
     imshow_kws: dict | None = None,
     scatter_kws: dict | None = None,
     fig_size = 'deprecated',
@@ -1151,6 +1153,8 @@ def clustermap_tf_motif(
         Whether to cluster the rows (classes). Default is True.
     cluster_columns
         Whether to cluster the columns (patterns). Default is True.
+    cbar_pad : float
+        Horizontal padding between heatmap and colorbar in figure coordinates.
     imshow_kws
         Extra arguments for `ax.imshow`. Default is `{'cmap': 'coolwarm', 'aspect': 'auto'}`.
     scatter_kws
@@ -1177,7 +1181,7 @@ def clustermap_tf_motif(
     """
     if fig_size != 'deprecated':
         kwargs['width'], kwargs['height'] = fig_size
-        logger.warning("`fig_size` is deprecated since version 2.0.0; please use `width` and `height` instead.")
+        logger.warning(f"`fig_size` is deprecated since version 1.7.0; please use `width={kwargs['width']}, height={kwargs['height']}` instead.")
     assert data.shape[2] == 2, "The third dimension of the data must be 2."
 
     # Set default labels if not provided
@@ -1262,15 +1266,21 @@ def clustermap_tf_motif(
         vmax=max(np.abs(heatmap_data.min()), np.abs(heatmap_data.max())),
     )
 
+    # Define custom light-centered colormap
+    light_centered_cmap = LinearSegmentedColormap.from_list(
+        "light_coolwarm", ["blue", "#f0f0f0", "red"]
+    )
+
     # Plot heatmap
     imshow_kws = {} if imshow_kws is None else imshow_kws.copy()
     if 'aspect' not in imshow_kws:
         imshow_kws['aspect'] = 'auto'
     if 'cmap' not in imshow_kws:
-        imshow_kws['cmap'] = 'coolwarm'
+        imshow_kws['cmap'] = light_centered_cmap
+    if 'norm' not in imshow_kws:
+        imshow_kws['norm'] = norm
     heatmap = ax_heatmap.imshow(
         heatmap_data,
-        norm=norm,
         **imshow_kws
     )
 
@@ -1291,14 +1301,23 @@ def clustermap_tf_motif(
                 **scatter_kws
             )
 
-    # Add colorbar
-    cbar = plt.colorbar(heatmap, ax=ax_heatmap)
+    # Colorbar manual position
+    heat_pos = ax_heatmap.get_position()
+    cbar_width = 0.005
+    cbar_height = 0.25
+    cbar_x = heat_pos.x1 + cbar_pad
+    cbar_y = heat_pos.y0 + (heat_pos.height - cbar_height) / 2
+    cax = fig.add_axes([cbar_x, cbar_y, cbar_width, cbar_height])
+
+    # Colorbar draw
+    cbar = fig.colorbar(heatmap, cax=cax)
     label = (
         "Average pattern contribution score"
         if heatmap_dim == "contrib"
         else "Average TF expression, signed by activation/repression"
     )
-    cbar.set_label(label)
+    cbar.set_label(label, labelpad=10)
+    cbar.ax.yaxis.set_tick_params(pad=5)
 
     # Set axis labels and ticks
     ax_heatmap.set_xticks(np.arange(data.shape[1]))
@@ -1308,5 +1327,5 @@ def clustermap_tf_motif(
 
     ax_heatmap.yaxis.tick_right()
 
-    # Final layout adjustments - provide only heatmap ax since other axes likely shouldn't be adjusted/labeled/etc through this.
+    # Final layout adjustments
     return render_plot(fig, ax_heatmap, **kwargs)

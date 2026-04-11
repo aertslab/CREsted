@@ -1,6 +1,6 @@
-# v2.0.0 renaming and deprecation
+# v1.7.0 renaming and deprecation
 
-With CREsted v2.0.0, we've reorganised the plotting functions, to align by _what_ they plot rather than _how_ they plot. All functions are still there, often with expanded functionality, and new ones have been added.
+With CREsted v1.7.0, we've reorganised the plotting functions, to align by _what_ they plot rather than _how_ they plot. All functions are still there, often with expanded functionality, and new ones have been added.
 
 | Old name | New name |
 | ------------- | ------------- |
@@ -10,14 +10,17 @@ With CREsted v2.0.0, we've reorganised the plotting functions, to align by _what
 | `hist.distribution` | {func}`dist.histogram <crested.pl.dist.histogram>`  |
 | `heatmap.correlations_self` | {func}`corr.heatmap_self <crested.pl.corr.heatmap_self>` |
 | `heatmap.correlations_predictions` | {func}`corr.heatmap <crested.pl.corr.heatmap>` |
-| `locus.locus_scoring` | unchanged |
-| `locus.track` | unchanged |
+|  {func}`locus.locus_scoring <crested.pl.locus.locus_scoring>` | Not renamed |
+|  {func}`locus.locus_track <crested.pl.locus.track>` | Not renamed |
 | `scatter.class_density` | {func}`corr.scatter <crested.pl.corr.scatter>` |
 | `violin.correlations` | {func}`corr.violin  <crested.pl.corr.violin>` |
 | `patterns.contribution_scores` | {func}`explain.contribution_scores <crested.pl.explain.contribution_scores>` |
 | `patterns` modisco functions | {mod}`modisco.* <crested.pl.modisco>` |
 | `patterns.enhancer_design_steps_contribution_scores` | {func}`design.step_contribution_scores <crested.pl.design.step_contribution_scores>` |
 | `patterns.enhancer_design_steps_predictions` | {func}`design.step_predictions <crested.pl.design.step_predictions>` |
+| New | {func}`region.scatter <crested.pl.region.scatter>` |
+| New | {func}`qc.filter_cutoff <crested.pl.qc.filter_cutoff>` |
+| New | {func}`qc.sort_and_filter_cutoff <crested.pl.qc.sort_and_filter_cutoff>` |
 
 We've also slightly reorganised the enhancer design functions in `tl`:
 
