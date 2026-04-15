@@ -22,7 +22,7 @@ Details of the data and the model can be found in the original publication.
 
 .. admonition:: Citation
 
-   Sigalova, O.M.\*, Pančíková, A.\*, De Man, J.\*, Theunis, K.\* et al. Modeling cis-regulatory variation in human brain enhancers across a large Parkinson's Disease cohort. bioRxiv (2026). https://doi.org/10.64898/2026.03.15.711881
+   Sigalova, O.M., Pančíková, A., De Man, J., Theunis, K. et al. Modeling cis-regulatory variation in human brain enhancers across a large Parkinson's Disease cohort. bioRxiv (2026). https://doi.org/10.64898/2026.03.15.711881
 
 Usage
 -------------------
