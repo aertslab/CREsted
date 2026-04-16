@@ -92,6 +92,9 @@ def _get_dataset_index():
                 "models/borzoiprime_mouse_rep1.tar.gz": "sha256:43b93701571210f61c09ae9b8ba89dc7e398262fe7deb5c740b330bac15ce0d8",
                 "models/borzoiprime_mouse_rep2.tar.gz": "sha256:9c14e38a1d54612ca0d6e7709609fefa5c770357fc7177941b2da5169b50a49d",
                 "models/borzoiprime_mouse_rep3.tar.gz": "sha256:a87f527226e4773cfca8a8804fdd1bd2210001cdce39baaa17b79b996903e6fa",
+                # ASAP models
+                "models/asap_cc.tar.gz": "sha256:f175af12c76556e0a71bf45d2746f10ced31f5d9ced80190ac52f3ede3f3d197",
+                "models/asap_sn.tar.gz": "sha256:4cb8f53f329432819da7f2664340eef6fd7b751ed0d25b10364238414796d636",
             },
         )
     return _datasets
@@ -236,6 +239,8 @@ def get_model(model: str) -> tuple[str, list[str]]:
           - 'MouseCortexHydrop'
           - 'BorzoiPrime_human_rep[0-3]' (and alias 'BorzoiPrime_human' for rep0)
           - 'BorzoiPrime_mouse_rep[0-3]' (and alias 'BorzoiPrime_mouse' for rep0)
+          - 'ASAP_CC'
+          - 'ASAP_SN'
 
     Returns
     -------
@@ -295,6 +300,8 @@ def get_model(model: str) -> tuple[str, list[str]]:
         "borzoiprime_mouse_rep1": ("models/borzoiprime_mouse_rep1.tar.gz"),
         "borzoiprime_mouse_rep2": ("models/borzoiprime_mouse_rep2.tar.gz"),
         "borzoiprime_mouse_rep3": ("models/borzoiprime_mouse_rep3.tar.gz"),
+        "asap_cc": ("models/asap_cc.tar.gz"),
+        "asap_sn": ("models/asap_sn.tar.gz"),
     }
     model = model.lower()
     assert model in model_mapping, (
