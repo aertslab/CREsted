@@ -9,6 +9,7 @@ import pandas as pd
 from anndata import AnnData
 from loguru import logger
 
+from crested import Genome
 from crested import _conf as conf
 from crested.utils import parse_region
 from crested.utils._logging import log_and_raise
@@ -26,7 +27,7 @@ def _read_chromsizes(chromsizes_file: str | PathLike) -> dict[str, int]:
 def change_regions_width(
     adata: AnnData,
     width: int,
-    chromsizes_file: str | PathLike | None = None,
+    chromsizes_file: str | PathLike | Genome | None = None,
     inplace: bool = True,
 ) -> AnnData | None:
     """
@@ -44,7 +45,7 @@ def change_regions_width(
     width
         The new width of the regions.
     chromsizes_file
-        File path of the chromsizes file. Used for checking if the new regions are within the chromosome boundaries.
+        File path of the chromsizes file or Genome object. Used for checking if the new regions are within the chromosome boundaries.
         If not provided, uses chromsizes from the registered Genome object, and if that doesn't exist either, doesn't check against chromosome boundaries.
     inplace
         Perform computation and modify `adata` in-place or return a resulting copy of the `adata` instead.
@@ -75,7 +76,10 @@ def change_regions_width(
     _check_input_params(chromsizes_file=chromsizes_file)
 
     if chromsizes_file is not None:
-        chromsizes = _read_chromsizes(chromsizes_file)
+        if isinstance(chromsizes_file, Genome):
+            chromsizes = chromsizes_file.chrom_sizes
+        else:
+            chromsizes = _read_chromsizes(chromsizes_file)
     elif conf.genome:
         chromsizes = conf.genome.chrom_sizes
     else:
