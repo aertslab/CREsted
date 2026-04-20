@@ -90,7 +90,7 @@ def change_regions_width(
     elif adata.var_names[0].count(':') == 2:
         stranded = True
     else:
-        raise ValueError("Regions must conat")
+        raise ValueError("Region names must follow 'chr:start-end' or 'chr:start-end:strand' layout.")
     half_width = width / 2
 
     # Copy if doing inplace
