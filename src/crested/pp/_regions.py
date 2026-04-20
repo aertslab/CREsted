@@ -10,6 +10,7 @@ from anndata import AnnData
 from loguru import logger
 
 from crested import _conf as conf
+from crested.utils import parse_region
 from crested.utils._logging import log_and_raise
 
 
@@ -70,6 +71,7 @@ def change_regions_width(
                 stacklevel=1,
             )
 
+    # Handle pre-resizing checks
     _check_input_params(chromsizes_file=chromsizes_file)
 
     if chromsizes_file is not None:
@@ -79,36 +81,53 @@ def change_regions_width(
     else:
         chromsizes = None
 
-    centers = (adata.var["start"] + adata.var["end"]) / 2
+    if adata.var_names[0].count(':') == 1:
+        stranded = False
+    elif adata.var_names[0].count(':') == 2:
+        stranded = True
+    else:
+        raise ValueError("Regions must conat")
     half_width = width / 2
 
+    # Copy if doing inplace
     if not inplace:
         adata = adata.copy()
     adata.var = adata.var.copy()
 
-    adata.var["start"] = (centers - half_width).astype(int)
-    adata.var["end"] = (centers + half_width).astype(int)
+    new_starts, new_ends, new_names = [], [], []
+    regions_to_keep = []
+    for region_name in adata.var_names:
+        # Resize regions
+        chrom, start, end, strand = parse_region(region_name)
+        center = (start + end)/2
+        new_start, new_end = int(center-half_width), int(center+half_width)
+        new_name = f"{chrom}:{int(center-half_width)}-{int(center+half_width)}"
+        if stranded:
+            new_name += f":{strand}"
+        new_starts.append(new_start)
+        new_ends.append(new_end)
+        new_names.append(new_name)
 
-    adata.var_names = adata.var.apply(
-        lambda row: f"{row['chr']}:{row['start']}-{row['end']}", axis=1
-    )
-
-    # Check if regions are within the chromosome boundaries
-    if chromsizes is not None:
-        regions_to_keep = list(adata.var_names.copy())
-        for idx, row in adata.var.iterrows():
-            chr_name = row["chr"]
-            start, end = row["start"], row["end"]
-            if start < 0 or end > chromsizes.get(chr_name, float("inf")):
+        # Check chromosome boundaries
+        if chromsizes is not None:
+            if start < 0 or end > chromsizes.get(chrom, float("inf")):
                 logger.warning(
-                    f"Region {idx} with coordinates {chr_name}:{start}-{end} is out of bounds for chromosome {chr_name}. Removing region."
+                    f"Region {region_name} with new coordinates {chrom}:{new_start}-{new_end} is out of bounds for chromosome {chrom}. Removing region."
                 )
-                regions_to_keep.remove(idx)
-        if len(regions_to_keep) < len(adata.var_names):
-            if inplace:
-                adata._inplace_subset_var(regions_to_keep)
             else:
-                adata = adata[:, regions_to_keep].copy()
+                regions_to_keep.append(new_name)
+
+    # Rename
+    adata.var.index = new_names
+    adata.var['start'] = new_starts
+    adata.var['end'] = new_ends
+
+    # Filter out oversized regions
+    if chromsizes is not None and (len(regions_to_keep) < len(adata.var_names)):
+        if inplace:
+            adata._inplace_subset_var(regions_to_keep)
+        else:
+            adata = adata[:, regions_to_keep].copy()
 
     adata.var_names.name = "region"
     if not inplace:
