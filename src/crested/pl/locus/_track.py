@@ -117,7 +117,7 @@ def track(
         if ax is not None and n_classes > 1:
             raise ValueError("ax can only be set if plotting one class. Please pick one class in `class_idxs` or pass unidimensional data.")
         if zoom_n_bases is not None:
-            temp_start_idx = n_bins//2 - zoom_n_bases//2 + zoom_n_bases
+            temp_start_idx = n_bins//2 - zoom_n_bases//2 + x_shift
             if temp_start_idx < 0 or (temp_start_idx + zoom_n_bases) > n_bins:
                 raise ValueError(f"x_shift {x_shift} with zoom_n_bases {zoom_n_bases} is shifting the zoom beyond the data limits ({n_bins} bins/bp).")
 
