@@ -587,6 +587,7 @@ def test_locus_track_single():
         scores=scores,
         class_idxs=None,
         zoom_n_bases=90,
+        x_shift=5,
         coordinates=range_values,
         highlight_positions=(10, 20),
         plot_kws={'alpha': 0.5},
