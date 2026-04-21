@@ -1,5 +1,32 @@
 # Release notes
 
+## 1.8.0
+
+### Features
+- Human brain models from the [ASAP preprint](https://www.biorxiv.org/content/10.64898/2026.03.15.711881v2) are now available in the model repository! (#200)
+- {func}`crested.pl.explain.contribution_scores`, {func}`crested.pl.locus.track`, and {func}`crested.pl.design.step_contribution_scores` now take the `x_shift` parameter, which lets you shift the zoom window around. (#140, #202)
+- {func}`crested.pp.change_regions_width` now stores the unresized index in `adata.var` and allows manually passing {obj}`crested.Genome` objects (#201)
+- {func}`crested.pl.modisco.clustermap_tf_motif` colorbar and label padding improved (#140).
+- {mod}`tl.modisco <crested.tl.modisco>` function defaults updated: `match_to_patterns` `sim_threshold` 0.5 -> 7.0, {func}`crested.tl.modisco.process_patterns` `sim_threshold` 3.0 -> 6.0, `trim_ic_threshold` 0.05 -> 0.025 (#140)
+- Reworked `crested.tl.modisco`'s `match_to_patterns` to be vectorized (#140)
+- Reworked `crested.tl.modisco`'s `post_hoc_merging` function. The old function is preserved as `post_hoc_merging_old`. The new function can return merge metadata with new parameter `return_info` (#140)
+
+### Bugfixes
+- Memory usage of {func}`crested.tl.predict` reduced significantly and fragmentation prevented (#199)
+- {func}`crested.pp.change_regions_width` now preserves strand information (#201)
+- {func}`crested.pp.change_regions_width` now uses the region names as starting point, rather than `adata.var['start'/'end']`, to make behaviour consistent across the package (#201)
+- {func}`crested.pl.corr.heatmap`/{func}`crested.pl.corr.heatmap_self` now properly set the default layout engine, stopping warnings when using pre-existing axes (#198)
+- Removed deprecated internal `Crested` object methods. Their associated public methods were removed in v1.7.1, after already being deprecated in v1.3 (#198) 
+- Duplicate kwargs in main body and imshow_kws of {func}`crested.pl.modisco.clustermap_tf_motif` fixed (#140)
+
+
+### Documentation
+- Updated links/citations from CREsted preprint to CREsted paper 🎉 (#198)
+- Updated model citations in general for consistency (#198)
+- Enhancer code analysis notebook updated (new pattern clustering and more) (#140)
+
+
+
 ## 1.7.1
 
 A hotfix to fix the wrong version number in `pyproject.toml`.
