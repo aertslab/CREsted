@@ -27,8 +27,9 @@ class PearsonCorrelation(keras.metrics.Metric):
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         """Update the state of the metric."""
-        y_true = keras.ops.reshape(keras.ops.cast(y_true, dtype="float32"), (-1))
-        y_pred = keras.ops.reshape(keras.ops.cast(y_pred, dtype="float32"), (-1))
+        y_true = keras.ops.cast(y_true, dtype="float32")
+        y_pred = keras.ops.cast(y_pred, dtype="float32")
+
         self.y_true_sum.assign_add(keras.ops.sum(y_true))
         self.y_pred_sum.assign_add(keras.ops.sum(y_pred))
         self.y_true_squared_sum.assign_add(keras.ops.sum(keras.ops.square(y_true)))

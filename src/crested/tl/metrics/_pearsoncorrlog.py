@@ -28,8 +28,8 @@ class PearsonCorrelationLog(keras.metrics.Metric):
     def update_state(self, y_true, y_pred, sample_weight=None):
         """Update the state of the metric."""
         # Ensure y_true and y_pred are float32 for consistency
-        y_true = keras.ops.reshape(keras.ops.cast(y_true, dtype="float32"), (-1))
-        y_pred = keras.ops.reshape(keras.ops.cast(y_pred, dtype="float32"), (-1))
+        y_true = keras.ops.cast(y_true, dtype="float32")
+        y_pred = keras.ops.cast(y_pred, dtype="float32")
 
         y_pred = keras.ops.where(y_pred < 0, keras.ops.zeros_like(y_pred), y_pred)
 
