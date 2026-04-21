@@ -122,6 +122,7 @@ def change_regions_width(
                 regions_to_keep.append(new_name)
 
     # Rename
+    adata.var['unresized_index'] = adata.var_names
     adata.var.index = new_names
     adata.var['start'] = new_starts
     adata.var['end'] = new_ends
