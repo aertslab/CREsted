@@ -746,9 +746,9 @@ def recursive_tensor_spec(output):
 
     Works on standard (seq, target) dataloader tuples, but also on more complicated things like (seq, (target1, target2)).
     """
-    if tf.is_tensor(output) or isinstance(output, np.ndarray):
+    if hasattr(output, 'dtype') and hasattr(output, 'shape'): # proxy for tensor/numpy array/numpy scalar, which are the likely final values
         return tf.TensorSpec(shape=output.shape, dtype=output.dtype)
-    else:
+    else: # Otherwise (if list, tuple or generator), call recursively
         return tuple(recursive_tensor_spec(xi) for xi in output)
 
 def recursive_shape(output):

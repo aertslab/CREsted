@@ -181,8 +181,8 @@ class MultiAnnDataWrapper(BaseGenomicDataWrapper):
         # Set some basic values (esp those required for _get_indices and _get_splits)
         self.data = data
         self.split_column = split_column
-        self.compressed = isinstance(self.data.X, spmatrix)
-        for i in range(len(self.data)):
+        self.compressed = [isinstance(self.data[i].X, spmatrix) for i in range(self.n_datasets)]
+        for i in range(self.n_datasets):
             if self.data[i].n_vars != self.data[0].n_vars:
                 raise ValueError(f"Regions must be the same for all AnnDatas. AnnData {i}'s number of regions ({self.data[i].n_vars}) doesn't match the first AnnData's number of regions ({self.data[0].n_vars}).")
 
@@ -225,12 +225,12 @@ class MultiAnnDataWrapper(BaseGenomicDataWrapper):
             Catcher for unused arguments from `get_indexed_item`, specifically `expanded_index`, `revcomp`, and `shift`.
         """
         y_index = self.index_map[original_index]
-        return (
+        return tuple(
             (
                 self.data[i].X[:, y_index].toarray().flatten()
-                if self.compressed
+                if self.compressed[i]
                 else self.data[i].X[:, y_index].astype('float32')
-            ) for i in range(len(self.data))
+            ) for i in range(self.n_datasets)
         )
 
     def get_config(self):
@@ -240,3 +240,7 @@ class MultiAnnDataWrapper(BaseGenomicDataWrapper):
             "compressed": self.compressed
         })
         return config
+
+    @property
+    def n_datasets(self):
+        return len(self.data)
