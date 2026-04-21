@@ -9,7 +9,9 @@ import pandas as pd
 from anndata import AnnData
 from loguru import logger
 
+from crested import Genome
 from crested import _conf as conf
+from crested.utils import parse_region
 from crested.utils._logging import log_and_raise
 
 
@@ -25,7 +27,7 @@ def _read_chromsizes(chromsizes_file: str | PathLike) -> dict[str, int]:
 def change_regions_width(
     adata: AnnData,
     width: int,
-    chromsizes_file: str | PathLike | None = None,
+    chromsizes_file: str | PathLike | Genome | None = None,
     inplace: bool = True,
 ) -> AnnData | None:
     """
@@ -43,7 +45,7 @@ def change_regions_width(
     width
         The new width of the regions.
     chromsizes_file
-        File path of the chromsizes file. Used for checking if the new regions are within the chromosome boundaries.
+        File path of the chromsizes file or Genome object. Used for checking if the new regions are within the chromosome boundaries.
         If not provided, uses chromsizes from the registered Genome object, and if that doesn't exist either, doesn't check against chromosome boundaries.
     inplace
         Perform computation and modify `adata` in-place or return a resulting copy of the `adata` instead.
@@ -70,46 +72,70 @@ def change_regions_width(
                 stacklevel=1,
             )
 
+    # Handle pre-resizing checks
     _check_input_params(chromsizes_file=chromsizes_file)
 
     if chromsizes_file is not None:
-        chromsizes = _read_chromsizes(chromsizes_file)
+        if isinstance(chromsizes_file, Genome):
+            chromsizes = chromsizes_file.chrom_sizes
+        else:
+            chromsizes = _read_chromsizes(chromsizes_file)
     elif conf.genome:
         chromsizes = conf.genome.chrom_sizes
     else:
         chromsizes = None
 
-    centers = (adata.var["start"] + adata.var["end"]) / 2
-    half_width = width / 2
+    if adata.var_names[0].count(':') == 1:
+        stranded = False
+    elif adata.var_names[0].count(':') == 2:
+        stranded = True
+    else:
+        raise ValueError("Region names must follow 'chr:start-end' or 'chr:start-end:strand' layout.")
 
+    # Copy if doing inplace
     if not inplace:
         adata = adata.copy()
     adata.var = adata.var.copy()
 
-    adata.var["start"] = (centers - half_width).astype(int)
-    adata.var["end"] = (centers + half_width).astype(int)
+    # Create new values and record spacing for all regions
+    half_width = width / 2
+    new_starts, new_ends, new_names = [], [], []
+    regions_to_keep = []
+    for region_name in adata.var_names:
+        # Resize regions
+        chrom, start, end, strand = parse_region(region_name)
+        center = (start + end)/2
+        new_start, new_end = int(center-half_width), int(center+half_width)
+        new_name = f"{chrom}:{int(center-half_width)}-{int(center+half_width)}"
+        if stranded:
+            new_name += f":{strand}"
+        new_starts.append(new_start)
+        new_ends.append(new_end)
+        new_names.append(new_name)
 
-    adata.var_names = adata.var.apply(
-        lambda row: f"{row['chr']}:{row['start']}-{row['end']}", axis=1
-    )
-
-    # Check if regions are within the chromosome boundaries
-    if chromsizes is not None:
-        regions_to_keep = list(adata.var_names.copy())
-        for idx, row in adata.var.iterrows():
-            chr_name = row["chr"]
-            start, end = row["start"], row["end"]
-            if start < 0 or end > chromsizes.get(chr_name, float("inf")):
+        # Check chromosome boundaries
+        if chromsizes is not None:
+            if start < 0 or end > chromsizes.get(chrom, float("inf")):
                 logger.warning(
-                    f"Region {idx} with coordinates {chr_name}:{start}-{end} is out of bounds for chromosome {chr_name}. Removing region."
+                    f"Region {region_name} with new coordinates {chrom}:{new_start}-{new_end} is out of bounds for chromosome {chrom}. Removing region."
                 )
-                regions_to_keep.remove(idx)
-        if len(regions_to_keep) < len(adata.var_names):
-            if inplace:
-                adata._inplace_subset_var(regions_to_keep)
             else:
-                adata = adata[:, regions_to_keep].copy()
+                regions_to_keep.append(new_name)
 
+    # Set new values in adata
+    adata.var['unresized_index'] = adata.var_names
+    adata.var.index = new_names
+    adata.var['start'] = new_starts
+    adata.var['end'] = new_ends
     adata.var_names.name = "region"
+
+    # Filter out oversized regions
+    if chromsizes is not None and (len(regions_to_keep) < len(adata.var_names)):
+        if inplace:
+            adata._inplace_subset_var(regions_to_keep)
+        else:
+            adata = adata[:, regions_to_keep].copy()
+
+
     if not inplace:
         return adata
