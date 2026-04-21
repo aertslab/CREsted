@@ -91,13 +91,14 @@ def change_regions_width(
         stranded = True
     else:
         raise ValueError("Region names must follow 'chr:start-end' or 'chr:start-end:strand' layout.")
-    half_width = width / 2
 
     # Copy if doing inplace
     if not inplace:
         adata = adata.copy()
     adata.var = adata.var.copy()
 
+    # Create new values and record spacing for all regions
+    half_width = width / 2
     new_starts, new_ends, new_names = [], [], []
     regions_to_keep = []
     for region_name in adata.var_names:
@@ -121,11 +122,12 @@ def change_regions_width(
             else:
                 regions_to_keep.append(new_name)
 
-    # Rename
+    # Set new values in adata
     adata.var['unresized_index'] = adata.var_names
     adata.var.index = new_names
     adata.var['start'] = new_starts
     adata.var['end'] = new_ends
+    adata.var_names.name = "region"
 
     # Filter out oversized regions
     if chromsizes is not None and (len(regions_to_keep) < len(adata.var_names)):
@@ -134,6 +136,6 @@ def change_regions_width(
         else:
             adata = adata[:, regions_to_keep].copy()
 
-    adata.var_names.name = "region"
+
     if not inplace:
         return adata
