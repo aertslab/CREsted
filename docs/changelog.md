@@ -7,9 +7,9 @@
 - {func}`crested.pl.explain.contribution_scores`, {func}`crested.pl.locus.track`, and {func}`crested.pl.design.step_contribution_scores` now take the `x_shift` parameter, which lets you shift the zoom window around. (#140, #202)
 - {func}`crested.pp.change_regions_width` now stores the unresized index in `adata.var` and allows manually passing {obj}`crested.Genome` objects (#201)
 - {func}`crested.pl.modisco.clustermap_tf_motif` colorbar and label padding improved (#140).
-- {mod}`tl.modisco <crested.tl.modisco>` function defaults updated: {func}`crested.tl.modisco.match_to_patterns` `sim_threshold` 0.5 -> 7.0, {func}`crested.tl.modisco.process_patterns` `sim_threshold` 3.0 -> 6.0, `trim_ic_threshold` 0.05 -> 0.025 (#140)
-- Reworked {func}`crested.tl.modisco.match_to_patterns` to be vectorized (#140)
-- Reworked {func}`crested.tl.modisco.post_hoc_merging()` function. The old function is preserved as {func}`crested.tl.modisco.post_hoc_merging_old()`. The new function can return merge metadata with new parameter `return_info` (#140)
+- {mod}`tl.modisco <crested.tl.modisco>` function defaults updated: `match_to_patterns` `sim_threshold` 0.5 -> 7.0, {func}`crested.tl.modisco.process_patterns` `sim_threshold` 3.0 -> 6.0, `trim_ic_threshold` 0.05 -> 0.025 (#140)
+- Reworked `crested.tl.modisco`'s `match_to_patterns` to be vectorized (#140)
+- Reworked `crested.tl.modisco`'s `post_hoc_merging` function. The old function is preserved as `post_hoc_merging_old`. The new function can return merge metadata with new parameter `return_info` (#140)
 
 ### Bugfixes
 - Memory usage of {func}`crested.tl.predict` reduced significantly and fragmentation prevented (#199)
