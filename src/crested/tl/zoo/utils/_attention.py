@@ -145,14 +145,13 @@ class MultiheadAttention(keras.layers.Layer):
     num_position_features
         Number of relative positional features to compute.
         If None, `value_size * num_heads` is used.
-    positional_dropout_rate: Dropout rate for the positional encodings if
-        relative positions are used.
-    zero_initialize:
+    positional_dropout_rate
+        Dropout rate for the positional encodings if relative positions are used.
+    zero_initialize
         if True, the final linear layer will be 0 initialized.
-    initializer:
+    initializer
         Initializer for the projection layers. If unspecified,
         VarianceScaling is used with scale = 2.0.
-
     """
 
     def __init__(

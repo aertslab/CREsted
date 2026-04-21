@@ -22,7 +22,7 @@ Details of the data and the model can be found in the original publication.
 
 .. admonition:: Citation
 
-   Kempynck, N., De Winter, S., et al. CREsted: modeling genomic and synthetic cell type-specific enhancers across tissues and species. bioRxiv (2025). https://doi.org/10.1101/2025.04.02.646812
+   Kempynck, N., De Winter, S. et al. CREsted: modeling genomic and synthetic cell-type-specific enhancers across tissues and species. Nature Methods (2026). https://doi.org/10.1038/s41592-026-03057-2
 
 Usage
 -------------------

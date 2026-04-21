@@ -79,23 +79,48 @@ def _transform_input(
     One-hot encoded matrix of shape (N, L, 4), where N is the number of sequences/regions and L is the sequence length.
     """
     input_type = _detect_input_type(input)
-    if input_type == "anndata":
-        genome = _resolve_genome(genome)
-        sequences = [genome.fetch(region=region) for region in input.var_names]
-    elif input_type == "region":
-        genome = _resolve_genome(genome)
-        regions = input if isinstance(input, list) else [input]
-        sequences = [genome.fetch(region=region) for region in regions]
-    elif input_type == "sequence":
-        sequences = input if isinstance(input, list) else [input]
-    elif input_type == "array":
+    if input_type == "array":
         assert input.ndim == 3, "Input one hot array must have shape (N, L, 4)."
         return input
 
-    one_hot_data = np.array(
-        [one_hot_encode_sequence(seq, expand_dim=False) for seq in sequences]
-    )
-    return one_hot_data
+    if input_type == "anndata" or input_type == "region":
+        if input_type == "anndata":
+            regions = list(input.var_names)
+        else:
+            regions = input if isinstance(input, list) else [input]
+
+        genome = _resolve_genome(genome)
+        sequence_length = len(genome.fetch(region=regions[0]))
+        no_sequences = len(regions)
+
+        one_hot_data = np.empty((no_sequences, sequence_length, 4), dtype=np.uint8)
+
+        for sequence_idx, region in enumerate(regions):
+            one_hot_sequence = one_hot_encode_sequence(
+                sequence=genome.fetch(region=region),
+                expand_dim=False,
+            )
+            if one_hot_sequence.shape[0] != sequence_length:
+                raise ValueError("Not all sequences have the same length")
+            one_hot_data[sequence_idx, :, :] = one_hot_sequence
+        return one_hot_data
+    elif input_type == "sequence":
+        sequences = input if isinstance(input, list) else [input]
+
+        sequence_length = len(sequences[0])
+        no_sequences = len(sequences)
+
+        one_hot_data = np.empty((no_sequences, sequence_length, 4), dtype=np.uint8)
+
+        for sequence_idx, sequence in enumerate(sequences):
+            one_hot_sequence = one_hot_encode_sequence(
+                sequence=sequence,
+                expand_dim=False,
+            )
+            if one_hot_sequence.shape[0] != sequence_length:
+                raise ValueError("Not all sequences have the same length")
+            one_hot_data[sequence_idx, :, :] = one_hot_sequence
+        return one_hot_data
 
 
 def fetch_sequences(

@@ -12,7 +12,7 @@ def class_density(*args, **kwargs):
     :meta private:
     """
     logger.info(
-        "`crested.pl.scatter.class_density` has been renamed to `crested.pl.corr.scatter` in version 2.0.0"
+        "`crested.pl.scatter.class_density` has been renamed to `crested.pl.corr.scatter` in version 1.7.0"
         " and this alias will be removed in a future release. Please use its new name instead."
     )
     return crested.pl.corr.scatter(*args, **kwargs)

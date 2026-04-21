@@ -29,6 +29,7 @@ def contribution_scores(
     zoom_n_bases: int | None = None,
     coordinates: str | tuple | list[str] | list[tuple] | None = None,
     highlight_positions: tuple[int, int] | list[tuple[int, int]] | None = None,
+    x_shift: int = 0,
     method: Literal['mutagenesis', 'mutagenesis_letters'] | None = None,
     plot_kws: dict | None = None,
     highlight_kws: dict | None = None,
@@ -60,6 +61,8 @@ def contribution_scores(
     highlight_positions
         List of tuples with start and end positions to highlight. Default is None.
         Positions are within the full sequence length before zooming, or optionally genomic values if using `coordinates`.
+    x_shift
+        Number of base pairs to shift left or right for visualizing specific subsets of the region. Only use when combined with zooming in. Default is zero.
     method
         Default is None (for gradient-based contributions). If plotting mutagenesis values, set to `'mutagenesis_letters'`
         (to visualize average effects as letters) or `mutagenesis` (to visualize in a legacy way).
@@ -154,7 +157,13 @@ def contribution_scores(
     if zoom_n_bases is None:
         zoom_n_bases = scores.shape[2]
     center = int(scores.shape[2] / 2)
-    start_idx = center - int(zoom_n_bases / 2)
+    start_idx = center - int(zoom_n_bases / 2) + x_shift
+    if start_idx < 0 or (start_idx + zoom_n_bases > scores.shape[2]):
+        raise ValueError(
+            f"Parameter x_shift={x_shift} with zoom={zoom_n_bases} "
+            f"gives invalid coordinates (start_idx={start_idx}, "
+            f"max={scores.shape[2]})."
+        )
     scores = scores[:, :, start_idx:start_idx+zoom_n_bases, :]
     seqs_one_hot = seqs_one_hot[:, start_idx:start_idx+zoom_n_bases, :]
 
