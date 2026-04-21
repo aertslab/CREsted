@@ -20,6 +20,7 @@ def track(
     coordinates: str | tuple | None = None,
     class_names: Sequence[str] | str |  None = None,
     highlight_positions: list[tuple[int, int]] | None = None,
+    x_shift: int = 0,
     plot_kws: dict | None = None,
     highlight_kws: dict | None = None,
     ax: plt.Axes | None = None,
@@ -51,6 +52,8 @@ def track(
     highlight_kws
         Keywords to use for plotting highlights with :meth:`~matplotlib.axes.Axes.axvspan`.
         Default is {'color':  "green", 'alpha': 0.1}
+    x_shift
+        Number of base pairs or bins to shift left or right for visualizing specific subsets of the region. Only use when combined with `zoom_n_bases`.
     ax
         Axis to plot values on. If not supplied, creates a figure from scratch.
     width
@@ -193,7 +196,7 @@ def track(
             start_idx = n_bins//2 - zoom_n_bases//2
             if coordinates is not None:
                 start_idx += start
-            ax.set_xlim(start_idx, start_idx+zoom_n_bases)
+            ax.set_xlim(start_idx+x_shift, start_idx+zoom_n_bases+x_shift)
         # Reverse x axis if negative strand info
         if coordinates is not None and strand == "-":
             ax.xaxis.set_inverted(True)

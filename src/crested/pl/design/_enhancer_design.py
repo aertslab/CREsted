@@ -48,6 +48,7 @@ def step_contribution_scores(
     sequence_labels: list | None = None,
     class_labels: list | None = None,
     zoom_n_bases: int | None = None,
+    x_shift: int = 0,
     ylim: tuple[float, float] | None = None,
     global_ylim: Literal["all", "per_design", "per_plot"] | None = "per_plot",
     method: Literal["mutagenesis", "mutagenesis_letters"] | None = None,
@@ -90,6 +91,8 @@ def step_contribution_scores(
     highlight_kws
         Keywords to use for plotting changed basepairs with :meth:`~matplotlib.axes.Axes.axvspan`.
         Default is {'edgecolor':  "red", 'facecolor': "none", 'linewidth' :0.5}
+    x_shift
+        Number of base pairs to shift left or right for visualizing specific subsets of the region. Only use when combined with zooming in. Default is zero.
     show
         Whether to show all plots or return the (list of) figure and axes instead.
     width
@@ -195,6 +198,7 @@ def step_contribution_scores(
                 sequence_labels=step_labels, # Sequence labels per step
                 class_labels=None,
                 zoom_n_bases=zoom_n_bases,
+                x_shift=x_shift,
                 method=method,
                 sharey=sharey,
                 ylim=ylim,
