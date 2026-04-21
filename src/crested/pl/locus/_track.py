@@ -107,11 +107,11 @@ def track(
     @log_and_raise(ValueError)
     def _check_input_params():
         if scores.ndim != 2:
-            raise ValueError("scores must be (length) or (length, classes)")
+            raise ValueError(f"scores must be (length) or (length, classes), so cannot be {scores.ndim} dimensions.")
         if class_idxs is not None:
             for cidx in class_idxs:
-                if cidx > scores.shape[0]:
-                    raise ValueError(f"class_idxs {class_idxs} is beyond your input's number of classes ({n_classes}).")
+                if cidx > n_data_classes:
+                    raise ValueError(f"class idx {cidx} from class_idxs is beyond your input's number of classes ({n_data_classes}).")
                 if class_names is not None and cidx >= len(class_names):
                     raise ValueError(f"class_idxs {cidx} is beyond the size of class_names ({len(class_names)}).")
         if ax is not None and n_classes > 1:
@@ -139,6 +139,7 @@ def track(
             highlight_positions = [highlight_positions]
 
     n_bins = scores.shape[0]
+    n_data_classes = scores.shape[1]
     n_classes = len(class_idxs)
 
     _check_input_params()
