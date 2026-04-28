@@ -48,7 +48,7 @@ def _get_dataset_index():
                 # Motif databases
                 "motif_db/motif_db.meme": "sha256:1667eaf9ca2abb37fa21b541faa9e1676690b58a1206078255a9d7e389731dbc",
                 "motif_db/motif_tf_collection.tsv": "sha256:b91c4d4483ff92cef394d109899fa6f6bc5f3c474629e65d83b042b58d212f91",
-                # Models
+                # CREsted paper launch models
                 "models/deepflybrain.tar.gz": "sha256:65ed3f8c2d15216b9b47a06165d330d2f7b9dbae1b8ba9c06c095c9a652e4a23",
                 "models/biccn.tar.gz": "sha256:e59887c3010c740cd34fbb5d0b5853cd254d7e53ea66783c1fcd42405ed6ea0f",
                 "models/deepbiccn2.tar.gz": "sha256:277f8321955e55f4c4d80e2ec202194af1873f4b782771324b3411017755cc18",
@@ -70,6 +70,7 @@ def _get_dataset_index():
                 "models/deepmousebrain2.tar.gz": "sha256:4c7dd4649f642b6ec120fb324f479093644d622826d4a3a7d3ee9e3c2bb8bde6",
                 "models/deepmousebrain3.tar.gz": "sha256:a6160a87bb38eb64e7c39b0bda7f147b5c23bd41c82f72909f3372967aae7bdc",
                 "models/deepzebrafish.tar.gz": "sha256:a4aa540afc8fc372a9ed6a614ac2dc3f47f4675ece44eeb9c127800be20d6c26",
+                # Borzoi/enformer models
                 "models/enformer_human.tar.gz": "628f67f540304d4d0e143176dc824ed72b3413f78f2fa2efe5d4f0ab51ea1bcc",
                 "models/enformer_mouse.tar.gz": "77296be9f16bcf81b9c9d3ae2bba61d7ae99e01e77a05eefc1fa316ef5eb6e31",
                 "models/borzoi_biccn.tar.gz": "sha256:8062c50622e297053796af5359757c56e59f5188c5bcca7d4c3a002b937b122c",
@@ -81,17 +82,18 @@ def _get_dataset_index():
                 "models/borzoi_mouse_rep1.tar.gz": "b931b14ee0d5a340f7c39b317ab0be099b45e5f4075511dc5e56cd0e9af7f857",
                 "models/borzoi_mouse_rep2.tar.gz": "0b4183a2751975de8ee2070fbf9bad40cbbfb17fe6784299920f5a2723cc07b5",
                 "models/borzoi_mouse_rep3.tar.gz": "a18fd295ec356ada86c6681b173ffe25f320447884129f5d3c15be80755423e4",
-                "models/embryo_10x.tar.gz": "sha256:3de62e6913ea491ebdad4bc2ef4e9f404250531093b29e67b5a1fa907f5cf41b",
-                "models/embryo_hydrop.tar.gz": "sha256:9036ef2f18ab894016c8adcd3bba5f1985b74bd2432f4e9b07e6128e43833636",
-                "models/mousecortex_hydrop.tar.gz": "sha256:a850edcd6f9cabd0efb7ea66f48287c1c05ff7c3466363259dfb9229a076c53c",
-                "models/borzoiprime_human_rep0.tar.gz": "sha256:c7a3c56fc8d95c33a01e08eee04ce88f57d2967f19c7cab175664d4fc87cc42c",
-                "models/borzoiprime_human_rep1.tar.gz": "sha256:cd8b2efec9399c575d255c5f775aa8a6881371865914ba024bc35042cb628be1",
-                "models/borzoiprime_human_rep2.tar.gz": "sha256:22d01951089c16b9c57780a707d8b755e300cd4c942265706c65974933ab3357",
-                "models/borzoiprime_human_rep3.tar.gz": "sha256:b64e58d16018dd0302eacbf33c63c95b88347c465f35649a2743628155c98277",
+                "models/borzoiprime_human_rep0.tar.gz": "sha256:b5f7486dbf1b92522c5c8655c868cbdb4fa37bc98e1864aaa6a36091a1a442ed",
+                "models/borzoiprime_human_rep1.tar.gz": "sha256:0e12a488223699ae647f08752535dbbaacec937ed95038af2c1ca24ab7627f09",
+                "models/borzoiprime_human_rep2.tar.gz": "sha256:593f186cb3c68ddc251882794d9ee09f82137c70e7074355b6880d44bbf55d10",
+                "models/borzoiprime_human_rep3.tar.gz": "sha256:aaaad0f4eafa2658b2afc62e863a1a8aab28a1de3fec746c4380cce737261cf6",
                 "models/borzoiprime_mouse_rep0.tar.gz": "sha256:71845dc7951c36bab3e8311fe6359a7dc1345b0232000d0986c74a1900c8f948",
                 "models/borzoiprime_mouse_rep1.tar.gz": "sha256:43b93701571210f61c09ae9b8ba89dc7e398262fe7deb5c740b330bac15ce0d8",
                 "models/borzoiprime_mouse_rep2.tar.gz": "sha256:9c14e38a1d54612ca0d6e7709609fefa5c770357fc7177941b2da5169b50a49d",
                 "models/borzoiprime_mouse_rep3.tar.gz": "sha256:a87f527226e4773cfca8a8804fdd1bd2210001cdce39baaa17b79b996903e6fa",
+                # HyDrop models
+                "models/embryo_10x.tar.gz": "sha256:3de62e6913ea491ebdad4bc2ef4e9f404250531093b29e67b5a1fa907f5cf41b",
+                "models/embryo_hydrop.tar.gz": "sha256:9036ef2f18ab894016c8adcd3bba5f1985b74bd2432f4e9b07e6128e43833636",
+                "models/mousecortex_hydrop.tar.gz": "sha256:a850edcd6f9cabd0efb7ea66f48287c1c05ff7c3466363259dfb9229a076c53c",
                 # ASAP models
                 "models/asap_cc.tar.gz": "sha256:f175af12c76556e0a71bf45d2746f10ced31f5d9ced80190ac52f3ede3f3d197",
                 "models/asap_sn.tar.gz": "sha256:4cb8f53f329432819da7f2664340eef6fd7b751ed0d25b10364238414796d636",
