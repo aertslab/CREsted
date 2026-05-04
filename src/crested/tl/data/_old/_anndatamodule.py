@@ -203,7 +203,11 @@ class AnnDataModule:
             drop_remainder=False,
         )
 
-    def get_config(self):
+    def get_config(self) -> dict:
+        """Return a dict of properties, to be logged during training.
+
+        Primarily used in Crested.fit().
+        """
         return {
             'n_train_steps_per_epoch': len(self.train_dataloader),
             'n_val_steps_per_epoch': len(self.val_dataloader),

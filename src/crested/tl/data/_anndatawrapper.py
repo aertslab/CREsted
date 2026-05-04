@@ -114,7 +114,11 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
             else self.data.X[:, y_index].astype('float32')
         )
 
-    def get_config(self):
+    def get_config(self) -> dict:
+        """Return a dict of properties, to be logged during training.
+
+        Primarily used in Crested.fit().
+        """
         config = super().get_config()
         config.update({
             "split_column": self.split_column,
@@ -233,7 +237,11 @@ class MultiAnnDataWrapper(BaseGenomicDataWrapper):
             ) for i in range(self.n_datasets)
         )
 
-    def get_config(self):
+    def get_config(self) -> dict:
+        """Return a dict of properties, to be logged during training.
+
+        Primarily used in Crested.fit().
+        """
         config = super().get_config()
         config.update({
             "split_column": self.split_column,

@@ -273,7 +273,7 @@ class TrackData:
                 file_objects[path].close()
 
     def _get_single_region(self, chrom: str, start: int, end: int, strand: Literal['+', '-'] = "+") -> np.ndarray:
-        """Internal method to retrieve tracks from bigwigs on the fly.
+        """Retrieve tracks from bigwigs on the fly.
 
         Use `self.get_track` with self.in_memory=False rather than calling this function directly.
 

@@ -464,7 +464,11 @@ class BaseDataWrapper:
         return self.create_dataloader('predict', augment=False, shuffle=False)
 
     # ----- Dataset properties -----
-    def get_config(self):
+    def get_config(self) -> dict:
+        """Return a dict of properties, to be logged during training.
+
+        Primarily used in Crested.fit().
+        """
         return {
             'batch_size': self.batch_size,
             'drop_remainder': self.drop_remainder,
@@ -733,7 +737,11 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         chrom, start, end, strand = index
         return f"{chrom}:{start}-{end}:{strand}"
 
-    def get_config(self):
+    def get_config(self) -> dict:
+        """Return a dict of properties, to be logged during training.
+
+        Primarily used in Crested.fit().
+        """
         config = super().get_config()
         config.update({
             "in_memory": self.sequence_loader.in_memory,
