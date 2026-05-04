@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from math import ceil
+
 import keras
 
 if keras.config.backend() == "torch":
@@ -97,7 +99,10 @@ class AnnDataLoader:
 
     def __len__(self):
         """Return the number of batches in the DataLoader based on the dataset size and batch size."""
-        return (len(self.dataset) + self.batch_size - 1) // self.batch_size
+        if self.drop_remainder:
+            return len(self.dataset) // self.batch_size
+        else:
+            return ceil(len(self.dataset)/self.batch_size)
 
     def __repr__(self):
         """Return the string representation of the DataLoader."""
