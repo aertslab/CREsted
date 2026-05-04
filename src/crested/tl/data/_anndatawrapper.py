@@ -251,4 +251,5 @@ class MultiAnnDataWrapper(BaseGenomicDataWrapper):
 
     @property
     def n_datasets(self):
+        """Return the number of datasets in the MultiAnnDataWrapper."""
         return len(self.data)

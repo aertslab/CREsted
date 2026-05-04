@@ -540,7 +540,6 @@ class Crested:
                 len(self.data.test_dataloader) if keras.config.backend() == "tensorflow" else None
             )
 
-        
         try:
             evaluation_metrics = self.model.evaluate(
                 test_loader, steps=n_test_steps, return_dict=True
