@@ -208,12 +208,8 @@ class AnnDataModule:
 
         Primarily used in Crested.fit().
         """
-        return {
-            'n_train_steps_per_epoch': len(self.train_dataloader),
-            'n_val_steps_per_epoch': len(self.val_dataloader),
-            'n_train': len(self.train_dataset),
-            'n_val': len(self.val_dataset),
-            'seq_len': self.train_dataset.seq_len,
+        config =  {
+            'dataset_size': self.adata.shape[1],
             "random_reverse_complement": self.random_reverse_complement,
             "always_reverse_complement": self.always_reverse_complement,
             "max_stochastic_shift": self.max_stochastic_shift,
@@ -223,6 +219,20 @@ class AnnDataModule:
             "batch_size": self.batch_size,
             "drop_remainder": False
         }
+        if self.train_dataset is not None:
+            config['n_train_steps_per_epoch'] = len(self.train_dataloader)
+            config['n_train']  = len(self.train_dataset)
+            config['seq_len'] = self.train_dataset.seq_len
+        if self.val_dataset is not None:
+            config['n_val_steps_per_epoch'] = len(self.val_dataloader)
+            config['n_val'] = len(self.val_dataset)
+        if self.test_dataset is not None:
+            config['n_test_steps_per_epoch'] = len(self.test_dataloader)
+            config['n_test'] = len(self.test_dataset)
+        if self.predict_dataset is not None:
+            config['n_predict_steps_per_epoch'] = len(self.predict_dataloader)
+            config['n_predict'] = len(self.predict_dataset)
+        return config
 
     def __repr__(self):
         """Return a string representation of the AnndataModule."""
