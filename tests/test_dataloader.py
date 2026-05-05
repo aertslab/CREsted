@@ -112,21 +112,17 @@ def looping_backend_pt(datamodule, train_loader, val_loader, test_loader, predic
     for _ in range(2):
         split_sizes = {'train': 0, 'val': 0, 'test': 0, 'predict': 0}
 
-        for i in range(len(train_loader)):
-            x, y = train_loader[i]
+        for x, _ in train_loader:
             split_sizes['train'] += x.shape[0]
-        assert x.shape[0] == y.shape[0], "Batch size of input and output is expected to be the same"
 
-        for i in range(len(val_loader)):
-            x, y = val_loader[i]
+        for x, y in val_loader:
             split_sizes['val'] += x.shape[0]
+            assert x.shape[0] == y.shape[0], "Batch size of input and output is expected to be the same"
 
-        for i in range(len(test_loader)):
-            x, y = test_loader[i]
+        for x, _ in test_loader:
             split_sizes['test'] += x.shape[0]
 
-        for i in range(len(predict_loader)):
-            x, y = predict_loader[i]
+        for x, _ in predict_loader:
             split_sizes['predict'] += x.shape[0]
 
         for split_type in ['train', 'val', 'test', 'predict']:
