@@ -5,4 +5,5 @@ Generally, `tl.data.AnnDataWrapper` or `tl.data.AnnDataModule` is the only one t
 """
 
 from ._anndatawrapper import AnnDataWrapper
+from ._datawrapper import BaseDataWrapper, BaseGenomicDataWrapper
 from ._old._anndatamodule import AnnDataModule

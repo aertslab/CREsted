@@ -26,8 +26,14 @@ class BaseDataWrapper:
     """
     Class for retrieving sequences and their associated target values.
 
-    Please inherit this and implement self._get_sequence(), self._get_target(), self._get_indices() and self._get_splits().
-    If training on sequences extracted from the genome, have a look at BaseGenomicDataWrapper for built-in sequence loading.
+    To use this, please inherit this class and implement `self._get_sequence()`, `self._get_target()`, `self._get_indices()` and `self._get_splits()`.
+    If training on sequences extracted from the genome, have a look at :obj:`~crested.tl.data.BaseGenomicDataWrapper` for built-in sequence loading.
+
+    Caution
+    -------
+    This class is not intended to be used directly during regular use. To load your data, please use :obj:`~crested.tl.data.AnnDataWrapper`.
+
+    For advanced use: If you want to customize the data loading process, you can inherit one of these `DataWrapper` classes, depending on the level of functionality you need.
 
     Parameters
     ----------
@@ -52,19 +58,22 @@ class BaseDataWrapper:
     test_splits
         The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
 
-    Note
-    ----
-    A note on index types:
-    - 'index'/'original_index': an identifier of a sample from the input data, before augmentation or anything.
-        Think .var_names from your adata (whether that's regions or gene names).
-        Returned by `_get_indices` in your inheriting function, and should have matching split values from `_get_splits`.
-    - 'expanded_index': an identifier after expanding the indices. This often means adding the reverse complement, but it can be more if you implement it.
-        Multiple expanded indices can map back to one index (i.e. forward and backward sequence map back to the same originating sequence and its linked value in the anndata).
-        Note that due to TensorFlow limitations, this should be something convertable to numpy values and still usable as a dictionary key, so e.g. a string or an integer but not a tuple.
-        If you don't have any use for expansion, you can change _expand_indices to simply return a 1-to-1 {index: index} mapping.
-    - 'parsed_index': an expanded index parsed to a non-string/integer format, if useful.
-        In the genomic context this is often from a string to a (chrom, start, end, strand) tuple, to prevent having to parse the region multiple times.
-        If you don't have any use for parsing, you can keep `_parse_index` to just return the index as is (which is the default for BaseDataWrapper, but not BaseGenomicDataWrapper).
+    Notes
+    -----
+        A note on index types:
+
+        - 'index'/'original_index': an identifier of a sample from the input data, before augmentation or anything.
+            Think .var_names from your adata (whether that's regions or gene names).
+            Returned by `_get_indices` in your inheriting function, and should have matching split values from `_get_splits`.
+
+        - 'expanded_index': an identifier after expanding the indices. This often means adding the reverse complement, but it can be more if you implement it.
+            Multiple expanded indices can map back to one index (i.e. forward and backward sequence map back to the same originating sequence and its linked value in the anndata).
+            Note that due to TensorFlow limitations, this should be something convertable to numpy values and still usable as a dictionary key, so e.g. a string or an integer but not a tuple.
+            If you don't have any use for expansion, you can change _expand_indices to simply return a 1-to-1 {index: index} mapping.
+
+        - 'parsed_index': an expanded index parsed to a non-string/integer format, if useful.
+            In the genomic context this is often from a string to a (chrom, start, end, strand) tuple, to prevent having to parse the region multiple times.
+            If you don't have any use for parsing, you can keep `_parse_index` to just return the index as is (which is the default for BaseDataWrapper, but not BaseGenomicDataWrapper).
     """
 
     # ----- Object initialization -----
@@ -588,7 +597,14 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
     """
     Version of BaseDataWrapper with genomic sequence loading built-in.
 
-    Please inherit this and implement self._get_target(), self._get_indices() and self._get_splits().
+    To use this, please inherit this class and implement `self._get_target()`, `self._get_indices()` and `self._get_splits()`.
+
+    Caution
+    -------
+    This class is not intended to be used directly during regular use. To load your data, please use :obj:`~crested.tl.data.AnnDataWrapper`.
+
+    For advanced use: If you want to customize the data loading process, you can inherit one of these `DataWrapper` classes, depending on the level of functionality you need.
+
 
     Parameters
     ----------
@@ -618,7 +634,7 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
     test_splits
         The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
     kwargs
-        Remaining keyword arguments, passed to BaseDataLoader.
+        Remaining keyword arguments, passed to BaseDataWrapper.
     """
 
     def __init__(
