@@ -6,7 +6,6 @@ Loosely adapted from: https://github.com/p-koo/tfomics/blob/master/tfomics/
 
 from __future__ import annotations
 
-import os
 from collections.abc import Callable
 
 import keras
@@ -14,7 +13,7 @@ import numpy as np
 
 from crested.utils._seq_utils import generate_mutagenesis, generate_window_shuffle
 
-if os.environ["KERAS_BACKEND"] == "tensorflow":
+if keras.config.backend() == "tensorflow":
     from tensorflow import Tensor
 
     from crested.tl._explainer_tf import (
@@ -24,7 +23,7 @@ if os.environ["KERAS_BACKEND"] == "tensorflow":
         _smoothgrad,
         _to_tensor,
     )
-elif os.environ["KERAS_BACKEND"] == "torch":
+elif keras.config.backend() == "torch":
     from torch import Tensor
 
     from crested.tl._explainer_torch import (
