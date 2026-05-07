@@ -11,7 +11,7 @@ else:
     FrameworkDatasetClass = object
 
 from crested._genome import Genome
-from crested.utils import parse_region
+from crested.utils import flip_region_strand, parse_region, reverse_complement
 
 
 class SequenceLoader:
@@ -67,11 +67,15 @@ class SequenceLoader:
             # Parse region
             chrom, start, end, strand = parse_region(region)
 
-            # Add region to self.sequences
-            extended_sequence = self._get_extended_sequence(
-                chrom, start, end, strand
-            )
-            self.sequences[region] = extended_sequence
+            # Check if we can use revcomp
+            if flip_region_strand(region) in self.sequences:
+                self.sequences[region] = reverse_complement(self.sequences[flip_region_strand(region)])
+            # Otherwise, get region and add to sequence
+            else:
+                extended_sequence = self._get_extended_sequence(
+                    chrom, start, end, strand
+                )
+                self.sequences[region] = extended_sequence
 
     def _get_extended_sequence(
         self, chrom: str, start: int, end: int, strand: str
