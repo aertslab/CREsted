@@ -11,7 +11,7 @@ from loguru import logger
 from pysam import FastaFile
 
 import crested._conf as conf
-from crested.utils._seq_utils import reverse_complement
+from crested.utils._seq_utils import parse_region, reverse_complement
 
 
 class Genome:
@@ -194,11 +194,7 @@ class Genome:
                 "Both region and chrom/start/end supplied. Using chrom/start/end..."
             )
         elif region:
-            if region[-2] == ":":
-                chrom, start_end, strand = region.split(":")
-            else:
-                chrom, start_end = region.split(":")
-            start, end = map(int, start_end.split("-"))
+            chrom, start, end, strand = parse_region(region)
 
         if chrom is None or start is None or end is None:
             raise ValueError(
