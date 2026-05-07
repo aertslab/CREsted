@@ -19,7 +19,8 @@ python_version = f"{sys.version_info[0]}.{sys.version_info[1]}"
 from numpy import __version__ as numpy_version_raw # noqa
 numpy_version = '.'.join(numpy_version_raw.split('.')[:2])
 from matplotlib import __version__ as matplotlib_version # noqa
-from pandas import __version__ as pandas_version # noqa
+from pandas import __version__ as pandas_version_raw # noqa
+pandas_version = '.'.join(pandas_version_raw.split('.')[:2])
 
 # -- Project information -----------------------------------------------------
 
