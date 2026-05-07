@@ -1,5 +1,9 @@
 # Release notes
 
+## 1.8.1
+### Bugfixes:
+- Update the human Borzoi Prime models to actually be the human ones instead of the mouse models. (#204)
+
 ## 1.8.0
 
 ### Features
