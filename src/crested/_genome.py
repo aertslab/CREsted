@@ -99,6 +99,11 @@ class Genome:
         -------
         The pysam FastaFile object.
         """
+        # Read FASTA file in blocks of 32kb to bring the file in file cache so random access via
+        # `fetch` will be faster on remote file systems.
+        with open(self._fasta, "rb") as fh:
+            for _chunk in fh.read(32768):
+                pass
         return FastaFile(self._fasta)
 
     @property
