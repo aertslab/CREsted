@@ -1,14 +1,7 @@
 from __future__ import annotations
 
-import keras
 from loguru import logger
 from tqdm import tqdm
-
-if keras.config.backend() == "torch":
-    import torch
-    FrameworkDatasetClass = torch.utils.data.Dataset
-else:
-    FrameworkDatasetClass = object
 
 from crested._genome import Genome
 from crested.utils import flip_region_strand, parse_region, reverse_complement
