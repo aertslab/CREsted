@@ -11,7 +11,7 @@ from loguru import logger
 from scipy.sparse import spmatrix
 
 from crested._genome import Genome
-from crested.tl.data._sequenceloader import SequenceLoader
+from crested.tl.data.utils import SequenceLoader
 from crested.utils import flip_region_strand, one_hot_encode_sequence, parse_region
 
 

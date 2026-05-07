@@ -27,7 +27,7 @@ class BaseDataWrapper:
     Class for retrieving sequences and their associated target values.
 
     To use this, please inherit this class and implement `self._get_sequence()`, `self._get_target()`, `self._get_indices()` and `self._get_splits()`.
-    If training on sequences extracted from the genome, have a look at :obj:`~crested.tl.data.BaseGenomicDataWrapper` for built-in sequence loading.
+    If training on sequences extracted from the genome, have a look at :obj:`~crested.tl.data.utils.BaseGenomicDataWrapper` for built-in sequence loading.
 
     Caution
     -------
@@ -634,7 +634,7 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
     test_splits
         The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
     kwargs
-        Remaining keyword arguments, passed to BaseDataWrapper.
+        Arguments passed to :obj:`~crested.tl.data.utils.BaseDataWrapper`.
     """
 
     def __init__(

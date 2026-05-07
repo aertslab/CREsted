@@ -11,7 +11,8 @@ import keras
 from loguru import logger
 
 from crested.tl import TaskConfig
-from crested.tl.data import AnnDataModule, AnnDataWrapper, BaseDataWrapper
+from crested.tl.data import AnnDataModule, AnnDataWrapper
+from crested.tl.data.utils import BaseDataWrapper
 from crested.utils._logging import log_and_raise
 
 

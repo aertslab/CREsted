@@ -8,7 +8,7 @@ from scipy.sparse import spmatrix
 
 from crested._genome import Genome
 
-from ._datawrapper import BaseGenomicDataWrapper
+from .utils import BaseGenomicDataWrapper
 
 
 class AnnDataWrapper(BaseGenomicDataWrapper):
@@ -45,6 +45,8 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
         The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
     split_column
         The column in adata.var that contains the values to split on (as provided to [train/val/test]_splits)
+    kwargs
+        Arguments passed to :obj:`~crested.tl.data.utils.BaseGenomicDataWrapper`.
     """
 
     def __init__(

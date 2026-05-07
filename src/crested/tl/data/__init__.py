@@ -1,9 +1,5 @@
-"""
-Utility functions to prepare data for training and evaluation.
+"""Data loading objects that allow you to train on batches of entries from your AnnData."""
 
-Generally, `tl.data.AnnDataWrapper` or `tl.data.AnnDataModule` is the only one that should be called directly by the user.
-"""
-
+from . import utils
 from ._anndatawrapper import AnnDataWrapper
-from ._datawrapper import BaseDataWrapper, BaseGenomicDataWrapper
 from ._old._anndatamodule import AnnDataModule
