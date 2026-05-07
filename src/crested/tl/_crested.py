@@ -11,7 +11,7 @@ import keras
 from loguru import logger
 
 from crested.tl import TaskConfig
-from crested.tl.data import AnnDataModule, BaseDataWrapper
+from crested.tl.data import AnnDataModule, AnnDataWrapper, BaseDataWrapper
 from crested.utils._logging import log_and_raise
 
 
@@ -22,7 +22,7 @@ class Crested:
     Parameters
     ----------
     data
-        AnndataModule object containing the data.
+        :obj:`~crested.tl.data.AnnDataModule` or :obj:`~crested.tl.data.AnnDataWrapper` object containing the data.
     model
         Model architecture to use for training.
     config
@@ -70,7 +70,7 @@ class Crested:
 
     def __init__(
         self,
-        data: AnnDataModule,
+        data: AnnDataModule | AnnDataWrapper,
         model: keras.Model | None = None,
         config: TaskConfig | None = None,
         project_name: str | None = None,

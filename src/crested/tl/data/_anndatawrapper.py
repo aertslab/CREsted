@@ -15,7 +15,7 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
     """
     Wrapper around your AnnData and genome, providing you with one-hot encoded sequences and associated scalar values to train a model with.
 
-    Required input for the `tl.Crested` class.
+    The :obj:`~crested.tl.Crested` class expects this or :obj:`~crested.tl.data.AnnDataModule`.
 
     Parameters
     ----------
