@@ -477,6 +477,7 @@ def mha_block_enf(
     zero_init: bool = True,
     residual: bool = True,
     ln_epsilon: float = 1e-5,
+    absolute_positions: bool = False,
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
@@ -517,6 +518,8 @@ def mha_block_enf(
         Whether to wrap the entire block in residual structure.
     ln_epsilon
         Epsilon to use in the layer normalisation layer.
+    absolute_positions
+        Whether to use absolute position encoding rather than relative. Default is False.
     name_prefix
         Prefix for layer names.
 
@@ -547,6 +550,7 @@ def mha_block_enf(
         zero_initialize=zero_init,
         initializer="he_normal",  # Unsure in Enf, think this is fine.
         l2_scale=1.0e-8,  # Doesn't seem to be set in Enf, is set in Borzoi.
+        absolute_positions=absolute_positions,
         name=f"{name_prefix}_mhsa",
     )(current)
     current = keras.layers.Dropout(rate=final_dropout, name=f"{name_prefix}_dropout")(

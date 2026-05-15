@@ -145,6 +145,8 @@ class MultiheadAttention(keras.layers.Layer):
     num_position_features
         Number of relative positional features to compute.
         If None, `value_size * num_heads` is used.
+    absolute_positions
+        If True, use absolute positional encoding instead of relative positional encodings. Default in Borzoi is False.
     positional_dropout_rate
         Dropout rate for the positional encodings if relative positions are used.
     zero_initialize
@@ -165,6 +167,7 @@ class MultiheadAttention(keras.layers.Layer):
         relative_position_functions: str = "borzoi",
         relative_position_absolute: bool = False,
         num_position_features: int | None = None,
+        absolute_positions: bool = False,
         positional_dropout_rate: float = 0.0,
         zero_initialize: bool = True,
         initializer: str = "he_normal",
@@ -188,6 +191,7 @@ class MultiheadAttention(keras.layers.Layer):
         self._relative_position_symmetric = relative_position_symmetric
         self._relative_position_functions = relative_position_functions
         self._relative_position_absolute = relative_position_absolute
+        self.absolute_positions = absolute_positions
         if num_position_features is None:
             # num_position_features needs to be divisible by the number of
             # relative positional functions *2 (for symmetric & asymmetric version).
@@ -314,44 +318,83 @@ class MultiheadAttention(keras.layers.Layer):
         if self._num_position_features == 0:
             logits = content_logits
         else:
-            # Project positions to form relative keys.
-            # distances: [1, 2T-1] -> (1, 3071)
-            distances = keras.ops.expand_dims(
-                keras.ops.arange(-seq_len + 1, seq_len, dtype="float32"), axis=0
-            )
-            # positional_encodings: [1, 2T-1, Cr] -> (1, 3071, 192)
-            positional_encodings = self.relative_position_func(
-                positions=distances,
-                feature_size=self._num_position_features,
-                seq_length=seq_len,
-                symmetric=self._relative_position_symmetric,
-            )
+            if not self.absolute_positions:
+                # Default positional encoding from Enformer/Borzoi.abs
+                # Creates double-position matrix, to be subsetted into relative distance
+                # See https://johahi.github.io/blog/2024/fast-relative-shift/
+                # distances: [1, 2T-1] -> (1, 3071)
+                distances = keras.ops.expand_dims(
+                    keras.ops.arange(-seq_len + 1, seq_len, dtype="float32"), axis=0
+                )
+                # positional_encodings: [1, 2T-1, Cr] -> (1, 3071, 192)
+                positional_encodings = self.relative_position_func(
+                    positions=distances,
+                    feature_size=self._num_position_features,
+                    seq_length=seq_len,
+                    symmetric=self._relative_position_symmetric,
+                )
 
-            positional_encodings = self.pos_dropout(
-                positional_encodings, training=training
-            )
+                positional_encodings = self.pos_dropout(
+                    positional_encodings, training=training
+                )
 
-            # Relative position weights
-            # r_k goal: [H, 2T-1, K] -> (8, 3071, 64)
-            # r_k = self._multihead_output(self._r_k_layer, positional_encodings)
-            r_k = self._r_k_layer(positional_encodings)  # [1, 2T-1, H*K]
-            r_k = keras.ops.reshape(
-                r_k,
-                [-1, self._num_heads, self._key_size],  # [2T-1, H, K]
-            )
-            # [H, K, 2T-1] -> (8, 64, 3071)
-            r_k = keras.ops.transpose(r_k, [1, 2, 0])
+                # Learnable position encoding weights to create positional keys
+                # r_k goal: [H, 2T-1, K] -> (8, 3071, 64)
+                # r_k = self._multihead_output(self._r_k_layer, positional_encodings)
+                r_k = self._r_k_layer(positional_encodings)  # [1, 2T-1, H*K]
+                r_k = keras.ops.reshape(
+                    r_k,
+                    [-1, self._num_heads, self._key_size],  # [2T-1, H, K]
+                )
+                # [H, K, 2T-1] -> (8, 64, 3071)
+                r_k = keras.ops.transpose(r_k, [1, 2, 0])
 
-            # Relative position logits
-            relative_logits = q + self._r_r_bias
-            # relative_logits: [B, H, T', 2T-1] -> (1, 8, 1536, 3071)
-            relative_logits = keras.ops.matmul(relative_logits, r_k)
+                # Multiply query with the positional keys learned
+                relative_logits = q + self._r_r_bias
+                # relative_logits: [B, H, T', 2T-1] -> (1, 8, 1536, 3071)
+                relative_logits = keras.ops.matmul(relative_logits, r_k)
 
-            # shifted relative_logits: [B, H, T', T] -> (1, 8, 1536, 1536)
-            relative_logits = relative_shift(relative_logits)
+                # Shift to get relative positions, which now match content logits: [B, H, T', T] -> (1, 8, 1536, 1536)
+                relative_logits = relative_shift(relative_logits)
 
-            # Add relative logits to content logits
-            logits = content_logits + relative_logits
+                # Add position logits to content logits
+                logits = content_logits + relative_logits
+            else:
+                # Attempt to turn this mechanism into standard absolute distance keys
+                # distances: [1, T] -> (1, 1536)
+                distances = keras.ops.expand_dims(
+                    keras.ops.arange(-seq_len//2, seq_len//2, dtype="float32"), axis=0
+                )
+                # positional_encodings: [1, T, Cr] -> (1, 1536, 192)
+                positional_encodings = self.relative_position_func(
+                    positions=distances,
+                    feature_size=self._num_position_features,
+                    seq_length=seq_len,
+                    symmetric=self._relative_position_symmetric,
+                )
+
+                positional_encodings = self.pos_dropout(
+                    positional_encodings, training=training
+                )
+
+                # Learnable position encoding weights to create positional keys
+                # r_k goal: [H, T, K] -> (8, 1536, 64)
+                # r_k = self._multihead_output(self._r_k_layer, positional_encodings)
+                r_k = self._r_k_layer(positional_encodings)  # [1, T, H*K]
+                r_k = keras.ops.reshape(
+                    r_k,
+                    [-1, self._num_heads, self._key_size],  # [T, H, K]
+                )
+                # [H, K, T] -> (8, 64, 1536)
+                r_k = keras.ops.transpose(r_k, [1, 2, 0])
+
+                # Multiply query with the positional keys learned
+                relative_logits = q + self._r_r_bias
+                # relative_logits: [B, H, T', T] -> (1, 8, 1536, 1536)
+                relative_logits = keras.ops.matmul(relative_logits, r_k)
+
+                # Add position logits to content logits
+                logits = content_logits + relative_logits
 
         # softmax across length
         output = keras.ops.softmax(logits)
