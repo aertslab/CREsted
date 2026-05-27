@@ -174,6 +174,7 @@ class BaseDataWrapper:
         original_index: str,
         expanded_index: str,
         parsed_index: tuple[str, int, int, str],
+        augment: bool = False,
         revcomp: bool = False,
         shift: int = 0,
         **kwargs
@@ -190,6 +191,9 @@ class BaseDataWrapper:
             The expanded index of the sequence (guaranteed to be stranded).
         parsed_index
             The expanded index of the sequence, parsed into a (chrom, start, end, strand) tuple if using genomic data.
+        augment
+            Whether to do augmentation (generally, whether this is a training or val/test/predict sample).
+            'revcomp' and 'shift' cover specific augmentation scenarios, but this parameter allows for further augmentation like stochastic mutation.
         revcomp
             Whether to reverse-complement the string (like because of stochastic reverse complementing) relative to the requested original index.
         shift
@@ -200,7 +204,7 @@ class BaseDataWrapper:
         """
         raise NotImplementedError("Implement _get_sequence of your inherited DataWrapper class to retrieve (unencoded) input sequences for your classes, to be encoded by _encode_sequence.")
 
-    def _encode_sequence(self, seq: str) -> np.ndarray:
+    def _encode_sequence(self, seq: str, **kwargs) -> np.ndarray:
         """Encode the sequence as string to a numerical representation by one-hot encoding it. Returned value should not have a batch dimension yet.
 
         Generally done through one_hot_encode_sequence, override if you need to do something fancier.
@@ -209,6 +213,8 @@ class BaseDataWrapper:
         ----------
         seq
             A sequence as a string, to encode as a one-hot encoded numpy array.
+        kwargs
+            Catcher for arguments you're not using in your implementation. Has access to all indices and augmentation info if needed for encoding.
         """
         return one_hot_encode_sequence(seq, expand_dim=False)
 
@@ -217,6 +223,7 @@ class BaseDataWrapper:
         original_index: str,
         expanded_index: str,
         parsed_index: tuple[str, int, int, str],
+        augment: bool = False,
         revcomp: bool = False,
         shift: int = 0,
         **kwargs
@@ -236,6 +243,9 @@ class BaseDataWrapper:
         parsed_index
             The expanded index, parsed into a more usable format. By default, into a (chrom, start, end, strand) tuple if using genomic data.
             The inherited version will generally use only original_index, expanded_index or parsed_index, depending on desired functionality.
+        augment
+            Whether to do augmentation (generally, whether this is a training or val/test/predict sample).
+            'revcomp' and 'shift' cover specific augmentation scenarios, but this parameter allows for further augmentation like stochastic value changing.
         revcomp
             Whether to reverse-complement the string (like because of stochastic reverse complementing) relative to the requested index.
         shift
@@ -341,7 +351,7 @@ class BaseDataWrapper:
         else:
             return self.get_indexed_item(expanded_index=idx)
 
-    def get_indexed_item(self, expanded_index: str | None = None, original_index: str | None = None, augment: bool = False) -> tuple[np.ndarray, np.ndarray]:
+    def get_indexed_item(self, expanded_index: str | None = None, original_index: str | None = None, augment: bool = False, **kwargs) -> tuple[np.ndarray, np.ndarray]:
         """Retrieve sequence and target for an expanded index.
 
         Parameters
@@ -355,6 +365,8 @@ class BaseDataWrapper:
             If None (default), retrieves original version from expanded_index.
         augment
             Whether to add stochastic augmentation when retrieving items. Default is False.
+        kwargs
+            Other arguments also passed to the individual functions (_get_shift, _get_sequence, _encode_sequence, _get_target).
 
         Returns
         -------
@@ -369,25 +381,37 @@ class BaseDataWrapper:
 
         parsed_index = self.parsed_indices_map[expanded_index]
 
+        sequence_info = {
+            'original_index': original_index,
+            'expanded_index': expanded_index,
+            'parsed_index': parsed_index,
+            'augment': augment,
+            **kwargs
+        }
+
         # Get stochastic shift amount
         if augment and self.max_stochastic_shift > 0:
-            shift = self._get_shift(original_index=original_index, expanded_index=expanded_index, parsed_index=parsed_index)
+            shift = self._get_shift(**sequence_info)
         else:
             shift = 0
+        sequence_info['shift'] = shift
+
         # Get whether to random reverse complement (always_reverse_complement is done in the sequence loader by encoding the strand in the index)
         if augment and self.random_reverse_complement and np.random.rand() < 0.5:
             revcomp = True
         else:
             revcomp = False
+        sequence_info['revcomp'] = revcomp
+
         # Get sequence as string and apply stochastic shift/revcomp augmentations, letting the function choose
         # whether to use original (like when grabbing from dataframe) or expanded index (like when extracting from genome)
-        x = self._get_sequence(original_index=original_index, expanded_index=expanded_index, parsed_index=parsed_index, revcomp=revcomp, shift=shift)
+        x = self._get_sequence(**sequence_info)
 
         # Encode sequence (one-hot by default, but can override for i.e. tokenisation)
-        x = self._encode_sequence(x)
+        x = self._encode_sequence(x, **sequence_info)
 
         # Get targets, letting the function choose whether to use original (like with scalars) or expanded index (like with tracks)
-        y = self._get_target(original_index=original_index, expanded_index=expanded_index, parsed_index=parsed_index, revcomp=revcomp, shift=shift)
+        y = self._get_target(**sequence_info)
 
         return x, y
 
