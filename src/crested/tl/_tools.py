@@ -594,6 +594,7 @@ def contribution_scores_specific(
     transpose: bool = True,
     batch_size: int = 128,
     output_dir: str | os.PathLike | None = None,
+    skip_existing: bool = False,
     verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -633,6 +634,9 @@ def contribution_scores_specific(
     output_dir
         Path to the output directory to save the contribution scores and one hot seqs.
         Will create a separate npz file per class.
+    skip_existing
+        If writing files by setting `output_dir`, whether to skip calculating contribution scores for classes that have already been written to file.
+        By default, re-calculates and overwrites existing files. 
     verbose
         Boolean for disabling the plotting progress of calculations using tqdm.
 
@@ -664,6 +668,10 @@ def contribution_scores_specific(
     for target_id in target_idx:
         class_name = all_class_names[target_id]
         class_regions = input.var[input.var["Class name"] == class_name].index.tolist()
+        if output_dir is not None and skip_existing:
+            if os.path.exists(os.path.join(output_dir, f"{class_name}_contrib.npz")):
+                print(f"Skipping {class_name}, since it was already saved to file.")
+                continue
         scores, one_hots = contribution_scores(
             input=class_regions,
             target_idx=target_id,
