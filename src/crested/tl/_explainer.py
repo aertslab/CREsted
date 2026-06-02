@@ -231,14 +231,19 @@ def mutagenesis(X: np.ndarray, model: keras.Model, class_index: int = None, batc
 
     def reconstruct_map(predictions):
         _, L, A = x.shape
-
+        if flanks:
+            start, end = flanks
+        else:
+            start = 0
+            end = 0
         mut_score = np.zeros((1, L, A))
         k = 0
-        for length in range(L):
+        for length in range(start, L - end):   # was: range(L)
             for a in range(A):
                 mut_score[0, length, a] = predictions[k]
                 k += 1
         return mut_score
+
 
     def get_score(x, model, class_index, batch_size=None):
         score = model.predict(x, verbose=0, batch_size=batch_size)
