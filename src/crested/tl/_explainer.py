@@ -210,7 +210,7 @@ def integrated_grad(
     return outputs
 
 
-def mutagenesis(X: np.ndarray, model: keras.Model, class_index: int = None, batch_size: int = 256) -> np.ndarray:
+def mutagenesis(X: np.ndarray, model: keras.Model, class_index: int = None, batch_size: int = 256, flanks: tuple = (0, 0)) -> np.ndarray:
     """In silico mutagenesis analysis for a given sequence.
 
     Parameters
@@ -253,7 +253,7 @@ def mutagenesis(X: np.ndarray, model: keras.Model, class_index: int = None, batc
         x = np.expand_dims(x, axis=0)
 
         # generate mutagenized sequences
-        x_mut = generate_mutagenesis(x)
+        x_mut = generate_mutagenesis(x, flanks=flanks)
 
         # get baseline wildtype score
         wt_score = get_score(x, model, class_index, batch_size=batch_size)
@@ -274,6 +274,7 @@ def window_shuffle(
     n_shuffles: int = 5,
     uniform: bool = False,
     batch_size: int = 256,
+    flanks: tuple = (0, 0),
 ) -> np.ndarray:
     """In silico mutagenesis analysis for a given sequence.
 
@@ -325,7 +326,7 @@ def window_shuffle(
         x = np.expand_dims(x, axis=0)
 
         # generate mutagenized sequences
-        x_mut = generate_window_shuffle(x, window_size=window_size, n_shuffles=n_shuffles, uniform=uniform)
+        x_mut = generate_window_shuffle(x, window_size=window_size, n_shuffles=n_shuffles, uniform=uniform, flanks=flanks)
 
         # get baseline wildtype score
         wt_score = get_score(x, model, class_index, batch_size=batch_size)
