@@ -86,9 +86,8 @@ def _run_modisco_single_class(
         sequences = one_hot_seqs[:, :, start:end]
         attributions = contribution_scores[:, :, start:end]
 
-        if top_n_regions:
-            top_n = top_n_regions if top_n_regions < len(sequences) else len(sequences)
-            top_n = max(top_n, 1)  # avoid faulty inputs
+        if top_n_regions is not None:
+            top_n = min(max(top_n_regions, 1), len(sequences))
             sequences = sequences[:top_n]
             attributions = attributions[:top_n]
 
