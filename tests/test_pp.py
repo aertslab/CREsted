@@ -161,6 +161,29 @@ def test_change_regions_width_inplace(adata_function):
     assert not adata_function.var.equals(adata_copy.var)
 
 
+def test_change_regions_width_drops_resized_out_of_bounds():
+    """Regions whose *resized* window falls off a contig edge must be dropped.
+
+    The original peaks are all within the chromosome, but after widening, the
+    ones near a contig edge run past 0 or past the chromosome length. These must
+    be removed (the boundary check has to use the resized coordinates, not the
+    original ones). chrM in test.chrom.sizes is 16299 bp.
+    """
+    regions = [
+        "chrM:50-150",  # center 100 -> [-957, 1157]: negative start -> drop
+        "chr1:100000-100100",  # center 100050 -> [98993, 101107]: in bounds -> keep
+        "chrM:16200-16280",  # center 16240 -> [15183, 17297]: past end 16299 -> drop
+    ]
+    adata = create_anndata_with_regions(regions)
+
+    crested.pp.change_regions_width(
+        adata, width=2114, chromsizes_file="tests/data/test.chrom.sizes"
+    )
+
+    assert list(adata.var_names) == ["chr1:98993-101107"]
+    assert adata.n_vars == 1
+
+
 # def test_normalization_consistency():
 #     regions = [
 #         "chr1:100-200",
