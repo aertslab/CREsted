@@ -76,9 +76,8 @@ def _run_modisco_single_class(
             contribution_scores = contrib_npz["arr_0"]
 
         if one_hot_seqs.shape[2] < window:
-            print(one_hot_seqs.shape[2])
             raise ValueError(
-                f"Window ({window}) cannot be longer than the sequences ({one_hot_seqs.shape[1]})"
+                f"Window ({window}) cannot be longer than the sequences ({one_hot_seqs.shape[2]})"
             )
 
         center = one_hot_seqs.shape[2] // 2
