@@ -123,7 +123,7 @@ def _run_modisco_single_class(
             )
 
         else:
-            print(f"Modisco results already exist for class: {class_name}")
+            logger.info(f"Modisco results already exist for class: {class_name}")
 
         # Generate the modisco report
         if report and not os.path.exists(report_dir):
