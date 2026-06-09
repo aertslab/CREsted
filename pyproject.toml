@@ -23,6 +23,7 @@ classifiers = [
 ]
 dependencies = [
   "anndata",
+  "joblib",
   "keras>=3.4",
   "logomaker",
   "loguru",
