@@ -71,8 +71,9 @@ def _run_modisco_single_class(
         if not (os.path.exists(one_hot_path) and os.path.exists(contrib_path)):
             raise FileNotFoundError(f"Missing .npz files for class: {class_name}")
 
-        one_hot_seqs = np.load(one_hot_path)["arr_0"]
-        contribution_scores = np.load(contrib_path)["arr_0"]
+        with np.load(one_hot_path) as oh_npz, np.load(contrib_path) as contrib_npz:
+            one_hot_seqs = oh_npz["arr_0"]
+            contribution_scores = contrib_npz["arr_0"]
 
         if one_hot_seqs.shape[2] < window:
             print(one_hot_seqs.shape[2])
