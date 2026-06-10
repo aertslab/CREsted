@@ -1694,26 +1694,56 @@ def calculate_mean_expression_per_cell_type(
     -------
     A DataFrame containing the mean gene expression per cell type subclass.
     """
+    from scipy import sparse
+
     # Read the AnnData object from the specified H5AD file
     adata = anndata.read_h5ad(file_path)
 
-    # CPM normalize the counts if necessary
+    # CPM normalize the counts if necessary (in-place, sparse-friendly)
     if cpm_normalize:
         sc.pp.normalize_total(adata)
 
-    # Convert the AnnData object to a DataFrame containing the gene expression matrix
-    gene_expression_df = adata.to_df()
-
-    # Retrieve the cell metadata from the AnnData object
-    cell_metadata = adata.obs
-
     # Check if the specified cell type column exists in the cell metadata
-    if cell_type_column not in cell_metadata.columns:
+    if cell_type_column not in adata.obs.columns:
         raise ValueError(f"Column '{cell_type_column}' not found in cell metadata")
 
-    # Calculate the mean gene expression per cell type subclass
-    mean_expression_per_cell_type = gene_expression_df.groupby(
-        cell_metadata[cell_type_column]
-    ).mean()
+    # Group cells by cell type, dropping unlabelled cells (matches the previous
+    # pandas-groupby behaviour, which excluded NaN groups).
+    labels = adata.obs[cell_type_column].astype("category")
+    codes = labels.cat.codes.to_numpy()
+    categories = labels.cat.categories
+    valid = codes >= 0  # -1 == NaN / unlabelled
+
+    # Compute the per-cell-type mean directly on (possibly sparse) X via an
+    # indicator-matrix product, so the full matrix is never densified:
+    #     sums  = indicator @ X        # (n_groups, n_genes)
+    #     means = sums / counts
+    # Keeps memory at O(n_groups * n_genes) instead of O(n_cells * n_genes),
+    # which matters for atlas-scale inputs (e.g. ~750k cells would be ~38 GB dense).
+    indicator = sparse.csr_matrix(
+        (
+            np.ones(int(valid.sum()), dtype="float64"),
+            (codes[valid], np.nonzero(valid)[0]),
+        ),
+        shape=(len(categories), adata.n_obs),
+    )
+    counts = np.asarray(indicator.sum(axis=1)).ravel()
+
+    sums = indicator @ adata.X  # sparse @ (sparse | dense)
+    sums = np.asarray(sums.todense()) if sparse.issparse(sums) else np.asarray(sums)
+
+    with np.errstate(invalid="ignore", divide="ignore"):
+        means = sums / counts[:, None]  # groups with 0 cells -> NaN, dropped below
+
+    mean_expression_per_cell_type = pd.DataFrame(
+        means,
+        index=pd.Index(categories, name=cell_type_column),
+        columns=adata.var_names,
+    )
+    # Drop categories with no cells (unused categorical levels) and sort by cell
+    # type, matching the previous groupby output.
+    mean_expression_per_cell_type = mean_expression_per_cell_type.loc[
+        counts > 0
+    ].sort_index()
 
     return mean_expression_per_cell_type
