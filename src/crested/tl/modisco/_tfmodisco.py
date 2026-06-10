@@ -27,6 +27,118 @@ def _calculate_window_offsets(center: int, window_size: int) -> tuple:
     return (center - window_size // 2, center + window_size // 2)
 
 
+def _run_modisco_single_class(
+    class_name: str,
+    *,
+    contrib_dir: str | os.PathLike,
+    output_dir: str | os.PathLike,
+    window: int,
+    max_seqlets: int,
+    min_metacluster_size: int,
+    min_final_cluster_size: int,
+    n_leiden: int,
+    report: bool,
+    meme_db: str | None,
+    verbose: bool,
+    fdr: float,
+    sliding_window_size: int,
+    flank_size: int,
+    top_n_regions: int | None,
+    pin_numba_threads: bool = False,
+) -> None:
+    """Run tf-modisco for a single class. See `tfmodisco` for parameter semantics.
+
+    This is the body of the per-class loop, factored out so it can be dispatched
+    either serially or across processes (see the `n_jobs` argument of `tfmodisco`).
+    """
+    # When running across worker processes, pin numba to a single thread so that
+    # N concurrent workers don't each spawn a full numba threadpool and
+    # oversubscribe the cores (BLAS/OpenMP are pinned via joblib's
+    # inner_max_num_threads in the caller).
+    if pin_numba_threads:
+        try:
+            import numba
+
+            numba.set_num_threads(1)
+        except Exception:  # noqa: BLE001 - thread pinning is best-effort
+            pass
+
+    try:
+        # Load the one-hot sequences and contribution scores from the .npz files
+        one_hot_path = os.path.join(contrib_dir, f"{class_name}_oh.npz")
+        contrib_path = os.path.join(contrib_dir, f"{class_name}_contrib.npz")
+
+        if not (os.path.exists(one_hot_path) and os.path.exists(contrib_path)):
+            raise FileNotFoundError(f"Missing .npz files for class: {class_name}")
+
+        with np.load(one_hot_path) as oh_npz, np.load(contrib_path) as contrib_npz:
+            one_hot_seqs = oh_npz["arr_0"]
+            contribution_scores = contrib_npz["arr_0"]
+
+        if one_hot_seqs.shape[2] < window:
+            raise ValueError(
+                f"Window ({window}) cannot be longer than the sequences ({one_hot_seqs.shape[2]})"
+            )
+
+        center = one_hot_seqs.shape[2] // 2
+        start, end = _calculate_window_offsets(center, window)
+
+        sequences = one_hot_seqs[:, :, start:end]
+        attributions = contribution_scores[:, :, start:end]
+
+        if top_n_regions is not None:
+            top_n = min(max(top_n_regions, 1), len(sequences))
+            sequences = sequences[:top_n]
+            attributions = attributions[:top_n]
+
+        sequences = sequences.transpose(0, 2, 1)
+        attributions = attributions.transpose(0, 2, 1)
+
+        sequences = sequences.astype("float32")
+        attributions = attributions.astype("float32")
+
+        # Define filenames for the output files
+        output_file = os.path.join(output_dir, f"{class_name}_modisco_results.h5")
+        report_dir = os.path.join(output_dir, f"{class_name}_report")
+
+        # Check if the modisco results .h5 file does not exist for the class
+        if not os.path.exists(output_file):
+            logger.info(f"Running modisco for class: {class_name}")
+            pos_patterns, neg_patterns = modisco.tfmodisco.TFMoDISco(
+                hypothetical_contribs=attributions,
+                one_hot=sequences,
+                max_seqlets_per_metacluster=max_seqlets,
+                sliding_window_size=sliding_window_size,
+                flank_size=flank_size,
+                target_seqlet_fdr=fdr,
+                n_leiden_runs=n_leiden,
+                verbose=verbose,
+                min_metacluster_size=min_metacluster_size,
+                final_min_cluster_size=min_final_cluster_size,
+            )
+
+            modisco.io.save_hdf5(
+                output_file, pos_patterns, neg_patterns, window_size=window
+            )
+
+        else:
+            logger.info(f"Modisco results already exist for class: {class_name}")
+
+        # Generate the modisco report
+        if report and not os.path.exists(report_dir):
+            modisco.report.report_motifs(
+                output_file,
+                report_dir,
+                meme_motif_db=meme_db,
+                top_n_matches=3,
+                is_writing_tomtom_matrix=False,
+                img_path_suffix="./",
+            )
+
+    except KeyError as e:
+        logger.error(f"Missing data for class: {class_name}, error: {e}")
+
+
 @log_and_raise(Exception)
 def tfmodisco(
     contrib_dir: str | os.PathLike = "modisco_results",
@@ -44,6 +156,7 @@ def tfmodisco(
     sliding_window_size: int = 20,
     flank_size: int = 5,
     top_n_regions: int | None = None,
+    n_jobs: int = 1,
 ):
     """
     Run tf-modisco on one-hot encoded sequences and contribution scores stored in .npz files.
@@ -80,6 +193,13 @@ def tfmodisco(
         Flank size of seqlets.
     top_n_regions
         The top n regions from the one hot encoded sequences and contribution scores to run modisco on.
+    n_jobs
+        Number of classes to process in parallel. Each class is fully independent
+        (own input/output files), so this scales near-linearly. ``1`` (default)
+        runs serially. ``-1`` uses all available cores. Values other than ``1``
+        require `joblib` and dispatch one worker process per class, with each
+        worker pinned to a single BLAS/OpenMP/numba thread to avoid
+        oversubscription.
 
     See Also
     --------
@@ -123,85 +243,44 @@ def tfmodisco(
             f"No class names provided, using all found in the contribution directory: {class_names}"
         )
 
-    # Iterate over each class and calculate contribution scores
-    for class_name in class_names:
-        try:
-            # Load the one-hot sequences and contribution scores from the .npz files
-            one_hot_path = os.path.join(contrib_dir, f"{class_name}_oh.npz")
-            contrib_path = os.path.join(contrib_dir, f"{class_name}_contrib.npz")
+    # Each class is fully independent (own input/output files), so we dispatch the
+    # per-class work either serially (n_jobs == 1, the original behaviour) or
+    # across worker processes (n_jobs != 1).
+    run_kwargs = {
+        "contrib_dir": contrib_dir,
+        "output_dir": output_dir,
+        "window": window,
+        "max_seqlets": max_seqlets,
+        "min_metacluster_size": min_metacluster_size,
+        "min_final_cluster_size": min_final_cluster_size,
+        "n_leiden": n_leiden,
+        "report": report,
+        "meme_db": meme_db,
+        "verbose": verbose,
+        "fdr": fdr,
+        "sliding_window_size": sliding_window_size,
+        "flank_size": flank_size,
+        "top_n_regions": top_n_regions,
+    }
 
-            if not (os.path.exists(one_hot_path) and os.path.exists(contrib_path)):
-                raise FileNotFoundError(f"Missing .npz files for class: {class_name}")
+    if n_jobs == 1:
+        for class_name in class_names:
+            _run_modisco_single_class(class_name, **run_kwargs)
+    else:
+        from joblib import Parallel, delayed, parallel_config
 
-            one_hot_seqs = np.load(one_hot_path)["arr_0"]
-            contribution_scores = np.load(contrib_path)["arr_0"]
-
-            if one_hot_seqs.shape[2] < window:
-                print(one_hot_seqs.shape[2])
-                raise ValueError(
-                    f"Window ({window}) cannot be longer than the sequences ({one_hot_seqs.shape[1]})"
+        logger.info(
+            f"Running modisco for {len(class_names)} classes with n_jobs={n_jobs}"
+        )
+        # inner_max_num_threads pins each worker's BLAS/OpenMP threadpools to 1;
+        # pin_numba_threads does the same for modiscolite's numba kernels.
+        with parallel_config(backend="loky", inner_max_num_threads=1):
+            Parallel(n_jobs=n_jobs)(
+                delayed(_run_modisco_single_class)(
+                    class_name, pin_numba_threads=True, **run_kwargs
                 )
-
-            center = one_hot_seqs.shape[2] // 2
-            start, end = _calculate_window_offsets(center, window)
-
-            sequences = one_hot_seqs[:, :, start:end]
-            attributions = contribution_scores[:, :, start:end]
-
-            if top_n_regions:
-                top_n = (
-                    top_n_regions if top_n_regions < len(sequences) else len(sequences)
-                )
-                top_n = max(top_n, 1)  # avoid faulty inputs
-                sequences = sequences[:top_n]
-                attributions = attributions[:top_n]
-
-            sequences = sequences.transpose(0, 2, 1)
-            attributions = attributions.transpose(0, 2, 1)
-
-            sequences = sequences.astype("float32")
-            attributions = attributions.astype("float32")
-
-            # Define filenames for the output files
-            output_file = os.path.join(output_dir, f"{class_name}_modisco_results.h5")
-            report_dir = os.path.join(output_dir, f"{class_name}_report")
-
-            # Check if the modisco results .h5 file does not exist for the class
-            if not os.path.exists(output_file):
-                logger.info(f"Running modisco for class: {class_name}")
-                pos_patterns, neg_patterns = modisco.tfmodisco.TFMoDISco(
-                    hypothetical_contribs=attributions,
-                    one_hot=sequences,
-                    max_seqlets_per_metacluster=max_seqlets,
-                    sliding_window_size=sliding_window_size,
-                    flank_size=flank_size,
-                    target_seqlet_fdr=fdr,
-                    n_leiden_runs=n_leiden,
-                    verbose=verbose,
-                    min_metacluster_size=min_metacluster_size,
-                    final_min_cluster_size=min_final_cluster_size,
-                )
-
-                modisco.io.save_hdf5(
-                    output_file, pos_patterns, neg_patterns, window_size=window
-                )
-
-            else:
-                print(f"Modisco results already exist for class: {class_name}")
-
-            # Generate the modisco report
-            if report and not os.path.exists(report_dir):
-                modisco.report.report_motifs(
-                    output_file,
-                    report_dir,
-                    meme_motif_db=meme_db,
-                    top_n_matches=3,
-                    is_writing_tomtom_matrix=False,
-                    img_path_suffix="./",
-                )
-
-        except KeyError as e:
-            logger.error(f"Missing data for class: {class_name}, error: {e}")
+                for class_name in class_names
+            )
 
 
 def get_pwms_from_modisco_file(
