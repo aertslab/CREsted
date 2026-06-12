@@ -1361,23 +1361,34 @@ def clustermap_tf_motif(
                 for c in missing:
                     row_class_palette[c] = "#bdbdbd"
 
-        # Direct RGB image, shape (n_rows, 1, 3)
-        strip_rgb = np.array(
-            [[mcolors.to_rgb(row_class_palette[g])] for g in groups]
-        )
-
+        n_rows = data.shape[0]
         heat_pos = ax_heatmap.get_position()
         strip_w = 0.012
         strip_ax = fig.add_axes(
             [heat_pos.x1, heat_pos.y0, strip_w, heat_pos.height]
         )
-        strip_ax.imshow(strip_rgb, aspect="auto")
+        # Draw the strip as vector rectangles (barh) rather than an imshow raster image,
+        # so the colors survive PDF export / editing in Illustrator.
+        strip_ax.barh(
+            np.arange(n_rows),
+            width=1,
+            height=1,
+            left=0,
+            align="edge",
+            color=[row_class_palette[g] for g in groups],
+            edgecolor="none",
+        )
+        strip_ax.set_xlim(0, 1)
+        strip_ax.set_ylim(0, n_rows)
+        strip_ax.invert_yaxis()  # row 0 at the top, matching the heatmap (origin='upper')
         strip_ax.set_xticks([])
         # Labels live on the strip's right side (outboard of the strip)
-        strip_ax.set_yticks(np.arange(data.shape[0]))
+        strip_ax.set_yticks(np.arange(n_rows) + 0.5)
         strip_ax.set_yticklabels(class_labels)
         strip_ax.yaxis.tick_right()
         strip_ax.tick_params(left=False)
+        for sp in strip_ax.spines.values():
+            sp.set_visible(False)
         # Heatmap itself carries no y labels now
         ax_heatmap.set_yticks([])
 
