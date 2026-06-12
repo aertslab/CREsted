@@ -1127,6 +1127,9 @@ def clustermap_tf_motif(
     cluster_rows: bool = True,
     cluster_columns: bool = True,
     cbar_pad: float = 0.05,
+    row_class_mapping: dict[str, str] | None = None,
+    row_class_palette: dict[str, str] | None = None,
+    row_class_legend: bool = True,
     imshow_kws: dict | None = None,
     scatter_kws: dict | None = None,
     fig_size = 'deprecated',
@@ -1155,6 +1158,16 @@ def clustermap_tf_motif(
         Whether to cluster the columns (patterns). Default is True.
     cbar_pad : float
         Horizontal padding between heatmap and colorbar in figure coordinates.
+    row_class_mapping
+        Optional mapping of class label (row) to a higher-level class/group name,
+        drawn as a categorical color strip flush against the right edge of the heatmap.
+        Cell-type labels are moved outboard of the strip. Rows missing from the mapping
+        are labeled ``"NA"``.
+    row_class_palette
+        Optional mapping of group name (the values of `row_class_mapping`) to a color.
+        If None, a qualitative palette (`tab20`) is assigned automatically.
+    row_class_legend
+        Whether to draw a legend for the row class strip. Default is True.
     imshow_kws
         Extra arguments for `ax.imshow`. Default is `{'cmap': 'coolwarm', 'aspect': 'auto'}`.
     scatter_kws
@@ -1322,10 +1335,68 @@ def clustermap_tf_motif(
     # Set axis labels and ticks
     ax_heatmap.set_xticks(np.arange(data.shape[1]))
     ax_heatmap.set_xticklabels(pattern_labels, rotation=90)
-    ax_heatmap.set_yticks(np.arange(data.shape[0]))
-    ax_heatmap.set_yticklabels(class_labels)
 
-    ax_heatmap.yaxis.tick_right()
+    # Optional categorical row class strip (flush against the right edge),
+    # with cell-type labels moved outboard of the strip.
+    if row_class_mapping is not None:
+        # Groups in the (already reordered) row order
+        groups = [row_class_mapping.get(lbl, "NA") for lbl in class_labels]
+        unique_classes = list(dict.fromkeys(groups))  # first-appearance order
+
+        if row_class_palette is None:
+            cmap = plt.get_cmap("tab20")
+            row_class_palette = {
+                c: cmap(i % cmap.N) for i, c in enumerate(unique_classes)
+            }
+        else:
+            # tolerate a provided palette that misses some groups (e.g. "NA"):
+            # fall back to neutral gray rather than raising KeyError
+            row_class_palette = dict(row_class_palette)
+            missing = [c for c in unique_classes if c not in row_class_palette]
+            if missing:
+                logger.warning(
+                    f"row_class_palette is missing {len(missing)} group(s) {missing}; "
+                    "using gray ('#bdbdbd') for them."
+                )
+                for c in missing:
+                    row_class_palette[c] = "#bdbdbd"
+
+        # Direct RGB image, shape (n_rows, 1, 3)
+        strip_rgb = np.array(
+            [[mcolors.to_rgb(row_class_palette[g])] for g in groups]
+        )
+
+        heat_pos = ax_heatmap.get_position()
+        strip_w = 0.012
+        strip_ax = fig.add_axes(
+            [heat_pos.x1, heat_pos.y0, strip_w, heat_pos.height]
+        )
+        strip_ax.imshow(strip_rgb, aspect="auto")
+        strip_ax.set_xticks([])
+        # Labels live on the strip's right side (outboard of the strip)
+        strip_ax.set_yticks(np.arange(data.shape[0]))
+        strip_ax.set_yticklabels(class_labels)
+        strip_ax.yaxis.tick_right()
+        strip_ax.tick_params(left=False)
+        # Heatmap itself carries no y labels now
+        ax_heatmap.set_yticks([])
+
+        if row_class_legend:
+            handles = [
+                Patch(facecolor=row_class_palette[c], label=c)
+                for c in unique_classes
+            ]
+            fig.legend(
+                handles=handles,
+                loc="upper left",
+                bbox_to_anchor=(heat_pos.x1 + cbar_pad, heat_pos.y0 + heat_pos.height),
+                frameon=False,
+                title="Class",
+            )
+    else:
+        ax_heatmap.set_yticks(np.arange(data.shape[0]))
+        ax_heatmap.set_yticklabels(class_labels)
+        ax_heatmap.yaxis.tick_right()
 
     # Final layout adjustments
     return render_plot(fig, ax_heatmap, **kwargs)

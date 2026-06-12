@@ -94,19 +94,24 @@ def _trim_pattern_by_ic(
 
     try:
         if min_v > 0:
-            start_idx = min(np.where(v > min_v)[0])
-            end_idx = max(np.where(v > min_v)[0]) + 1
+            passing = np.where(v > min_v)[0]
+            start_idx = int(passing.min())
+            end_idx = int(passing.max()) + 1  # exclusive bound; len(v) is valid here
         else:
             start_idx = 0
             end_idx = len(ppm)
 
         if end_idx == start_idx:
             end_idx = start_idx + 1
-
-        if end_idx == len(v):
-            end_idx = len(v) - 1
     except ValueError:
-        logger.error("No valid pattern found. Aborting...")
+        # No position exceeds the (normalized) IC trim threshold, e.g. a flat or
+        # degenerate pattern where v.max() == v.min(). Keep the full pattern rather
+        # than leaving start_idx/end_idx undefined (which previously crashed in _trim).
+        logger.warning(
+            "No position above the IC trim threshold; keeping the full pattern."
+        )
+        start_idx = 0
+        end_idx = len(ppm)
 
     return _trim(pattern, start_idx, end_idx)
 

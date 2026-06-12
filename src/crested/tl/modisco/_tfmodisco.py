@@ -1049,6 +1049,9 @@ def process_patterns(
     sim_threshold: float = 6.0,
     trim_ic_threshold: float = 0.025,
     discard_ic_threshold: float = 0.1,
+    clustering: str | None = None,
+    linkage_method: str = "average",
+    sort_by: str | None = "n_seqlets",
     verbose: bool = False,
 ) -> dict[str, dict[str, str | list[float]]]:
     """
@@ -1064,6 +1067,28 @@ def process_patterns(
         Information content threshold for trimming patterns.
     discard_ic_threshold
         Information content threshold for discarding patterns.
+    clustering
+        How to group patterns across cell types into clusters.
+        ``"agglomerative"`` (default since v1.7.1) computes the full pairwise similarity
+        once and runs deterministic, order-independent hierarchical clustering (see
+        ``linkage_method``) with a single cut at ``sim_threshold`` — same output
+        structure, reproducible regardless of input order.
+        ``"greedy"`` is the original order-dependent leader clustering (assign each
+        pattern to the best existing cluster above ``sim_threshold``, else start a new
+        one) followed by a post-hoc all-vs-all merge; use it to reproduce analyses run
+        before the default changed.
+        If left unset (``None``), defaults to ``"agglomerative"`` and emits a warning
+        noting the changed default.
+    linkage_method
+        Linkage for ``clustering="agglomerative"`` (any `scipy.cluster.hierarchy.linkage`
+        method, e.g. ``"average"``, ``"complete"``, ``"single"``). Ignored for greedy.
+        ``"average"`` (default) controls chaining better than single linkage.
+    sort_by
+        How to order the returned clusters (and their string keys, ``"0"``, ``"1"``, ...).
+        ``"n_seqlets"`` (default) sorts by descending total seqlet count summed over a
+        cluster's classes, so ``"0"`` is the most-supported cluster. ``"ic"`` sorts by
+        descending cluster information content. ``None`` keeps the internal
+        insertion/merge order. Applied to both clustering methods.
     verbose
         Flag to enable verbose output.
 
@@ -1075,32 +1100,174 @@ def process_patterns(
     -------
     All processed patterns with metadata.
     """
-    all_patterns = {}
-
-    for cell_type in matched_files:
-        trimmed_patterns, pattern_ids, is_pattern_pos = _read_and_trim_patterns(
-            cell_type, matched_files[cell_type], trim_ic_threshold, verbose
+    if clustering is None:
+        clustering = "agglomerative"
+        logger.warning(
+            "`process_patterns` now defaults to clustering='agglomerative' "
+            "(deterministic, order-independent) instead of 'greedy' since v1.7.1. "
+            "Results may differ from earlier runs; pass clustering='greedy' to reproduce them."
         )
 
-        for idx, p in enumerate(trimmed_patterns):
-            all_patterns = match_to_patterns(
-                p,
-                idx,
-                cell_type,
-                pattern_ids[idx],
-                is_pattern_pos[idx],
-                all_patterns,
-                sim_threshold,
-                discard_ic_threshold,
-                verbose,
+    if clustering == "agglomerative":
+        all_patterns = _process_patterns_agglomerative(
+            matched_files,
+            sim_threshold=sim_threshold,
+            trim_ic_threshold=trim_ic_threshold,
+            discard_ic_threshold=discard_ic_threshold,
+            linkage_method=linkage_method,
+            verbose=verbose,
+        )
+    elif clustering == "greedy":
+        all_patterns = {}
+
+        for cell_type in matched_files:
+            trimmed_patterns, pattern_ids, is_pattern_pos = _read_and_trim_patterns(
+                cell_type, matched_files[cell_type], trim_ic_threshold, verbose
             )
 
-    all_patterns = post_hoc_merging(
-        all_patterns=all_patterns,
-        sim_threshold=sim_threshold,
-        ic_discard_threshold=discard_ic_threshold,
-        verbose=verbose,
-    )
+            for idx, p in enumerate(trimmed_patterns):
+                all_patterns = match_to_patterns(
+                    p,
+                    idx,
+                    cell_type,
+                    pattern_ids[idx],
+                    is_pattern_pos[idx],
+                    all_patterns,
+                    sim_threshold,
+                    discard_ic_threshold,
+                    verbose,
+                )
+
+        all_patterns = post_hoc_merging(
+            all_patterns=all_patterns,
+            sim_threshold=sim_threshold,
+            ic_discard_threshold=discard_ic_threshold,
+            verbose=verbose,
+        )
+    else:
+        raise ValueError(
+            f"clustering must be 'greedy' or 'agglomerative', got '{clustering}'"
+        )
+
+    return _sort_patterns(all_patterns, sort_by)
+
+
+def _sort_patterns(all_patterns: dict, sort_by: str | None) -> dict:
+    """Reorder clusters and re-key them ``"0"``..``"N-1"`` according to `sort_by`.
+
+    `sort_by` is one of ``"n_seqlets"`` (descending total seqlets over a cluster's
+    classes), ``"ic"`` (descending cluster IC), or ``None`` (keep current order).
+    """
+    if sort_by is None:
+        return all_patterns
+
+    if sort_by == "n_seqlets":
+        def key(pat):
+            return sum(c["n_seqlets"] for c in pat["classes"].values())
+    elif sort_by == "ic":
+        def key(pat):
+            return pat["ic"]
+    else:
+        raise ValueError(
+            f"sort_by must be 'n_seqlets', 'ic', or None, got '{sort_by}'"
+        )
+
+    ordered = sorted(all_patterns.values(), key=key, reverse=True)
+    return {str(i): pat for i, pat in enumerate(ordered)}
+
+
+def _process_patterns_agglomerative(
+    matched_files: dict[str, str | list[str] | None],
+    sim_threshold: float,
+    trim_ic_threshold: float,
+    discard_ic_threshold: float,
+    linkage_method: str = "average",
+    verbose: bool = False,
+) -> dict[str, dict]:
+    """Deterministic, order-independent alternative to the greedy clustering in `process_patterns`.
+
+    Reads and trims all patterns, computes the full symmetrized pairwise TOMTOM
+    similarity once, then clusters with hierarchical clustering cut at
+    ``sim_threshold``. Produces the same `all_patterns` structure as the greedy
+    path (per-cluster representative = highest-IC instance; per-class seqlet counts
+    summed) and applies the same low-IC single-class discard filter.
+    """
+    from scipy.cluster.hierarchy import fcluster, linkage
+    from scipy.spatial.distance import squareform
+
+    # 1. Read, trim and prepare every pattern (mirrors the per-pattern prep in match_to_patterns).
+    patterns: list[dict] = []
+    for cell_type in matched_files:
+        trimmed, ids, is_pos = _read_and_trim_patterns(
+            cell_type, matched_files[cell_type], trim_ic_threshold, verbose
+        )
+        for p, pid, pos in zip(trimmed, ids, is_pos, strict=True):
+            p["id"] = pid
+            p["pos_pattern"] = pos
+            p["n_seqlets"] = p["seqlets"]["n_seqlets"][0]
+            ppm = _pattern_to_ppm(p)
+            _, ic_pos, _ = compute_ic(ppm)
+            p["ppm"] = ppm
+            p["ic"] = np.mean(ic_pos)
+            p["class"] = cell_type
+            patterns.append(p)
+
+    if len(patterns) == 0:
+        return {}
+
+    # 2. Full pairwise similarity (-log10 p), symmetrized, then hierarchical clustering.
+    if len(patterns) == 1:
+        labels = np.array([1])
+    else:
+        sim = match_score_patterns(patterns, patterns)
+        sim = np.maximum(sim, sim.T)
+        max_sim = float(np.max(sim))
+        dist = max_sim - sim  # higher similarity -> smaller distance
+        dist = np.clip((dist + dist.T) / 2, 0, None)
+        np.fill_diagonal(dist, 0.0)
+        z = linkage(squareform(dist, checks=False), method=linkage_method)
+        # Cut so that clusters are formed below a linkage distance corresponding to
+        # sim_threshold (e.g. average linkage -> average pairwise similarity > sim_threshold).
+        labels = fcluster(z, t=max_sim - sim_threshold, criterion="distance")
+
+    # 3. Build the all_patterns dict per cluster (order-independent within a cluster:
+    #    representative = max IC, per-class seqlet counts are summed).
+    all_patterns: dict[str, dict] = {}
+    out_idx = 0
+    for lab in np.unique(labels):
+        members = [patterns[i] for i in np.nonzero(labels == lab)[0]]
+        rep = max(members, key=lambda m: m["ic"])
+        entry = {
+            "pattern": rep,
+            "pos_pattern": rep["pos_pattern"],
+            "ppm": rep["ppm"],
+            "ic": rep["ic"],
+            "instances": {m["id"]: m for m in members},
+            "classes": {},
+        }
+        # Preserve first-seen class order, summing seqlets and keeping the max-IC instance.
+        seen_classes: list[str] = []
+        for m in members:
+            if m["class"] not in seen_classes:
+                seen_classes.append(m["class"])
+        for ct in seen_classes:
+            ct_members = [m for m in members if m["class"] == ct]
+            ct_rep = max(ct_members, key=lambda m: m["ic"])
+            ct_rep["n_seqlets"] = int(sum(m["n_seqlets"] for m in ct_members))
+            entry["classes"][ct] = ct_rep
+
+        # Same discard rule as post_hoc_merging: drop low-IC patterns unless multi-class.
+        if entry["ic"] >= discard_ic_threshold or len(entry["classes"]) > 1:
+            all_patterns[str(out_idx)] = entry
+            out_idx += 1
+        elif verbose:
+            print(f"Dropping {rep['id']} (IC={entry['ic']:.3f})")
+
+    if verbose:
+        print(
+            f"Agglomerative ({linkage_method}) clustering: {len(patterns)} patterns "
+            f"-> {len(all_patterns)} clusters (cut at sim_threshold={sim_threshold})"
+        )
 
     return all_patterns
 
