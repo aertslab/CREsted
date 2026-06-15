@@ -614,112 +614,6 @@ def post_hoc_merging(
 
     return (final, all_merges) if return_info else final
 
-def post_hoc_merging_old(
-    all_patterns: dict,
-    sim_threshold: float = 0.5,
-    ic_discard_threshold: float = 0.15,
-    verbose: bool = False,
-) -> dict:
-    """
-    Double-checks the similarity of all patterns and merges them if they exceed the threshold.
-
-    Filters out patterns with IC below the discard threshold at the last step and updates the keys.
-
-    Parameters
-    ----------
-    all_patterns
-        dictionary of all patterns with metadata.
-    sim_threshold
-        Similarity threshold for merging patterns.
-    ic_discard_threshold
-        IC threshold below which patterns are discarded.
-    verbose
-        Flag to enable verbose output of merged patterns.
-
-    Returns
-    -------
-    Updated patterns after merging and filtering with sequential keys.
-    """
-    pattern_list = list(all_patterns.items())
-
-    def should_merge(p1, p2):
-        """Check if two patterns should merge based on the similarity threshold."""
-        sim = max(
-            match_score_patterns(p1["pattern"], p2["pattern"]),
-            match_score_patterns(p2["pattern"], p1["pattern"]),
-        )
-        return sim > sim_threshold, sim
-
-    iterations = 0  # Track number of iterations for debugging
-    while True:
-        merged_patterns = {}
-        new_index = 0
-        merged_indices = set()
-        any_merged = False
-
-        # Keep track of which pairs have been compared and the result
-        for i, (idx1, pattern1) in enumerate(pattern_list):
-            if idx1 in merged_indices:
-                continue
-            merged_indices.add(idx1)
-            merged_pattern = pattern1.copy()
-
-            for j, (idx2, pattern2) in enumerate(pattern_list):
-                if i >= j or idx2 in merged_indices:
-                    continue
-
-                should_merge_result, similarity = should_merge(pattern1, pattern2)
-
-                if should_merge_result:
-                    merged_indices.add(idx2)
-                    merged_pattern = merge_patterns(merged_pattern, pattern2)
-                    any_merged = True
-                    if verbose:
-                        print(
-                            f"Merged patterns {pattern1['pattern']['id']} and {pattern2['pattern']['id']} with similarity {similarity}"
-                        )
-            # Add the merged pattern to the new set of patterns
-            merged_patterns[str(new_index)] = merged_pattern
-            new_index += 1
-
-        # If nothing merged in this pass, break out
-        if not any_merged:
-            break
-
-        iterations += 1  # Increment number of iterations
-        if verbose:
-            print(f"Iteration {iterations}: Merging complete, checking again")
-
-        # Rebuild pattern list from merged patterns for the next iteration
-        pattern_list = list(merged_patterns.items())
-
-    # Final filtering based on IC discard threshold
-    filtered_patterns = {}
-    discarded_ids = []
-
-    for k, v in merged_patterns.items():
-        if v["ic"] >= ic_discard_threshold or len(v["classes"]) > 1:
-            filtered_patterns[k] = v
-        else:
-            discarded_ids.append(v["pattern"]["id"])
-
-    if verbose:
-        discarded_count = len(merged_patterns) - len(filtered_patterns)
-        print(
-            f"Discarded {discarded_count} patterns below IC threshold {ic_discard_threshold} and with a single class instance:"
-        )
-        print(discarded_ids)
-
-    # Reindex the filtered patterns
-    final_patterns = {
-        str(new_idx): v for new_idx, (k, v) in enumerate(filtered_patterns.items())
-    }
-
-    if verbose:
-        print(f"Total iterations: {iterations}")
-
-    return final_patterns
-
 
 def merge_patterns(pattern1: dict, pattern2: dict) -> dict:
     """
@@ -829,6 +723,109 @@ def normalize_rows(arr: np.ndarray) -> np.ndarray:
             normalized_array[i, arr[i] < 0] = neg_values / abs(min_neg)
 
     return normalized_array
+
+
+def _profile_cosine(contrib: np.ndarray, gex: np.ndarray, eps: float = 1e-9) -> float:
+    """
+    Uncentered cosine between a (non-negative) motif-usage profile and a TF-expression profile over cell types.
+
+    Unlike Pearson correlation it does not mean-center, so a broad/flat expression profile scores
+    low against a peaked contribution profile: breadth is penalized and alignment with the firing
+    cell types is rewarded.
+    """
+    a = np.abs(np.asarray(contrib, dtype=float))
+    b = np.clip(np.asarray(gex, dtype=float), 0, None)
+    denom = float(np.linalg.norm(a) * np.linalg.norm(b))
+    return float(a @ b / denom) if denom > eps else 0.0
+
+
+def _nnls_paralog_select(
+    gex_raw: np.ndarray,
+    contrib: np.ndarray,
+    annots: list[str],
+    *,
+    zscore_threshold: float,
+    correlation_threshold: float,
+    alpha: float,
+    keep_frac: float,
+    rel_keep_frac: float,
+) -> tuple[list[int], int]:
+    """Deconvolution-based TF selection (``selection="nnls"`` in :func:`create_tf_ct_matrix`).
+
+    A contribution profile is modelled as a non-negative combination of its candidate TFs'
+    expression profiles, instead of scoring each TF in isolation. Three stages:
+
+    1. **Pattern gate (Pearson):** keep a pattern only if at least one candidate has peaked
+       expression (max z-score > ``zscore_threshold``) and correlates with the contribution
+       (Pearson >= ``correlation_threshold``). Controls which patterns are annotated at all; it
+       never thins the per-pattern candidate pool (that would starve the regression).
+    2. **Full-pool non-negative ridge regression** per kept pattern: ``contrib ~ sum_t w_t * gex_t``,
+       ``w_t >= 0`` (ridge ``alpha`` spreads weight over collinear columns), run on the FULL
+       candidate pool so broad binders are competed against the specific ones and down-weighted.
+       Keep ``w_t > 0`` and ``w_t >= keep_frac * max_t w``.
+    3. **Expression-relevance gate (paralog selection):** the regression runs on peak-normalised
+       (shape-only) expression, so a survivor may be barely expressed where the pattern actually
+       fires. For each survivor compute a contribution-weighted mean RAW expression
+       ``rel_t = (y . gex_raw_t) / sum(y)`` (``y = |contrib|``, so cell types where the pattern fires
+       strongly count most) and keep it only if ``rel_t >= rel_keep_frac * max_t rel_t``. This drops
+       barely-expressed candidates while keeping every paralog genuinely co-expressed in the firing
+       cell types (no family grouping / name heuristic — co-expressed paralogs all pass, a weakly
+       expressed one drops on its own).
+
+    Expression is peak-normalised internally for the regression/gate (shape, not level); ``gex_raw``
+    (raw level) drives the relevance gate. Returns ``(kept column indices into annots, number of
+    columns kept by the regression before the relevance gate)``.
+    """
+    from scipy.optimize import nnls
+
+    gex_norm = normalize_rows(gex_raw.T).T  # peak-normalise per TF for the regression + gate
+    pid_of = [a.rsplit("_pattern_", 1)[1] for a in annots]
+
+    # (1) pattern gate
+    keep_pids = set()
+    for col in range(len(annots)):
+        g = gex_norm[:, col]
+        if g.std() == 0:
+            continue
+        z = (g - g.mean()) / g.std()
+        r = np.corrcoef(g, np.abs(contrib[:, col]))[0, 1]
+        if np.max(z) > zscore_threshold and r >= correlation_threshold:
+            keep_pids.add(pid_of[col])
+
+    by_pid: dict[str, list[int]] = {}
+    for col in range(len(annots)):
+        by_pid.setdefault(pid_of[col], []).append(col)
+
+    keep_idx: list[int] = []
+    n_pre_relevance = 0  # columns kept by the regression, before the relevance gate
+    for pid, cols in by_pid.items():
+        if pid not in keep_pids:
+            continue
+        y = np.abs(contrib[:, cols[0]])  # contribution profile (shared across a pattern's columns)
+        if y.sum() == 0:
+            continue
+        X = gex_norm[:, cols]
+        if alpha > 0:  # non-negative Tikhonov ridge -> spreads weight over collinear paralogs
+            n = X.shape[1]
+            w = nnls(
+                np.vstack([X, np.sqrt(alpha) * np.eye(n)]), np.concatenate([y, np.zeros(n)])
+            )[0]
+        else:
+            w = nnls(X, y)[0]
+        wmax = w.max()
+        if wmax <= 0:
+            continue
+        kept = [k for k in range(len(cols)) if w[k] > 0 and w[k] >= keep_frac * wmax]
+        n_pre_relevance += len(kept)
+        # Expression-relevance gate: contribution-weighted mean RAW expression of each survivor,
+        # keep those within rel_keep_frac of the pattern's best (drops barely-expressed candidates,
+        # keeps co-expressed paralogs; no family grouping).
+        rel = np.array([(y @ gex_raw[:, cols[k]]) / y.sum() for k in kept])
+        relmax = rel.max() if len(rel) else 0.0
+        if relmax > 0:
+            kept = [k for k, rv in zip(kept, rel, strict=True) if rv >= rel_keep_frac * relmax]
+        keep_idx.extend(cols[k] for k in kept)
+    return sorted(keep_idx), n_pre_relevance
 
 
 def find_pattern(pattern_id: str, pattern_dict: dict) -> int | None:
@@ -1052,6 +1049,7 @@ def process_patterns(
     clustering: str | None = None,
     linkage_method: str = "average",
     sort_by: str | None = "n_seqlets",
+    representative: str = "n_seqlets",
     verbose: bool = False,
 ) -> dict[str, dict[str, str | list[float]]]:
     """
@@ -1062,7 +1060,7 @@ def process_patterns(
     matched_files
         dictionary with class names as keys and paths to HDF5 files as values.
     sim_threshold
-        Similarity threshold for matching patterns (-log10(pval), pval obtained through TOMTOM matching from memesuite-lite)
+        Similarity threshold (``-log10(pval)`` from TOMTOM, memesuite-lite) for grouping patterns into a cluster.
     trim_ic_threshold
         Information content threshold for trimming patterns.
     discard_ic_threshold
@@ -1089,6 +1087,16 @@ def process_patterns(
         cluster's classes, so ``"0"`` is the most-supported cluster. ``"ic"`` sorts by
         descending cluster information content. ``None`` keeps the internal
         insertion/merge order. Applied to both clustering methods.
+    representative
+        Which member instance to use as a cluster's representative motif (the logo shown
+        and the PPM matched against the motif database for TF assignment). ``"n_seqlets"``
+        (default) picks the most-supported instance (most seqlets) — robust, since it can't
+        be dragged to a single noisy long outlier. ``"ic_total"`` picks the most *complete*
+        motif by summed per-position IC (= mean IC x length); fuller motif, more TOMTOM
+        columns, but noisier on ragged/over-merged clusters. ``"ic_mean"`` is the legacy
+        mean per-position IC (favours short, tight motifs); use it only to reproduce
+        pre-change runs. Agglomerative clustering only (greedy derives its representative
+        during matching).
     verbose
         Flag to enable verbose output.
 
@@ -1108,6 +1116,11 @@ def process_patterns(
             "Results may differ from earlier runs; pass clustering='greedy' to reproduce them."
         )
 
+    if representative not in ("ic_total", "n_seqlets", "ic_mean"):
+        raise ValueError(
+            f"representative must be 'ic_total', 'n_seqlets' or 'ic_mean', got '{representative}'"
+        )
+
     if clustering == "agglomerative":
         all_patterns = _process_patterns_agglomerative(
             matched_files,
@@ -1115,6 +1128,7 @@ def process_patterns(
             trim_ic_threshold=trim_ic_threshold,
             discard_ic_threshold=discard_ic_threshold,
             linkage_method=linkage_method,
+            representative=representative,
             verbose=verbose,
         )
     elif clustering == "greedy":
@@ -1176,12 +1190,28 @@ def _sort_patterns(all_patterns: dict, sort_by: str | None) -> dict:
     return {str(i): pat for i, pat in enumerate(ordered)}
 
 
+def _representative_key(m: dict, representative: str):
+    """Sort key selecting a cluster's representative instance (higher = preferred).
+
+    ``"ic_total"`` = most *complete* motif (summed per-position IC = mean IC x length, so
+    extra columns only help when they carry information); ``"n_seqlets"`` = most-supported
+    instance (most seqlets); ``"ic_mean"`` = legacy mean per-position IC, which favours
+    short, tight motifs.
+    """
+    if representative == "n_seqlets":
+        return m["n_seqlets"]
+    if representative == "ic_mean":
+        return m["ic"]
+    return m["ic"] * len(m["ppm"])  # "ic_total": mean per-position IC x n_positions
+
+
 def _process_patterns_agglomerative(
     matched_files: dict[str, str | list[str] | None],
     sim_threshold: float,
     trim_ic_threshold: float,
     discard_ic_threshold: float,
     linkage_method: str = "average",
+    representative: str = "n_seqlets",
     verbose: bool = False,
 ) -> dict[str, dict]:
     """Deterministic, order-independent alternative to the greedy clustering in `process_patterns`.
@@ -1231,12 +1261,12 @@ def _process_patterns_agglomerative(
         labels = fcluster(z, t=max_sim - sim_threshold, criterion="distance")
 
     # 3. Build the all_patterns dict per cluster (order-independent within a cluster:
-    #    representative = max IC, per-class seqlet counts are summed).
+    #    representative selected by `representative`, per-class seqlet counts are summed).
     all_patterns: dict[str, dict] = {}
     out_idx = 0
     for lab in np.unique(labels):
         members = [patterns[i] for i in np.nonzero(labels == lab)[0]]
-        rep = max(members, key=lambda m: m["ic"])
+        rep = max(members, key=lambda m: _representative_key(m, representative))
         entry = {
             "pattern": rep,
             "pos_pattern": rep["pos_pattern"],
@@ -1245,14 +1275,14 @@ def _process_patterns_agglomerative(
             "instances": {m["id"]: m for m in members},
             "classes": {},
         }
-        # Preserve first-seen class order, summing seqlets and keeping the max-IC instance.
+        # Preserve first-seen class order, summing seqlets and keeping the representative instance.
         seen_classes: list[str] = []
         for m in members:
             if m["class"] not in seen_classes:
                 seen_classes.append(m["class"])
         for ct in seen_classes:
             ct_members = [m for m in members if m["class"] == ct]
-            ct_rep = max(ct_members, key=lambda m: m["ic"])
+            ct_rep = max(ct_members, key=lambda m: _representative_key(m, representative))
             ct_rep["n_seqlets"] = int(sum(m["n_seqlets"] for m in ct_members))
             entry["classes"][ct] = ct_rep
 
@@ -1675,6 +1705,11 @@ def create_tf_ct_matrix(
     filter_correlation: bool = False,
     zscore_threshold: float = 2,
     correlation_threshold: float = 0.2,
+    similarity_metric: str = "pearson",
+    selection: str = "threshold",
+    nnls_alpha: float = 1.0,
+    nnls_keep_frac: float = 0.2,
+    rel_keep_frac: float = 0.3,
     verbose: bool = False,
 ) -> tuple[np.ndarray, list[str]]:
     """
@@ -1697,7 +1732,7 @@ def create_tf_ct_matrix(
     normalize_gex
         Whether to normalize gene expression across the cell types. Default is False.
     min_tf_gex
-        The minimal GEX value to select potential TF candidates. Default 0.
+        Minimum expression a TF must reach in at least one cell type where the pattern fires (contribution > `importance_threshold`) to be kept. Applied to the expression as provided in `df` (mean per cell type from your adata, whatever its matrix holds — not necessarily raw counts), *before* this function's `normalize_gex` peak-scaling (which scales each TF to max 1 and would make a level floor meaningless). Default 0 (no floor). Note that some genuine TFs are lowly expressed, so raising this can drop real candidates; with `verbose=True` the per-candidate expression percentiles on the firing cell types are printed to help calibrate.
     importance_threshold
         The minimum pattern importance value. Default is 0.
     pattern_parameter
@@ -1707,7 +1742,17 @@ def create_tf_ct_matrix(
     zscore_threshold
         Zscore used for filtering TF candidates. If the max zscore over the cell types is belofw this threshold, the TF gets discarded. Default is 2.
     correlation_threshold
-        Minimum Pearson correlation between expression and contribution profile required to keep a column if filtering is enabled. Default is 0.2.
+        Minimum agreement (see `similarity_metric`) between expression and contribution profile required to keep a column if filtering is enabled. Default is 0.2.
+    similarity_metric
+        Metric for the expression/contribution agreement, used by the ``"threshold"`` selection's correlation filter and by the ``"nnls"`` selection's pattern gate. ``"pearson"`` (default) keeps the original mean-centered Pearson correlation. ``"cosine"`` uses an uncentered cosine between the absolute contribution and the (non-negative) expression profile. Because it is not mean-centered, cosine matches the *shape* of the two profiles: a broadly-expressed TF on a broad contribution still scores high, but a broadly-expressed TF on a cell-type-specific contribution scores low and is dropped. Recommended (with a slightly higher `correlation_threshold`, ~0.55, since cosine has a positive floor) when broadly-expressed TFs are being selected for specific patterns. (The ``"nnls"`` pattern gate always uses Pearson regardless of this value.)
+    selection
+        How candidate TF-pattern columns are selected. ``"threshold"`` (default) = the original per-column gates (gex/importance, then the `filter_correlation` correlation/zscore gate). ``"nnls"`` = deconvolution: a Pearson pattern gate decides which patterns are annotated, then a non-negative ridge regression models each pattern's contribution as a combination of its full candidate pool (down-weighting broadly-expressed binders that merely correlate), and finally an expression-relevance gate (`rel_keep_frac`) keeps the candidates actually expressed where the pattern fires. See `crested.tl.modisco._tfmodisco._nnls_paralog_select`. With ``"nnls"`` the `filter_correlation` flag is ignored (the pattern gate uses `zscore_threshold` + `correlation_threshold`).
+    nnls_alpha
+        ``selection="nnls"`` only. Non-negative ridge (Tikhonov) strength for the per-pattern regression. >0 spreads weight across collinear candidate columns so a single paralog does not arbitrarily absorb it; ~1.0 is a good default. Default 1.0.
+    nnls_keep_frac
+        ``selection="nnls"`` only. Within a pattern, keep a TF if its regression weight is > 0 and >= ``nnls_keep_frac`` x the pattern's maximum weight. Default 0.2.
+    rel_keep_frac
+        ``selection="nnls"`` only. Expression-relevance gate applied to the regression survivors: for each survivor compute a contribution-weighted mean RAW expression ``rel_t = (|contrib| . gex_t) / sum(|contrib|)`` (cell types where the pattern fires strongly dominate), and keep it only if ``rel_t >= rel_keep_frac`` x the pattern's best survivor. This drops candidates barely expressed where the pattern fires while keeping every genuinely co-expressed paralog (no family grouping or name heuristic — 1 or more paralogs survive on their own merit). Higher = stricter (fewer paralogs). Default 0.3.
     verbose
         Whether to print intermediate debugging steps.
 
@@ -1728,6 +1773,10 @@ def create_tf_ct_matrix(
     if pattern_parameter not in ["contrib", "seqlet_count", "seqlet_count_log"]:
         logger.info("Pattern parameter not valid. Setting to default ('seqlet_count').")
         pattern_parameter = "seqlet_count"
+
+    if selection not in ("threshold", "nnls"):
+        logger.info("selection not valid. Setting to default ('threshold').")
+        selection = "threshold"
 
     counter = 0
     for p_idx in pattern_tf_dict:
@@ -1766,25 +1815,42 @@ def create_tf_ct_matrix(
                 tf_pattern_annots.append(tf_pattern_annot)
 
     tf_ct_matrix = tf_ct_matrix[:, : len(tf_pattern_annots), :]
+    # Keep the input expression (as given in df) for the level-based min_tf_gex gate: normalize_gex
+    # below peak-scales each TF to max 1, which would make an absolute expression floor meaningless.
+    input_gex = tf_ct_matrix[:, :, 0].copy()
     if normalize_pattern_importances:
         tf_ct_matrix[:, :, 1] = normalize_rows(tf_ct_matrix[:, :, 1])
     if normalize_gex:
         tf_ct_matrix[:, :, 0] = normalize_rows(tf_ct_matrix[:, :, 0].T).T
 
-    # Logic to remove columns where tf_gex is not above the expression threshold for all ct_contribs above the contribution threshold.
+    # Per-step overview of how many TF-pattern candidate columns survive each filter.
+    n_skipped_no_gex = total_tf_patterns - len(tf_pattern_annots)
+    if verbose:
+        print("create_tf_ct_matrix - TF-pattern candidate filtering:")
+        print(
+            f"  candidates (TF-motif pairs) : {len(tf_pattern_annots):4d}"
+            f"  (skipped {n_skipped_no_gex}: TF absent from expression table)"
+        )
+
+    # Keep columns where the TF reaches min_tf_gex (input expression, before normalize_gex) in at
+    # least one cell type where the pattern fires (contribution > importance_threshold).
     initial_columns = tf_ct_matrix.shape[1]
     columns_to_keep = []
+    peak_input_gex = []  # max input expression on the firing CTs per candidate, for verbose calibration
 
     for col in range(initial_columns):
-        tf_gex_col = tf_ct_matrix[:, col, 0]
+        input_gex_col = input_gex[:, col]
         ct_contribs_col = tf_ct_matrix[:, col, 1]
 
         # Identify relevant ct_contribs
         relevant_contribs = ct_contribs_col > importance_threshold
 
-        # Check if there are valid ct_contribs and tf_gex above the threshold
+        if np.any(relevant_contribs):
+            peak_input_gex.append(float(np.max(input_gex_col[relevant_contribs])))
+
+        # Check if there are valid ct_contribs and (input) tf_gex above the threshold
         if np.any(relevant_contribs) and np.any(
-            tf_gex_col[relevant_contribs] > min_tf_gex
+            input_gex_col[relevant_contribs] > min_tf_gex
         ):
             columns_to_keep.append(col)
 
@@ -1796,17 +1862,56 @@ def create_tf_ct_matrix(
     removed_columns = initial_columns - final_columns
 
     tf_ct_matrix = tf_ct_matrix[:, columns_to_keep, :]
+    input_gex = input_gex[:, columns_to_keep]  # keep aligned (used by selection="nnls")
     tf_pattern_annots = [
         annot for i, annot in enumerate(tf_pattern_annots) if i in columns_to_keep
     ]
 
     if verbose:
-        print(f"Total columns before threshold filtering: {initial_columns}")
-        print(f"Total columns after threshold filtering: {final_columns}")
-        print(f"Total columns removed: {removed_columns}")
+        print(
+            f"  after gex/importance gate   : {final_columns:4d}  (dropped {removed_columns};"
+            f" min_tf_gex={min_tf_gex} on input expr, importance_threshold={importance_threshold})"
+        )
+        if peak_input_gex:
+            p10, p50, p90 = np.percentile(peak_input_gex, [10, 50, 90])
+            print(
+                f"      input expr on firing CTs (peak/candidate): "
+                f"p10={p10:.3g} p50={p50:.3g} p90={p90:.3g}  -> calibrate min_tf_gex here"
+            )
+
+    # TF-pattern column selection.
+    if selection == "nnls":
+        before = tf_ct_matrix.shape[1]
+        keep_idx, n_pre_relevance = _nnls_paralog_select(
+            input_gex,
+            tf_ct_matrix[:, :, 1],
+            tf_pattern_annots,
+            zscore_threshold=zscore_threshold,
+            correlation_threshold=correlation_threshold,
+            alpha=nnls_alpha,
+            keep_frac=nnls_keep_frac,
+            rel_keep_frac=rel_keep_frac,
+        )
+        tf_ct_matrix = tf_ct_matrix[:, keep_idx, :]
+        tf_pattern_annots = [tf_pattern_annots[i] for i in keep_idx]
+        if verbose:
+            print(
+                f"  after nnls regression       : {n_pre_relevance:4d}  (dropped {before - n_pre_relevance};"
+                f" alpha={nnls_alpha}, keep_frac={nnls_keep_frac})"
+            )
+            print(
+                f"  after relevance gate        : {len(keep_idx):4d}"
+                f"  (dropped {n_pre_relevance - len(keep_idx)}; rel_keep_frac={rel_keep_frac})"
+            )
 
     # Filter out TF candidates for patterns that do not show correlation between their expression and importance profiles.
-    if filter_correlation:
+    elif filter_correlation:
+        if similarity_metric not in ("pearson", "cosine"):
+            logger.info(
+                "similarity_metric not valid. Setting to default ('pearson')."
+            )
+            similarity_metric = "pearson"
+
         initial_columns = tf_ct_matrix.shape[1]
         columns_to_keep = []
 
@@ -1816,10 +1921,13 @@ def create_tf_ct_matrix(
 
             tf_gex_col_z = (tf_gex_col - np.mean(tf_gex_col)) / np.std(tf_gex_col)
 
-            correlation = np.corrcoef(tf_gex_col, ct_contribs_col)[0, 1]
-            # if correlation >= correlation_threshold:
+            if similarity_metric == "cosine":
+                score = _profile_cosine(ct_contribs_col, tf_gex_col)
+            else:
+                score = np.corrcoef(tf_gex_col, ct_contribs_col)[0, 1]
+
             if (np.max(tf_gex_col_z) > zscore_threshold) and (
-                correlation >= correlation_threshold
+                score >= correlation_threshold
             ):
                 columns_to_keep.append(col)
 
@@ -1833,9 +1941,13 @@ def create_tf_ct_matrix(
         removed_columns = initial_columns - final_columns
 
         if verbose:
-            print(f"Total columns before correlation filtering: {initial_columns}")
-            print(f"Total columns after correlation filtering: {final_columns}")
-            print(f"Total columns removed: {removed_columns}")
+            print(
+                f"  after {similarity_metric} gate ({correlation_threshold}) : {final_columns:4d}"
+                f"  (dropped {removed_columns}; zscore_threshold={zscore_threshold})"
+            )
+
+    if verbose:
+        print(f"  -> kept {len(tf_pattern_annots)} TF-pattern columns")
 
     return tf_ct_matrix, tf_pattern_annots
 
