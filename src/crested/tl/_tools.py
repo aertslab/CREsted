@@ -636,7 +636,7 @@ def contribution_scores_specific(
         Will create a separate npz file per class.
     skip_existing
         If writing files by setting `output_dir`, whether to skip calculating contribution scores for classes that have already been written to file.
-        By default, re-calculates and overwrites existing files. 
+        By default, re-calculates and overwrites existing files.
     verbose
         Boolean for disabling the plotting progress of calculations using tqdm.
 
