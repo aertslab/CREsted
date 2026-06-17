@@ -1266,12 +1266,13 @@ def _process_patterns_agglomerative(
     out_idx = 0
     for lab in np.unique(labels):
         members = [patterns[i] for i in np.nonzero(labels == lab)[0]]
+        cluster_ic = float(max(m["ic"] for m in members))
         rep = max(members, key=lambda m: _representative_key(m, representative))
         entry = {
             "pattern": rep,
             "pos_pattern": rep["pos_pattern"],
             "ppm": rep["ppm"],
-            "ic": rep["ic"],
+            "ic": cluster_ic,
             "instances": {m["id"]: m for m in members},
             "classes": {},
         }
