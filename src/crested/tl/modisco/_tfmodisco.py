@@ -1733,7 +1733,7 @@ def create_tf_ct_matrix(
     normalize_gex
         Whether to normalize gene expression across the cell types. Default is False.
     min_tf_gex
-        Minimum expression a TF must reach in at least one cell type where the pattern fires (contribution > `importance_threshold`) to be kept. Applied to the expression as provided in `df` (mean per cell type from your adata, whatever its matrix holds — not necessarily raw counts), *before* this function's `normalize_gex` peak-scaling (which scales each TF to max 1 and would make a level floor meaningless). Default 0 (no floor). Note that some genuine TFs are lowly expressed, so raising this can drop real candidates; with `verbose=True` the per-candidate expression percentiles on the firing cell types are printed to help calibrate.
+        Minimum expression a TF must reach in at least one cell type where the pattern fires (contribution > `importance_threshold`) to be kept. Applied to the expression values used by this function (i.e., after optional `log_transform`, if enabled), *before* this function's `normalize_gex` peak-scaling (which scales each TF to max 1 and would make a level floor meaningless). Default 0 (no floor). Note that some genuine TFs are lowly expressed, so raising this can drop real candidates; with `verbose=True` the per-candidate expression percentiles on the firing cell types are printed to help calibrate.
     importance_threshold
         The minimum pattern importance value. Default is 0.
     pattern_parameter
