@@ -1,59 +1,8 @@
 from __future__ import annotations
 
-import modiscolite as modisco
 import numpy as np
 import pandas as pd
 from loguru import logger
-
-
-def _trim_pattern_by_ic_old(
-    pattern: dict,
-    pos_pattern: bool,
-    min_v: float,
-    background: list[float] | None = None,
-    pseudocount: float = 1e-6,
-) -> dict:
-    """
-    Trims the pattern based on information content (IC).
-
-    Parameters
-    ----------
-    pattern
-        Dictionary containing the pattern data.
-    pos_pattern
-        Indicates if the pattern is a positive pattern.
-    min_v
-        Minimum value for trimming.
-    background
-        Background probabilities for each nucleotide.
-    pseudocount
-        Pseudocount for IC calculation.
-
-    Returns
-    -------
-        Trimmed pattern.
-    """
-    if background is None:
-        background = [0.28, 0.22, 0.22, 0.28]
-    contrib_scores = np.array(pattern["contrib_scores"])
-    if not pos_pattern:
-        contrib_scores = -contrib_scores
-    contrib_scores[contrib_scores < 0] = 1e-9  # avoid division by zero
-
-    ic = modisco.util.compute_per_position_ic(
-        ppm=np.array(contrib_scores), background=background, pseudocount=pseudocount
-    )
-    np.nan_to_num(ic, copy=False, nan=0.0)
-    v = (abs(np.array(contrib_scores)) * ic[:, None]).max(1)
-    v = (v - v.min()) / (v.max() - v.min() + 1e-9)
-
-    try:
-        start_idx = min(np.where(np.diff((v > min_v) * 1))[0])
-        end_idx = max(np.where(np.diff((v > min_v) * 1))[0]) + 1
-    except ValueError:
-        logger.error("No valid pattern found. Aborting...")
-
-    return _trim(pattern, start_idx, end_idx)
 
 
 def _trim_pattern_by_ic(
@@ -94,19 +43,24 @@ def _trim_pattern_by_ic(
 
     try:
         if min_v > 0:
-            start_idx = min(np.where(v > min_v)[0])
-            end_idx = max(np.where(v > min_v)[0]) + 1
+            passing = np.where(v > min_v)[0]
+            start_idx = int(passing.min())
+            end_idx = int(passing.max()) + 1  # exclusive bound; len(v) is valid here
         else:
             start_idx = 0
             end_idx = len(ppm)
 
         if end_idx == start_idx:
             end_idx = start_idx + 1
-
-        if end_idx == len(v):
-            end_idx = len(v) - 1
     except ValueError:
-        logger.error("No valid pattern found. Aborting...")
+        # No position exceeds the (normalized) IC trim threshold, e.g. a flat or
+        # degenerate pattern where v.max() == v.min(). Keep the full pattern rather
+        # than leaving start_idx/end_idx undefined (which previously crashed in _trim).
+        logger.warning(
+            "No position above the IC trim threshold; keeping the full pattern."
+        )
+        start_idx = 0
+        end_idx = len(ppm)
 
     return _trim(pattern, start_idx, end_idx)
 
@@ -419,7 +373,8 @@ def match_score_patterns(
 
     Returns
     -------
-    Match TOMTOM score (-log10(pval)) between the patterns. Return a float if it is a one vs one comparison, a 2D numpy array when comparing lists of motifs.
+    Match score between the patterns (``-log10(pval)``; higher = more similar). A float for a
+    one-vs-one comparison, a 2D numpy array when comparing lists of motifs.
     """
     try:
         from memelite import tomtom
@@ -464,45 +419,17 @@ def match_score_patterns(
         print(f"Error details: {e}")
         p = np.ones((len(a), len(b)))
 
+    p = np.asarray(p, dtype=float)
     p[p <= 0] = 1e-15  # Sometimes negative value returned
+    score_mat = -np.log10(p)
 
-    log_score = -np.log10(p)
-
-    if log_score.shape == (
+    if score_mat.shape == (
         1,
         1,
     ):  # Return a float if it is only a one vs one comparison
-        return log_score[0, 0]
+        return score_mat[0, 0]
 
-    return log_score
-
-
-def _match_score_patterns_old(a: dict, b: dict) -> float:
-    """
-    Compute the match score between two patterns.
-
-    Parameters
-    ----------
-    a
-        First pattern.
-    b
-        Second pattern.
-
-    Returns
-    -------
-    Match score between the patterns.
-    """
-    a = pad_pattern(a)
-    fwd_data_A, rev_data_A = get_2d_data_from_patterns(a)
-    fwd_data_B, rev_data_B = get_2d_data_from_patterns(b)
-    X = fwd_data_B if fwd_data_B.shape[1] <= fwd_data_A.shape[1] else fwd_data_A
-    Y = fwd_data_A if fwd_data_B.shape[1] <= fwd_data_A.shape[1] else fwd_data_B
-    sim_fwd_pattern = np.array(modisco.affinitymat.jaccard(X, Y).squeeze())
-    X = fwd_data_B if fwd_data_B.shape[1] <= fwd_data_A.shape[1] else rev_data_A
-    Y = rev_data_A if fwd_data_B.shape[1] <= fwd_data_A.shape[1] else fwd_data_B
-    sim_rev_pattern = np.array(modisco.affinitymat.jaccard(X, Y).squeeze())
-
-    return max(sim_fwd_pattern[0], sim_rev_pattern[0])
+    return score_mat
 
 
 def read_html_to_dataframe(source: str):
