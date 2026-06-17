@@ -1219,7 +1219,7 @@ def _process_patterns_agglomerative(
     Reads and trims all patterns, computes the full symmetrized pairwise TOMTOM
     similarity once, then clusters with hierarchical clustering cut at
     ``sim_threshold``. Produces the same `all_patterns` structure as the greedy
-    path (per-cluster representative = highest-IC instance; per-class seqlet counts
+    path (representative selected by `representative`; per-class seqlet counts
     summed) and applies the same low-IC single-class discard filter.
     """
     from scipy.cluster.hierarchy import fcluster, linkage
@@ -1775,8 +1775,8 @@ def create_tf_ct_matrix(
         pattern_parameter = "seqlet_count"
 
     if selection not in ("threshold", "nnls"):
-        logger.info("selection not valid. Setting to default ('threshold').")
-        selection = "threshold"
+        logger.info("selection not valid. Setting to default ('nnls').")
+        selection = "nnls"
 
     counter = 0
     for p_idx in pattern_tf_dict:
