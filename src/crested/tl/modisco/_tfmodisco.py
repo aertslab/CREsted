@@ -1121,6 +1121,15 @@ def process_patterns(
             f"representative must be 'ic_total', 'n_seqlets' or 'ic_mean', got '{representative}'"
         )
 
+    # Drop classes with no matched pattern file (match_h5_files_to_classes yields None
+    # for unmatched classes); _read_and_trim_patterns cannot iterate None.
+    missing = [ct for ct, f in matched_files.items() if f is None]
+    if missing:
+        logger.warning(
+            f"Skipping {len(missing)} class(es) with no matched pattern file: {missing}"
+        )
+    matched_files = {ct: f for ct, f in matched_files.items() if f is not None}
+
     if clustering == "agglomerative":
         all_patterns = _process_patterns_agglomerative(
             matched_files,
@@ -1919,6 +1928,11 @@ def create_tf_ct_matrix(
         for col in range(initial_columns):
             tf_gex_col = tf_ct_matrix[:, col, 0]
             ct_contribs_col = np.abs(tf_ct_matrix[:, col, 1])
+
+            # Constant expression across cell types -> z-score undefined (std == 0);
+            # the TF is non-specific, so skip it (mirrors the nnls pattern gate).
+            if np.std(tf_gex_col) == 0:
+                continue
 
             tf_gex_col_z = (tf_gex_col - np.mean(tf_gex_col)) / np.std(tf_gex_col)
 
