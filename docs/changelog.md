@@ -4,6 +4,7 @@
 
 ### Features
 - STEAM models (`STEAM_v1`, `STEAM_evolution_aware`, `STEAM_evolution_naive`) from the [evolutionary transfer learning paper](https://doi.org/10.62329/hxkk6249) are now available in the model repository via {func}`crested.get_model`.
+- {func}`crested.tl.contribution_scores` and {func}`crested.tl.contribution_scores_specific` now take a `simplex_correction` argument. When enabled, gradient-based scores are projected back onto the probability simplex by subtracting the per-position mean across the four nucleotide channels, reducing off-simplex noise as proposed in [Majdandzic et al. (2023)](https://doi.org/10.1186/s13059-023-02956-3).
 
 ## 1.8.1
 ### Bugfixes:
