@@ -1067,7 +1067,7 @@ def process_patterns(
         Information content threshold for discarding patterns.
     clustering
         How to group patterns across cell types into clusters.
-        ``"agglomerative"`` (default since v1.7.1) computes the full pairwise similarity
+        ``"agglomerative"`` (the default) computes the full pairwise similarity
         once and runs deterministic, order-independent hierarchical clustering (see
         ``linkage_method``) with a single cut at ``sim_threshold`` — same output
         structure, reproducible regardless of input order.
@@ -1112,7 +1112,7 @@ def process_patterns(
         clustering = "agglomerative"
         logger.warning(
             "`process_patterns` now defaults to clustering='agglomerative' "
-            "(deterministic, order-independent) instead of 'greedy' since v1.7.1. "
+            "(deterministic, order-independent) instead of 'greedy'. "
             "Results may differ from earlier runs; pass clustering='greedy' to reproduce them."
         )
 
@@ -1706,10 +1706,10 @@ def create_tf_ct_matrix(
     zscore_threshold: float = 2,
     correlation_threshold: float = 0.2,
     similarity_metric: str = "pearson",
-    selection: str = "threshold",
+    selection: str = "nnls",
     nnls_alpha: float = 1.0,
     nnls_keep_frac: float = 0.2,
-    rel_keep_frac: float = 0.3,
+    rel_keep_frac: float = 0.1,
     verbose: bool = False,
 ) -> tuple[np.ndarray, list[str]]:
     """
@@ -1746,13 +1746,13 @@ def create_tf_ct_matrix(
     similarity_metric
         Metric for the expression/contribution agreement, used by the ``"threshold"`` selection's correlation filter and by the ``"nnls"`` selection's pattern gate. ``"pearson"`` (default) keeps the original mean-centered Pearson correlation. ``"cosine"`` uses an uncentered cosine between the absolute contribution and the (non-negative) expression profile. Because it is not mean-centered, cosine matches the *shape* of the two profiles: a broadly-expressed TF on a broad contribution still scores high, but a broadly-expressed TF on a cell-type-specific contribution scores low and is dropped. Recommended (with a slightly higher `correlation_threshold`, ~0.55, since cosine has a positive floor) when broadly-expressed TFs are being selected for specific patterns. (The ``"nnls"`` pattern gate always uses Pearson regardless of this value.)
     selection
-        How candidate TF-pattern columns are selected. ``"threshold"`` (default) = the original per-column gates (gex/importance, then the `filter_correlation` correlation/zscore gate). ``"nnls"`` = deconvolution: a Pearson pattern gate decides which patterns are annotated, then a non-negative ridge regression models each pattern's contribution as a combination of its full candidate pool (down-weighting broadly-expressed binders that merely correlate), and finally an expression-relevance gate (`rel_keep_frac`) keeps the candidates actually expressed where the pattern fires. See `crested.tl.modisco._tfmodisco._nnls_paralog_select`. With ``"nnls"`` the `filter_correlation` flag is ignored (the pattern gate uses `zscore_threshold` + `correlation_threshold`).
+        How candidate TF-pattern columns are selected. ``"nnls"`` (default) = deconvolution: a Pearson pattern gate decides which patterns are annotated, then a non-negative ridge regression models each pattern's contribution as a combination of its full candidate pool (down-weighting broadly-expressed binders that merely correlate), and finally an expression-relevance gate (`rel_keep_frac`) keeps the candidates actually expressed where the pattern fires. See `crested.tl.modisco._tfmodisco._nnls_paralog_select`. With ``"nnls"`` the `filter_correlation` flag is ignored (the pattern gate uses `zscore_threshold` + `correlation_threshold`). ``"threshold"`` = the original per-column gates (gex/importance, then the `filter_correlation` correlation/zscore gate); use it to reproduce pre-change analyses.
     nnls_alpha
         ``selection="nnls"`` only. Non-negative ridge (Tikhonov) strength for the per-pattern regression. >0 spreads weight across collinear candidate columns so a single paralog does not arbitrarily absorb it; ~1.0 is a good default. Default 1.0.
     nnls_keep_frac
         ``selection="nnls"`` only. Within a pattern, keep a TF if its regression weight is > 0 and >= ``nnls_keep_frac`` x the pattern's maximum weight. Default 0.2.
     rel_keep_frac
-        ``selection="nnls"`` only. Expression-relevance gate applied to the regression survivors: for each survivor compute a contribution-weighted mean RAW expression ``rel_t = (|contrib| . gex_t) / sum(|contrib|)`` (cell types where the pattern fires strongly dominate), and keep it only if ``rel_t >= rel_keep_frac`` x the pattern's best survivor. This drops candidates barely expressed where the pattern fires while keeping every genuinely co-expressed paralog (no family grouping or name heuristic — 1 or more paralogs survive on their own merit). Higher = stricter (fewer paralogs). Default 0.3.
+        ``selection="nnls"`` only. Expression-relevance gate applied to the regression survivors: for each survivor compute a contribution-weighted mean RAW expression ``rel_t = (|contrib| . gex_t) / sum(|contrib|)`` (cell types where the pattern fires strongly dominate), and keep it only if ``rel_t >= rel_keep_frac`` x the pattern's best survivor. This drops candidates barely expressed where the pattern fires while keeping every genuinely co-expressed paralog (no family grouping or name heuristic — 1 or more paralogs survive on their own merit). Higher = stricter (fewer paralogs). Default 0.1.
     verbose
         Whether to print intermediate debugging steps.
 
