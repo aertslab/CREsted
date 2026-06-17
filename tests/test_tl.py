@@ -8,7 +8,7 @@ import pytest
 import crested
 from crested.utils._utils import _detect_input_type, _transform_input
 
-from ._utils import create_anndata_with_regions
+from ._utils import create_anndata_with_regions, synthetic_matched_patterns
 
 
 def test_input_type(adata):
@@ -333,3 +333,77 @@ def test_enhancer_design_in_silico_evolution(keras_model, adata, genome):
         model=keras_model,
         starting_sequences=starting_sequences,
     )
+
+
+# ---------- Test modisco process_patterns (agglomerative) -------------
+
+
+def _partition(all_patterns):
+    """Cluster membership as an order-independent set of frozensets of instance ids."""
+    return {frozenset(entry["instances"].keys()) for entry in all_patterns.values()}
+
+
+def test_process_patterns_agglomerative_order_independent():
+    """Agglomerative clustering is order-independent and sorted by descending seqlets."""
+    pytest.importorskip("memelite")
+    from crested.tl.modisco import _tfmodisco
+
+    matched_files, fake_read = synthetic_matched_patterns()
+
+    import unittest.mock as mock
+
+    # Run twice with matched_files in two different key orders.
+    forward = dict(matched_files)
+    reversed_order = dict(reversed(list(matched_files.items())))
+
+    with mock.patch.object(_tfmodisco, "_read_and_trim_patterns", fake_read):
+        res_a = crested.tl.modisco.process_patterns(
+            forward, clustering="agglomerative", sort_by="n_seqlets"
+        )
+        res_b = crested.tl.modisco.process_patterns(
+            reversed_order, clustering="agglomerative", sort_by="n_seqlets"
+        )
+
+    # Same partition regardless of input order.
+    assert _partition(res_a) == _partition(res_b)
+    assert len(res_a) == len(res_b)
+
+    # sort_by="n_seqlets" -> total seqlets per cluster non-increasing over keys.
+    totals = [
+        sum(c["n_seqlets"] for c in res_a[str(i)]["classes"].values())
+        for i in range(len(res_a))
+    ]
+    assert totals == sorted(totals, reverse=True)
+
+
+def test_process_patterns_agglomerative_cluster_ic_representative():
+    """Cluster IC is the best member's IC; representative is the most-supported member."""
+    pytest.importorskip("memelite")
+    import unittest.mock as mock
+
+    from crested.tl.modisco import _tfmodisco
+
+    matched_files, fake_read = synthetic_matched_patterns()
+
+    # Very low sim_threshold forces every pattern into a single multi-class cluster.
+    with mock.patch.object(_tfmodisco, "_read_and_trim_patterns", fake_read):
+        result = crested.tl.modisco.process_patterns(
+            matched_files, clustering="agglomerative", sim_threshold=-1e6
+        )
+
+    assert len(result) == 1
+    entry = result["0"]
+    members = list(entry["instances"].values())
+
+    # cluster_ic fix: top-level IC is the max over members, not the representative's.
+    assert entry["ic"] == pytest.approx(max(m["ic"] for m in members))
+
+    # representative="n_seqlets" (default): logo is the most-supported member.
+    assert entry["pattern"]["n_seqlets"] == max(m["n_seqlets"] for m in members)
+
+    # The most-supported member is deliberately low-IC, so cluster IC strictly
+    # exceeds the representative's IC -> guards against the old `rep["ic"]` behavior.
+    assert entry["ic"] > entry["pattern"]["ic"]
+
+    # per-class seqlet counts are summed (classA contributed 30 + 10).
+    assert entry["classes"]["classA"]["n_seqlets"] == 40
