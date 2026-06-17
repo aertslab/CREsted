@@ -1,5 +1,10 @@
 # Release notes
 
+## Unreleased
+
+### Features
+- STEAM models (`STEAM_v1`, `STEAM_evolution_aware`, `STEAM_evolution_naive`) from the [evolutionary transfer learning paper](https://doi.org/10.62329/hxkk6249) are now available in the model repository via {func}`crested.get_model`.
+
 ## 1.8.1
 ### Bugfixes:
 - Update the human Borzoi Prime models to actually be the human ones instead of the mouse models. (#204)
