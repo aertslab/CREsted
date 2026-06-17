@@ -1382,7 +1382,7 @@ def clustermap_tf_motif(
 
         n_rows = data.shape[0]
         heat_pos = ax_heatmap.get_position()
-        strip_w = min(0.012, cbar_pad)
+        strip_w = max(0.001, min(0.012, cbar_pad))
         strip_ax = fig.add_axes(
             [heat_pos.x1, heat_pos.y0, strip_w, heat_pos.height]
         )
