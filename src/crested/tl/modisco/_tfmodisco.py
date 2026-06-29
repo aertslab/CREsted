@@ -1645,6 +1645,7 @@ def create_pattern_tf_dict(
     motif_to_tf_df: pd.DataFrame,
     all_patterns: dict,
     cols: list[str],
+    motif_col: str = "Motif_name",
 ) -> tuple[dict, np.ndarray]:
     """
     Create a dictionary mapping patterns to their associated transcription factors (TFs) and other metadata.
@@ -1659,6 +1660,10 @@ def create_pattern_tf_dict(
         A list of patterns with metadata.
     cols
         A list of column names to extract TF annotations from.
+    motif_col
+        Name of the column in ``motif_to_tf_df`` holding the motif identifier that the tomtom
+        matches (``pattern_match_dict[...]["matches"]``) are looked up against. Default
+        ``"Motif_name"``. Set this to match the column name used by your motif-to-TF table.
 
     Returns
     -------
@@ -1674,7 +1679,7 @@ def create_pattern_tf_dict(
 
         tf_list: list[list[str]] = []
         for match in matches:
-            matching_row = motif_to_tf_df.loc[motif_to_tf_df["Motif_name"] == match]
+            matching_row = motif_to_tf_df.loc[motif_to_tf_df[motif_col] == match]
             if not matching_row.empty:
                 for col in cols:
                     annot = matching_row[col].values[0]
@@ -1710,6 +1715,7 @@ def create_tf_ct_matrix(
     normalize_pattern_importances: bool = False,
     normalize_gex: bool = False,
     min_tf_gex: float = 0,
+    min_total_seqlets: int = 0,
     importance_threshold: float = 0,
     pattern_parameter: str = "seqlet_count",
     filter_correlation: bool = False,
@@ -1743,6 +1749,12 @@ def create_tf_ct_matrix(
         Whether to normalize gene expression across the cell types. Default is False.
     min_tf_gex
         Minimum expression a TF must reach in at least one cell type where the pattern fires (contribution > `importance_threshold`) to be kept. Applied to the expression values used by this function (i.e., after optional `log_transform`, if enabled), *before* this function's `normalize_gex` peak-scaling (which scales each TF to max 1 and would make a level floor meaningless). Default 0 (no floor). Note that some genuine TFs are lowly expressed, so raising this can drop real candidates; with `verbose=True` the per-candidate expression percentiles on the firing cell types are printed to help calibrate.
+    min_total_seqlets
+        Minimum number of seqlets a pattern must have, summed across all the cell types it fires in, to
+        be kept. Unlike ``importance_threshold`` (a per-cell-type peak gate: keep the pattern if *any* single
+        cell type clears the floor), this ranks patterns by their *total* seqlet count and trims the weakest --
+        raising it drops patterns in ascending total-seqlet order. Applied as a whole-pattern gate (all of a
+        pattern's TF columns drop together). Default 0 (no floor).
     importance_threshold
         The minimum pattern importance value. Default is 0.
     pattern_parameter
@@ -1888,6 +1900,42 @@ def create_tf_ct_matrix(
                 f"      input expr on firing CTs (peak/candidate): "
                 f"p10={p10:.3g} p50={p50:.3g} p90={p90:.3g}  -> calibrate min_tf_gex here"
             )
+
+    # Total-seqlet gate: drop entire patterns whose summed seqlet count (over all the cell types they
+    # fire in) is below min_total_seqlets. Ranks patterns by total evidence and trims the weakest.
+    if min_total_seqlets > 0:
+        pattern_total = {
+            str(p_idx): sum(
+                c.get("n_seqlets", 0) for c in all_patterns[p_idx]["classes"].values()
+            )
+            for p_idx in all_patterns
+        }
+        before_ts = tf_ct_matrix.shape[1]
+        annots_before = list(tf_pattern_annots)
+        keep_ts = [
+            i
+            for i, annot in enumerate(tf_pattern_annots)
+            if pattern_total.get(annot.rsplit("_pattern_", 1)[1], 0) >= min_total_seqlets
+        ]
+        tf_ct_matrix = tf_ct_matrix[:, keep_ts, :]
+        input_gex = input_gex[:, keep_ts]
+        tf_pattern_annots = [tf_pattern_annots[i] for i in keep_ts]
+        if verbose:
+            n_pat = len({a.rsplit("_pattern_", 1)[1] for a in tf_pattern_annots})
+            print(
+                f"  after total-seqlet gate     : {len(keep_ts):4d}  (dropped {before_ts - len(keep_ts)};"
+                f" min_total_seqlets={min_total_seqlets}, {n_pat} patterns remain)"
+            )
+            dropped_pids = sorted(
+                {a.rsplit("_pattern_", 1)[1] for a in annots_before}
+                - {a.rsplit("_pattern_", 1)[1] for a in tf_pattern_annots},
+                key=lambda p: pattern_total.get(p, 0),
+            )
+            for p in dropped_pids:
+                print(
+                    f"      dropped pattern_{p} (total_seqlets={pattern_total.get(p, 0)} "
+                    f"< {min_total_seqlets})"
+                )
 
     # TF-pattern column selection.
     if selection == "nnls":
