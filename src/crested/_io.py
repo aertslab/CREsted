@@ -592,7 +592,15 @@ def import_bigwigs(
         File name of the chromsizes file. Used for checking if the new regions are within the chromosome boundaries.
         If not provided, will look for a registered genome object.
     target
-        Target value to extract from bigwigs. Can be 'mean', 'max', 'count', or 'logcount'
+        Target value to extract from bigwigs. Can be 'mean', 'max', 'count', or 'logcount'.
+        ``'count'`` sums the signal over the region while ``'mean'`` averages it, so
+        ``count == mean * target_region_width``. For dense coverage bigwigs use ``'mean'``;
+        for sparse cut-site bigwigs use ``'count'`` (summing avoids near-zero values).
+        Note: this choice is coupled to the ``multiplier`` of
+        :class:`~crested.tl.losses.CosineMSELogLoss` if you train with it. Pair ``'mean'``
+        targets with ``multiplier=target_region_width`` (1000 by default) and ``'count'``
+        targets with ``multiplier=1``; a mismatch silently collapses the loss' dynamic range.
+        See :func:`~crested.tl.default_configs` ('peak_regression_mean' vs 'peak_regression_count').
     target_region_width
         Width of region that the bigWig target value will be extracted from. If None, the
         consensus region width will be used.

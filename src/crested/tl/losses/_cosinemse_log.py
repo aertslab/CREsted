@@ -28,6 +28,18 @@ class CosineMSELogLoss(keras.losses.Loss):
         When predicting mean coverage, we recommend multiplying by number of bp averaged over to get actual counts (1000 by default, also the default here).
         Recommended to keep to 1 when predicting insertion counts.
 
+        This must match how the targets were imported with
+        :func:`~crested.import_bigwigs` (the ``target`` argument):
+
+        - ``target='mean'`` (dense coverage) -> ``multiplier=target_region_width`` (1000 by default)
+        - ``target='count'`` (summed cut sites) -> ``multiplier=1``
+
+        Since ``count == mean * target_region_width``, these two pairings are
+        equivalent and both land the targets in a sensible range for the
+        ``log(1 + multiplier * y)`` transform. A mismatch (e.g. ``'mean'`` values
+        with ``multiplier=1``) leaves ``multiplier * y`` near zero, where ``log1p``
+        is ~linear and the log transform stops doing anything.
+
     Notes
     -----
     - The log transformation is `log(1 + 1000 * y)` for positive values and `-log(1 + abs(1000 * y))` for negative values.
