@@ -842,13 +842,17 @@ def find_pattern(pattern_id: str, pattern_dict: dict) -> int | None:
     Returns
     -------
     The index of the pattern if found, otherwise None.
+
+    Notes
+    -----
+    The ``instances`` of each merged pattern contain every ID folded into it,
+    including its own representative and class-representative IDs, so a single
+    scan of ``instances`` matches representatives, class representatives, and
+    instance members alike. Instance IDs are unique across merged patterns.
     """
     for idx, p in enumerate(pattern_dict):
-        if pattern_id == pattern_dict[p]["pattern"]["id"]:
+        if pattern_id in pattern_dict[p]["instances"]:
             return idx
-        for c in pattern_dict[p]["classes"]:
-            if pattern_id == pattern_dict[p]["classes"][c]["id"]:
-                return idx
     return None
 
 
