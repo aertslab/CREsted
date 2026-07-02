@@ -7,7 +7,6 @@ from math import ceil, inf
 
 import keras
 import numpy as np
-import pyranges1 as pr
 from loguru import logger
 
 if keras.config.backend() == "torch":
@@ -699,10 +698,6 @@ class DataLooper(FrameworkDatasetClass):
         for index in loop_indices:
             yield self.datawrapper.get_indexed_item(index, augment=self.augment)
 
-_blacklist_classes = {
-
-}
-
 class BaseGenomicDataWrapper(BaseDataWrapper):
     """
     Version of BaseDataWrapper with genomic sequence loading built-in.
@@ -763,7 +758,7 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         always_reverse_complement: bool = True,
         max_stochastic_shift: int = 0,
         shuffle_fraction: float = 0.0,
-        shuffle_blacklist: str | os.PathLike | pr.PyRanges | None = None,
+        shuffle_blacklist: str | os.PathLike | None = None,
         in_memory: bool = True,
         drop_remainder: bool = False,
         train_splits: str | list | None = None,
