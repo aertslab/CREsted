@@ -1,4 +1,4 @@
-"""Anndatamodule which acts as a wrapper around AnnDataset and AnnDataLoader."""
+"""AnnDataModule which acts as a wrapper around AnnDataset and AnnDataLoader."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ class AnnDataModule:
     """
     DataModule class which defines how dataloaders should be loaded in each stage.
 
-    Required input for the `tl.Crested` class.
+    The :obj:`~crested.tl.Crested` class expects this or :obj:`~crested.tl.data.AnnDataWrapper`.
 
     Note
     ----
@@ -157,7 +157,7 @@ class AnnDataModule:
 
     @property
     def train_dataloader(self):
-        """:obj:`crested.tl.data.AnnDataLoader`: Training dataloader."""
+        """`AnnDataLoader`: Training dataloader."""
         if self.train_dataset is None:
             raise ValueError("train_dataset is not set. Run setup('fit') first.")
         return AnnDataLoader(
@@ -169,7 +169,7 @@ class AnnDataModule:
 
     @property
     def val_dataloader(self):
-        """:obj:`crested.tl.data.AnnDataLoader`: Validation dataloader."""
+        """`AnnDataLoader`: Validation dataloader."""
         if self.val_dataset is None:
             raise ValueError("val_dataset is not set. Run setup('fit') first.")
         return AnnDataLoader(
@@ -181,7 +181,7 @@ class AnnDataModule:
 
     @property
     def test_dataloader(self):
-        """:obj:`crested.tl.data.AnnDataLoader`: Test dataloader."""
+        """`AnnDataLoader`: Test dataloader."""
         if self.test_dataset is None:
             raise ValueError("test_dataset is not set. Run setup('test') first.")
         return AnnDataLoader(
@@ -193,7 +193,7 @@ class AnnDataModule:
 
     @property
     def predict_dataloader(self):
-        """:obj:`crested.tl.data.AnnDataLoader`: Prediction dataloader."""
+        """`AnnDataLoader`: Prediction dataloader."""
         if self.predict_dataset is None:
             raise ValueError("predict_dataset is not set. Run setup('predict') first.")
         return AnnDataLoader(
@@ -202,6 +202,37 @@ class AnnDataModule:
             shuffle=False,
             drop_remainder=False,
         )
+
+    def get_config(self) -> dict:
+        """Return a dict of properties, to be logged during training.
+
+        Primarily used in Crested.fit().
+        """
+        config =  {
+            'dataset_size': self.adata.shape[1],
+            "random_reverse_complement": self.random_reverse_complement,
+            "always_reverse_complement": self.always_reverse_complement,
+            "max_stochastic_shift": self.max_stochastic_shift,
+            "deterministic_shift": self.deterministic_shift,
+            "shuffle": self.shuffle,
+            "in_memory": self.in_memory,
+            "batch_size": self.batch_size,
+            "drop_remainder": False
+        }
+        if self.train_dataset is not None:
+            config['n_train_steps_per_epoch'] = len(self.train_dataloader)
+            config['n_train']  = len(self.train_dataset)
+            config['seq_len'] = self.train_dataset.seq_len
+        if self.val_dataset is not None:
+            config['n_val_steps_per_epoch'] = len(self.val_dataloader)
+            config['n_val'] = len(self.val_dataset)
+        if self.test_dataset is not None:
+            config['n_test_steps_per_epoch'] = len(self.test_dataloader)
+            config['n_test'] = len(self.test_dataset)
+        if self.predict_dataset is not None:
+            config['n_predict_steps_per_epoch'] = len(self.predict_dataloader)
+            config['n_predict'] = len(self.predict_dataset)
+        return config
 
     def __repr__(self):
         """Return a string representation of the AnndataModule."""

@@ -11,7 +11,8 @@ import keras
 from loguru import logger
 
 from crested.tl import TaskConfig
-from crested.tl.data import AnnDataModule
+from crested.tl.data import AnnDataModule, AnnDataWrapper
+from crested.tl.data.utils import BaseDataWrapper
 from crested.utils._logging import log_and_raise
 
 
@@ -22,7 +23,7 @@ class Crested:
     Parameters
     ----------
     data
-        AnndataModule object containing the data.
+        :obj:`~crested.tl.data.AnnDataModule` or :obj:`~crested.tl.data.AnnDataWrapper` object containing the data.
     model
         Model architecture to use for training.
     config
@@ -70,7 +71,7 @@ class Crested:
 
     def __init__(
         self,
-        data: AnnDataModule,
+        data: AnnDataModule | AnnDataWrapper,
         model: keras.Model | None = None,
         config: TaskConfig | None = None,
         project_name: str | None = None,
@@ -79,7 +80,7 @@ class Crested:
         seed: int = None,
     ):
         """Initialize the Crested object."""
-        self.anndatamodule = data
+        self.data = data
         self.model = model
         self.config = config
         if project_name is None:
@@ -152,7 +153,7 @@ class Crested:
         """Initialize logger."""
         callbacks = []
         if logger_type == "wandb":
-            if os.environ["KERAS_BACKEND"] != "tensorflow":
+            if keras.config.backend() != "tensorflow":
                 raise ValueError(
                     "Wandb logging is only available with the tensorflow backend until wandb has finished their keras 3.0 integration."
                 )
@@ -167,7 +168,7 @@ class Crested:
             wandb_callback_batch = WandbMetricsLogger(log_freq=10)
             callbacks.extend([wandb_callback_epoch, wandb_callback_batch])
         elif logger_type == "tensorboard":
-            if os.environ["KERAS_BACKEND"] != "tensorflow":
+            if keras.config.backend() != "tensorflow":
                 raise ValueError("Tensorboard requires a tensorflow installation")
             log_dir = os.path.join(project_name, run_name, "logs")
             tensorboard_callback = keras.callbacks.TensorBoard(
@@ -176,7 +177,7 @@ class Crested:
             callbacks.append(tensorboard_callback)
             run = None
         elif logger_type == "dvc":
-            if os.environ["KERAS_BACKEND"] != "tensorflow":
+            if keras.config.backend() != "tensorflow":
                 raise ValueError("DVC Keras logging requires a tensorflow backend")
             logger.warning("Using DVC logger. Make sure to have dvclive installed.")
             from dvclive.keras import DVCLiveCallback
@@ -312,32 +313,26 @@ class Crested:
         print(self.model.summary())
 
         # setup data
-        if (
-            self.anndatamodule.train_dataset is None
-            or self.anndatamodule.val_dataset is None
-        ):
-            self.anndatamodule.setup("fit")
-        train_loader = self.anndatamodule.train_dataloader
-        val_loader = self.anndatamodule.val_dataloader
-
-        n_train_steps_per_epoch = len(train_loader)
-        n_val_steps_per_epoch = len(val_loader)
+        if isinstance(self.data, BaseDataWrapper):
+            train_loader = self.data.create_dataloader(split='train', augment=True, shuffle=True)
+            val_loader = self.data.create_dataloader(split='val')
+        else:
+            if self.data.train_dataset is None or self.data.val_dataset is None:
+                self.data.setup("fit")
+            train_loader = self.data.train_dataloader.data
+            val_loader = self.data.val_dataloader.data
+        n_train_steps_per_epoch = self.data.get_config()['n_train_steps_per_epoch']
+        n_val_steps_per_epoch = self.data.get_config()['n_val_steps_per_epoch']
 
         if run:
+            # Update with TaskConfig object (optimizer, loss, metrics)
             run.config.update(self.config.to_dict())
+            # Update with DataWrapper/DataModule config
+            run.config.update(self.data.get_config())
+            # Update with Crested object configs
             run.config.update(
                 {
                     "epochs": epochs,
-                    "n_train": len(self.anndatamodule.train_dataset),
-                    "n_val": len(self.anndatamodule.val_dataset),
-                    "batch_size": self.anndatamodule.batch_size,
-                    "n_train_steps_per_epoch": n_train_steps_per_epoch,
-                    "n_val_steps_per_epoch": n_val_steps_per_epoch,
-                    "seq_len": self.anndatamodule.train_dataset.seq_len,
-                    "in_memory": self.anndatamodule.in_memory,
-                    "random_reverse_complement": self.anndatamodule.random_reverse_complement,
-                    "max_stochastic_shift": self.anndatamodule.max_stochastic_shift,
-                    "shuffle": self.anndatamodule.shuffle,
                     "mixed_precision": mixed_precision,
                     "model_checkpointing": model_checkpointing,
                     "model_checkpointing_best_only": model_checkpointing_best_only,
@@ -349,10 +344,10 @@ class Crested:
             )
 
         try:
-            if os.environ["KERAS_BACKEND"] == "tensorflow":
+            if keras.config.backend() == "tensorflow":
                 self.model.fit(
-                    train_loader.data,
-                    validation_data=val_loader.data,
+                    train_loader,
+                    validation_data=val_loader,
                     epochs=epochs,
                     steps_per_epoch=n_train_steps_per_epoch,
                     validation_steps=n_val_steps_per_epoch,
@@ -361,10 +356,10 @@ class Crested:
                     initial_epoch=self.max_epoch,
                 )
             # torch.Dataloader throws "repeat" warnings when using steps_per_epoch
-            elif os.environ["KERAS_BACKEND"] == "torch":
+            elif keras.config.backend() == "torch":
                 self.model.fit(
-                    train_loader.data,
-                    validation_data=val_loader.data,
+                    train_loader,
+                    validation_data=val_loader,
                     epochs=epochs,
                     callbacks=callbacks,
                     shuffle=False,
@@ -471,7 +466,7 @@ class Crested:
         else:
             activation = old_activation
 
-        new_output_units = self.anndatamodule.adata.X.shape[0]
+        new_output_units = self.data.adata.X.shape[0]
 
         new_output_layer = keras.layers.Dense(
             new_output_units, name="dense_out_transfer", trainable=True
@@ -533,15 +528,22 @@ class Crested:
         """
         self._check_test_params()
 
-        self.anndatamodule.setup("test")
-        test_loader = self.anndatamodule.test_dataloader
+        if isinstance(self.data, BaseDataWrapper):
+            test_loader = self.data.create_dataloader(split='test')
+            n_test_steps = (
+                self.data.batched_length('test') if keras.config.backend() == "tensorflow" else None
+            )
+        else:
+            if self.data.test_dataset is None:
+                self.data.setup("test")
+            test_loader = self.data.test_dataloader.data
+            n_test_steps = (
+                len(self.data.test_dataloader) if keras.config.backend() == "tensorflow" else None
+            )
 
-        n_test_steps = (
-            len(test_loader) if os.environ["KERAS_BACKEND"] == "tensorflow" else None
-        )
         try:
             evaluation_metrics = self.model.evaluate(
-                test_loader.data, steps=n_test_steps, return_dict=True
+                test_loader, steps=n_test_steps, return_dict=True
             )
         except AttributeError as e:
             logger.error(
@@ -561,7 +563,7 @@ class Crested:
     @staticmethod
     def _check_gpu_availability():
         """Check if GPUs are available."""
-        if os.environ["KERAS_BACKEND"] == "torch":
+        if keras.config.backend() == "torch":
             # torch backend not yet available in keras.distribution
             import torch
 
@@ -571,7 +573,7 @@ class Crested:
                 logger.warning("No GPUs available, falling back to CPU.")
                 return torch.device("cpu")
 
-        elif os.environ["KERAS_BACKEND"] == "tensorflow":
+        elif keras.config.backend() == "tensorflow":
             devices = keras.distribution.list_devices("gpu")
             if not devices:
                 logger.warning("No GPUs available, falling back to CPU.")
@@ -634,4 +636,4 @@ class Crested:
 
     def __repr__(self):
         """Return the string representation of the object."""
-        return f"Crested(data={self.anndatamodule is not None}, model={self.model is not None}, config={self.config is not None})"
+        return f"Crested(data={self.data is not None}, model={self.model is not None}, config={self.config is not None})"
