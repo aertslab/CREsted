@@ -11,6 +11,7 @@ Cancer/index
 EnformerBorzoi/index
 Fly/index
 Liver/index
+STEAM/index
 deeppbmc
 deepzebrafish
 ```

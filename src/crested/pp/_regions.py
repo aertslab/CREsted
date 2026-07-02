@@ -113,9 +113,11 @@ def change_regions_width(
         new_ends.append(new_end)
         new_names.append(new_name)
 
-        # Check chromosome boundaries
+        # Check chromosome boundaries on the resized coordinates (not the
+        # originals): a region whose centered/widened window runs off a contig
+        # edge must be dropped even if the original peak was in-bounds.
         if chromsizes is not None:
-            if start < 0 or end > chromsizes.get(chrom, float("inf")):
+            if new_start < 0 or new_end > chromsizes.get(chrom, float("inf")):
                 logger.warning(
                     f"Region {region_name} with new coordinates {chrom}:{new_start}-{new_end} is out of bounds for chromosome {chrom}. Removing region."
                 )

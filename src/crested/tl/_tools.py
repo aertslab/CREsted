@@ -396,6 +396,7 @@ def contribution_scores(
     batch_size: int = 128,
     output_dir: str | os.PathLike | None = None,
     seed: int | None = 42,
+    simplex_correction: bool = False,
     verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -440,6 +441,16 @@ def contribution_scores(
         Will create a separate npz file per class.
     seed
         Seed to use for shuffling regions. Only used in "expected_integrated_grad".
+    simplex_correction
+        Whether to project the gradients back onto the probability simplex by subtracting,
+        at each position, the mean gradient across the four nucleotide channels
+        (``grad - grad.mean(axis=-1, keepdims=True)``). This removes the component of the
+        gradient that points off the simplex on which one-hot sequences live, reducing
+        spurious noise in the attribution maps, as proposed in Majdandzic et al. (2023),
+        "Correcting gradient-based interpretations of deep neural networks for genomics"
+        (Genome Biology). Only applies to the gradient-based methods ('saliency_map',
+        'integrated_grad', 'expected_integrated_grad'); for other methods it is ignored
+        with a warning.
     verbose
         Boolean for disabling the logs and plotting progress of calculations using tqdm.
 
@@ -451,6 +462,14 @@ def contribution_scores(
     --------
     crested.pl.explain.contribution_scores
     """
+    _gradient_methods = {"saliency_map", "integrated_grad", "expected_integrated_grad"}
+    if simplex_correction and method not in _gradient_methods:
+        logger.warning(
+            f"simplex_correction=True is only meaningful for gradient-based methods "
+            f"({', '.join(sorted(_gradient_methods))}), but method='{method}' was given. "
+            "Ignoring simplex_correction."
+        )
+        simplex_correction = False
 
     @log_and_raise(ValueError)
     def _check_input_params(
@@ -560,6 +579,12 @@ def contribution_scores(
     # Average the scores across models
     averaged_scores = np.mean(scores_per_model, axis=0)  # Shape: (N, C, L, 4)
 
+    # Project gradients back onto the simplex (Majdandzic et al., 2023) by zero-meaning
+    # across the nucleotide axis at each position. Mean-subtraction is linear, so applying
+    # it once on the model-averaged scores is equivalent to applying it per model.
+    if simplex_correction:
+        averaged_scores = averaged_scores - averaged_scores.mean(axis=-1, keepdims=True)
+
     if transpose:
         averaged_scores = np.transpose(averaged_scores, (0, 1, 3, 2))
         input_sequences = np.transpose(input_sequences, (0, 2, 1))
@@ -594,6 +619,8 @@ def contribution_scores_specific(
     transpose: bool = True,
     batch_size: int = 128,
     output_dir: str | os.PathLike | None = None,
+    skip_existing: bool = False,
+    simplex_correction: bool = False,
     verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -633,6 +660,15 @@ def contribution_scores_specific(
     output_dir
         Path to the output directory to save the contribution scores and one hot seqs.
         Will create a separate npz file per class.
+    skip_existing
+        If writing files by setting `output_dir`, whether to skip calculating contribution scores for classes that have already been written to file.
+        By default, re-calculates and overwrites existing files.
+    simplex_correction
+        Whether to project the gradients back onto the probability simplex by subtracting,
+        at each position, the mean gradient across the four nucleotide channels, as proposed
+        in Majdandzic et al. (2023). Only applies to the gradient-based methods
+        ('saliency_map', 'integrated_grad', 'expected_integrated_grad'); for other methods it
+        is ignored with a warning. See :func:`~crested.tl.contribution_scores`.
     verbose
         Boolean for disabling the plotting progress of calculations using tqdm.
 
@@ -664,6 +700,10 @@ def contribution_scores_specific(
     for target_id in target_idx:
         class_name = all_class_names[target_id]
         class_regions = input.var[input.var["Class name"] == class_name].index.tolist()
+        if output_dir is not None and skip_existing:
+            if os.path.exists(os.path.join(output_dir, f"{class_name}_contrib.npz")):
+                print(f"Skipping {class_name}, since it was already saved to file.")
+                continue
         scores, one_hots = contribution_scores(
             input=class_regions,
             target_idx=target_id,
@@ -675,6 +715,7 @@ def contribution_scores_specific(
             batch_size=batch_size,
             all_class_names=all_class_names,
             transpose=transpose,
+            simplex_correction=simplex_correction,
         )
         all_scores.append(scores)
         all_one_hots.append(one_hots)
