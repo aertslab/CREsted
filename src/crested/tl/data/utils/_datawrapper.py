@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import os
 from math import ceil, inf
 
 import keras
 import numpy as np
+import pyranges1 as pr
 from loguru import logger
 
 if keras.config.backend() == "torch":
@@ -48,6 +50,12 @@ class BaseDataWrapper:
     max_stochastic_shift
         Maximum stochastic shift (n base pairs in either direction) to apply randomly to each sequence during training.
         Default is 0 (disabled).
+    shuffle_fraction
+        Fraction of (non-blacklisted) nucleotide positions to randomly shuffle during training, as a value in [0, 1].
+        For example, 0.1 means 10 % of available positions will be randomly permuted among themselves each time a
+        training sample is drawn.  0.0 (default) disables the augmentation.
+        Positions in blacklisted regions (see `shuffle_blacklist` in :obj:`~crested.tl.data.utils.BaseGenomicDataWrapper`)
+        are never touched.
     drop_remainder
         If True, drop the last batch if it is not the full batch_size. Default is False.
     train_splits
@@ -83,6 +91,7 @@ class BaseDataWrapper:
         random_reverse_complement: bool = False,
         always_reverse_complement: bool = True,
         max_stochastic_shift: int = 0,
+        shuffle_fraction: float = 0.0,
         drop_remainder: bool = False,
         train_splits: str | list | None = None,
         val_splits: str | list = 'val',
@@ -106,6 +115,9 @@ class BaseDataWrapper:
         self.random_reverse_complement = random_reverse_complement
         self.always_reverse_complement = always_reverse_complement
         self.max_stochastic_shift = max_stochastic_shift
+        if not (0.0 <= shuffle_fraction <= 1.0):
+            raise ValueError(f"`shuffle_fraction` must be in [0, 1], got {shuffle_fraction}.")
+        self.shuffle_fraction = shuffle_fraction
         # DataLoader parameters
         self.batch_size = batch_size
         self.drop_remainder = drop_remainder
@@ -255,6 +267,70 @@ class BaseDataWrapper:
             Catcher for arguments you're not using in your implementation.
         """
         raise NotImplementedError("Implement _get_target() of your inherited DataWrapper class to retrieve output values for your sequence")
+
+    def _get_shuffle_mask(self, **kwargs) -> np.ndarray | None:
+        """Return a boolean protection mask of shape `(seq_len,)` for nucleotide shuffling.
+
+        A value of `True` at position *i* means that position is **protected** and must
+        not be shuffled.  Returning `None` means no positions are protected (everything
+        is shuffleable).
+
+        This base implementation always returns `None` (no protection).
+        :obj:`~crested.tl.data.utils.BaseGenomicDataWrapper` overrides this to build a
+        mask from a BED-format blacklist file so that high-importance regions are left
+        intact.
+
+        Parameters
+        ----------
+        kwargs
+            Receives all values in `sequence_info` from :meth:`get_indexed_item`,
+            including `parsed_index`, `shift`, `revcomp`, etc.
+        """
+        return None
+
+    def _shuffle_sequence(self, seq: str, mask: np.ndarray | None) -> str:
+        """Randomly shuffle a fraction of nucleotides in *seq*, respecting a protection mask.
+
+        A random subset of size `round(shuffle_fraction * n_available)` is chosen from
+        the **unprotected** positions (those where *mask* is `False` or *mask* is
+        `None`).  The nucleotides at those positions are permuted among themselves, so
+        the overall base composition of the shuffled region is preserved.
+
+        Parameters
+        ----------
+        seq
+            The nucleotide sequence string to augment.
+        mask
+            Boolean array of shape `(len(seq),)` where `True` marks **protected**
+            positions that must not be shuffled.  Pass `None` to allow all positions.
+
+        Returns
+        -------
+        str
+            The augmented sequence string.
+        """
+        seq_len = len(seq)
+        seq_arr = np.frombuffer(seq.encode(), dtype=np.uint8).copy()  # mutable byte array
+
+        # Determine which positions are available to shuffle
+        if mask is None:
+            available = np.arange(seq_len)
+        else:
+            available = np.where(~mask)[0]
+
+        n_to_shuffle = round(self.shuffle_fraction * len(available))
+        if n_to_shuffle < 2:
+            # Nothing meaningful to do (0 or 1 position)
+            return seq
+
+        rng = np.random.default_rng()
+        chosen = rng.choice(available, size=n_to_shuffle, replace=False)
+        # Permute the chosen positions among themselves
+        shuffled_values = seq_arr[chosen].copy()
+        rng.shuffle(shuffled_values)
+        seq_arr[chosen] = shuffled_values
+
+        return seq_arr.tobytes().decode()
 
     def _get_shift(self, **kwargs) -> int:
         """Return a stochastic shift value.
@@ -407,6 +483,11 @@ class BaseDataWrapper:
         # whether to use original (like when grabbing from dataframe) or expanded index (like when extracting from genome)
         x = self._get_sequence(**sequence_info)
 
+        # Apply stochastic nucleotide shuffle augmentation (training only, when enabled)
+        if augment and self.shuffle_fraction > 0.0:
+            shuffle_mask = self._get_shuffle_mask(**sequence_info)
+            x = self._shuffle_sequence(x, shuffle_mask)
+
         # Encode sequence (one-hot by default, but can override for i.e. tokenisation)
         x = self._encode_sequence(x, **sequence_info)
 
@@ -520,6 +601,7 @@ class BaseDataWrapper:
             "random_reverse_complement": self.random_reverse_complement,
             "always_reverse_complement": self.always_reverse_complement,
             "max_stochastic_shift": self.max_stochastic_shift,
+            "shuffle_fraction": self.shuffle_fraction,
             "train_splits": self.split_labels['train'],
             "val_splits": self.split_labels['val'],
             "test_splits": self.split_labels['test'],
@@ -617,6 +699,10 @@ class DataLooper(FrameworkDatasetClass):
         for index in loop_indices:
             yield self.datawrapper.get_indexed_item(index, augment=self.augment)
 
+_blacklist_classes = {
+
+}
+
 class BaseGenomicDataWrapper(BaseDataWrapper):
     """
     Version of BaseDataWrapper with genomic sequence loading built-in.
@@ -645,6 +731,14 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
     max_stochastic_shift
         Maximum stochastic shift (n base pairs in either direction) to apply randomly to each sequence during training.
         Default is 0 (disabled).
+    shuffle_fraction
+        Fraction of (non-blacklisted) nucleotide positions to randomly shuffle during training, as a value in [0, 1].
+        Positions that overlap the `shuffle_blacklist` regions are never touched.
+        Default is 0.0 (disabled).
+    shuffle_blacklist
+        Path to a BED file or a pyranges1 object whose intervals mark **high-importance** regions that must **not** be shuffled.
+        Any nucleotide positions in the extracted window that overlap a blacklisted interval are protected, regardless of strand or shift.
+        Ignored when `shuffle_fraction` is 0.0 or when `shuffle_blacklist` is `None` (default).
     in_memory
         If True, extract the sequences from the genome before training starts and save them to memory,
         rather than extracting on the fly every time. Default is True.
@@ -668,6 +762,8 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         random_reverse_complement: bool = False,
         always_reverse_complement: bool = True,
         max_stochastic_shift: int = 0,
+        shuffle_fraction: float = 0.0,
+        shuffle_blacklist: str | os.PathLike | pr.PyRanges | None = None,
         in_memory: bool = True,
         drop_remainder: bool = False,
         train_splits: str | list | None = None,
@@ -681,6 +777,7 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
             random_reverse_complement=random_reverse_complement,
             always_reverse_complement=always_reverse_complement,
             max_stochastic_shift=max_stochastic_shift,
+            shuffle_fraction=shuffle_fraction,
             drop_remainder=drop_remainder,
             train_splits=train_splits,
             val_splits=val_splits,
@@ -688,6 +785,24 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
             **kwargs
         )
         genome =  _resolve_genome(genome)
+
+        # Load shuffle blacklist (BED file) once at init, if provided
+        self.shuffle_blacklist_path = shuffle_blacklist
+        if shuffle_blacklist is not None:
+            try:
+                import pyranges1 as pr
+            except ImportError as exc:
+                raise ImportError(
+                    "pyranges1 is required to use `shuffle_blacklist`. "
+                    "Install it on python >= 3.12 with: pip install pyranges1"
+                ) from exc
+            if isinstance(shuffle_blacklist, pr.PyRanges):
+                self._shuffle_blacklist_pr = shuffle_blacklist
+            else:
+                logger.info(f"Loading shuffle blacklist from '{shuffle_blacklist}'.")
+                self._shuffle_blacklist_pr = pr.read_bed(shuffle_blacklist)
+        else:
+            self._shuffle_blacklist_pr = None
 
         self.sequence_loader = SequenceLoader(
             genome,
@@ -710,6 +825,84 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
                 "Keras (and therefore CREsted) expects sequences to be encoded as (seq_len, n_nucleotides)."
                 f"Your input shape appears to be flipped: {self.input_shape_cache}"
             )
+
+    def _get_shuffle_mask(
+        self,
+        parsed_index: tuple[str, int, int, str],
+        shift: int = 0,
+        revcomp: bool = False,
+        **kwargs,
+    ) -> np.ndarray | None:
+        """Return a boolean protection mask aligned to the sequence returned by `_get_sequence`.
+
+        Positions that overlap the BED-format blacklist are marked `True` (protected).
+        The mask is computed by:
+
+        1. Shifting the region by *shift* (same convention as :meth:`_get_sequence`).
+        2. Subtracting the blacklisted intervals from the shifted window to obtain the
+           shuffleable sub-intervals using `pyranges`.
+        3. Converting those shuffleable positions to a mask over `[0, seq_len)`.
+        4. Flipping the mask when the sequence will be reverse-complemented (`strand ==
+           "-"` from the genome loader, or `revcomp=True` from stochastic augmentation).
+           These two flips mirror the exact transformations applied by `_get_sequence`.
+
+        Parameters
+        ----------
+        parsed_index
+            The parsed index as a `(chrom, start, end, strand)` tuple.
+        shift
+            The stochastic shift applied to this sample (same sign convention as
+            :meth:`_get_sequence` / :meth:`_get_shift`).
+        revcomp
+            Whether the sequence will be stochastically reverse-complemented
+            (i.e. the `revcomp` flag from :meth:`get_indexed_item`).
+        kwargs
+            Absorbs unused arguments forwarded from `sequence_info`.
+
+        Returns
+        -------
+        np.ndarray or None
+            Boolean array of shape `(seq_len,)` where `True` = protected, or
+            `None` if no blacklist is configured.
+        """
+        if self._shuffle_blacklist_pr is None:
+            return None
+
+        import pyranges1 as pr
+
+        chrom, start, end, strand = parsed_index
+        seq_len = end - start
+
+        # 1. Compute the actual genomic window after shifting
+        # _get_sequence passes `shift` straight to SequenceLoader, which fetches [start+shift, end+shift) on the forward genome strand.
+        # On the negative strand the sequence loader already handles the reverse complement, so the shift is applied the same way.
+        win_start = start + shift
+        win_end   = end   + shift
+
+        # 2. Intersect the window with the blacklist to find protected bases
+        window_pr = pr.PyRanges({
+            "Chromosome": [chrom],
+            "Start":      [win_start],
+            "End":        [win_end],
+        })
+        blacklisted = window_pr.intersect_overlaps(self._shuffle_blacklist_pr)
+
+        # 3. Build position mask (True = protected)
+        mask = np.zeros(seq_len, dtype=bool)
+        if len(blacklisted) > 0:
+            for _, row in blacklisted.iterrows():
+                rel_start = max(int(row["Start"]) - win_start, 0)
+                rel_end   = min(int(row["End"])   - win_start, seq_len)
+                if rel_start < rel_end:
+                    mask[rel_start:rel_end] = True
+
+        # 4. Mirror the mask to match the orientation of the returned string
+        if strand == "-":
+            mask = mask[::-1].copy()
+        if revcomp:
+            mask = mask[::-1].copy()
+
+        return mask
 
     def _get_sequence(self, parsed_index: str, revcomp: bool = False, shift: int = 0, **kwargs) -> np.ndarray:
         """Get a sequence (as a string) given a certain index.
@@ -788,6 +981,7 @@ class BaseGenomicDataWrapper(BaseDataWrapper):
         config = super().get_config()
         config.update({
             "in_memory": self.sequence_loader.in_memory,
+            "shuffle_blacklist": self.shuffle_blacklist_path,
         })
         return config
 
