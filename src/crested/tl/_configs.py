@@ -210,6 +210,15 @@ def default_configs(
     - "peak_regression_mean" (w/ alias "peak_regression")
     - "peak_regression_count"
 
+    The two peak regression configs differ in the ``multiplier`` of their
+    :class:`~crested.tl.losses.CosineMSELogLoss`, which must match how the targets
+    were imported with :func:`~crested.import_bigwigs`:
+
+    - "peak_regression_mean" uses ``multiplier=1000`` -> pair with ``target='mean'``
+      (dense coverage; assumes ``target_region_width=1000``).
+    - "peak_regression_count" uses ``multiplier=1`` -> pair with ``target='count'``
+      (summed cut sites).
+
     If what you want to do is not supported, you can create your own by using the TaskConfig class.
 
     Example

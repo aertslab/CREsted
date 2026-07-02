@@ -97,6 +97,10 @@ def _get_dataset_index():
                 # ASAP models
                 "models/asap_cc.tar.gz": "sha256:f175af12c76556e0a71bf45d2746f10ced31f5d9ced80190ac52f3ede3f3d197",
                 "models/asap_sn.tar.gz": "sha256:4cb8f53f329432819da7f2664340eef6fd7b751ed0d25b10364238414796d636",
+                # STEAM models (evolutionary transfer learning paper)
+                "models/steam_evolution_naive.tar.gz": "sha256:0fda3ed2f78198effd16e48a966a7501296c91a0875ca9a0ae8f7840bfeae93b",
+                "models/steam_evolution_aware.tar.gz": "sha256:99994a78ddf978c2e6ab3de193f8e505ea3d9d2032626b4575284c1bb1c6ff41",
+                "models/steam_v1.tar.gz": "sha256:bad1b68b20ea4c1708aa8f5deca3bf52c354cfb32cf4f4e7be46829843a5e9a7",
             },
         )
     return _datasets
@@ -243,6 +247,9 @@ def get_model(model: str) -> tuple[str, list[str]]:
           - 'BorzoiPrime_mouse_rep[0-3]' (and alias 'BorzoiPrime_mouse' for rep0)
           - 'ASAP_CC'
           - 'ASAP_SN'
+          - 'STEAM_v1' (evolutionary transfer learning paper)
+          - 'STEAM_evolution_naive' (evolutionary transfer learning paper)
+          - 'STEAM_evolution_aware' (evolutionary transfer learning paper)
 
     Returns
     -------
@@ -304,6 +311,9 @@ def get_model(model: str) -> tuple[str, list[str]]:
         "borzoiprime_mouse_rep3": ("models/borzoiprime_mouse_rep3.tar.gz"),
         "asap_cc": ("models/asap_cc.tar.gz"),
         "asap_sn": ("models/asap_sn.tar.gz"),
+        "steam_evolution_naive": ("models/steam_evolution_naive.tar.gz"),
+        "steam_evolution_aware": ("models/steam_evolution_aware.tar.gz"),
+        "steam_v1": ("models/steam_v1.tar.gz"),
     }
     model = model.lower()
     assert model in model_mapping, (

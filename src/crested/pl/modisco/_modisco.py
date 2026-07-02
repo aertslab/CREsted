@@ -10,7 +10,7 @@ import pandas as pd
 import seaborn as sns
 from loguru import logger
 from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.patches import Patch
+from matplotlib.patches import Patch, Rectangle
 from scipy.cluster.hierarchy import dendrogram, leaves_list, linkage
 
 from crested.pl._utils import create_plot, render_plot
@@ -1127,6 +1127,12 @@ def clustermap_tf_motif(
     cluster_rows: bool = True,
     cluster_columns: bool = True,
     cbar_pad: float = 0.05,
+    row_class_mapping: dict[str, str] | None = None,
+    row_class_palette: dict[str, str] | None = None,
+    row_class_legend: bool = True,
+    col_species_mapping: dict[str, list[str]] | None = None,
+    species_palette: dict[str, str] | None = None,
+    species_legend: bool = False,
     imshow_kws: dict | None = None,
     scatter_kws: dict | None = None,
     fig_size = 'deprecated',
@@ -1155,6 +1161,32 @@ def clustermap_tf_motif(
         Whether to cluster the columns (patterns). Default is True.
     cbar_pad : float
         Horizontal padding between heatmap and colorbar in figure coordinates.
+    row_class_mapping
+        Optional mapping of class label (row) to a higher-level class/group name,
+        drawn as a categorical color strip flush against the right edge of the heatmap.
+        Cell-type labels are moved outboard of the strip. Rows missing from the mapping
+        are labeled ``"NA"``.
+    row_class_palette
+        Optional mapping of group name (the values of `row_class_mapping`) to a color.
+        If None, a qualitative palette (`tab20`) is assigned automatically.
+    row_class_legend
+        Whether to draw a legend for the row class strip. Default is True.
+    col_species_mapping
+        Optional mapping of column label (``pattern_labels`` entry, e.g. ``"EBF2_pattern_0"``) to the
+        list of species in which that TF-motif column is found, e.g. ``{"EBF2_pattern_0": ["Mouse",
+        "Macaque", "Human"], "EGR1_pattern_38": ["Mouse"]}``. Drawn as a vertical stack of cells
+        above the heatmap, one row per species (fixed order from `species_palette`), coloured where
+        the column is present in that species and blank where absent. A column found in all three
+        species shows three colours; one found only in mouse shows just the mouse cell.
+    species_palette
+        Mapping of species name to colour, e.g. ``{"Human": "#377eb8", "Macaque": "#4daf4a",
+        "Mouse": "#ff8c00"}``. Its key order sets the top-to-bottom order of the species stack. Keys
+        must match the species strings in `col_species_mapping`. If None, a `tab10` palette is
+        assigned in first-appearance order.
+    species_legend
+        How the species stack is labelled. ``False`` (default) labels each row inline on the strip
+        (self-documenting, no separate legend). ``True`` drops the inline row labels and draws a
+        "Species" legend instead. The two are mutually exclusive to avoid redundant labelling.
     imshow_kws
         Extra arguments for `ax.imshow`. Default is `{'cmap': 'coolwarm', 'aspect': 'auto'}`.
     scatter_kws
@@ -1322,10 +1354,160 @@ def clustermap_tf_motif(
     # Set axis labels and ticks
     ax_heatmap.set_xticks(np.arange(data.shape[1]))
     ax_heatmap.set_xticklabels(pattern_labels, rotation=90)
-    ax_heatmap.set_yticks(np.arange(data.shape[0]))
-    ax_heatmap.set_yticklabels(class_labels)
 
-    ax_heatmap.yaxis.tick_right()
+    # Optional categorical row class strip (flush against the right edge),
+    # with cell-type labels moved outboard of the strip.
+    if row_class_mapping is not None:
+        # Groups in the (already reordered) row order
+        groups = [row_class_mapping.get(lbl, "NA") for lbl in class_labels]
+        unique_classes = list(dict.fromkeys(groups))  # first-appearance order
+
+        if row_class_palette is None:
+            cmap = plt.get_cmap("tab20")
+            row_class_palette = {
+                c: cmap(i % cmap.N) for i, c in enumerate(unique_classes)
+            }
+        else:
+            # tolerate a provided palette that misses some groups (e.g. "NA"):
+            # fall back to neutral gray rather than raising KeyError
+            row_class_palette = dict(row_class_palette)
+            missing = [c for c in unique_classes if c not in row_class_palette]
+            if missing:
+                logger.warning(
+                    f"row_class_palette is missing {len(missing)} group(s) {missing}; "
+                    "using gray ('#bdbdbd') for them."
+                )
+                for c in missing:
+                    row_class_palette[c] = "#bdbdbd"
+
+        n_rows = data.shape[0]
+        heat_pos = ax_heatmap.get_position()
+        strip_w = max(0.001, min(0.012, cbar_pad))
+        strip_ax = fig.add_axes(
+            [heat_pos.x1, heat_pos.y0, strip_w, heat_pos.height]
+        )
+        # Draw the strip as vector rectangles (barh) rather than an imshow raster image,
+        # so the colors survive PDF export / editing in Illustrator.
+        strip_ax.barh(
+            np.arange(n_rows),
+            width=1,
+            height=1,
+            left=0,
+            align="edge",
+            color=[row_class_palette[g] for g in groups],
+            edgecolor="none",
+        )
+        strip_ax.set_xlim(0, 1)
+        strip_ax.set_ylim(0, n_rows)
+        strip_ax.invert_yaxis()  # row 0 at the top, matching the heatmap (origin='upper')
+        strip_ax.set_xticks([])
+        # Labels live on the strip's right side (outboard of the strip)
+        strip_ax.set_yticks(np.arange(n_rows) + 0.5)
+        strip_ax.set_yticklabels(class_labels)
+        strip_ax.yaxis.tick_right()
+        strip_ax.tick_params(left=False)
+        for sp in strip_ax.spines.values():
+            sp.set_visible(False)
+        # Heatmap itself carries no y labels now
+        ax_heatmap.set_yticks([])
+
+        if row_class_legend:
+            handles = [
+                Patch(facecolor=row_class_palette[c], label=c)
+                for c in unique_classes
+            ]
+            fig.legend(
+                handles=handles,
+                loc="upper left",
+                bbox_to_anchor=(heat_pos.x1 + cbar_pad, heat_pos.y0 + heat_pos.height),
+                frameon=False,
+                title="Class",
+            )
+    else:
+        ax_heatmap.set_yticks(np.arange(data.shape[0]))
+        ax_heatmap.set_yticklabels(class_labels)
+        ax_heatmap.yaxis.tick_right()
+
+    # Optional per-column species stack (which species each TF-motif column is found in),
+    # drawn above the heatmap as a vertical stack with one fixed row per species.
+    if col_species_mapping is not None:
+        if species_palette is not None:
+            species_order = list(species_palette)
+        else:
+            species_order = list(
+                dict.fromkeys(s for v in col_species_mapping.values() for s in v)
+            )
+            cmap = plt.get_cmap("tab10")
+            species_palette = {
+                s: cmap(i % cmap.N) for i, s in enumerate(species_order)
+            }
+        n_sp = len(species_order)
+        heat_pos = ax_heatmap.get_position()
+        slot_h = 0.02
+        sp_ax = fig.add_axes(
+            [heat_pos.x0, heat_pos.y1, heat_pos.width, slot_h * n_sp]
+        )
+        # Vector rectangles (bar) so the colors survive PDF export / editing in Illustrator.
+        for i, s in enumerate(species_order):
+            y = n_sp - 1 - i  # first species in the palette at the top
+            xs = [
+                j
+                for j, lbl in enumerate(pattern_labels)
+                if s in col_species_mapping.get(lbl, [])
+            ]
+            if xs:
+                sp_ax.bar(
+                    xs,
+                    height=1,
+                    width=1,
+                    bottom=y,
+                    align="center",
+                    color=species_palette[s],
+                    edgecolor="white",  # crisp per-column cell separation
+                    linewidth=0.4,
+                )
+        sp_ax.set_xlim(ax_heatmap.get_xlim())
+        sp_ax.set_ylim(0, n_sp)
+        sp_ax.set_xticks([])
+        for spine in sp_ax.spines.values():
+            spine.set_visible(False)
+        # Bound the whole strip in a frame and divide the species rows, so it reads as a
+        # contained grid instead of floating bars.
+        x0c, x1c = sp_ax.get_xlim()
+        sp_ax.add_patch(
+            Rectangle(
+                (x0c, 0),
+                x1c - x0c,
+                n_sp,
+                fill=False,
+                edgecolor="#444444",
+                linewidth=0.8,
+                clip_on=False,
+                zorder=5,
+            )
+        )
+        for yk in range(1, n_sp):
+            sp_ax.axhline(yk, color="#444444", linewidth=0.5, zorder=5)
+
+        # Label the stack one way only (inline row labels OR a legend), not both.
+        if species_legend:
+            sp_ax.set_yticks([])
+            handles = [
+                Patch(facecolor=species_palette[s], label=s) for s in species_order
+            ]
+            sp_ax.legend(
+                handles=handles,
+                loc="lower left",
+                bbox_to_anchor=(1.005, 0.0),
+                frameon=False,
+                title="Species",
+                fontsize=8,
+                title_fontsize=8,
+            )
+        else:
+            sp_ax.set_yticks(np.arange(n_sp) + 0.5)
+            sp_ax.set_yticklabels(species_order[::-1])  # ascending y -> reversed palette order
+            sp_ax.tick_params(left=True, labelleft=True, length=0)
 
     # Final layout adjustments
     return render_plot(fig, ax_heatmap, **kwargs)

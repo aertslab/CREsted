@@ -42,6 +42,7 @@ def borzoi(
     transformer_dropout=0.2,
     pointwise_dropout: float = 0.1,
     bn_sync: bool = False,
+    absolute_positions: bool = False,
     name: str = "Borzoi",
 ) -> keras.Model:
     """
@@ -102,6 +103,8 @@ def borzoi(
     bn_sync
         Whether to use synchronized cross-GPU BatchNormalisations.
         Default is False to preserve TensorFlow-PyTorch compatibility.
+    absolute_positions
+        Whether to use absolute or relative positions. Default is relative positions (False).
 
     Returns
     -------

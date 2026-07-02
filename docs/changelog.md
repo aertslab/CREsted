@@ -1,5 +1,35 @@
 # Release notes
 
+## Unreleased
+
+## 1.9.0
+
+### Features
+- STEAM models (`STEAM_v1`, `STEAM_evolution_aware`, `STEAM_evolution_naive`) from the [evolutionary transfer learning paper](https://doi.org/10.62329/hxkk6249) are now available in the model repository via {func}`crested.get_model`. (#217)
+- {func}`crested.tl.contribution_scores` and {func}`crested.tl.contribution_scores_specific` now take a `simplex_correction` argument. When enabled, gradient-based scores are projected back onto the probability simplex by subtracting the per-position mean across the four nucleotide channels, reducing off-simplex noise as proposed in [Majdandzic et al. (2023)](https://doi.org/10.1186/s13059-023-02956-3). (#218)
+- {func}`crested.tl.modisco.process_patterns` now defaults to deterministic, order-independent agglomerative clustering (full pairwise TOMTOM + single cut at `sim_threshold`) instead of greedy leader clustering. New `clustering`, `linkage_method`, `sort_by`, and `representative` parameters; pass `clustering="greedy"` to reproduce earlier analyses. (#216)
+- {func}`crested.tl.modisco.create_tf_ct_matrix` now defaults to NNLS-based TF selection (`selection="nnls"`): a non-negative ridge deconvolution that competes down broadly-expressed binders, followed by an expression-relevance gate (`rel_keep_frac`). Replaces the name-based paralog collapse; pass `selection="threshold"` for the original per-column gates. (#216)
+- {func}`crested.pl.modisco.clustermap_tf_motif` gains a categorical row-class color strip and a per-column species stack. (#216)
+- `calculate_mean_expression_per_cell_type` computes per-cell-type means on sparse `X` directly, avoiding densification on atlas-scale inputs. (#216)
+- {func}`crested.tl.modisco.tfmodisco` can now run classes in parallel via the `n_jobs` argument (each class is independent), with workers pinned to a single thread to avoid oversubscription. `joblib` is now an explicit dependency. (#215)
+- {func}`crested.tl.contribution_scores_specific` now takes a `skip_existing` argument, which skips classes already saved to `output_dir` so a long run can be resumed without recalculating finished classes. (#213)
+- {func}`crested.tl.zoo.borzoi` now takes an `absolute_positions` argument to use absolute positional encoding in the multi-head attention instead of the default relative positions. (#211)
+
+### Bugfixes
+- {func}`crested.pp.change_regions_width` now checks the resized coordinates (not the original ones) in its boundary filter, so regions whose widened window falls off a contig edge are correctly dropped instead of producing negative-start region names. Most apparent on assemblies with many short scaffolds (e.g. rheMac10). (#214)
+- Agglomerative cluster IC is now the best member's IC (not the representative's), fixing discard/sort under a non-IC representative. (#216)
+- {func}`crested.tl.modisco.process_patterns` skips classes with no matched pattern file instead of raising. (#216)
+- {func}`crested.tl.modisco.create_tf_ct_matrix` skips constant-expression columns, avoiding divide-by-zero. (#216)
+- `_trim_pattern_by_ic` no longer over-truncates/crashes on flat patterns. (#216)
+
+### Performance
+- {obj}`crested.Genome` now reads the FASTA file first into the file cache before using `fetch`, speeding up region fetching on slow remote file systems. (#207)
+
+### Documentation
+- Fixed the pinned `pandas` version used for intersphinx links. (#209)
+- Enhancer code analysis notebook updated for the agglomerative + NNLS pipeline. (#216)
+- Clarified that `min_tf_gex` is applied to the (optionally log-transformed) expression. (#216)
+
 ## 1.8.1
 ### Bugfixes:
 - Update the human Borzoi Prime models to actually be the human ones instead of the mouse models. (#204)
