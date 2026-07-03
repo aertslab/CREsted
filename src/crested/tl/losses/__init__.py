@@ -6,5 +6,6 @@ Supply these (or your own) to a `tl.TaskConfig` to be able to use them for train
 
 from ._cosinemse import CosineMSELoss
 from ._cosinemse_log import CosineMSELogLoss
+from ._gini import GiniLoss
 from ._poisson import PoissonLoss
 from ._poissonmultinomial import PoissonMultinomialLoss
