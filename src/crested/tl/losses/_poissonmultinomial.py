@@ -19,7 +19,7 @@ class PoissonMultinomialLoss(keras.losses.Loss):
     eps
         Small value to avoid log(0).
     log_transform
-        If True, applies exponential transformation to predictions to produce counts.
+        Apply logarithmic transformation to truth and predictions.
     axis
         Axis to reduce over. If predicting 1D values, should be -1 (Decima-style). If predicting 2D values like tracks, can be -2 (to compare within tracks, like Borzoi) or -1 (to compare within classes, like Decima for every bin)
     norm
@@ -137,7 +137,7 @@ class PoissonKLLoss(keras.losses.Loss):
     eps
         Small value to avoid log(0).
     log_transform
-        If True, applies exponential transformation to predictions to produce counts.
+        Apply logarithmic transformation to truth and predictions.
     axis
         Axis to reduce over. If predicting 1D values, should be -1 (Decima-style). If predicting 2D values like tracks, can be -2 (to compare within tracks, like Borzoi) or -1 (to compare within classes, like Decima for every bin)
     norm
@@ -184,8 +184,8 @@ class PoissonKLLoss(keras.losses.Loss):
         Combined loss value.
         """
         # Ensure predictions and targets are float32
-        y_true = ops.cast(y_true, dtype="float32")
-        y_pred = ops.cast(y_pred, dtype="float32")
+        y_true = ops.cast(y_true, dtype="float32") + self.eps
+        y_pred = ops.cast(y_pred, dtype="float32") + self.eps
 
         # Apply exp if log_transform is True
         if self.log_transform:
@@ -197,15 +197,15 @@ class PoissonKLLoss(keras.losses.Loss):
         total_pred = ops.sum(y_pred, axis=self.axis, keepdims=True)
 
         # Poisson term
-        poisson_term = total_pred - total_true * ops.log(total_pred + self.eps)
+        poisson_term = total_pred - total_true * ops.log(total_pred)
 
         # Multinomial probabilities
         if self.norm == 'sum':
-            p_true = y_true / (total_true + self.eps)
-            p_pred = y_pred / (total_pred + self.eps)
+            p_true = y_true / (total_true)
+            p_pred = y_pred / (total_pred)
         elif self.norm == 'max':
-            p_true = y_true / (ops.max(y_true, axis=self.axis, keepdims=True) + self.eps)
-            p_pred = y_pred / (ops.max(y_pred, axis=self.axis, keepdims=True) + self.eps)
+            p_true = y_true / (ops.max(y_true, axis=self.axis, keepdims=True))
+            p_pred = y_pred / (ops.max(y_pred, axis=self.axis, keepdims=True))
 
         # KL term
         kl_term = y_true * ops.log(p_true / p_pred)
