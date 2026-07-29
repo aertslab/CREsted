@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Features
+- {obj}`crested.tl.data.AnnDataWrapper` now takes optional `gene_neighbors` and `gene_id_column` arguments. When `gene_neighbors` (a path or DataFrame from the `gene_window/gene_neighbors.py` companion script) is provided, a 5th channel is appended to the one-hot encoded sequence marking positions within the gene's own territory (its body plus the intergenic buffer up to the neighboring genes).
+
 ## 1.9.0
 
 ### Features
