@@ -49,18 +49,17 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
         The values in your split labeling that correspond to the test set as string or list of strings, i.e 'test' or ['fold5', 'fold6']
     split_column
         The column in adata.var that contains the values to split on (as provided to [train/val/test]_splits)
-    gene_neighbors
-        Optional path to a gene-neighbors TSV (as produced by the `gene_window/gene_neighbors.py`
-        companion script, with `name`, `prev_gene_end`, `next_gene_start` columns) or an
-        already-loaded DataFrame in that shape.
+    extra_channel_bed
+        Optional path to a BED6 file (`chrom, start, end, name, score, strand`, tab-separated,
+        no header — e.g. `gene_window/gene_windows.bed`) or an already-loaded DataFrame with at
+        least `chrom`, `start`, `end`, `name` columns.
         If provided, a 5th channel is appended to the one-hot encoded sequence, marking positions
-        within this gene's own territory (its body plus the intergenic buffer up to the
-        neighboring genes) as 1.0, and anything else (e.g. a neighboring gene's own body, reached
-        via stochastic shifting) as 0.0. Assumes each var's region is exactly the gene body itself.
+        within the matching row's `[start, end)` interval (matched via `gene_id_column`) as 1.0,
+        and anything else as 0.0.
         If None (default), no channel is added and behavior/shape are unchanged.
     gene_id_column
-        The column in `adata.var` holding the gene identifier to match against `gene_neighbors`'
-        `name` column. Only used if `gene_neighbors` is provided.
+        The column in `adata.var` holding the gene identifier to match against `extra_channel_bed`'s
+        `name` column. Only used if `extra_channel_bed` is provided.
     kwargs
         Arguments passed to :obj:`~crested.tl.data.utils.BaseGenomicDataWrapper`.
     """
@@ -79,7 +78,7 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
         val_splits: str | list = 'val',
         test_splits: str | list = 'test',
         split_column: str = 'split',
-        gene_neighbors: str | os.PathLike | pd.DataFrame | None = None,
+        extra_channel_bed: str | os.PathLike | pd.DataFrame | None = None,
         gene_id_column: str = "gene_id",
         **kwargs
     ):
@@ -89,11 +88,11 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
         self.split_column = split_column
         self.compressed = isinstance(self.data.X, spmatrix)
 
-        # Load and validate gene-neighbors table, if provided (before super().__init__ since it uses self.data)
+        # Load and validate extra-channel BED, if provided (before super().__init__ since it uses self.data)
         self.gene_id_column = gene_id_column
-        self.gene_neighbors_path = gene_neighbors if isinstance(gene_neighbors, (str, os.PathLike)) else None
-        self._gene_neighbors = (
-            self._load_gene_neighbors(gene_neighbors, gene_id_column) if gene_neighbors is not None else None
+        self.extra_channel_bed_path = extra_channel_bed if isinstance(extra_channel_bed, (str, os.PathLike)) else None
+        self._extra_channel_regions = (
+            self._load_extra_channel_bed(extra_channel_bed, gene_id_column) if extra_channel_bed is not None else None
         )
 
         # Initialize base genomicdatawrapper functionality (creating indices and interfacing with the genome)
@@ -141,33 +140,41 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
             else self.data.X[:, y_index].astype('float32')
         )
 
-    def _load_gene_neighbors(self, gene_neighbors: str | os.PathLike | pd.DataFrame, gene_id_column: str) -> pd.DataFrame:
-        """Load and validate the gene-neighbors annotation table, indexed by gene id."""
-        df = gene_neighbors if isinstance(gene_neighbors, pd.DataFrame) else pd.read_csv(gene_neighbors, sep="\t")
+    def _load_extra_channel_bed(self, extra_channel_bed: str | os.PathLike | pd.DataFrame, gene_id_column: str) -> pd.DataFrame:
+        """Load and validate the extra-channel BED6 annotation, indexed by gene id."""
+        if isinstance(extra_channel_bed, pd.DataFrame):
+            df = extra_channel_bed
+        else:
+            df = pd.read_csv(
+                extra_channel_bed,
+                sep="\t",
+                header=None,
+                names=["chrom", "start", "end", "name", "score", "strand"],
+            )
 
-        required_cols = {"name", "prev_gene_end", "next_gene_start"}
+        required_cols = {"chrom", "start", "end", "name"}
         missing_cols = required_cols - set(df.columns)
         if missing_cols:
-            raise ValueError(f"`gene_neighbors` is missing required column(s): {sorted(missing_cols)}.")
+            raise ValueError(f"`extra_channel_bed` is missing required column(s): {sorted(missing_cols)}.")
         if df["name"].duplicated().any():
-            raise ValueError("`gene_neighbors`'s 'name' column must be unique.")
+            raise ValueError("`extra_channel_bed`'s 'name' column must be unique.")
         if gene_id_column not in self.data.var.columns:
             raise ValueError(
                 f"`gene_id_column` '{gene_id_column}' not found in adata.var. "
                 f"Available columns: {list(self.data.var.columns)}"
             )
 
-        df = df.set_index("name")[["prev_gene_end", "next_gene_start"]]
+        df = df.set_index("name")[["chrom", "start", "end"]]
 
         missing_genes = sorted(set(self.data.var[gene_id_column]) - set(df.index))
         if missing_genes:
             raise ValueError(
                 f"{len(missing_genes)} gene id(s) from adata.var['{gene_id_column}'] not found in "
-                f"`gene_neighbors`, e.g. {missing_genes[:5]}."
+                f"`extra_channel_bed`, e.g. {missing_genes[:5]}."
             )
         return df
 
-    def _get_gene_territory_mask(
+    def _get_extra_channel_mask(
         self,
         original_index: str,
         parsed_index: tuple[str, int, int, str],
@@ -177,31 +184,22 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
     ) -> np.ndarray:
         """Boolean mask (seq_len,) aligned to the sequence returned by `_get_sequence`.
 
-        True marks positions within this gene's own territory: its annotated body plus the
-        intergenic buffer up to (but not including) the neighboring genes from `gene_neighbors`.
-        False marks positions that, after stochastic shifting, fall onto a neighboring gene's own
-        body. Mirrors the shift/strand/revcomp handling of
-        `BaseGenomicDataWrapper._get_shuffle_mask`.
+        True marks positions within the gene's matching BED interval from `extra_channel_bed`.
+        False marks positions that, after stochastic shifting, fall outside that interval.
+        Mirrors the shift/strand/revcomp handling of `BaseGenomicDataWrapper._get_shuffle_mask`.
         """
         chrom, start, end, strand = parsed_index
         seq_len = end - start
 
         gene_id = self.data.var.loc[original_index, self.gene_id_column]
-        prev_gene_end, next_gene_start = self._gene_neighbors.loc[gene_id]
-
-        territory_start = 0 if pd.isna(prev_gene_end) else int(prev_gene_end)
-        if pd.isna(next_gene_start):
-            chrom_size = self.sequence_loader.chromsizes.get(chrom) if self.sequence_loader.chromsizes else None
-            territory_end = chrom_size if chrom_size is not None else np.inf
-        else:
-            territory_end = int(next_gene_start)
+        _, region_start, region_end = self._extra_channel_regions.loc[gene_id]
 
         # 1. Compute the actual genomic window after shifting (same convention as `_get_shuffle_mask`)
         win_start = start + shift
 
         # 2. Build the mask over forward-strand genomic positions
         positions = win_start + np.arange(seq_len)
-        mask = (positions >= territory_start) & (positions < territory_end)
+        mask = (positions >= region_start) & (positions < region_end)
 
         # 3. Mirror the mask to match the orientation of the returned sequence string
         if strand == "-":
@@ -220,22 +218,22 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
         revcomp: bool = False,
         **kwargs,
     ) -> np.ndarray:
-        """One-hot encode `seq`, appending a 5th 'gene territory' channel if `gene_neighbors` was provided.
+        """One-hot encode `seq`, appending a 5th 'extra channel' if `extra_channel_bed` was provided.
 
         `original_index`/`parsed_index` default to None to tolerate the input-shape probing call in
         `BaseGenomicDataWrapper.__init__`, which calls this method with only the sequence string.
         """
         x = one_hot_encode_sequence(seq, expand_dim=False)
-        if self._gene_neighbors is None:
+        if self._extra_channel_regions is None:
             return x
         if original_index is None or parsed_index is None:
-            territory_channel = np.zeros((x.shape[0], 1), dtype=x.dtype)
+            extra_channel = np.zeros((x.shape[0], 1), dtype=x.dtype)
         else:
-            mask = self._get_gene_territory_mask(
+            mask = self._get_extra_channel_mask(
                 original_index=original_index, parsed_index=parsed_index, shift=shift, revcomp=revcomp,
             )
-            territory_channel = mask.astype(x.dtype)[:, None]
-        return np.concatenate([x, territory_channel], axis=-1)
+            extra_channel = mask.astype(x.dtype)[:, None]
+        return np.concatenate([x, extra_channel], axis=-1)
 
     def get_config(self) -> dict:
         """Return a dict of properties, to be logged during training.
@@ -246,7 +244,7 @@ class AnnDataWrapper(BaseGenomicDataWrapper):
         config.update({
             "split_column": self.split_column,
             "compressed": self.compressed,
-            "gene_neighbors_path": self.gene_neighbors_path,
-            "gene_id_column": self.gene_id_column if self._gene_neighbors is not None else None,
+            "extra_channel_bed_path": self.extra_channel_bed_path,
+            "gene_id_column": self.gene_id_column if self._extra_channel_regions is not None else None,
         })
         return config

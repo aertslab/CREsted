@@ -187,124 +187,132 @@ def adata_genes():
 
 
 @pytest.fixture
-def gene_neighbors_df():
-    """Matching gene_neighbors table for `adata_genes`."""
+def extra_channel_bed_df():
+    """Matching extra-channel BED6-shaped table for `adata_genes` (precomputed intervals)."""
     return pd.DataFrame({
+        "chrom": ["chr1", "chr1", "chr1"],
+        "start": [0, 2000, 3000],
+        "end": [2010, 3050, 4200],
         "name": ["GENE_A", "GENE_B", "GENE_C"],
-        "prev_gene_end": [np.nan, 2000, 3000],
-        "next_gene_start": [2010, 3050, np.nan],
+        "score": [".", ".", "."],
+        "strand": ["+", "-", "+"],
     })
 
 
-def test_gene_territory_mask_no_shift(adata_genes, gene_neighbors_df, genome):
+def test_extra_channel_mask_no_shift(adata_genes, extra_channel_bed_df, genome):
     wrapper = crested.tl.data.AnnDataWrapper(
-        adata_genes, genome=genome, gene_neighbors=gene_neighbors_df, gene_id_column="gene_id",
+        adata_genes, genome=genome, extra_channel_bed=extra_channel_bed_df, gene_id_column="gene_id",
     )
-    mask = wrapper._get_gene_territory_mask(
+    mask = wrapper._get_extra_channel_mask(
         original_index="chr1:1000-2000:+", parsed_index=("chr1", 1000, 2000, "+"),
     )
     assert mask.all()  # whole gene body is within [0, 2010)
 
 
-def test_gene_territory_mask_shift_crosses_neighbor(adata_genes, gene_neighbors_df, genome):
+def test_extra_channel_mask_shift_crosses_neighbor(adata_genes, extra_channel_bed_df, genome):
     wrapper = crested.tl.data.AnnDataWrapper(
-        adata_genes, genome=genome, gene_neighbors=gene_neighbors_df, gene_id_column="gene_id",
+        adata_genes, genome=genome, extra_channel_bed=extra_channel_bed_df, gene_id_column="gene_id",
     )
-    # Window becomes [1015, 2015); positions 2010..2014 (last 5) now belong to GENE_B's territory.
-    mask = wrapper._get_gene_territory_mask(
+    # Window becomes [1015, 2015); positions 2010..2014 (last 5) fall outside GENE_A's interval.
+    mask = wrapper._get_extra_channel_mask(
         original_index="chr1:1000-2000:+", parsed_index=("chr1", 1000, 2000, "+"), shift=15,
     )
     expected = np.array([True] * 995 + [False] * 5)
     np.testing.assert_array_equal(mask, expected)
 
 
-def test_gene_territory_mask_minus_strand_and_shift(adata_genes, gene_neighbors_df, genome):
+def test_extra_channel_mask_minus_strand_and_shift(adata_genes, extra_channel_bed_df, genome):
     wrapper = crested.tl.data.AnnDataWrapper(
-        adata_genes, genome=genome, gene_neighbors=gene_neighbors_df, gene_id_column="gene_id",
+        adata_genes, genome=genome, extra_channel_bed=extra_channel_bed_df, gene_id_column="gene_id",
     )
     # GENE_B, window shifted to [1995, 2985); forward positions 1995..1999 (first 5) fall
-    # before prev_gene_end=2000. Strand "-" reverses the mask, so those False values move to the end.
-    mask = wrapper._get_gene_territory_mask(
+    # before its interval start=2000. Strand "-" reverses the mask, so those False values move to the end.
+    mask = wrapper._get_extra_channel_mask(
         original_index="chr1:2010-3000:-", parsed_index=("chr1", 2010, 3000, "-"), shift=-15,
     )
     expected = np.array([True] * 985 + [False] * 5)
     np.testing.assert_array_equal(mask, expected)
 
 
-def test_gene_territory_mask_revcomp_flag(adata_genes, gene_neighbors_df, genome):
+def test_extra_channel_mask_revcomp_flag(adata_genes, extra_channel_bed_df, genome):
     wrapper = crested.tl.data.AnnDataWrapper(
-        adata_genes, genome=genome, gene_neighbors=gene_neighbors_df, gene_id_column="gene_id",
+        adata_genes, genome=genome, extra_channel_bed=extra_channel_bed_df, gene_id_column="gene_id",
     )
-    mask_fwd = wrapper._get_gene_territory_mask(
+    mask_fwd = wrapper._get_extra_channel_mask(
         original_index="chr1:1000-2000:+", parsed_index=("chr1", 1000, 2000, "+"), shift=15,
     )
-    mask_revcomp = wrapper._get_gene_territory_mask(
+    mask_revcomp = wrapper._get_extra_channel_mask(
         original_index="chr1:1000-2000:+", parsed_index=("chr1", 1000, 2000, "+"), shift=15, revcomp=True,
     )
     np.testing.assert_array_equal(mask_revcomp, mask_fwd[::-1])
 
 
-def test_gene_territory_mask_missing_neighbor_unbounded(adata_genes, gene_neighbors_df, genome):
+def test_extra_channel_bed_loaded_from_path(adata_genes, extra_channel_bed_df, genome, tmp_path):
+    """Loading a real headerless BED6 file from disk parses the same as a pre-loaded DataFrame."""
+    bed_path = tmp_path / "extra_channel.bed"
+    extra_channel_bed_df.to_csv(bed_path, sep="\t", header=False, index=False)
+
     wrapper = crested.tl.data.AnnDataWrapper(
-        adata_genes, genome=genome, gene_neighbors=gene_neighbors_df, gene_id_column="gene_id",
+        adata_genes, genome=genome, extra_channel_bed=bed_path, gene_id_column="gene_id",
     )
-    # GENE_C has no downstream neighbor (NaN next_gene_start) -> falls back to chrom end, so a
-    # large shift should not spuriously introduce False values.
-    mask = wrapper._get_gene_territory_mask(
-        original_index="chr1:3050-4000:+", parsed_index=("chr1", 3050, 4000, "+"), shift=100,
+    assert wrapper.input_shape[-1] == 5
+    mask = wrapper._get_extra_channel_mask(
+        original_index="chr1:1000-2000:+", parsed_index=("chr1", 1000, 2000, "+"),
     )
     assert mask.all()
 
 
-def test_anndatawrapper_gene_territory_channel_shape(adata_genes, gene_neighbors_df, genome):
+def test_anndatawrapper_extra_channel_shape(adata_genes, extra_channel_bed_df, genome):
     wrapper = crested.tl.data.AnnDataWrapper(
-        adata_genes, genome=genome, gene_neighbors=gene_neighbors_df, gene_id_column="gene_id",
+        adata_genes, genome=genome, extra_channel_bed=extra_channel_bed_df, gene_id_column="gene_id",
     )
     assert wrapper.input_shape[-1] == 5
     x, _ = wrapper[0]
     assert x.shape[-1] == 5
-    assert np.all(x[:, 4] == 1.0)  # no stochastic shift by default -> whole window is in-territory
+    assert np.all(x[:, 4] == 1.0)  # no stochastic shift by default -> whole window is in-interval
 
 
-def test_anndatawrapper_no_gene_neighbors_unchanged_shape(adata_genes, genome):
+def test_anndatawrapper_no_extra_channel_unchanged_shape(adata_genes, genome):
     wrapper = crested.tl.data.AnnDataWrapper(adata_genes, genome=genome)
     assert wrapper.input_shape[-1] == 4  # regression: default behavior unaffected
 
 
-def test_anndatawrapper_gene_neighbors_missing_column(adata_genes, gene_neighbors_df, genome):
+def test_anndatawrapper_extra_channel_missing_column(adata_genes, extra_channel_bed_df, genome):
     with pytest.raises(ValueError, match="gene_id_column"):
         crested.tl.data.AnnDataWrapper(
-            adata_genes, genome=genome, gene_neighbors=gene_neighbors_df, gene_id_column="not_a_column",
+            adata_genes, genome=genome, extra_channel_bed=extra_channel_bed_df, gene_id_column="not_a_column",
         )
 
 
-def test_anndatawrapper_gene_neighbors_missing_gene_id(adata_genes, genome):
+def test_anndatawrapper_extra_channel_missing_gene_id(adata_genes, genome):
     incomplete_df = pd.DataFrame({
+        "chrom": ["chr1", "chr1"],
+        "start": [0, 2000],
+        "end": [2010, 3050],
         "name": ["GENE_A", "GENE_B"],  # missing GENE_C
-        "prev_gene_end": [np.nan, 2000],
-        "next_gene_start": [2010, 3050],
     })
     with pytest.raises(ValueError, match="GENE_C"):
         crested.tl.data.AnnDataWrapper(
-            adata_genes, genome=genome, gene_neighbors=incomplete_df, gene_id_column="gene_id",
+            adata_genes, genome=genome, extra_channel_bed=incomplete_df, gene_id_column="gene_id",
         )
 
 
-def test_anndatawrapper_gene_neighbors_duplicate_name(adata_genes, genome):
+def test_anndatawrapper_extra_channel_duplicate_name(adata_genes, genome):
     dup_df = pd.DataFrame({
+        "chrom": ["chr1", "chr1", "chr1", "chr1"],
+        "start": [0, 0, 2000, 3000],
+        "end": [2010, 2010, 3050, 4200],
         "name": ["GENE_A", "GENE_A", "GENE_B", "GENE_C"],
-        "prev_gene_end": [np.nan, np.nan, 2000, 3000],
-        "next_gene_start": [2010, 2010, 3050, np.nan],
     })
     with pytest.raises(ValueError, match="unique"):
         crested.tl.data.AnnDataWrapper(
-            adata_genes, genome=genome, gene_neighbors=dup_df, gene_id_column="gene_id",
+            adata_genes, genome=genome, extra_channel_bed=dup_df, gene_id_column="gene_id",
         )
 
 
-def test_anndatawrapper_gene_neighbors_missing_required_columns(adata_genes, genome):
+def test_anndatawrapper_extra_channel_missing_required_columns(adata_genes, genome):
     bad_df = pd.DataFrame({"name": ["GENE_A", "GENE_B", "GENE_C"]})
     with pytest.raises(ValueError, match="required column"):
         crested.tl.data.AnnDataWrapper(
-            adata_genes, genome=genome, gene_neighbors=bad_df, gene_id_column="gene_id",
+            adata_genes, genome=genome, extra_channel_bed=bad_df, gene_id_column="gene_id",
         )
