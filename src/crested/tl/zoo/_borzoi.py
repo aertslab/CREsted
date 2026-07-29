@@ -43,6 +43,7 @@ def borzoi(
     pointwise_dropout: float = 0.1,
     bn_sync: bool = False,
     absolute_positions: bool = False,
+    input_channels: int = 4,
     name: str = "Borzoi",
 ) -> keras.Model:
     """
@@ -105,6 +106,8 @@ def borzoi(
         Default is False to preserve TensorFlow-PyTorch compatibility.
     absolute_positions
         Whether to use absolute or relative positions. Default is relative positions (False).
+    input_channels
+        Number of channels/dimensions of the input data. Default is 4 (for the 4 one-hot encoded nucleotides).
 
     Returns
     -------
@@ -122,7 +125,7 @@ def borzoi(
     crop_length = int((upsampling_out_length - target_length) // 2)
 
     # Sequence input
-    sequence = keras.layers.Input(shape=(seq_len, 4), name="input")
+    sequence = keras.layers.Input(shape=(seq_len, input_channels), name="input")
 
     # Build stem (standard conv + pooling)
     current = keras.layers.Conv1D(
