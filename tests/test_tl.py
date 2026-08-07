@@ -317,12 +317,12 @@ def test_enhancer_design_in_silico_evolution(keras_model, adata, genome):
     assert len(seqs) == 2, len(seqs)
 
     # acgt distribution provided
-    acgt_disbtibution = crested.utils.calculate_nucleotide_distribution(input=adata, genome=genome, per_position=True)
+    acgt_distribution = crested.utils.calculate_nucleotide_distribution(input=adata, genome=genome, per_position=True)
     seqs = crested.tl.design.in_silico_evolution(
         n_mutations=1,
         target=0,
         model=keras_model,
-        acgt_distribution=acgt_disbtibution,
+        acgt_distribution=acgt_distribution,
     )
 
     # starting sequences provided
