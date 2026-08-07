@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Features
+- {func}`crested.tl.design.in_silico_evolution` and {func}`crested.tl.design.motif_insertion` now take a `protected_positions` argument: a list of `(start, end)` ranges of nucleotide positions that will never be mutated or overwritten by a motif insertion, independent of `no_mutation_flanks`/`target_len`.
+
 ## 1.9.0
 
 ### Features

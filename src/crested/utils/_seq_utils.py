@@ -69,7 +69,7 @@ def one_hot_encode_sequence(sequence: str, expand_dim: bool = True) -> np.ndarra
         ]
 
 
-def generate_mutagenesis(x, include_original=True, flanks=(0, 0)):
+def generate_mutagenesis(x, include_original=True, flanks=(0, 0), protected_positions=None):
     """Generate all possible single point mutations in a sequence."""
     _, L, A = x.shape
     start, end = 0, L
@@ -77,6 +77,8 @@ def generate_mutagenesis(x, include_original=True, flanks=(0, 0)):
     start = flanks[0]
     end = L - flanks[1]
     for length in range(start, end):
+        if protected_positions is not None and length in protected_positions:
+            continue
         for a in range(A):
             if not include_original:
                 if x[0, length, a] == 1:
