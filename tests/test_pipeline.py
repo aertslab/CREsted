@@ -18,12 +18,11 @@ def test_peak_regression(adata, genome):
 
         shutil.rmtree("tests/data/test_pipeline")
 
-    datamodule = crested.tl.data.AnnDataModule(
+    datamodule = crested.tl.data.AnnDataWrapper(
         adata,
         genome=genome,
         batch_size=2,
         always_reverse_complement=True,
-        deterministic_shift=True,
         max_stochastic_shift=3,
     )
     model = crested.tl.zoo.simple_convnet(
