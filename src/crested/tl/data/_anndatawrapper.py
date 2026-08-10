@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 from anndata import AnnData
+from loguru import logger
 from scipy.sparse import spmatrix
 
 from crested._genome import Genome
@@ -132,8 +133,8 @@ class MultiAnnDataWrapper(BaseGenomicDataWrapper):
     """
     Wrapper around multiple AnnDatas and a genome, providing you with one-hot encoded sequences and multiple sets of associated scalar values to train a model with.
 
-    This assumes the AnnDatas contains the same inputs, and that they are simply different annotations (same .var, different .obs).
-    If you want to train on different gene-output pairs, look to multi-species training instead.
+    This assumes the AnnDatas contain the same inputs (regions or genes), and that they simply have different class values (same .var, different .obs).
+    The first AnnData will be used to create the index, and all other AnnDatas must contain those indices as well.
     Required input for the `tl.Crested` class.
 
     Parameters
@@ -187,9 +188,9 @@ class MultiAnnDataWrapper(BaseGenomicDataWrapper):
         self.data = data
         self.split_column = split_column
         self.compressed = [isinstance(self.data[i].X, spmatrix) for i in range(self.n_datasets)]
-        for i in range(self.n_datasets):
+        for i in range(1, self.n_datasets):
             if self.data[i].n_vars != self.data[0].n_vars:
-                raise ValueError(f"Regions must be the same for all AnnDatas. AnnData {i}'s number of regions ({self.data[i].n_vars}) doesn't match the first AnnData's number of regions ({self.data[0].n_vars}).")
+                logger.warning(f"AnnData {i}'s number of regions ({self.data[i].n_vars}) doesn't match the first AnnData's number of regions ({self.data[0].n_vars}). MultiAnnDataWrapper requires all AnnDatas to contain at least the regions of the first AnnData, so make sure this AnnData contains a superset of those indices.")
 
         # Initialize base genomicdatawrapper functionality (creating indices and interfacing with the genome)
         super().__init__(
@@ -206,12 +207,18 @@ class MultiAnnDataWrapper(BaseGenomicDataWrapper):
             **kwargs
         )
 
-        # Set some last variables dependent on having indices or extracting sequences
-        self.index_map = {index: i for i, index in enumerate(self.indices)}
+        # Build index map for original anndata (used to index into .X to get ground truth)
+        self.index_maps = [{index: i for i, index in enumerate(self.indices)}]
 
-    def _get_indices(self):
+        # Add index map for other anndatas and check whether they all contain the original indices
+        for adata_i in range(1, self.n_datasets):
+            adata_index_list = self._get_indices(index=adata_i)
+            self.index_maps.append({index: i for i, index in enumerate(adata_index_list)})
+            assert all(main_adata_index in adata_index_list for main_adata_index in self.indices), f"AnnData {adata_i} does not have all indices contained in the first AnnData. First AnnData shape: {self.data[0].shape}, offending AnnData shape: {self.data[adata_i].shape}"
+
+    def _get_indices(self, index=0):
         """Return a full list of all included sample indices, aka the anndata's var_names."""
-        return list(self.data[0].var_names)
+        return list(self.data[index].var_names)
 
     def _get_splits(self):
         """Return a list of split values, for each index from _get_indices()."""
@@ -229,12 +236,11 @@ class MultiAnnDataWrapper(BaseGenomicDataWrapper):
         kwargs
             Catcher for unused arguments from `get_indexed_item`, specifically `expanded_index`, `revcomp`, and `shift`.
         """
-        y_index = self.index_map[original_index]
         return tuple(
             (
-                self.data[i].X[:, y_index].toarray().flatten()
+                self.data[i].X[:, self.index_maps[i][original_index]].toarray().flatten()
                 if self.compressed[i]
-                else self.data[i].X[:, y_index].astype('float32')
+                else self.data[i].X[:, self.index_maps[i][original_index]].astype('float32')
             ) for i in range(self.n_datasets)
         )
 
