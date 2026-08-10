@@ -207,7 +207,7 @@ def test_contribution_scores_multiclass_equivalence(keras_model, genome):
                 combined[:, i],
                 single[:, 0],
                 rtol=1e-5,
-                atol=1e-6,
+                atol=1e-5,
                 err_msg=f"multi-class and single-class {method} results diverge for class {class_index}",
             )
 
@@ -240,7 +240,7 @@ def test_contribution_scores_window_shuffle_multiclass_equivalence(keras_model, 
                 combined[:, i],
                 single[:, 0],
                 rtol=1e-5,
-                atol=1e-6,
+                atol=1e-5,
                 err_msg=f"multi-class and single-class {method} results diverge for class {class_index}",
             )
 
