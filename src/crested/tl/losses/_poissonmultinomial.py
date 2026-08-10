@@ -73,8 +73,8 @@ class PoissonMultinomialLoss(keras.losses.Loss):
         Combined loss value.
         """
         # Ensure predictions and targets are float32
-        y_true = ops.cast(y_true, dtype="float32")
-        y_pred = ops.cast(y_pred, dtype="float32")
+        y_true = ops.cast(y_true, dtype="float32") + self.eps
+        y_pred = ops.cast(y_pred, dtype="float32") + self.eps
 
         # Apply exp if log_transform is True
         if self.log_transform:
@@ -92,7 +92,7 @@ class PoissonMultinomialLoss(keras.losses.Loss):
         if self.norm == 'sum':
             p_pred = y_pred / (total_pred + self.eps)
         elif self.norm == 'max':
-            p_pred = y_pred / (ops.max(y_pred, axis=self.axis, keepdims=True) + self.eps)
+            p_pred = y_pred / (ops.max(y_pred, axis=self.axis, keepdims=True))
         log_p_pred = ops.log(p_pred + self.eps)
 
         # Multinomial term
