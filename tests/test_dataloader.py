@@ -1,8 +1,12 @@
 """Test the dataloaders."""
 
 import keras
+import numpy as np
+import pytest
 
 import crested
+
+from ._utils import create_anndata_with_regions
 
 
 # Tests that splitting into splits at dataloader level works correctly, that it loops over data as expected, and that batching works correctly
@@ -165,4 +169,97 @@ def test_anndatamodule_sizes(adata_preds, genome):
     assert datamodule.get_config()['n_val'] == 6, f"Expected 6 validation samples, but found {datamodule.get_config()['n_val']}"
     assert datamodule.get_config()['n_test'] == 6, f"Expected 6 test samples, but found {datamodule.get_config()['n_test']}"
     assert datamodule.get_config()['n_predict'] == 30, f"Expected 30 total samples, but found {datamodule.get_config()['n_predict']}"
+
+
+# Tests that MultiAnnDataWrapper loops correctly and returns one target array per AnnData
+def test_multianndatawrapper(adata_preds, genome):
+    datawrapper = crested.tl.data.MultiAnnDataWrapper(
+        [adata_preds, adata_preds],
+        genome=genome,
+        batch_size=2,
+        always_reverse_complement=True,
+        max_stochastic_shift=3,
+    )
+    train_loader = datawrapper.create_dataloader(split='train', augment=True, shuffle=True)
+
+    x, y = next(iter(train_loader))
+
+    assert len(y) == 2, f"Expected one target per AnnData (2), but found {len(y)}."
+    assert x.shape[0] == y[0].shape[0] == y[1].shape[0], "Batch size of input and both outputs is expected to be the same."
+    np.testing.assert_array_equal(
+        np.asarray(y[0]), np.asarray(y[1]),
+        err_msg="Both AnnDatas are identical, so their targets should be identical too.",
+    )
+
+
+def test_multianndatawrapper_sizes(adata_preds, genome):
+    datawrapper = crested.tl.data.MultiAnnDataWrapper(
+        [adata_preds, adata_preds],
+        genome=genome,
+        batch_size=2,
+        always_reverse_complement=True,
+        max_stochastic_shift=3,
+    )
+
+    # Dataset has 30 regions, 60% train, 20% val, 20% test
+    # Train expected to be doubled given always_reverse_complement
+    assert datawrapper.get_config()['n_train'] == (2*18), f"Expected 36 training samples (18 regions, rev-comp expanded), but found {datawrapper.get_config()['n_train']}"
+    assert datawrapper.get_config()['n_val'] == 6, f"Expected 6 validation samples, but found {datawrapper.get_config()['n_val']}"
+    assert datawrapper.get_config()['n_test'] == 6, f"Expected 6 test samples, but found {datawrapper.get_config()['n_test']}"
+    assert datawrapper.get_config()['n_predict'] == 30, f"Expected 30 total samples, but found {datawrapper.get_config()['n_predict']}"
+    assert datawrapper.get_config()['compressed'] == [False, False]
+
+
+# Tests that a secondary AnnData with a different var_names order is correctly matched up by index rather than by position
+def test_multianndatawrapper_reordered_indices(adata_preds, genome):
+    regions = list(adata_preds.var_names)
+    adata2 = create_anndata_with_regions(regions[::-1], n_classes=adata_preds.n_obs, random_state=1)
+
+    datawrapper = crested.tl.data.MultiAnnDataWrapper(
+        [adata_preds, adata2],
+        genome=genome,
+        batch_size=2,
+    )
+
+    region = regions[0]
+    _, y = datawrapper.get_indexed_item(original_index=region)
+    expected_1 = adata_preds.X[:, adata_preds.var_names.get_loc(region)].astype('float32')
+    expected_2 = adata2.X[:, adata2.var_names.get_loc(region)].astype('float32')
+    np.testing.assert_array_equal(y[0], expected_1)
+    np.testing.assert_array_equal(y[1], expected_2)
+
+
+# Tests that a secondary AnnData containing a superset of the first AnnData's regions is allowed and correctly indexed
+def test_multianndatawrapper_superset_indices(adata_preds, genome):
+    regions = list(adata_preds.var_names)
+    extra_region = "chr1:1000000-1000500"
+    adata2 = create_anndata_with_regions(
+        regions + [extra_region], n_classes=adata_preds.n_obs, random_state=2
+    )
+
+    datawrapper = crested.tl.data.MultiAnnDataWrapper(
+        [adata_preds, adata2],
+        genome=genome,
+        batch_size=2,
+    )
+
+    assert len(datawrapper.indices) == len(regions), "Indices should be based on the first AnnData, ignoring the second AnnData's extra region."
+
+    region = regions[0]
+    _, y = datawrapper.get_indexed_item(original_index=region)
+    expected_2 = adata2.X[:, adata2.var_names.get_loc(region)].astype('float32')
+    np.testing.assert_array_equal(y[1], expected_2)
+
+
+# Tests that a secondary AnnData missing regions present in the first AnnData raises an error
+def test_multianndatawrapper_missing_indices_raises(adata_preds, genome):
+    regions = list(adata_preds.var_names)
+    adata2 = create_anndata_with_regions(regions[:-1], n_classes=adata_preds.n_obs, random_state=3)
+
+    with pytest.raises(AssertionError):
+        crested.tl.data.MultiAnnDataWrapper(
+            [adata_preds, adata2],
+            genome=genome,
+            batch_size=2,
+        )
 
