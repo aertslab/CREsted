@@ -13,8 +13,8 @@ class GiniLoss(keras.losses.Loss):
         The lowest power the error is scaled with, in case of gini=0. Gini=1 adds 1*increase_scale to this.
         If 1 (default) and increase_scale=1, will scale between MAE (power of 1) and MSE (power of 2), depending on Gini coefficient.
     increase_scale
-        How much to increase the power per gini increase. 
-        Default of 1 will add between 0 and 1 to the starting power, setting to 2 will add between 0 and 2 
+        How much to increase the power per gini increase.
+        Default of 1 will add between 0 and 1 to the starting power, setting to 2 will add between 0 and 2
         (making power scale from 1 to 3 with default starting_power), etc.
     name
         Name of the loss function.
@@ -29,14 +29,14 @@ class GiniLoss(keras.losses.Loss):
         name: str | None = "GiniLoss",
         reduction: str = "sum_over_batch_size",
     ):
-        """Initialize the loss function"""
+        """Initialize the loss function."""
         super().__init__()
         self.starting_power = starting_power
         self.increase_scale = increase_scale
         self.reduction = reduction
 
     def gini_scores(self, array, eps = 0.0000001):
-        """Calculate gini scores for the provided array"""
+        """Calculate gini scores for the provided array."""
         # Loosely based on https://github.com/oliviaguest/gini/blob/master/gini.py
 
         # Values cannot be negative, so clip to 0

@@ -8,4 +8,4 @@ from ._cosinemse import CosineMSELoss
 from ._cosinemse_log import CosineMSELogLoss
 from ._gini import GiniLoss
 from ._poisson import PoissonLoss
-from ._poissonmultinomial import PoissonMultinomialLoss, PoissonKLLoss
+from ._poissonmultinomial import PoissonKLLoss, PoissonMultinomialLoss
