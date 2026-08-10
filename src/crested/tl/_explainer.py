@@ -40,7 +40,7 @@ elif os.environ["KERAS_BACKEND"] == "torch":
 def saliency_map(
     X: np.ndarray,
     model: keras.Model,
-    class_index: int | None,
+    class_index: int | list[int] | None,
     batch_size: int = 128,
     func: Callable = None,
 ) -> np.ndarray:
@@ -53,13 +53,15 @@ def saliency_map(
     model
         Your Keras model.
     class_index
-        The index of the class to explain. If None, applies func to average/sum/etc over all classes.
+        The index of the class to explain, an int, a list of ints, or None. If None, applies func to average/sum/etc over all classes.
+        If a list, gradients for all classes are computed together, reusing the same forward pass across classes instead of recomputing it per class.
     func
         If class_index is None, how to combine the final predictions (sum/mean/etc). Should work on tensors of your backend.
     batch_size
         Batch size used for gradient calculations. Note that integrated_grad() calculates gradients for background sequences for each main sequence provided,
         so explaining 1 sequence still requires gradients of e.g. 650 sequences (num_baselines*num_steps+1).
         Default is 128, which works well for 2kb input size models but might struggle on bigger models.
+        Memory scales with the number of requested classes when class_index is a list, since the forward pass is reused/retained across classes.
     """
     # Convert tensor to numpy if needed (for PyTorch/TensorFlow backends)
     if _is_tensor(X):
@@ -84,7 +86,7 @@ def saliency_map(
 def integrated_grad(
     X: np.ndarray,
     model: keras.Model,
-    class_index: int | None = None,
+    class_index: int | list[int] | None = None,
     baseline_type: str = "random",
     num_baselines: int = 25,
     num_steps: int = 25,
@@ -104,7 +106,8 @@ def integrated_grad(
     model
         Your Keras model.
     class_index
-        The index of the class to explain. If None, applies func to average/sum/etc over all classes.
+        The index of the class to explain, an int, a list of ints, or None. If None, applies func to average/sum/etc over all classes.
+        If a list, gradients for all classes are computed together, reusing the same forward pass and the same interpolated baselines across classes instead of recomputing them per class.
     baseline_type
         How to get the baseline sequence to compare your sequence to.
         "random" shuffles each input sequence `num_baselines` times and interpolates from those shuffled versions to the original, as used in expected integrated gradients.
@@ -120,6 +123,7 @@ def integrated_grad(
         Batch size used for gradient calculations. Note that integrated_grad() calculates gradients for background sequences for each main sequence provided,
         so explaining 1 sequence still requires gradients of e.g. 650 sequences (num_baselines*num_steps+1).
         Default is 128, which works well for 2kb input size models but might struggle on bigger models.
+        Memory scales with the number of requested classes when class_index is a list, since the forward pass is reused/retained across classes.
     seed
         Seed to use for shuffling sequences when using baseline_type "random".
     """
@@ -178,7 +182,12 @@ def integrated_grad(
     # Make baselines
     baselines = make_baselines(X, num_samples=num_baselines, baseline_type=baseline_type, seed=seed)
 
-    outputs = np.zeros_like(X)
+    is_multi_class = isinstance(class_index, (list, tuple))
+    if is_multi_class:
+        outputs = np.zeros((X.shape[0], len(class_index), X.shape[1], X.shape[2]), dtype=X.dtype)
+    else:
+        outputs = np.zeros_like(X)
+
     for i, x in enumerate(X):
         x = np.expand_dims(x, axis=0)
 
@@ -199,8 +208,8 @@ def integrated_grad(
             func=func,
             batch_size=batch_size,
         )
-        # Reshape from n_baselines*n_steps, seq_len, 4 to n_baselines, n_steps, seq_len, 4
-        grad = grad.reshape([num_baselines, num_steps + 1, x.shape[-2], x.shape[-1]])
+        # Reshape from (n_baselines*(n_steps+1), (n_classes), seq_len, 4) to (n_baselines, n_steps+1, (n_classes), seq_len, 4)
+        grad = grad.reshape((num_baselines, num_steps + 1) + grad.shape[1:])
 
         # Apply integrated gradient transform
         avg_grad = integral_approximation(grad)
@@ -454,7 +463,7 @@ def function_batch(
 
     Returns
     -------
-    Numpy array of the same shape as X.
+    Numpy array matching X's leading (batch) dimension, with any additional trailing dimensions added by fun (e.g. a class axis) preserved.
     """
     data_size = X.shape[0]
     # If fits in one batch, return directly

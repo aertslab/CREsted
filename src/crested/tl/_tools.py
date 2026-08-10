@@ -515,29 +515,26 @@ def contribution_scores(
     for m in tqdm(model, desc="Model", disable=not verbose):
         scores = np.zeros((N, n_classes, L, D))  # Shape: (N, C, L, 4)
 
-        for i, class_index in enumerate(target_idx):
+        if method in _gradient_methods:
+            # Request gradients for all classes in one call so the forward
+            # pass (and, for the integrated-gradient variants, the
+            # interpolated baselines) is reused across classes instead of
+            # being recomputed once per class.
             if method == "integrated_grad":
-                scores[:, i, :, :] = integrated_grad(
+                scores[:, :, :, :] = integrated_grad(
                     input_sequences,
                     model=m,
-                    class_index=class_index,
+                    class_index=target_idx,
                     baseline_type="zeros",
                     num_baselines=1,
                     num_steps=25,
                     batch_size=batch_size,
                 )
-            elif method == "mutagenesis":
-                scores[:, i, :, :] = mutagenesis(
-                    input_sequences,
-                    model=m,
-                    class_index=class_index,
-                    batch_size=batch_size,
-                )
             elif method == "expected_integrated_grad":
-                scores[:, i, :, :] = integrated_grad(
+                scores[:, :, :, :] = integrated_grad(
                     input_sequences,
                     model=m,
-                    class_index=class_index,
+                    class_index=target_idx,
                     baseline_type="random",
                     num_baselines=25,
                     num_steps=25,
@@ -545,34 +542,43 @@ def contribution_scores(
                     seed=seed,
                 )
             elif method == "saliency_map":
-                scores[:, i, :, :] = saliency_map(
+                scores[:, :, :, :] = saliency_map(
                     input_sequences,
                     model=m,
-                    class_index=class_index,
+                    class_index=target_idx,
                     batch_size=batch_size,
                 )
-            elif method == "window_shuffle":
-                scores[:, i, :, :] = window_shuffle(
-                    input_sequences,
-                    model=m,
-                    class_index=class_index,
-                    window_size=window_size,
-                    n_shuffles=n_shuffles,
-                    uniform=False,
-                    batch_size=batch_size,
-                )
-            elif method == "window_shuffle_uniform":
-                scores[:, i, :, :] = window_shuffle(
-                    input_sequences,
-                    model=m,
-                    class_index=class_index,
-                    window_size=window_size,
-                    n_shuffles=n_shuffles,
-                    uniform=True,
-                    batch_size=batch_size,
-                )
-            else:
-                raise ValueError(f"Unsupported method: {method}")
+        else:
+            for i, class_index in enumerate(target_idx):
+                if method == "mutagenesis":
+                    scores[:, i, :, :] = mutagenesis(
+                        input_sequences,
+                        model=m,
+                        class_index=class_index,
+                        batch_size=batch_size,
+                    )
+                elif method == "window_shuffle":
+                    scores[:, i, :, :] = window_shuffle(
+                        input_sequences,
+                        model=m,
+                        class_index=class_index,
+                        window_size=window_size,
+                        n_shuffles=n_shuffles,
+                        uniform=False,
+                        batch_size=batch_size,
+                    )
+                elif method == "window_shuffle_uniform":
+                    scores[:, i, :, :] = window_shuffle(
+                        input_sequences,
+                        model=m,
+                        class_index=class_index,
+                        window_size=window_size,
+                        n_shuffles=n_shuffles,
+                        uniform=True,
+                        batch_size=batch_size,
+                    )
+                else:
+                    raise ValueError(f"Unsupported method: {method}")
 
         scores_per_model.append(scores)
 

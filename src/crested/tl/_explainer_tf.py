@@ -16,7 +16,7 @@ import tensorflow as tf
 def _saliency_map(
     X: tf.Tensor,
     model: keras.Model,
-    class_index: int | None = None,
+    class_index: int | list[int] | None = None,
     func: Callable[[tf.Tensor], tf.Tensor] = tf.math.reduce_mean,
 ) -> tf.Tensor:
     """Fast function to generate saliency maps.
@@ -28,23 +28,27 @@ def _saliency_map(
     model
         Your Keras model, or any object that supports __call__ with gradients, so it can also be a non-Keras TensorFlow model.
     class_index
-        Index of model output to explain. Model assumed to return outputs of shape (batch_size, n_classes) if using this.
+        Index (or list of indices) of model output(s) to explain. Model assumed to return outputs of shape (batch_size, n_classes) if using this.
     func
-        Function to reduce model outputs to one value with, if not using class_index.
+        Function to reduce model outputs to one value with, for any class_index entries that are None.
 
     Returns
     -------
-    Gradients of the same shape as X, (batch, seq_len, nuc).
+    Gradients of the same shape as X, (batch, seq_len, nuc), if class_index is a single int or None.
+    If class_index is a list, gradients of shape (batch, n_classes, seq_len, nuc).
     """
     if func is None:
         func = tf.math.reduce_mean
-    with tf.GradientTape() as tape:
+    is_multi_class = isinstance(class_index, (list, tuple))
+    class_indices = class_index if is_multi_class else [class_index]
+    with tf.GradientTape(persistent=is_multi_class) as tape:
         tape.watch(X)
-        if class_index is not None:
-            outputs = model(X, training=False)[:, class_index]
-        else:
-            outputs = func(model(X, training=False))
-    return tape.gradient(outputs, X)
+        raw_outputs = model(X, training=False)
+        targets = [raw_outputs[:, idx] if idx is not None else func(raw_outputs) for idx in class_indices]
+    grads = [tape.gradient(target, X) for target in targets]
+    if is_multi_class:
+        del tape  # release the persistent tape's resources
+    return tf.stack(grads, axis=1) if is_multi_class else grads[0]
 
 
 @tf.function
