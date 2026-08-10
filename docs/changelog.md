@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### Performance
-- {func}`crested.tl.contribution_scores` now computes gradients for all requested classes of a region in a single pass for the gradient-based methods (`saliency_map`, `integrated_grad`, `expected_integrated_grad`), reusing the model's forward pass (and, for the integrated-gradient variants, the interpolated baseline sequences) across classes instead of recomputing them once per class.
+- {func}`crested.tl.contribution_scores` now reuses computations (gradients or predictions) when calculating scores for multiple classes of one region. This should speed up both gradient and mutagenesis-based calculations.
 
 ## 1.9.0
 

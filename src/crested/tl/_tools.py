@@ -440,7 +440,7 @@ def contribution_scores(
         Path to the output directory to save the contribution scores and one hot seqs.
         Will create a separate npz file per class.
     seed
-        Seed to use for shuffling regions. Only used in "expected_integrated_grad".
+        Seed to use for shuffling regions. Used in "expected_integrated_grad", "window_shuffle", and "window_shuffle_uniform".
     simplex_correction
         Whether to project the gradients back onto the probability simplex by subtracting,
         at each position, the mean gradient across the four nucleotide channels
@@ -515,70 +515,69 @@ def contribution_scores(
     for m in tqdm(model, desc="Model", disable=not verbose):
         scores = np.zeros((N, n_classes, L, D))  # Shape: (N, C, L, 4)
 
-        if method in _gradient_methods:
-            # Request gradients for all classes in one call so the forward
-            # pass (and, for the integrated-gradient variants, the
-            # interpolated baselines) is reused across classes instead of
-            # being recomputed once per class.
-            if method == "integrated_grad":
-                scores[:, :, :, :] = integrated_grad(
-                    input_sequences,
-                    model=m,
-                    class_index=target_idx,
-                    baseline_type="zeros",
-                    num_baselines=1,
-                    num_steps=25,
-                    batch_size=batch_size,
-                )
-            elif method == "expected_integrated_grad":
-                scores[:, :, :, :] = integrated_grad(
-                    input_sequences,
-                    model=m,
-                    class_index=target_idx,
-                    baseline_type="random",
-                    num_baselines=25,
-                    num_steps=25,
-                    batch_size=batch_size,
-                    seed=seed,
-                )
-            elif method == "saliency_map":
-                scores[:, :, :, :] = saliency_map(
-                    input_sequences,
-                    model=m,
-                    class_index=target_idx,
-                    batch_size=batch_size,
-                )
+        # Request scores for all classes in one call so the expensive step
+        # (forward pass for gradient methods; mutagenized/shuffled sequence
+        # generation + model.predict for the others) is reused across
+        # classes instead of being recomputed once per class.
+        if method == "integrated_grad":
+            scores[:, :, :, :] = integrated_grad(
+                input_sequences,
+                model=m,
+                class_index=target_idx,
+                baseline_type="zeros",
+                num_baselines=1,
+                num_steps=25,
+                batch_size=batch_size,
+            )
+        elif method == "expected_integrated_grad":
+            scores[:, :, :, :] = integrated_grad(
+                input_sequences,
+                model=m,
+                class_index=target_idx,
+                baseline_type="random",
+                num_baselines=25,
+                num_steps=25,
+                batch_size=batch_size,
+                seed=seed,
+            )
+        elif method == "saliency_map":
+            scores[:, :, :, :] = saliency_map(
+                input_sequences,
+                model=m,
+                class_index=target_idx,
+                batch_size=batch_size,
+            )
+        elif method == "mutagenesis":
+            scores[:, :, :, :] = mutagenesis(
+                input_sequences,
+                model=m,
+                class_index=target_idx,
+                batch_size=batch_size,
+            )
+        elif method == "window_shuffle":
+            scores[:, :, :, :] = window_shuffle(
+                input_sequences,
+                model=m,
+                class_index=target_idx,
+                window_size=window_size,
+                n_shuffles=n_shuffles,
+                uniform=False,
+                batch_size=batch_size,
+                seed=seed,
+            )
+        elif method == "window_shuffle_uniform":
+            scores[:, :, :, :] = window_shuffle(
+                input_sequences,
+                model=m,
+                class_index=target_idx,
+                window_size=window_size,
+                n_shuffles=n_shuffles,
+                uniform=True,
+                batch_size=batch_size,
+                seed=seed,
+            )
         else:
-            for i, class_index in enumerate(target_idx):
-                if method == "mutagenesis":
-                    scores[:, i, :, :] = mutagenesis(
-                        input_sequences,
-                        model=m,
-                        class_index=class_index,
-                        batch_size=batch_size,
-                    )
-                elif method == "window_shuffle":
-                    scores[:, i, :, :] = window_shuffle(
-                        input_sequences,
-                        model=m,
-                        class_index=class_index,
-                        window_size=window_size,
-                        n_shuffles=n_shuffles,
-                        uniform=False,
-                        batch_size=batch_size,
-                    )
-                elif method == "window_shuffle_uniform":
-                    scores[:, i, :, :] = window_shuffle(
-                        input_sequences,
-                        model=m,
-                        class_index=class_index,
-                        window_size=window_size,
-                        n_shuffles=n_shuffles,
-                        uniform=True,
-                        batch_size=batch_size,
-                    )
-                else:
-                    raise ValueError(f"Unsupported method: {method}")
+            raise ValueError(f"Unsupported method: {method}")
 
         scores_per_model.append(scores)
 

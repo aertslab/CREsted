@@ -219,8 +219,13 @@ def integrated_grad(
     return outputs
 
 
-def mutagenesis(X: np.ndarray, model: keras.Model, class_index: int = None, batch_size: int = 256) -> np.ndarray:
-    """In silico mutagenesis analysis for a given sequence.
+def mutagenesis(
+    X: np.ndarray,
+    model: keras.Model,
+    class_index: int | list[int] | None = None,
+    batch_size: int = 256,
+) -> np.ndarray:
+    """In silico mutagenesis analysis for a given (set of) sequence(s).
 
     Parameters
     ----------
@@ -229,7 +234,7 @@ def mutagenesis(X: np.ndarray, model: keras.Model, class_index: int = None, batc
     model
         Your Keras model.
     class_index
-        The index of the class to explain.
+        The index/indices of the class(es) to explain: an int, a list of ints, or None. If None, uses the L2 norm across all classes.
     batch_size
         Batch size to use when predicting values with the model. Note that mutagenesis requires (seq_len*3+1) predictions to explain one sequence.
         Default is 256.
@@ -238,24 +243,25 @@ def mutagenesis(X: np.ndarray, model: keras.Model, class_index: int = None, batc
     if _is_tensor(X):
         X = _from_tensor(X)
 
+    is_multi_class = isinstance(class_index, (list, tuple))
+    if not is_multi_class:
+        class_index = [class_index]
+
     def reconstruct_map(predictions):
         _, L, A = x.shape
 
-        mut_score = np.zeros((1, L, A))
+        mut_score = np.zeros((1, len(class_index), L, A))
         k = 0
         for length in range(L):
             for a in range(A):
-                mut_score[0, length, a] = predictions[k]
+                mut_score[0, :, length, a] = predictions[k]
                 k += 1
         return mut_score
 
     def get_score(x, model, class_index, batch_size=None):
-        score = model.predict(x, verbose=0, batch_size=batch_size)
-        if class_index is None:
-            score = np.sqrt(np.sum(score**2, axis=-1, keepdims=True))
-        else:
-            score = score[:, class_index]
-        return score
+        predictions = model.predict(x, verbose=0, batch_size=batch_size)
+        cols = [np.sqrt(np.sum(predictions**2, axis=-1)) if idx is None else predictions[:, idx] for idx in class_index]
+        return np.stack(cols, axis=1)
 
     scores = []
     for x in X:
@@ -270,7 +276,13 @@ def mutagenesis(X: np.ndarray, model: keras.Model, class_index: int = None, batc
 
         # reshape mutagenesis predictions
         mut_score = reconstruct_map(predictions)
-        scores.append(mut_score - wt_score)
+        wt_score = wt_score[:, :, None, None]  # (1, n_classes) -> (1, n_classes, 1, 1) to broadcast over (L, A)
+
+        # Remove 1-length class index if not multi-class
+        score_diff = mut_score - wt_score
+        if not is_multi_class:
+            score_diff = score_diff.squeeze(axis=1)
+        scores.append(score_diff)
 
     return np.concatenate(scores, axis=0)
 
@@ -278,13 +290,14 @@ def mutagenesis(X: np.ndarray, model: keras.Model, class_index: int = None, batc
 def window_shuffle(
     X: np.ndarray,
     model: keras.Model,
-    class_index: int = None,
+    class_index: int | list[int] | None = None,
     window_size: int = 5,
     n_shuffles: int = 5,
     uniform: bool = False,
     batch_size: int = 256,
+    seed: int | None = 42,
 ) -> np.ndarray:
-    """In silico mutagenesis analysis for a given sequence.
+    """In silico mutagenesis analysis for a given (set of) sequence(s) via window shuffling.
 
     Parameters
     ----------
@@ -293,7 +306,7 @@ def window_shuffle(
     model
         Your Keras model.
     class_index
-        The index of the class to explain.
+        The index/indices of the class(es) to explain: an int, a list of ints, or None. If None, uses the L2 norm across all classes.
     window_size
         Window size to use to shuffle
     n_shuffles
@@ -303,12 +316,17 @@ def window_shuffle(
     batch_size
         Batch size to use when predicting values with the model. Note that mutagenesis requires (seq_len*3+1) predictions to explain one sequence.
         Default is 256.
+    seed
+        Seed to use for the window shuffling.
     """
+    is_multi_class = isinstance(class_index, (list, tuple))
+    if not is_multi_class:
+        class_index = [class_index]
 
     def reconstruct_map(predictions, window_size, n_shuffles):
         _, L, A = x.shape
 
-        mut_score = np.zeros((1, L, A))
+        mut_score = np.zeros((1, len(class_index), L, A))
         n_mut_per_shuffle = len(predictions) // n_shuffles
         for location in range(L):
             # determine which predictions affect this location
@@ -318,23 +336,22 @@ def window_shuffle(
             for shuffle in range(n_shuffles):
                 offset = shuffle * n_mut_per_shuffle
                 indexes.extend(range(start + offset, (start + number_of_changes) + offset))
-            mut_score[0, location, :] = np.mean(predictions[indexes])
+            mean_score = np.mean(predictions[indexes], axis=0)
+            mut_score[0, :, location, :] = mean_score[:, None]
         return mut_score
 
     def get_score(x, model, class_index, batch_size=None):
-        score = model.predict(x, verbose=0, batch_size=batch_size)
-        if class_index is None:
-            score = np.sqrt(np.sum(score**2, axis=-1, keepdims=True))
-        else:
-            score = score[:, class_index]
-        return score
+        predictions = model.predict(x, verbose=0, batch_size=batch_size)
+        cols = [np.sqrt(np.sum(predictions**2, axis=-1)) if idx is None else predictions[:, idx] for idx in class_index]
+        return np.stack(cols, axis=1)
+
 
     scores = []
     for x in X:
         x = np.expand_dims(x, axis=0)
 
         # generate mutagenized sequences
-        x_mut = generate_window_shuffle(x, window_size=window_size, n_shuffles=n_shuffles, uniform=uniform)
+        x_mut = generate_window_shuffle(x, window_size=window_size, n_shuffles=n_shuffles, uniform=uniform, seed=seed)
 
         # get baseline wildtype score
         wt_score = get_score(x, model, class_index, batch_size=batch_size)
@@ -342,7 +359,13 @@ def window_shuffle(
 
         # reshape mutagenesis predictions
         mut_score = reconstruct_map(predictions, window_size=window_size, n_shuffles=n_shuffles)
-        scores.append(wt_score - mut_score)
+        wt_score = wt_score[:, :, None, None]
+
+        # Remove 1-length class index if not multi-class
+        score_diff = mut_score - wt_score
+        if not is_multi_class:
+            score_diff = score_diff.squeeze(axis=1)
+        scores.append(score_diff)
     return np.concatenate(scores, axis=0)
 
 
