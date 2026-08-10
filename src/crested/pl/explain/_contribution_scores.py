@@ -61,6 +61,7 @@ def contribution_scores(
     highlight_positions
         List of tuples with start and end positions to highlight. Default is None.
         Positions are within the full sequence length before zooming, or optionally genomic values if using `coordinates`.
+        Like indexing, highlights take [start, end) (aka start to end-1).
     x_shift
         Number of base pairs to shift left or right for visualizing specific subsets of the region. Only use when combined with zooming in. Default is zero.
     method
@@ -270,16 +271,17 @@ def contribution_scores(
                         hl_start = hl_start - start_idx
                         hl_end = hl_end - start_idx
                     elif hl_end < (start_idx+zoom_n_bases): # Reverse compatibility: old idxes (0-indexed) with coordinates
-                        # Handle reversed axis if negative strand, adding 1 to compensate for flipping start and end (which messes up +/-0.5 later)
+                        # Handle reversed axis if negative strand, adding 1 to compensate for flipping start and end (which messes up -0.5 later)
                         if left > right:
                             hl_start =  left - (hl_start - start_idx) + 1
                             hl_end = left - (hl_end - start_idx) - 1
                         else:
                             hl_start = left + (hl_start - start_idx)
                             hl_end = left + (hl_end - start_idx)
+                    # -0.5 on both to make it a half-open interval, aligning with indexing
                     ax.axvspan(
                         xmin=hl_start-0.5,
-                        xmax=hl_end+0.5,
+                        xmax=hl_end-0.5,
                         **highlight_kws
                     )
 
