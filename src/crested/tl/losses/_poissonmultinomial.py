@@ -89,7 +89,7 @@ class PoissonMultinomialLoss(keras.losses.Loss):
         # Poisson term
         poisson_term = total_pred - total_true * ops.log(total_pred + self.eps)
 
-        # Multinomial probabilities
+        # Normalize to probabilities
         if self.norm == 'sum':
             p_pred = y_pred / (total_pred + self.eps)
         elif self.norm == 'max':
@@ -201,7 +201,7 @@ class PoissonKLLoss(keras.losses.Loss):
         # Poisson term
         poisson_term = total_pred - total_true * ops.log(total_pred)
 
-        # Multinomial probabilities
+        # Normalize to probabilities
         if self.norm == 'sum':
             p_true = y_true / (total_true)
             p_pred = y_pred / (total_pred)
