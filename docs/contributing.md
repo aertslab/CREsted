@@ -1,37 +1,21 @@
 # Contributing guide
 
-This document aims at summarizing the most important information for getting you started on contributing to this project.
-We assume that you are already familiar with git and with making pull requests on GitHub.
+Scanpy provides extensive [developer documentation][scanpy developer guide], most of which applies to this project, too.
+This document will not reproduce the entire content from there. Instead, it aims at summarizing the most important
+information to get you started on contributing.
 
-For more extensive tutorials, that also cover the absolute basics,
-please refer to other resources such as the [pyopensci tutorials][],
-the [scientific Python tutorials][], or the [scanpy developer guide][].
+We assume that you are already familiar with git and with making pull requests on GitHub. If not, please refer
+to the [scanpy developer guide][].
 
-[pyopensci tutorials]: https://www.pyopensci.org/learn.html
-[scientific Python tutorials]: https://learn.scientific-python.org/development/tutorials/
-[scanpy developer guide]: https://scanpy.scverse.org/page/dev/
-
-:::{tip} The *hatch* project manager
-
-We highly recommend to familiarize yourself with [`hatch`][hatch].
-Hatch is a Python project manager that
-
-- manages virtual environments, separately for development, testing and building the documentation.
-  Separating the environments is useful to avoid dependency conflicts.
-- allows to run tests locally in different environments (e.g. different python versions)
-- allows to run tasks defined in `pyproject.toml`, e.g. to build documentation.
-
-While the project is setup with `hatch` in mind,
-it is still possible to use different tools to manage dependencies, such as `uv` or `pip`.
-
-:::
-
-[hatch]: https://hatch.pypa.io/latest/
 
 ## Installing dev dependencies
 
-In addition to the packages needed to _use_ this package,
-you need additional python packages to [run tests](#writing-tests) and [build the documentation](#docs-building).
+In addition to the packages needed to _use_ this package, you need additional python packages to _run tests_ and _build
+the documentation_.
+
+The package is set up to use [`hatch`][hatch] as a project manager, which will manage separate virtual environments for development, testing, and documentation to avoid dependency conflicts.
+
+### With Hatch (Recommended)
 
 :::::{tab-set}
 ::::{tab-item} Hatch
@@ -124,26 +108,16 @@ The `.venv` directory is typically automatically discovered by IDEs such as VS C
 
 ::::
 
-::::{tab-item} Pip
-:sync: pip
 
-Pip is nowadays mostly superseded by environment manager such as [hatch][].
-However, for the sake of completeness, and since it’s ubiquitously available,
-we describe how you can manage environments manually using `pip`:
+### With (uv) pip
+If installing packages with `pip`, we recommend using `uv`'s solver with `uv pip`.
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+cd CREsted
 pip install -e ".[dev,test,doc]"
 ```
 
-The `.venv` directory is typically automatically discovered by IDEs such as VS Code.
-
-::::
-:::::
-
-[hatch environments]: https://hatch.pypa.io/latest/tutorials/environment/basic-usage/
-[hatch-code]: https://marketplace.visualstudio.com/items?itemName=PyPA.hatch
+[hatch]: https://hatch.pypa.io/
 [uv]: https://docs.astral.sh/uv/
 
 ## Code-style
@@ -184,52 +158,41 @@ Consider enabling this option for [ruff][ruff-editors] and [biome][biome-editors
 
 (writing-tests)=
 
-## Writing tests
+This package uses the [pytest][] for automated testing. Please [write tests][scanpy-test-docs] for every function added
+to the package.
 
-This package uses [pytest][] for automated testing.
-Please write {doc}`scanpy:dev/testing` for every function added to the package.
+Most IDEs integrate with pytest and provide a GUI to run tests. Alternatively, you can run all tests from the
+command line by executing
 
-Most IDEs integrate with pytest and provide a GUI to run tests.
-If you set up your virtual environments as described in [installing dev dependencies](#installing-dev-dependencies),
-test cases should be automatically discovered by your IDE.
+### With Hatch (Recommended)
 
-Alternatively, you can run all tests from the command line by executing
-
-:::::{tab-set}
-::::{tab-item} Hatch
-:sync: hatch
+CREsted supports both TensorFlow and PyTorch backends. The test environment matrix tests across Python versions (3.11, 3.12, 3.13) and backends (tensorflow, pytorch):
 
 ```bash
-hatch test  # test with the highest supported Python version
-# or
-hatch test --all  # test with all supported Python versions
+hatch test                                      # Quick test (auto-selects compatible environment)
+hatch test --all                                # Run tests on all Python versions and backends
+hatch test -i backend=tensorflow                # Test only with TensorFlow backend
+hatch test -i backend=pytorch                   # Test only with PyTorch backend
+hatch run hatch-test.py3.11-tensorflow:run      # Specific Python + backend combination
 ```
 
-::::
+### With uv
 
-::::{tab-item} uv
-:sync: uv
+First install a backend, then run tests:
 
 ```bash
+uv pip install --system tensorflow  # or torch
 uv run pytest
 ```
 
-::::
+### With pip
 
-::::{tab-item} Pip
-:sync: pip
+First install a backend, then run tests:
 
 ```bash
-source .venv/bin/activate
+pip install tensorflow  # or torch
 pytest
 ```
-
-::::
-:::::
-
-in the root of the repository.
-
-[pytest]: https://docs.pytest.org/
 
 ### Continuous integration
 
@@ -271,23 +234,24 @@ This will automatically create a git tag and trigger a Github workflow that crea
 
 ## Writing documentation
 
-Please write documentation for new or changed features and use-cases.
-This project uses [sphinx][] with the following features:
+Please write documentation for new or changed features and use-cases. This project uses [sphinx][] with the following features:
 
-- The [myst][] extension allows to write documentation in markdown/Markedly Structured Text
-- [Numpy-style docstrings][numpydoc] (through the [napoloen][numpydoc-napoleon] extension).
-- Jupyter notebooks as tutorials through [myst-nb][] (See [Tutorials with myst-nb](#tutorials-with-myst-nb-and-jupyter-notebooks))
-- [sphinx-autodoc-typehints][], to automatically reference annotated input and output types
-- Citations (like {cite:p}`Virshup_2023`) can be included with [sphinxcontrib-bibtex](https://sphinxcontrib-bibtex.readthedocs.io/)
+-   the [myst][] extension allows to write documentation in markdown/Markedly Structured Text
+-   [Numpy-style docstrings][numpydoc] (through the [napoleon][numpydoc-napoleon] extension).
+-   Jupyter notebooks as tutorials through [myst-nb][] (See [Tutorials with myst-nb](#tutorials-with-myst-nb-and-jupyter-notebooks))
+-   [Sphinx autodoc typehints][], to automatically reference annotated input and output types
+-   Citations (like {cite:p}`Virshup_2023`) can be included with [sphinxcontrib-bibtex](https://sphinxcontrib-bibtex.readthedocs.io/)
 
-See scanpy’s {doc}`scanpy:dev/documentation` for more information on how to write your own.
+See the [scanpy developer docs](https://scanpy.readthedocs.io/en/latest/dev/documentation.html) for more information
+on how to write documentation.
 
-[sphinx]: https://www.sphinx-doc.org/
-[myst]: https://myst-parser.readthedocs.io/page/intro.html
-[myst-nb]: https://myst-nb.readthedocs.io/
-[numpydoc-napoleon]: https://www.sphinx-doc.org/page/usage/extensions/napoleon.html
-[numpydoc]: https://numpydoc.readthedocs.io/page/format.html
-[sphinx-autodoc-typehints]: https://github.com/tox-dev/sphinx-autodoc-typehints
+### Including new functions in the documentation (CREsted-specific)
+
+All functions'/objects' documentation is automatically generated by `[sphinx.ext.autodoc](https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html)` and `[sphinx.ext.autosummary](https://www.sphinx-doc.org/en/master/usage/extensions/autosummary.html)` from the docstring.
+We automatically generate the docs for everything in `pp`, `pl`, `tl` and `utils` recursively; that means that just writing the docstring is enough to have it show up on the readthedocs.
+However, top-level functions, like `crested.import_bigwigs`, do need to be listed in `autosummary` lists manually; see `docs/api/datasets.md` for an example. (Sub)modules are documented by their docstring in `__init__.py`.
+
+These recursive pages are created using the `docs/_templates/custom-module-template.rst`, based on Jinja. See the [Jinja template tutorial](https://jinja.palletsprojects.com/en/stable/templates/) for an introduction. The template itself is derived from [here](https://stackoverflow.com/a/62613202)/[here](https://github.com/JamesALeedham/Sphinx-Autosummary-Recursion), but with changes for our package. The most notable is that we strip `crested.` from all titles for brevity and hard-code certain prefixes for submodules, to e.g. show 'Preprocessing: `pp`' rather than just '`pp`'.
 
 ### Tutorials with myst-nb and jupyter notebooks
 
@@ -307,7 +271,7 @@ please check out [this feature request][issue-render-notebooks] in the `cookiecu
 - If building the documentation fails because of a missing link that is outside your control,
   you can add an entry to the `nitpick_ignore` list in `docs/conf.py`
 
-(docs-building)=
+  (docs-building)=
 
 ### Building the docs locally
 
@@ -331,17 +295,34 @@ uv run sphinx-build -M html . _build -W
 (xdg-)open _build/html/index.html
 ```
 
-::::
-
-::::{tab-item} Pip
-:sync: pip
-
 ```bash
-source .venv/bin/activate
 cd docs
-sphinx-build -M html . _build -W
-(xdg-)open _build/html/index.html
+make html
+open _build/html/index.html
 ```
 
-::::
-:::::
+<!-- Links -->
+
+[scanpy developer guide]: https://scanpy.readthedocs.io/en/latest/dev/index.html
+[cookiecutter-scverse-instance]: https://cookiecutter-scverse-instance.readthedocs.io/en/latest/template_usage.html
+[github quickstart guide]: https://docs.github.com/en/get-started/quickstart/create-a-repo?tool=webui
+[codecov]: https://about.codecov.io/sign-up/
+[codecov docs]: https://docs.codecov.com/docs
+[codecov bot]: https://docs.codecov.com/docs/team-bot
+[codecov app]: https://github.com/apps/codecov
+[pre-commit.ci]: https://pre-commit.ci/
+[readthedocs.org]: https://readthedocs.org/
+[myst-nb]: https://myst-nb.readthedocs.io/en/latest/
+[jupytext]: https://jupytext.readthedocs.io/en/latest/
+[pre-commit]: https://pre-commit.com/
+[anndata]: https://github.com/scverse/anndata
+[mudata]: https://github.com/scverse/mudata
+[pytest]: https://docs.pytest.org/
+[semver]: https://semver.org/
+[sphinx]: https://www.sphinx-doc.org/en/master/
+[myst]: https://myst-parser.readthedocs.io/en/latest/intro.html
+[numpydoc-napoleon]: https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html
+[numpydoc]: https://numpydoc.readthedocs.io/en/latest/format.html
+[sphinx autodoc typehints]: https://github.com/tox-dev/sphinx-autodoc-typehints
+[pypi]: https://pypi.org/
+[managing GitHub releases]: https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository

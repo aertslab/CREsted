@@ -16,18 +16,30 @@ from sphinxcontrib import katex
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "extensions"))
 
+HERE = Path(__file__).parent
+sys.path.insert(0, str(HERE / "extensions"))
+import crested  # noqa
+
+# -- Intersphinx package version parsing (CREsted-specific) ------------------
+python_version = f"{sys.version_info[0]}.{sys.version_info[1]}"
+from numpy import __version__ as numpy_version_raw # noqa
+numpy_version = '.'.join(numpy_version_raw.split('.')[:2])
+from matplotlib import __version__ as matplotlib_version # noqa
+from pandas import __version__ as pandas_version_raw # noqa
+pandas_version = '.'.join(pandas_version_raw.split('.')[:2])
 
 # -- Project information -----------------------------------------------------
 
 # NOTE: If you installed your project in editable mode, this might be stale.
 #       If this is the case, reinstall it to refresh the metadata
-info = metadata("CREsted")
+info = metadata("crested")
 project = info["Name"]
+project_name = info["Name"]
 author = info["Author"]
-copyright = f"{datetime.now():%Y}, {author}."
+copyright = f"{datetime.now():%Y}, {author}"
 version = info["Version"]
 urls = dict(pu.split(", ") for pu in info.get_all("Project-URL"))
-repository_url = urls["Source"]
+repository_url = "https://github.com/aertslab/CREsted/"
 
 # The full version, including alpha/beta/rc tags
 release = info["Version"]
@@ -39,10 +51,10 @@ needs_sphinx = "4.0"
 
 html_context = {
     "display_github": True,  # Integrate GitHub
-    "github_user": "aertslab",
-    "github_repo": project,
-    "github_version": "main",
-    "conf_py_path": "/docs/",
+    "github_user": "aertslab",  # Username
+    "github_repo": "CREsted",  # Repo name
+    "github_version": "main",  # Version
+    "conf_py_path": "/docs/",  # Path in the checkout to the docs root
 }
 
 # -- General configuration ---------------------------------------------------
@@ -67,7 +79,10 @@ extensions = [
 ]
 
 autosummary_generate = True
+autosummary_imported_members = True  # CREsted-specific: Required to have the recursive docs generation recognise our structure of importing everything in their specific __init__.py
 autodoc_member_order = "groupwise"
+autodoc_default_flags = ['members']
+bibtex_reference_style = "author_year"
 default_role = "literal"
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
@@ -96,11 +111,14 @@ source_suffix = {
     ".myst": "myst-nb",
 }
 
+# CREsted-specific: link to most recent compatible versions of packages, rather than just newest (which can break)
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", None),
-    "anndata": ("https://anndata.scverse.org/en/stable/", None),
-    "scanpy": ("https://scanpy.scverse.org/en/stable/", None),
-    "numpy": ("https://numpy.org/doc/stable/", None),
+    "python": (f"https://docs.python.org/{python_version}", None),
+    "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
+    "numpy": (f"https://numpy.org/doc/{numpy_version}/", None),
+    "matplotlib": (f"https://matplotlib.org/{matplotlib_version}/", None),
+    "pandas": (f"http://pandas.pydata.org/pandas-docs/version/{pandas_version}/", None),
+    "seaborn": ("https://seaborn.pydata.org/", None),
 }
 
 # List of patterns, relative to source directory, that match files and
@@ -134,4 +152,16 @@ nitpick_ignore = [
     # If building the documentation fails because of a missing link that is outside your control,
     # you can add an exception to this list.
     #     ("py:class", "igraph.Graph"),
+    ("py:class", "seaborn.matrix.ClusterGrid"),
+    ("py:class", "pysam.libcfaidx.FastaFile"),
+    ("py:class", "pathlib._local.Path"),  # Internal pathlib implementation detail
+]
+nitpick_ignore_regex = [
+    # Ignore all keras funcs/classes since their docs just don't interlink with sphinx at all it seems
+    ("py:class", "keras.*"),
+    ("py:func", "keras.*"),
+]
+
+suppress_warnings = [
+    "autosummary.import_cycle",
 ]

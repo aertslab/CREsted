@@ -1,0 +1,32 @@
+name: Pydocstyle Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 5 1,15 * *"
+
+jobs:
+  docstyle:
+    name: Run pydocstyle
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+          cache: "pip"
+
+      - name: Install pydocstyle
+        run: |
+          python -m pip install --upgrade pip
+          pip install pydocstyle
+
+      - name: Run pydocstyle on src and tests folders
+        run: |
+          pydocstyle src/ tests/

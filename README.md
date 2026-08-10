@@ -1,0 +1,113 @@
+<div align="center">
+   <img src="https://raw.githubusercontent.com/aertslab/CREsted/main/docs/_static/img/crested_banner.png",
+   height=300>
+</div>
+
+# CREsted: Cis Regulatory Element Sequence Training, Explanation, and Design
+
+[![Tests][badge-tests]][link-tests]
+[![Documentation][badge-docs]][link-docs]
+![Downloads][badge-downloads]
+
+[badge-tests]: https://img.shields.io/github/actions/workflow/status/aertslab/CREsted/test.yaml?branch=main
+[link-tests]: https://github.com/aertslab/CREsted/actions/workflows/test.yaml
+[badge-docs]: https://img.shields.io/readthedocs/crested
+[badge-downloads]: https://static.pepy.tech/personalized-badge/crested?period=total&units=INTERNATIONAL_SYSTEM&left_color=GRAY&right_color=GREEN&left_text=downloads
+
+
+## Introduction
+
+**CREsted** (Cis-Regulatory Element Sequence Training, Explanation, and Design) is an easy-to-use deep learning package for training enhancer models on single-cell ATAC sequencing (scATAC-seq) data. CREsted provides comprehensive analyses and tutorials to study enhancer codes and the ability to design synthetic enhancer sequences at a cell type-specific, nucleotide-level resolution. Integrated into the **scverse** framework, CREsted is compatible with outcomes from established scATAC-seq processing tools. It employs novel scATAC-seq preprocessing techniques, such as peak height normalization across cell types, offers flexibility and variety in deep learning modeling architectures and tasks, and contains thorough analysis of the cell type-specific enhancer codes captured during modeling that can also be used for the design of synthetic sequences.
+
+## Getting started
+
+Please refer to the [documentation][link-docs]. In particular, the
+
+-   [Tutorials][link-tutorials]
+-   [API documentation][link-api]
+
+## Installation
+
+You need to have Python 3.11 or newer installed on your system. Installation takes around five minutes.
+
+**Note:** CREsted's preprocessing, data import, plotting, and analysis functions (e.g., `crested.import_bigwigs()`, `crested.pp.*`) work without a deep learning backend. You only need to install TensorFlow or PyTorch if you plan to train models or use the `crested.tl` module for predictions and model-related tasks.
+
+CREsted is built on top of Keras 3 and can therefore be used with your deep learning backend of choice (TensorFlow or PyTorch).
+
+We recommend using [uv](https://docs.astral.sh/uv/) for package installation, which is significantly faster than pip and has better dependency resolution:
+
+```bash
+pip install uv
+```
+
+### Basic installation (preprocessing and data import only)
+
+If you only need data preprocessing and import functionality:
+
+```bash
+uv pip install crested
+```
+
+### Full installation (with deep learning backend)
+
+For training models and using the full feature set:
+
+1. Install either [TensorFlow](https://www.tensorflow.org/install) or [PyTorch](https://pytorch.org/get-started/locally/) for GPU.
+   Refer to the installation instructions on those pages to ensure you have the correct version of CUDA and cuDNN installed.
+   If you don't have a preference and don't know which backend to choose, refer to [choosing your backend](#choosing-your-backend).
+   If you have all the latest drivers installed, this installation boils down to doing:
+
+```bash
+uv pip install tensorflow[and-cuda]
+# or
+uv pip install torch
+```
+
+2. Install the latest release of `crested` from [PyPI](https://pypi.org/project/CREsted/)
+
+```bash
+uv pip install crested
+```
+
+3. If you plan on doing motif analysis using tf-modisco (lite) inside CREsted, you will need to install with the motif extra:
+
+```bash
+uv pip install "crested[motif]"
+```
+
+**Note:** TOMTOM motif matching (via memelite) is only available for Python 3.12 and earlier due to numpy compatibility constraints. Python 3.13 users can still use all other modisco features.
+
+Modiscolite may require a cmake installation on your system. If you don't have it, you can install it with:
+
+```bash
+uv pip install cmake
+```
+
+## Release notes
+
+See the [changelog][changelog].
+
+## Contact
+
+For questions and help requests, please use the [issue tracker][issue-tracker].
+
+## Citation
+
+Kempynck, N., De Winter, S., et al. [CREsted: modeling genomic and synthetic cell type-specific enhancers across tissues and species.](https://www.nature.com/articles/s41592-026-03057-2)
+
+We also store CREsted version backups on Zenodo: [https://doi.org/10.5281/zenodo.15045960](https://doi.org/10.5281/zenodo.15045960)
+
+## Choosing your backend
+
+CREsted is build on top of Keras 3.0 and can therefore be used with your deep learning backend of choice (TensorFlow or PyTorch). If you don't have a preference, you can take the following into account:
+
+1. From our (and Keras' official) benchmarking, **TensorFlow** is generally faster than PyTorch for training (up to 2x) since TensorFlow operates in graph mode whereas PyTorch uses eager mode. If you plan on training many models, TensorFlow might be the better choice.
+2. **PyTorch** is easier to debug and get going. TensorFlow will easily throw a bunch of warnings or fail to detect CUDA if you don't have the exact right versions of CUDA and cuDNN installed. PyTorch seems more lenient in this regard. If you only plan on running predictions or training a few models, PyTorch might be the easier choice.
+3. Current Keras 3.0 is still in active development and some features (mainly multi GPU training and weights and biases logging) are currently only supported with the TensorFlow backend. If you plan on using these features, you should choose TensorFlow. We will implement these features in a backend agnostic way as soon as Keras 3.0 has done so (it is on their roadmap).
+
+[issue-tracker]: https://github.com/aertslab/CREsted/issues
+[changelog]: https://crested.readthedocs.io/en/stable/changelog.html
+[link-docs]: https://crested.readthedocs.io
+[link-tutorials]: https://crested.readthedocs.io/en/stable/tutorials/index.html
+[link-api]: https://crested.readthedocs.io/en/stable/index.html
+[link-api-latest]: https://crested.readthedocs.io/en/latest/index.html
