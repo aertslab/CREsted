@@ -16,6 +16,7 @@ class PoissonMultinomialLoss(keras.losses.Loss):
     ----------
     total_weight
         Weight of the Poisson term in the total loss. Increase to prioritize magnitude, decrease to prioritize shape.
+        Approximate value depends on your data's range and number of classes, but anecdotally, small ranges (~1e-4) have worked best.
     eps
         Small value to avoid log(0).
     log_transform
@@ -134,6 +135,7 @@ class PoissonKLLoss(keras.losses.Loss):
     ----------
     total_weight
         Weight of the Poisson term in the total loss. Increase to prioritize magnitude, decrease to prioritize shape.
+        Approximate value depends on your data's range and number of classes, but anecdotally, big ranges (~1-1e-1) have worked best.
     eps
         Small value to avoid log(0).
     log_transform
