@@ -113,7 +113,6 @@ envs.hatch-test.overrides.matrix.backend.extra-dependencies = [
 # Install dev and test dependency groups when doing tests
 envs.hatch-test.features = [ "dev", "test" ]
 
-envs.hatch-test.scripts.run = "pytest -v --cov --color=yes {args}"
 
 [tool.ruff]
 line-length = 120
