@@ -87,9 +87,9 @@ test = [
 
 [tool.hatch]
 envs.default.installer = "uv"
-envs.default.optional-dependencies = [ "dev" ]
+envs.default.features = [ "dev" ]
 
-envs.docs.optional-dependencies = [ "doc" ]
+envs.docs.features = [ "doc" ]
 envs.docs.scripts.build = "sphinx-build -M html docs docs/_build -W {args}"
 envs.docs.scripts.clean = "git clean -fdX -- {args:docs}"
 envs.docs.scripts.open = "python -m webbrowser -t docs/_build/html/index.html"
@@ -111,7 +111,7 @@ envs.hatch-test.overrides.matrix.backend.extra-dependencies = [
   { value = "torch", if = [ "pytorch" ] },
 ]
 # Install dev and test dependency groups when doing tests
-envs.hatch-test.optional-dependencies = [ "dev", "test" ]
+envs.hatch-test.features = [ "dev", "test" ]
 
 envs.hatch-test.scripts.run = "pytest -v --cov --color=yes {args}"
 
