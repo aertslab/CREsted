@@ -46,7 +46,7 @@ urls.Documentation = "https://CREsted.readthedocs.io/"
 urls.Homepage = "https://github.com/aertslab/CREsted"
 urls.Source = "https://github.com/aertslab/CREsted"
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
   "prek",
   "pytest",
