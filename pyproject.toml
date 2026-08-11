@@ -39,87 +39,85 @@ dependencies = [
   "scipy",
 ]
 
-optional-dependencies.dev = [
-  "pre-commit",
+# https://docs.pypi.org/project_metadata/#project-urls
+urls.Documentation = "https://CREsted.readthedocs.io/"
+urls.Homepage = "https://github.com/aertslab/CREsted"
+urls.Source = "https://github.com/aertslab/CREsted"
+
+[project.optional-dependencies]
+dev = [
+  "prek",
   "pytest",
   "twine>=4.0.2",
 ]
-optional-dependencies.doc = [
+doc = [
   "docutils>=0.8,!=0.18.*,!=0.19.*",
   # For notebooks
   "ipykernel",
   "ipython",
   "modisco-lite",
   "scanpy>=1.10",
-  "myst-nb",
+  "myst-nb>=1.1",
   "pandas",
   "ruff",
-  "sphinx>=4",
+  "scverse-misc[sphinx]>=0.1.2",
+  "sphinx>=8.1",
   "sphinx-autodoc-typehints",
   "sphinx-book-theme>=1",
   "sphinx-copybutton",
+  "sphinx-design",
   "sphinxcontrib-bibtex>=1",
+  "sphinxcontrib-katex",
   "sphinxext-opengraph",
   "tensorflow",
 ]
-optional-dependencies.motif = [
+motif = [
   "memelite; python_version<'3.13'",
   "modisco-lite>=2.2.1",
   "scanpy>=1.10",
   "lxml"
 ]
-optional-dependencies.test = [
+test = [
   "anndata",
-  "coverage",
+  "coverage>=7.10",
   "pytest",
   "pytest-cov",
 ]
-urls.Documentation = "https://crested.readthedocs.io/"
-urls.Home-page = "https://github.com/aertslab/crested/"
-urls.Source = "https://github.com/aertslab/crested/"
 
-[tool.hatch.envs.default]
-installer = "uv"
-features = [ "dev" ]
 
-[tool.hatch.envs.docs]
-features = [ "doc" ]
+[tool.hatch]
+envs.default.installer = "uv"
+envs.default.features = [ "dev" ]
 
-[tool.hatch.envs.docs.scripts]
-build = "sphinx-build -M html docs docs/_build -W {args}"
-open = "python -m webbrowser -t docs/_build/html/index.html"
-clean = "git clean -fdX -- {args:docs}"
+envs.docs.features = [ "doc" ]
+envs.docs.scripts.build = "sphinx-build -M html docs docs/_build -W {args}"
+envs.docs.scripts.clean = "git clean -fdX -- {args:docs}"
+envs.docs.scripts.open = "python -m webbrowser -t docs/_build/html/index.html"
 
-[tool.hatch.envs.hatch-test]
-features = [ "dev", "test" ]
-
-[tool.hatch.envs.hatch-test.scripts]
-run = "pytest -v --cov --color=yes {args}"
-
-[[tool.hatch.envs.hatch-test.matrix]]
-python = [ "3.11", "3.12"]
-backend = [ "tensorflow", "pytorch" ]
-optional_deps = [ "motif" ]
-
-[[tool.hatch.envs.hatch-test.matrix]]
-python = [ "3.13" ]
-backend = [ "tensorflow", "pytorch" ]
-
-[tool.hatch.envs.hatch-test.overrides]
-matrix.backend.extra-dependencies = [
+envs.hatch-test.matrix = [
+  # Test the lowest and highest supported Python versions with normal deps
+  { deps = [ "stable" ], python = [ "3.11", "3.13" ], backend = [ "tensorflow", "pytorch" ] },
+  # Test the newest supported Python version also with pre-release deps
+  { deps = [ "pre" ], python = [ "3.13" ], backend = [ "tensorflow", "pytorch" ] },
+]
+# If the matrix variable `deps` is set to "pre",
+# set the environment variable `UV_PRERELEASE` to "allow".
+envs.hatch-test.overrides.matrix.deps.env-vars = [
+  { value = "allow", key = "UV_PRERELEASE", if = [ "pre" ] },
+]
+# add tensorflow or torch for either entry in the matrix
+envs.hatch-test.overrides.matrix.backend.extra-dependencies = [
   { value = "tensorflow", if = [ "tensorflow" ] },
   { value = "torch", if = [ "pytorch" ] },
 ]
-matrix.optional_deps.features = [
-  { value = "motif", if = [ "motif" ] },
-]
+# Install dev and test dependency groups when doing tests
+envs.hatch-test.features = [ "dev", "test" ]
 
 
 [tool.ruff]
 line-length = 120
 src = [ "src" ]
 extend-include = [ "*.ipynb" ]
-
 format.docstring-code-format = true
 lint.select = [
   "B",      # flake8-bugbear
@@ -135,56 +133,42 @@ lint.select = [
   "W",      # Warning detected by Pycodestyle
 ]
 lint.ignore = [
-  # Errors from function calls in argument defaults. These are fine when the result is immutable.
-  "B008",
-  # Missing docstring in public module
-  "D100",
-  # Missing docstring in public package
-  "D104",
-  # __magic__ methods are are often self-explanatory, allow missing docstrings
-  "D105",
-  # Missing docstring in __init__
-  "D107",
-  ## Disable one in each pair of mutually incompatible rules
-  # We don’t want a blank line before a class docstring
-  "D203",
-  # We want docstrings to start immediately after the opening triple quote
-  "D213",
-  # first line should end with a period [Bug: doesn't work with single-line docstrings]
-  "D400",
-  # First line should be in imperative mood; try rephrasing
-  "D401",
-  # line too long -> we accept long comment lines; formatter gets rid of long code lines
-  "E501",
-  # Do not assign a lambda expression, use a def -> lambda expression assignments are convenient
-  "E731",
-  # allow I, O, l as variable names -> I is the identity matrix
-  "E741",
+  "B008", # Errors from function calls in argument defaults. These are fine when the result is immutable.
+  "D100", # Missing docstring in public module
+  "D104", # Missing docstring in public package
+  "D105", # __magic__ methods are often self-explanatory, allow missing docstrings
+  "D107", # Missing docstring in __init__
+  # Disable one in each pair of mutually incompatible rules
+  "D203", # We don’t want a blank line before a class docstring
+  "D213", # <> We want docstrings to start immediately after the opening triple quote
+  "D400", # first line should end with a period [Bug: doesn’t work with single-line docstrings]
+  "D401", # First line should be in imperative mood; try rephrasing
+  "E501", # line too long -> we accept long comment lines; formatter gets rid of long code lines
+  "E731", # Do not assign a lambda expression, use a def -> lambda expression assignments are convenient
+  "E741", # allow I, O, l as variable names -> I is the identity matrix
 ]
 lint.per-file-ignores."*/__init__.py" = [ "F401" ]
 lint.per-file-ignores."docs/*" = [ "I" ]
 lint.per-file-ignores."tests/*" = [ "D" ]
 lint.pydocstyle.convention = "numpy"
 
-[tool.pytest.ini_options]
-testpaths = [ "tests" ]
-xfail_strict = true
+[tool.pytest]
 addopts = [
   "--import-mode=importlib", # allow using test files with same name
 ]
-filterwarnings = [
-  "ignore::UserWarning",
-  "ignore::DeprecationWarning",
-]
+strict = true
+testpaths = [ "tests" ]
 
-[tool.coverage.run]
-source = [ "crested" ]
-omit = [
+[tool.coverage]
+run.omit = [
   "**/test_*.py",
 ]
+run.patch = [ "subprocess" ]
+run.source = [ "crested" ]
 
 [tool.cruft]
 skip = [
+  ".git",
   "tests",
   "src/**/__init__.py",
   "src/**/basic.py",
