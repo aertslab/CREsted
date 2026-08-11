@@ -107,7 +107,7 @@ uv sync --all-extras
 The `.venv` directory is typically automatically discovered by IDEs such as VS Code.
 
 ::::
-
+:::::
 
 ### With (uv) pip
 If installing packages with `pip`, we recommend using `uv`'s solver with `uv pip`.
@@ -301,28 +301,5 @@ make html
 open _build/html/index.html
 ```
 
-<!-- Links -->
-
-[scanpy developer guide]: https://scanpy.readthedocs.io/en/latest/dev/index.html
-[cookiecutter-scverse-instance]: https://cookiecutter-scverse-instance.readthedocs.io/en/latest/template_usage.html
-[github quickstart guide]: https://docs.github.com/en/get-started/quickstart/create-a-repo?tool=webui
-[codecov]: https://about.codecov.io/sign-up/
-[codecov docs]: https://docs.codecov.com/docs
-[codecov bot]: https://docs.codecov.com/docs/team-bot
-[codecov app]: https://github.com/apps/codecov
-[pre-commit.ci]: https://pre-commit.ci/
-[readthedocs.org]: https://readthedocs.org/
-[myst-nb]: https://myst-nb.readthedocs.io/en/latest/
-[jupytext]: https://jupytext.readthedocs.io/en/latest/
-[pre-commit]: https://pre-commit.com/
-[anndata]: https://github.com/scverse/anndata
-[mudata]: https://github.com/scverse/mudata
-[pytest]: https://docs.pytest.org/
-[semver]: https://semver.org/
-[sphinx]: https://www.sphinx-doc.org/en/master/
-[myst]: https://myst-parser.readthedocs.io/en/latest/intro.html
-[numpydoc-napoleon]: https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html
-[numpydoc]: https://numpydoc.readthedocs.io/en/latest/format.html
-[sphinx autodoc typehints]: https://github.com/tox-dev/sphinx-autodoc-typehints
-[pypi]: https://pypi.org/
-[managing GitHub releases]: https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository
+::::
+:::::
