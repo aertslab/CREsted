@@ -37,8 +37,6 @@ dependencies = [
   "tqdm",
   "wandb>=0.12.10",
   "scipy",
-  # for debug logging (referenced from the issue template)
-  "session-info2",
 ]
 
 # https://docs.pypi.org/project_metadata/#project-urls
