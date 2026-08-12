@@ -230,10 +230,10 @@ def contribution_scores(
 
         # Parse coordinates if supplied
         if coordinates is not None:
-            chrom, start, end, strand = _parse_coordinates_input(coordinates[seq_i])
+            chrom, start, _, strand = _parse_coordinates_input(coordinates[seq_i])
             if zoom_n_bases is not None:
-                start = start + start_idx
-                end = end - start_idx
+                start += start_idx
+                end = start + zoom_n_bases
             left, right = (end, start) if strand == "-" else (start, end)
             default_xlabel = f"{start:,.0f}-{end:,.0f}:{strand} ({np.abs(end - start)} bp)"
             for _ in range(total_classes-1):
