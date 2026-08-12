@@ -407,6 +407,8 @@ def contribution_scores(
     These scores can then be plotted to visualize the importance of each base in the sequence
     using :func:`~crested.pl.explain.contribution_scores`.
 
+    Recommended parameters for gradient-based contribution scores are `method='integrated_grad'` and `simplex_correction=True`.
+
     Parameters
     ----------
     input
@@ -442,15 +444,12 @@ def contribution_scores(
     seed
         Seed to use for shuffling regions. Used in "expected_integrated_grad", "window_shuffle", and "window_shuffle_uniform".
     simplex_correction
-        Whether to project the gradients back onto the probability simplex by subtracting,
-        at each position, the mean gradient across the four nucleotide channels
-        (``grad - grad.mean(axis=-1, keepdims=True)``). This removes the component of the
+        Whether to project the gradients back onto the probability simplex by subtracting
+        the mean gradient for each position. This removes the component of the
         gradient that points off the simplex on which one-hot sequences live, reducing
-        spurious noise in the attribution maps, as proposed in Majdandzic et al. (2023),
-        "Correcting gradient-based interpretations of deep neural networks for genomics"
-        (Genome Biology). Only applies to the gradient-based methods ('saliency_map',
-        'integrated_grad', 'expected_integrated_grad'); for other methods it is ignored
-        with a warning.
+        spurious noise in the attribution maps, as proposed in Majdandzic, Rajesh and Koo (2023).
+        Only applies to the gradient-based methods ('saliency_map', 'integrated_grad', 'expected_integrated_grad');
+        for other methods it is ignored with a warning.
     verbose
         Boolean for disabling the logs and plotting progress of calculations using tqdm.
 
@@ -507,7 +506,7 @@ def contribution_scores(
 
     if verbose:
         logger.info(
-            f"Calculating contribution scores for {n_classes} class(es) and {input_sequences.shape[0]} region(s)."
+            f"Calculating contribution scores for {input_sequences.shape[0]} region(s) and {n_classes} class(es)."
         )
     N, L, D = input_sequences.shape
 
