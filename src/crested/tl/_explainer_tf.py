@@ -50,22 +50,6 @@ def _saliency_map(
         del tape  # release the persistent tape's resources
     return tf.stack(grads, axis=1) if is_multi_class else grads[0]
 
-
-@tf.function
-def _hessian(X, model, class_index=None, func=tf.math.reduce_mean):
-    """Fast function to generate saliency maps."""
-    with tf.GradientTape() as t2:
-        t2.watch(X)
-        with tf.GradientTape() as t1:
-            t1.watch(X)
-            if class_index is not None:
-                outputs = model(X)[:, class_index]
-            else:
-                outputs = func(model(X))
-        g = t1.gradient(outputs, X)
-    return t2.jacobian(g, X)
-
-
 def _smoothgrad(
     x: tf.Tensor,
     model: keras.Model,
