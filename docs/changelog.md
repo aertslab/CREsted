@@ -4,9 +4,21 @@
 
 ### Features
 - {func}`crested.tl.design.in_silico_evolution` and {func}`crested.tl.design.motif_insertion` now take a `protected_positions` argument: a list of `(start, end)` ranges of nucleotide positions that will never be mutated or overwritten by a motif insertion, independent of `no_mutation_flanks`/`target_len`.
+- Added {obj}`crested.tl.data.AnnDataWrapper`, a futureproof dataloader for sequence-to-function training. (#208)
+   - AnnDataWrapper mostly uses the same arguments as AnnDataModule and should be a drop-in replacement.
+   - New: You can set `train_splits`/`val_splits`/`test_splits` to pick the values to assign as train/val/test splits, and `split_column` to pick the column to find these values in. That allows for easier ensemble training, where it changes which fold is the val/test constantly. By default, `train_splits` is inferred to be all values not included in val/test (e.g. 'fold0/1/2' when val and test are 'fold3'/'fold4')
+   - AnnDataWrapper should be slightly more memory-efficient.
+- Both AnnDataWrapper and AnnDataModule now now handle regions that could cross genome boundaries when stochastically shifted better. (#208)
+- Add tests for both AnnDataLoader and AnnDataWrapper, in both TensorFlow and PyTorch. (#208)
 
 ### Bugfixes
 - {func}`crested.pl.explain.contribution_scores`' argument `highlight_positions` now highlights [start, end) rather than [start, end], in order to align with indexing and `crested.tl.design`'s `protected_positions`.
+
+### Dev/poweruser features
+- Added `BaseDataWrapper` and `BaseGenomicDataWrapper`, classes that form a base for all kinds of sequence-to-function training. They handle indexes, augmentation, sequence retrieval, iteration, etc. automatically, and leave you to adjust only the parts that matter in a modular fashion. (#208)
+- SequenceLoader now doesn't re-do the deterministic augmentations on base indices again, but instead takes a list of expanded_indices (basically indices with all revcomp and/or deterministic_shift) and extracts values for those. (#208)
+- Both AnnDataModule and AnnDataLoader now have a `get_config()` method that returns all kind of information about the number of (batched) entries, its settings, and more. This data is automatically logged in `Crested.fit()`. (#208)
+- AnnDataset and AnnDataLoader are now no longer publicly imported, since they were never relevant for the end user. This keeps the clutter in `crested.tl.data` down a bit. (#208)
 
 ## 1.9.0
 
