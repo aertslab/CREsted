@@ -29,7 +29,6 @@ def _saliency_map(
         Your Keras model, or any object that supports __call__ with gradients, so it can also be a non-Keras PyTorch model.
     class_index
         Index (or list of indices) of model output(s) to explain. Model assumed to return outputs of shape (batch_size, n_classes) if using this.
-        If a list, gradients for all requested classes are computed from a single forward pass, which is reused across classes.
     func
         Function to reduce model outputs to one value with, for any class_index entries that are None.
 

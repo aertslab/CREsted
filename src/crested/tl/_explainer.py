@@ -53,14 +53,12 @@ def saliency_map(
         Your Keras model.
     class_index
         The index of the class to explain, an int, a list of ints, or None. If None, applies func to average/sum/etc over all classes.
-        If a list, gradients for all classes are computed together, reusing the same forward pass across classes instead of recomputing it per class.
     func
         If class_index is None, how to combine the final predictions (sum/mean/etc). Should work on tensors of your backend.
     batch_size
         Batch size used for gradient calculations. Note that integrated_grad() calculates gradients for background sequences for each main sequence provided,
         so explaining 1 sequence still requires gradients of e.g. 650 sequences (num_baselines*num_steps+1).
         Default is 128, which works well for 2kb input size models but might struggle on bigger models.
-        Memory scales with the number of requested classes when class_index is a list, since the forward pass is reused/retained across classes.
     """
     # Convert tensor to numpy if needed (for PyTorch/TensorFlow backends)
     if _is_tensor(X):
@@ -106,7 +104,6 @@ def integrated_grad(
         Your Keras model.
     class_index
         The index of the class to explain, an int, a list of ints, or None. If None, applies func to average/sum/etc over all classes.
-        If a list, gradients for all classes are computed together, reusing the same forward pass and the same interpolated baselines across classes instead of recomputing them per class.
     baseline_type
         How to get the baseline sequence to compare your sequence to.
         "random" shuffles each input sequence `num_baselines` times and interpolates from those shuffled versions to the original, as used in expected integrated gradients.
@@ -122,7 +119,6 @@ def integrated_grad(
         Batch size used for gradient calculations. Note that integrated_grad() calculates gradients for background sequences for each main sequence provided,
         so explaining 1 sequence still requires gradients of e.g. 650 sequences (num_baselines*num_steps+1).
         Default is 128, which works well for 2kb input size models but might struggle on bigger models.
-        Memory scales with the number of requested classes when class_index is a list, since the forward pass is reused/retained across classes.
     seed
         Seed to use for shuffling sequences when using baseline_type "random".
     """
