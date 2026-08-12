@@ -1,29 +1,46 @@
 {
-    "template": "https://github.com/scverse/cookiecutter-scverse",
-    "commit": "586b1652162ff7994b0070a034023d64289ae416",
-    "checkout": "v0.3.1",
-    "context": {
-        "cookiecutter": {
-            "project_name": "CREsted",
-            "package_name": "crested",
-            "project_description": "Cis Regulatory Element Sequence Training, Explanation, and Design",
-            "author_full_name": "Stein Aerts Lab",
-            "author_email": "stein.aerts@kuleuven.be",
-            "github_user": "aertslab",
-            "project_repo": "https://github.com/aertslab/CREsted/",
-            "license": "LICENSE",
-            "_copy_without_render": [
-                ".github/workflows/build.yaml",
-                ".github/workflows/test.yaml",
-                "docs/_templates/autosummary/**.rst"
-            ],
-            "_render_devdocs": false,
-            "_jinja2_env_vars": {
-                "lstrip_blocks": true,
-                "trim_blocks": true
-            },
-            "_template": "https://github.com/scverse/cookiecutter-scverse"
-        }
+  "template": "/tmp/tmpvf8ta0q7",
+  "commit": "6518dfa1abde7379ea7255daf0ce09c23f2b4c94",
+  "checkout": "v0.8.0",
+  "context": {
+    "cookiecutter": {
+      "project_name": "CREsted",
+      "package_name": "crested",
+      "project_description": "Cis Regulatory Element Sequence Training, Explanation, and Design",
+      "author_full_name": "Stein Aerts Lab",
+      "author_email": "stein.aerts@kuleuven.be",
+      "github_user": "aertslab",
+      "github_repo": "CREsted",
+      "license": "LICENSE",
+      "ide_integration": true,
+      "issue_categorization": "",
+      "_copy_without_render": [
+        ".github/workflows/build.yaml",
+        ".github/workflows/test.yaml",
+        "docs/_templates/autosummary/**.rst"
+      ],
+      "_exclude_on_template_update": [
+        "CHANGELOG.md",
+        "LICENSE",
+        "README.md",
+        "docs/api.md",
+        "docs/index.md",
+        "docs/notebooks/example.ipynb",
+        "docs/references.bib",
+        "docs/references.md",
+        "src/**",
+        "tests/**"
+      ],
+      "_render_devdocs": false,
+      "_jinja2_env_vars": {
+        "lstrip_blocks": true,
+        "trim_blocks": true
+      },
+      "_template": "/tmp/tmpvf8ta0q7",
+      "_commit": "4d6aa34fd5be7523ca3bd49fbd81a882dde01d1f"
     },
-    "directory": null
+    "_commit": "6518dfa1abde7379ea7255daf0ce09c23f2b4c94",
+    "_template": "https://github.com/scverse/cookiecutter-scverse"
+  },
+  "directory": null
 }

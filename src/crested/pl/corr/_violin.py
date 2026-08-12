@@ -72,8 +72,8 @@ def violin(
 
     @log_and_raise(ValueError)
     def _check_input_params():
-        if len(adata.layers) == 0:
-            raise ValueError("No predictions found in adata.layers.")
+        if len(adata.layers) == 0 or all(layer_name is None for layer_name in adata.layers):
+            raise ValueError("Your adata does not contain prediction values. Please add predictions to adata.layers.")
 
         if model_names is not None:
             for model in model_names:
@@ -92,7 +92,7 @@ def violin(
     if isinstance(model_names, str):
         model_names = [model_names]
     elif model_names is None:
-        model_names = list(adata.layers.keys())
+        model_names = [layer_name for layer_name in adata.layers if layer_name is not None]
     n_models = len(model_names)
     _check_input_params()
 

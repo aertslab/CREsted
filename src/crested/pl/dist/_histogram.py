@@ -97,7 +97,7 @@ def histogram(
         if ax is not None and len(class_names) > 1:
             raise ValueError("ax can only be set if plotting one class. Please pick one class in `class_names`.")
 
-    if model_name.lower() in ["x", 'truth', "groundtruth"]:
+    if model_name.lower() in ["x", 'truth', "groundtruth"] or model_name is None:
         model_name = 'truth'
 
     if isinstance(class_names, str):

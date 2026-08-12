@@ -259,6 +259,8 @@ def heatmap(
     def _check_input_params():
         if len(adata.layers) == 0:
             raise ValueError("No predictions found in adata.layers.")
+        if all(layer_name is None for layer_name in adata.layers):
+            raise ValueError("No prediction layers found in adata, only X (ground truth layer).")
 
         for model in model_names:
             if model not in adata.layers:
@@ -280,7 +282,7 @@ def heatmap(
     if isinstance(model_names, str):
         model_names = [model_names]
     elif model_names is None:
-        model_names = list(adata.layers.keys())
+        model_names = [layer_name for layer_name in adata.layers if layer_name is not None]
 
     _check_input_params()
 

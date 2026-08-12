@@ -317,12 +317,12 @@ def test_enhancer_design_in_silico_evolution(keras_model, adata, genome):
     assert len(seqs) == 2, len(seqs)
 
     # acgt distribution provided
-    acgt_disbtibution = crested.utils.calculate_nucleotide_distribution(input=adata, genome=genome, per_position=True)
+    acgt_distribution = crested.utils.calculate_nucleotide_distribution(input=adata, genome=genome, per_position=True)
     seqs = crested.tl.design.in_silico_evolution(
         n_mutations=1,
         target=0,
         model=keras_model,
-        acgt_distribution=acgt_disbtibution,
+        acgt_distribution=acgt_distribution,
     )
 
     # starting sequences provided
@@ -333,6 +333,75 @@ def test_enhancer_design_in_silico_evolution(keras_model, adata, genome):
         model=keras_model,
         starting_sequences=starting_sequences,
     )
+
+    # protected positions are never mutated
+    seq_len = keras_model.input_shape[1]
+    starting_sequence = "A" * seq_len
+    seqs = crested.tl.design.in_silico_evolution(
+        n_mutations=20,
+        target=0,
+        model=keras_model,
+        starting_sequences=starting_sequence,
+        protected_positions=[(100, 110)],
+    )
+    assert seqs[0][100:110] == "A" * 10
+
+    # invalid range raises
+    with pytest.raises(ValueError):
+        crested.tl.design.in_silico_evolution(
+            n_mutations=1,
+            target=0,
+            model=keras_model,
+            starting_sequences=starting_sequence,
+            protected_positions=[(10, 5)],
+        )
+
+    # protecting everything raises a clear error
+    with pytest.raises(ValueError):
+        crested.tl.design.in_silico_evolution(
+            n_mutations=1,
+            target=0,
+            model=keras_model,
+            starting_sequences=starting_sequence,
+            protected_positions=[(0, seq_len)],
+        )
+
+
+def test_enhancer_design_motif_insertion(keras_model):
+    seq_len = keras_model.input_shape[1]
+    starting_sequence = "A" * seq_len
+    my_motifs = {"motif1": "ACGTTTGA"}
+
+    # protected positions are never overwritten by an inserted motif
+    seqs = crested.tl.design.motif_insertion(
+        patterns=my_motifs,
+        model=keras_model,
+        target=0,
+        starting_sequences=starting_sequence,
+        insertions_per_pattern={"motif1": 5},
+        protected_positions=[(0, seq_len // 2)],
+    )
+    assert seqs[0][: seq_len // 2] == "A" * (seq_len // 2)
+
+    # invalid range raises
+    with pytest.raises(ValueError):
+        crested.tl.design.motif_insertion(
+            patterns=my_motifs,
+            model=keras_model,
+            target=0,
+            starting_sequences=starting_sequence,
+            protected_positions=[(-1, 5)],
+        )
+
+    # protecting everything leaves no valid insertion site
+    with pytest.raises(ValueError):
+        crested.tl.design.motif_insertion(
+            patterns=my_motifs,
+            model=keras_model,
+            target=0,
+            starting_sequences=starting_sequence,
+            protected_positions=[(0, seq_len)],
+        )
 
 
 # ---------- Test modisco process_patterns (agglomerative) -------------

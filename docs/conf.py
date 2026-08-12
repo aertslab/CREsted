@@ -1,20 +1,26 @@
-"""Configuration file for the Sphinx documentation builder."""
-#
+# Configuration file for the Sphinx documentation builder.
+
 # This file only contains a selection of the most common options. For a full
 # list see the documentation:
-# https://www.sphinx-doc.org/en/master/usage/configuration.html
+# https://www.sphinx-doc.org/page/usage/configuration.html
 
 # -- Path setup --------------------------------------------------------------
+import shutil
 import sys
 from datetime import datetime
 from importlib.metadata import metadata
 from pathlib import Path
 
+from sphinxcontrib import katex
+
+HERE = Path(__file__).parent
+sys.path.insert(0, str(HERE / "extensions"))
+
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "extensions"))
 import crested  # noqa
 
-# -- Intersphinx package version parsing -------------------------------------
+# -- Intersphinx package version parsing (CREsted-specific) ------------------
 python_version = f"{sys.version_info[0]}.{sys.version_info[1]}"
 from numpy import __version__ as numpy_version_raw # noqa
 numpy_version = '.'.join(numpy_version_raw.split('.')[:2])
@@ -63,15 +69,17 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinxcontrib.bibtex",
+    "sphinxcontrib.katex",
     "sphinx_autodoc_typehints",
-    "sphinx.ext.mathjax",
+    "sphinx_design",
     "IPython.sphinxext.ipython_console_highlighting",
     "sphinxext.opengraph",
+    "scverse_misc.sphinx_ext",
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
 ]
 
 autosummary_generate = True
-autosummary_imported_members = True  # Required to have the recursive docs generation recognise our structure of importing everything in their specific __init__.py
+autosummary_imported_members = True  # CREsted-specific: Required to have the recursive docs generation recognise our structure of importing everything in their specific __init__.py
 autodoc_member_order = "groupwise"
 autodoc_default_flags = ['members']
 bibtex_reference_style = "author_year"
@@ -95,6 +103,7 @@ nb_output_stderr = "remove"
 nb_execution_mode = "off"
 nb_merge_streams = True
 typehints_defaults = "braces"
+always_use_bars_union = True  # use `|` instead of `Union` in types even when building with Python ≤3.14
 
 source_suffix = {
     ".rst": "restructuredtext",
@@ -102,6 +111,7 @@ source_suffix = {
     ".myst": "myst-nb",
 }
 
+# CREsted-specific: link to most recent compatible versions of packages, rather than just newest (which can break)
 intersphinx_mapping = {
     "python": (f"https://docs.python.org/{python_version}", None),
     "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
@@ -124,10 +134,9 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 #
 html_theme = "sphinx_book_theme"
 html_static_path = ["_static"]
-html_logo = "_static/img/crested_logo.png"
 html_css_files = ["css/custom.css"]
 
-html_title = project_name
+html_title = project
 
 html_theme_options = {
     "repository_url": repository_url,
@@ -137,6 +146,7 @@ html_theme_options = {
 }
 
 pygments_style = "default"
+katex_prerender = shutil.which(katex.NODEJS_BINARY) is not None
 
 nitpick_ignore = [
     # If building the documentation fails because of a missing link that is outside your control,
