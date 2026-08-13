@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 import numpy as np
 from anndata import AnnData
 from loguru import logger
@@ -84,7 +86,8 @@ def sort_and_filter_regions_on_specificity(
     adata: AnnData,
     top_k: int,
     model_name: str | None = None,
-    method: str = "gini",
+    method: Literal["gini", "proportion"] = "proportion",
+    min_score: float | None = None,
     inplace: bool = True,
 ) -> AnnData | None:
     """
@@ -92,7 +95,8 @@ def sort_and_filter_regions_on_specificity(
 
     Combines them into a single AnnData object with extra columns indicating the original class name,
     the rank per column, and the score.
-    To get an idea for the impact of different possible `top_k` values, see :func:`~crested.pl.qc.sort_and_filter_cutoff`.
+    To get an idea for the impact of different possible `top_k` and `min_score` values, see :func:`~crested.pl.qc.sort_and_filter_cutoff`.
+    We highly recommend setting a `min_score` value especially when using "gini" on a small dataset.
 
     Parameters
     ----------
@@ -105,7 +109,9 @@ def sort_and_filter_regions_on_specificity(
         If None, will use the targets in adata.X to decide which regions to sort.
     method
         The method to use for calculating scores, either 'gini' or 'proportion'.
-        Default is 'gini'.
+        Default is 'proportion' since v1.10.0, 'gini' before that.
+    min_score
+        If provided, keep only regions with gini or proportion score to be greater than this value. Will potentially lead to unbalanced numbers of regions by classes.
     inplace
         Perform computation and modify `adata` in-place or return a resulting copy of the `adata` instead.
 
@@ -124,9 +130,14 @@ def sort_and_filter_regions_on_specificity(
     >>> crested.pp.sort_and_filter_regions_on_specificity(
     ...     adata,
     ...     top_k=500,
-    ...     method="gini",
+    ...     method="proportion",
     ... )
     """
+    logger.info("Default value for 'method' has changed to 'proportion' in v.1.10.0.")
+    if method == "gini" and min_score is None:
+        logger.info(
+            "We highly recommend setting a min_score when using 'gini' scoring, as class gini scores can quickly bottom out to zero."
+        )
     class_names = list(adata.obs_names)
     if model_name is None or model_name in ["X", "truth", "groundtruth"]:
         if isinstance(adata.X, csr_matrix):
@@ -152,6 +163,8 @@ def sort_and_filter_regions_on_specificity(
     for col in range(scores.shape[1]):
         sorted_indices = np.argsort(scores[:, col])[::-1]
         top_indices = sorted_indices[:top_k]
+        if min_score is not None:
+            top_indices = top_indices[scores[:, col][top_indices] > min_score]
         all_selected_indices.extend(top_indices)
         column_indices.extend([col] * len(top_indices))
         ranks.extend(range(1, len(top_indices) + 1))
