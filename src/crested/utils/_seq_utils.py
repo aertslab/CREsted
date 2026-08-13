@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import numpy as np
 
 
@@ -284,3 +286,55 @@ def parse_region(region: tuple[str, int, int] | tuple[str, int, int, str] | str)
                 f"Expect region to be formatted as a 'chr:start-end[:string]' string or (chr, start, end[, string]) tuple, not {region}"
             ) from None
         return chrom, start, end, strand
+
+
+def resize_region(
+    region: tuple[str, int, int] | tuple[str, int, int, str] | str | Sequence, width: int
+) -> tuple[str, int, int] | tuple[str, int, int, str] | str | list:
+    """Resize a region or list of regions to the new desired width.
+
+    Parameters
+    ----------
+    region
+        A region strand (`'chr:start-end'` or `'chr:start-end:strand'`), region tuple (`(chrom, start, end)` or `(chrom, start, end, strand)`), or a sequence of them.
+    width
+        The width to resize to.
+
+    Returns
+    -------
+    The resized region(s), in the same shape as originally provided.
+    """
+    # Check shape: detect region by being str or tuple and having first element (either first letter or chrom in tuple) be str to make sure it's always a list we can loop over
+    if isinstance(region, (str, tuple)) and isinstance(region[0], str):
+        is_single_region = True
+        region = [region]
+    elif isinstance(region[0], (str, tuple)) and isinstance(region[0][0], str):
+        is_single_region = False
+    else:
+        raise ValueError("`region` must be a single string or tuple, or a list of strings/tuples denoting regions.")
+
+    # Start looping over list
+    resized_regions = []
+    half_width = width / 2
+    for individual_region in region:
+        # Actually parse region and resize
+        chrom, start, end, strand = parse_region(individual_region)
+        center = (start + end) // 2
+        new_start, new_end = int(center - half_width), int(center + half_width)
+
+        # Check type and strandedness and use to recreate region
+        if isinstance(individual_region, str):
+            new_region = f"{chrom}:{new_start}-{new_end}"
+            if individual_region.count(":") == 2:
+                new_region += f":{strand}"
+        elif isinstance(individual_region, tuple):
+            if len(individual_region) == 3:
+                new_region = (chrom, new_start, new_end)
+            elif len(individual_region) == 4:
+                new_region = (chrom, new_start, new_end, strand)
+        resized_regions.append(new_region)
+
+    if is_single_region:
+        return resized_regions[0]
+    else:
+        return resized_regions

@@ -5,6 +5,7 @@ from crested.utils import (
     calculate_nucleotide_distribution,
     hot_encoding_to_sequence,
     one_hot_encode_sequence,
+    resize_region,
     reverse_complement,
 )
 
@@ -65,3 +66,28 @@ def test_nucleotide_distribution_unequal_inputs():
     seq = ["ACTTG", "AATTG", "A"]
     with pytest.raises(ValueError):
         _ = calculate_nucleotide_distribution(seq, per_position=True)
+
+
+def test_resize_region():
+    # Check single region entries
+    assert resize_region("chr1:100-200", 50) == "chr1:125-175"
+    assert resize_region(("chr1", 100, 200), 50) == ("chr1", 125, 175)
+
+    # Check multi-region entries
+    assert resize_region(["chr1:100-200", "chr15:5236-5238"], 50) == ["chr1:125-175", "chr15:5212-5262"]
+    assert resize_region([("chr1", 100, 200), ("chr15", 5236, 5238)], 50) == [("chr1", 125, 175), ("chr15", 5212, 5262)]
+
+    # Check stranded regions
+    assert resize_region(["chr1:100-200:+", "chr15:5236-5238:-"], 50) == ["chr1:125-175:+", "chr15:5212-5262:-"]
+    assert resize_region([("chr1", 100, 200, "+"), ("chr15", 5236, 5238, "-")], 50) == [
+        ("chr1", 125, 175, "+"),
+        ("chr15", 5212, 5262, "-"),
+    ]
+
+    # Check broken regions
+    with pytest.raises(ValueError):
+        resize_region("chr1;100_200", 50)
+    with pytest.raises(ValueError):
+        resize_region("chr1:100-200:+:hi", 50)
+    with pytest.raises(ValueError):
+        resize_region(("chr1", 100, 200, "+", "hi"), 50)
