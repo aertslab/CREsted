@@ -150,7 +150,8 @@ def filter_cutoff(
 def sort_and_filter_cutoff(
     adata: AnnData,
     cutoffs: list[int] | None = None,
-    method: Literal['gini', 'proportion'] = 'gini',
+    method: Literal['gini', 'proportion'] = 'proportion',
+    min_score: float | None = None,
     model_name: str | None = None,
     max_k: int = 2000,
     cmap: str | Sequence = 'tab20',
@@ -176,7 +177,9 @@ def sort_and_filter_cutoff(
         The name of the model to calculate scores from. If None or 'truth'/'groundtruth'/'X' (default), will use the values in adata.X.
     method
         The method to use for calculating scores, either 'gini' or 'proportion'.
-        Default is 'gini'.
+        Default is 'proportion'.
+    min_score
+        Minimum score required to be included, as in :func:`~crested.pp.sort_and_filter_regions_on_specificity`'s `min_score`.
     max_k
         The maximum number of top regions per cell type to plot. Should be higher than the cutoffs you're considering.
     cmap
@@ -279,6 +282,8 @@ def sort_and_filter_cutoff(
     if cutoffs is not None:
         for cutoff in cutoffs:
             ax.axvline(cutoff, **line_kws)
+    if min_score is not None:
+        ax.axhline(min_score, **line_kws)
     if legend:
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), scatterpoints=10)
     ax.margins(x=0.01)
