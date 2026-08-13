@@ -457,6 +457,17 @@ def test_corr_violin(adata_preds):
     assert fig is not None and ax is not None
     plt.close()
 
+    # Plot a single model passed as a bare string, not a list
+    fig, ax = crested.pl.corr.violin(
+        adata=adata_preds,
+        model_names='model_1',
+        split=None,
+        show=False
+    )
+    assert isinstance(ax, plt.Axes)
+    assert fig is not None and ax is not None
+    plt.close()
+
 # ---------- Test dist -------------
 def test_dist_histogram(adata_preds):
     # Test simple plot
