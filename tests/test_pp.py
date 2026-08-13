@@ -160,6 +160,10 @@ def test_change_regions_width_inplace(adata_function):
     assert not adata_function.var.equals(adata_inplace.var)
     assert not adata_function.var.equals(adata_copy.var)
 
+def test_change_regions_width(adata):
+    adata_resized = crested.pp.change_regions_width(adata, width=888, inplace=False)
+    assert adata_resized.var_names[0] == crested.utils.resize_region(adata.var_names[0], 888)
+    assert adata_resized.var_names[0] == "chr1:194207838-194208726"
 
 def test_change_regions_width_drops_resized_out_of_bounds():
     """Regions whose *resized* window falls off a contig edge must be dropped.
