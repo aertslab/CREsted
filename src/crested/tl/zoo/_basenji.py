@@ -87,6 +87,7 @@ def basenji(
         activation=activation,
         batch_norm=True,
         bn_momentum=0.9,
+        bn_sync=False,
     )
 
     current = conv_block_bs(
