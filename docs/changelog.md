@@ -15,6 +15,7 @@
   - bigwig and bed reading, predictions from negative strand regions, classes for `contribution_scores`, and creating and loading models from the zoo. (#144, #233)
   - `utils.parse_region` and `utils.resize_region` (#234)
 - CREsted now supports Python 3.14. (#229)
+- `crested[motif]` optional dependencies integrated into main dependencies, as they no longer require a lower Python version. (#229)
 
 ### Bugfixes
 - {func}`crested.pl.explain.contribution_scores`' argument `highlight_positions` now highlights [start, end) rather than [start, end], in order to align with indexing and `crested.tl.design`'s `protected_positions`.

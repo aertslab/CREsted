@@ -69,14 +69,6 @@ uv pip install torch
 uv pip install crested
 ```
 
-3. If you plan on doing motif analysis using tf-modisco (lite) inside CREsted, you will need to install with the motif extra:
-
-```bash
-uv pip install "crested[motif]"
-```
-
-**Note:** TOMTOM motif matching (via memelite) is only available for Python 3.12 and earlier due to numpy compatibility constraints. Python 3.13 users can still use all other modisco features.
-
 Modiscolite may require a cmake installation on your system. If you don't have it, you can install it with:
 
 ```bash

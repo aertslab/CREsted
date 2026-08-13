@@ -28,11 +28,15 @@ dependencies = [
   "keras>=3.4",
   "logomaker",
   "loguru",
+  "lxml",
+  "memelite",
+  "modisco-lite>=2.2.1",
   "numpy",
   "pandas",
   "pooch",
   "pybigtools>=0.2",
   "pysam",
+  "scanpy>=1.10",
   "scikit-learn",
   "seaborn",
   "tqdm",
@@ -51,16 +55,13 @@ dev = [
   "pytest",
   "twine>=4.0.2",
 ]
-doc = [
-  "docutils>=0.8,!=0.18.*,!=0.19.*",
-  # For notebooks
+doc = [ # For notebooks and documentation
+  # General scverse template
   "ipykernel",
   "ipython",
-  "modisco-lite",
   "scanpy>=1.10",
   "myst-nb>=1.1",
   "pandas",
-  "ruff",
   "scverse-misc[sphinx]>=0.1.2",
   "sphinx>=8.1",
   "sphinx-autodoc-typehints",
@@ -70,16 +71,13 @@ doc = [
   "sphinxcontrib-bibtex>=1",
   "sphinxcontrib-katex",
   "sphinxext-opengraph",
+  # CREsted-specific
+  "ruff",
   "tensorflow",
 ]
 motif = [
-  "memelite; python_version<'3.13'",
-  "modisco-lite>=2.2.1",
-  "scanpy>=1.10",
-  "lxml"
 ]
 test = [
-  "anndata",
   "coverage>=7.10",
   "pytest",
   "pytest-cov",
