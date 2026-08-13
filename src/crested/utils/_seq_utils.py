@@ -284,7 +284,7 @@ def parse_region(region: tuple[str, int, int] | tuple[str, int, int, str] | str)
             if start_end.count("-") == 1:
                 start, end = map(int, start_end.split("-"))
             else:
-                start, end = map(int, re.match(r"(-?\d)-(-?\d)").groups())
+                start, end = map(int, re.match(r"(-?\d)-(-?\d)", start_end).groups())
         else:
             raise ValueError(
                 f"Expect region to be formatted as a 'chr:start-end[:string]' string or (chr, start, end[, string]) tuple, not {region}"
