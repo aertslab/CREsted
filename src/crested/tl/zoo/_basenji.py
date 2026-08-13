@@ -70,7 +70,7 @@ def basenji(
         batch_norm=True,
         bn_momentum=0.9,
         bn_gamma=None,
-        bn_type="standard",
+        bn_sync=False,
         kernel_initializer="he_normal",
         padding="same",
     )
@@ -87,6 +87,7 @@ def basenji(
         activation=activation,
         batch_norm=True,
         bn_momentum=0.9,
+        bn_sync=False,
     )
 
     current = conv_block_bs(
@@ -97,6 +98,7 @@ def basenji(
         dropout=0.05,
         batch_norm=True,
         bn_momentum=0.9,
+        bn_sync=False,
     )
 
     current = keras.layers.GlobalAveragePooling1D()(current)

@@ -10,9 +10,11 @@
    - AnnDataWrapper should be slightly more memory-efficient.
 - Both AnnDataWrapper and AnnDataModule now now handle regions that could cross genome boundaries when stochastically shifted better. (#208)
 - Add tests for both AnnDataLoader and AnnDataWrapper, in both TensorFlow and PyTorch. (#208)
+- Added (more) tests for bigwig and bed reading, predictions from negative strand regions, classes for `contribution_scores`, and creating and loading models from the zoo. (#144, #233)
 
 ### Bugfixes
 - {func}`crested.pl.explain.contribution_scores`' argument `highlight_positions` now highlights [start, end) rather than [start, end], in order to align with indexing and `crested.tl.design`'s `protected_positions`.
+- {func}`crested.tl.zoo.basenji` can now be built again by fixing a renamed argument in `conv_block_bs`. (#144, #233)
 
 ### Dev/poweruser features
 - Added `BaseDataWrapper` and `BaseGenomicDataWrapper`, classes that form a base for all kinds of sequence-to-function training. They handle indexes, augmentation, sequence retrieval, iteration, etc. automatically, and leave you to adjust only the parts that matter in a modular fashion. (#208)
