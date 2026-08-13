@@ -17,9 +17,7 @@ from crested.utils._logging import log_and_raise
 
 def _read_chromsizes(chromsizes_file: str | PathLike) -> dict[str, int]:
     """Read chromsizes file into a dictionary."""
-    chromsizes = pd.read_csv(
-        chromsizes_file, sep="\t", header=None, names=["chr", "size"]
-    )
+    chromsizes = pd.read_csv(chromsizes_file, sep="\t", header=None, names=["chr", "size"])
     chromsizes_dict = chromsizes.set_index("chr")["size"].to_dict()
     return chromsizes_dict
 
@@ -38,6 +36,8 @@ def change_regions_width(
     This function is useful when you want to train on a wider/narrower region than the
     original consensus regions.
 
+    To resize individual regions quickly, please use :func:`~crested.utils.resize_region` instead.
+
     Parameters
     ----------
     adata
@@ -54,6 +54,10 @@ def change_regions_width(
     -------
     If `inplace=True` (default), modifies the anndata in-place and doesn't return anything.
     If `inplace=False`, returns the AnnData object with the modified regions.
+
+    See Also
+    --------
+    crested.utils.resize_region
 
     Example
     -------
@@ -85,9 +89,9 @@ def change_regions_width(
     else:
         chromsizes = None
 
-    if adata.var_names[0].count(':') == 1:
+    if adata.var_names[0].count(":") == 1:
         stranded = False
-    elif adata.var_names[0].count(':') == 2:
+    elif adata.var_names[0].count(":") == 2:
         stranded = True
     else:
         raise ValueError("Region names must follow 'chr:start-end' or 'chr:start-end:strand' layout.")
@@ -104,9 +108,9 @@ def change_regions_width(
     for region_name in adata.var_names:
         # Resize regions
         chrom, start, end, strand = parse_region(region_name)
-        center = (start + end)/2
-        new_start, new_end = int(center-half_width), int(center+half_width)
-        new_name = f"{chrom}:{int(center-half_width)}-{int(center+half_width)}"
+        center = (start + end) / 2
+        new_start, new_end = int(center - half_width), int(center + half_width)
+        new_name = f"{chrom}:{int(center - half_width)}-{int(center + half_width)}"
         if stranded:
             new_name += f":{strand}"
         new_starts.append(new_start)
@@ -125,10 +129,10 @@ def change_regions_width(
                 regions_to_keep.append(new_name)
 
     # Set new values in adata
-    adata.var['unresized_index'] = adata.var_names
+    adata.var["unresized_index"] = adata.var_names
     adata.var.index = new_names
-    adata.var['start'] = new_starts
-    adata.var['end'] = new_ends
+    adata.var["start"] = new_starts
+    adata.var["end"] = new_ends
     adata.var_names.name = "region"
 
     # Filter out oversized regions
@@ -137,7 +141,6 @@ def change_regions_width(
             adata._inplace_subset_var(regions_to_keep)
         else:
             adata = adata[:, regions_to_keep].copy()
-
 
     if not inplace:
         return adata
