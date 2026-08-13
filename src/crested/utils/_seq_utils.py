@@ -281,10 +281,15 @@ def parse_region(region: tuple[str, int, int] | tuple[str, int, int, str] | str)
                 raise ValueError(
                     f"Expect region with pattern chr:start-end:strand or chr:start-end, not {region}"
                 ) from None
-            if start_end.count("-") == 1:
+            try:
                 start, end = map(int, start_end.split("-"))
-            else:
-                start, end = map(int, re.match(r"(-?\d)-(-?\d)", start_end).groups())
+            except ValueError:
+                try:
+                    start, end = map(int, re.match(r"(-?\d+)-(-?\d+)", start_end).groups())
+                except ValueError as err:
+                    raise ValueError(
+                    f"Expect region with pattern chr:start-end:strand or chr:start-end, not {region}"
+                ) from err
         else:
             raise ValueError(
                 f"Expect region to be formatted as a 'chr:start-end[:string]' string or (chr, start, end[, string]) tuple, not {region}"
