@@ -227,7 +227,7 @@ def sort_and_filter_cutoff(
     # Handle renamed arguments
     if 'line_kws' in kwargs:
         cutoff_line_kws = kwargs.pop('line_kws')
-        logger.warning(f"Argument `line_kws` is renamed to `cutoff_line_kws` since version 1.10.0; please use `cutoff_line_kws={kwargs['cutoff_line_kws']}` instead.")
+        logger.warning(f"Argument `line_kws` is renamed to `cutoff_line_kws` since version 1.10.0; please use `cutoff_line_kws={cutoff_line_kws}` instead.")
     # Validate cutoffs
     if cutoffs is not None:
         if not isinstance(cutoffs, Sequence):
