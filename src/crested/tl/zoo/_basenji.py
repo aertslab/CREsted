@@ -97,6 +97,7 @@ def basenji(
         dropout=0.05,
         batch_norm=True,
         bn_momentum=0.9,
+        bn_sync=False,
     )
 
     current = keras.layers.GlobalAveragePooling1D()(current)
