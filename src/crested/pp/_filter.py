@@ -52,18 +52,14 @@ def filter_regions_on_specificity(
     ...     gini_std_threshold=1.0,
     ... )
     """
-    if model_name is None or model_name in ['X', 'truth', 'groundtruth']:
+    if model_name is None or model_name in ["X", "truth", "groundtruth"]:
         if isinstance(adata.X, csr_matrix):
-            target_matrix = (
-                adata.X.toarray().T
-            )  # Convert to dense and transpose to (regions, cell types)
+            target_matrix = adata.X.toarray().T  # Convert to dense and transpose to (regions, cell types)
         else:
             target_matrix = adata.X.T
     else:
         if model_name not in adata.layers:
-            raise ValueError(
-                f"Model name {model_name} not found in adata.layers. Please provide a valid model name."
-            )
+            raise ValueError(f"Model name {model_name} not found in adata.layers. Please provide a valid model name.")
         target_matrix = adata.layers[model_name].T
 
     gini_scores = np.max(_calc_gini(target_matrix), axis=1)
@@ -75,9 +71,7 @@ def filter_regions_on_specificity(
     target_matrix_filt = target_matrix[selected_indices]
     regions_filt = adata.var_names[selected_indices]
 
-    logger.info(
-        f"After specificity filtering, kept {len(target_matrix_filt)} out of {target_matrix.shape[0]} regions."
-    )
+    logger.info(f"After specificity filtering, kept {len(target_matrix_filt)} out of {target_matrix.shape[0]} regions.")
 
     # Filter the adata object inplace or return copy
     if inplace:
@@ -94,7 +88,7 @@ def sort_and_filter_regions_on_specificity(
     inplace: bool = True,
 ) -> AnnData | None:
     """
-    Sort bed regions & targets/predictions based on high Gini or proportion score per colum while keeping the top k rows per column.
+    Sort bed regions & targets/predictions based on high Gini or proportion score per column while keeping the top k rows per column.
 
     Combines them into a single AnnData object with extra columns indicating the original class name,
     the rank per column, and the score.
@@ -134,18 +128,14 @@ def sort_and_filter_regions_on_specificity(
     ... )
     """
     class_names = list(adata.obs_names)
-    if model_name is None or model_name in ['X', 'truth', 'groundtruth']:
+    if model_name is None or model_name in ["X", "truth", "groundtruth"]:
         if isinstance(adata.X, csr_matrix):
-            target_matrix = (
-                adata.X.toarray().T
-            )  # Convert to dense and transpose to (regions, cell types)
+            target_matrix = adata.X.toarray().T  # Convert to dense and transpose to (regions, cell types)
         else:
             target_matrix = adata.X.T
     else:
         if model_name not in adata.layers:
-            raise ValueError(
-                f"Model name {model_name} not found in adata.layers. Please provide a valid model name."
-            )
+            raise ValueError(f"Model name {model_name} not found in adata.layers. Please provide a valid model name.")
         target_matrix = adata.layers[model_name].T
 
     if method == "gini":
@@ -177,9 +167,7 @@ def sort_and_filter_regions_on_specificity(
     regions_filtered = adata.var_names[all_selected_indices]
     class_names_filtered = [class_names[idx] for idx in column_indices]
 
-    logger.info(
-        f"After sorting and filtering, kept {target_matrix_filtered.shape[0]} regions."
-    )
+    logger.info(f"After sorting and filtering, kept {target_matrix_filtered.shape[0]} regions.")
 
     # filter the adata object (inplace or via a copy)
     if inplace:
