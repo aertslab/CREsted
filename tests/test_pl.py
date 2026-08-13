@@ -278,7 +278,8 @@ def test_qc_sort_and_filter_cutoff(adata):
         cutoffs=[300, 450],
         method='proportion',
         plot_kws={'alpha': 0.5},
-        line_kws={'alpha': 0.5},
+        cutoff_line_kws={'alpha': 0.5},
+        score_line_kws={'alpha': 0.5},
         show=False
     )
     assert fig is not None and ax is not None
