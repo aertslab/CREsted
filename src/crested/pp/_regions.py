@@ -95,8 +95,8 @@ def change_regions_width(
     adata.var = adata.var.copy()
 
     # Create new values and record spacing for all regions
-    new_regions = resize_region(adata.var_names)
-    new_parsed_regions = [parse_region(region) for region in new_regions] # Parse again to also have access to start/end
+    new_regions = resize_region(adata.var_names, width)
+    new_parsed_regions = [parse_region(region) for region in new_regions]  # Parse again to access start/end
     if chromsizes is not None:
         regions_to_keep = []
         for new_region_str, new_region_tuple in zip(new_regions, new_parsed_regions, strict=True):
