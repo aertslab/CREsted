@@ -16,18 +16,12 @@ def get_hot_encoding_table(
         return np.frombuffer(string.encode("ascii"), dtype=np.uint8)
 
     # 256 x 4
-    hot_encoding_table = np.zeros(
-        (np.iinfo(np.uint8).max + 1, len(alphabet)), dtype=dtype
-    )
+    hot_encoding_table = np.zeros((np.iinfo(np.uint8).max + 1, len(alphabet)), dtype=dtype)
 
     # For each ASCII value of the nucleotides used in the alphabet
     # (upper and lower case), set 1 in the correct column.
-    hot_encoding_table[str_to_uint8(alphabet.upper())] = np.eye(
-        len(alphabet), dtype=dtype
-    )
-    hot_encoding_table[str_to_uint8(alphabet.lower())] = np.eye(
-        len(alphabet), dtype=dtype
-    )
+    hot_encoding_table[str_to_uint8(alphabet.upper())] = np.eye(len(alphabet), dtype=dtype)
+    hot_encoding_table[str_to_uint8(alphabet.lower())] = np.eye(len(alphabet), dtype=dtype)
 
     # For each ASCII value of the nucleotides used in the neutral alphabet
     # (upper and lower case), set neutral_value in the correct column.
@@ -64,9 +58,7 @@ def one_hot_encode_sequence(sequence: str, expand_dim: bool = True) -> np.ndarra
             axis=0,
         )
     else:
-        return HOT_ENCODING_TABLE[
-            np.frombuffer(sequence.encode("ascii"), dtype=np.uint8)
-        ]
+        return HOT_ENCODING_TABLE[np.frombuffer(sequence.encode("ascii"), dtype=np.uint8)]
 
 
 def generate_mutagenesis(x, include_original=True, flanks=(0, 0), protected_positions=None):
@@ -103,9 +95,7 @@ def generate_motif_insertions(x, motif, flanks=(0, 0), masked_locations=None):
     for motif_start in range(start, end):
         motif_end = motif_start + motif_length
         if masked_locations is not None:
-            if np.any(
-                (motif_start <= masked_locations) & (masked_locations < motif_end)
-            ):
+            if np.any((motif_start <= masked_locations) & (masked_locations < motif_end)):
                 continue
         x_new = np.copy(x)
         x_new[0, motif_start:motif_end, :] = motif
@@ -115,9 +105,7 @@ def generate_motif_insertions(x, motif, flanks=(0, 0), masked_locations=None):
     return np.concatenate(x_mut, axis=0), insertion_locations
 
 
-def generate_window_shuffle(
-    x, window_size, n_shuffles, uniform, include_original=True, flanks=(0, 0)
-):
+def generate_window_shuffle(x, window_size, n_shuffles, uniform, include_original=True, flanks=(0, 0)):
     """Generate all possible single point mutations in a sequence."""
     _, L, A = x.shape
     start, end = 0, L
@@ -130,9 +118,7 @@ def generate_window_shuffle(
         for location in range(start, end):
             x_new = np.copy(x)
             if uniform:
-                x_new[0, location : location + window_size, :] = rng.choice(
-                    uniform_array, window_size
-                )
+                x_new[0, location : location + window_size, :] = rng.choice(uniform_array, window_size)
             else:
                 rng.shuffle(x_new[0, location : location + window_size, :], axis=0)
             x_mut.append(x_new)
@@ -141,9 +127,7 @@ def generate_window_shuffle(
 
 def build_one_hot_decoding_table() -> np.ndarray:
     """Get hot decoding table to decode a one hot encoded sequence to a DNA sequence string."""
-    one_hot_decoding_table = np.full(
-        np.iinfo(np.uint8).max + 1, ord("N"), dtype=np.uint8
-    )
+    one_hot_decoding_table = np.full(np.iinfo(np.uint8).max + 1, ord("N"), dtype=np.uint8)
     one_hot_decoding_table[1] = ord("A")
     one_hot_decoding_table[2] = ord("C")
     one_hot_decoding_table[4] = ord("G")
@@ -180,18 +164,10 @@ def hot_encoding_to_sequence(one_hot_encoded_sequence: np.ndarray) -> str:
     sequence = (
         HOT_DECODING_TABLE[
             (
-                (
-                    hes_u32 << 31 >> 31
-                )  # A: 2^0  : 1        -> 1 = A in HOT_DECODING_TABLE
-                | (
-                    hes_u32 << 23 >> 30
-                )  # C: 2^8  : 256      -> 2 = C in HOT_DECODING_TABLE
-                | (
-                    hes_u32 << 15 >> 29
-                )  # G: 2^16 : 65536    -> 4 = G in HOT_DECODING_TABLE
-                | (
-                    hes_u32 << 7 >> 28
-                )  # T: 2^24 : 16777216 -> 8 = T in HOT_DECODING_TABLE
+                (hes_u32 << 31 >> 31)  # A: 2^0  : 1        -> 1 = A in HOT_DECODING_TABLE
+                | (hes_u32 << 23 >> 30)  # C: 2^8  : 256      -> 2 = C in HOT_DECODING_TABLE
+                | (hes_u32 << 15 >> 29)  # G: 2^16 : 65536    -> 4 = G in HOT_DECODING_TABLE
+                | (hes_u32 << 7 >> 28)  # T: 2^24 : 16777216 -> 8 = T in HOT_DECODING_TABLE
             ).astype(np.uint8)
         ]
         .tobytes()
@@ -230,24 +206,19 @@ def reverse_complement(sequence: str | list[str] | np.ndarray) -> str | np.ndarr
             elif sequence.shape[0] == 4:
                 return sequence[:, ::-1][:, ::-1]
             else:
-                raise ValueError(
-                    "One-hot encoded array must have shape (W, 4) or (4, W)"
-                )
+                raise ValueError("One-hot encoded array must have shape (W, 4) or (4, W)")
         elif sequence.ndim == 3:
             if sequence.shape[1] == 4:
                 return sequence[:, ::-1, ::-1]
             elif sequence.shape[2] == 4:
                 return sequence[:, ::-1, ::-1]
             else:
-                raise ValueError(
-                    "One-hot encoded array must have shape (B, 4, W) or (B, W, 4)"
-                )
+                raise ValueError("One-hot encoded array must have shape (B, 4, W) or (B, W, 4)")
         else:
             raise ValueError("One-hot encoded array must have 2 or 3 dimensions")
     else:
-        raise TypeError(
-            "Input must be either a DNA sequence string or a one-hot encoded array"
-        )
+        raise TypeError("Input must be either a DNA sequence string or a one-hot encoded array")
+
 
 def flip_region_strand(region: str | tuple[str, int, int, str]) -> str | tuple[str, int, int, str]:
     """Reverse the strand of a region strand or tuple.
@@ -266,6 +237,7 @@ def flip_region_strand(region: str | tuple[str, int, int, str]) -> str | tuple[s
         return region[:-1] + strand_reverser[region[-1]]
     except TypeError:
         return region[:-1] + tuple(strand_reverser[region[-1]])
+
 
 def parse_region(region: tuple[str, int, int] | tuple[str, int, int, str] | str) -> tuple[str, int, int, str]:
     """Parse a region string or tuple, returning a consistent `(chr, start, end, strand)` tuple.
@@ -292,17 +264,23 @@ def parse_region(region: tuple[str, int, int] | tuple[str, int, int, str] | str)
                 chrom, start, end = region
                 strand = "+"
             except ValueError as err:
-                raise ValueError(f"Expect region with pattern (chr, start, end, strand) or (chr, start, end), not {region}") from err
+                raise ValueError(
+                    f"Expect region with pattern (chr, start, end, strand) or (chr, start, end), not {region}"
+                ) from err
         elif isinstance(region, str):
-            region_split = region.split(':')
+            region_split = region.split(":")
             if len(region_split) == 3:
                 chrom, start_end, strand = region_split
             elif len(region_split) == 2:
                 chrom, start_end = region_split
                 strand = "+"
             else:
-                raise ValueError(f"Expect region with pattern chr:start-end:strand or chr:start-end, not {region}") from None
-            start, end = map(int, start_end.split('-'))
+                raise ValueError(
+                    f"Expect region with pattern chr:start-end:strand or chr:start-end, not {region}"
+                ) from None
+            start, end = map(int, start_end.split("-"))
         else:
-            raise ValueError(f"Expect region to be formatted as a 'chr:start-end[:string]' string or (chr, start, end[, string]) tuple, not {region}") from None
+            raise ValueError(
+                f"Expect region to be formatted as a 'chr:start-end[:string]' string or (chr, start, end[, string]) tuple, not {region}"
+            ) from None
         return chrom, start, end, strand
