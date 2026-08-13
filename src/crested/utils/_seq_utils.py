@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 
 import numpy as np
@@ -280,7 +281,10 @@ def parse_region(region: tuple[str, int, int] | tuple[str, int, int, str] | str)
                 raise ValueError(
                     f"Expect region with pattern chr:start-end:strand or chr:start-end, not {region}"
                 ) from None
-            start, end = map(int, start_end.split("-"))
+            if start_end.count("-") == 1:
+                start, end = map(int, start_end.split("-"))
+            else:
+                start, end = map(int, re.match(r"(-?\d)-(-?\d)").groups())
         else:
             raise ValueError(
                 f"Expect region to be formatted as a 'chr:start-end[:string]' string or (chr, start, end[, string]) tuple, not {region}"
