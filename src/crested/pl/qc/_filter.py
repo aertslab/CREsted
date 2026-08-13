@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from anndata import AnnData
+from loguru import logger
 from scipy.sparse import csr_matrix
 
 from crested.pl._utils import create_plot, render_plot
@@ -223,6 +224,10 @@ def sort_and_filter_cutoff(
 
     .. image:: /_static/img/examples/qc_sort_and_filter_cutoff.png
     """
+    # Handle renamed arguments
+    if 'line_kws' in kwargs:
+        kwargs['cutoff_line_kws'] = kwargs.pop('line_kws')
+        logger.warning(f"Argument `line_kws` is renamed to `cutoff_line_kws` since version 1.10.0; please use `cutoff_line_kws={kwargs['cutoff_line_kws']}` instead.")
     # Validate cutoffs
     if cutoffs is not None:
         if not isinstance(cutoffs, Sequence):
