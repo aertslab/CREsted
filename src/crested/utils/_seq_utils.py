@@ -293,6 +293,8 @@ def resize_region(
 ) -> tuple[str, int, int] | tuple[str, int, int, str] | str | list:
     """Resize a region or list of regions to the new desired width.
 
+    To resize an entire AnnData, please use :func:`~crested.pp.change_regions_width` instead.
+
     Parameters
     ----------
     region
@@ -303,6 +305,10 @@ def resize_region(
     Returns
     -------
     The resized region(s), in the same shape as originally provided.
+
+    See Also
+    --------
+    crested.pp.change_regions_width
     """
     # Check shape: detect region by being str or tuple and having first element (either first letter or chrom in tuple) be str to make sure it's always a list we can loop over
     if isinstance(region, (str, tuple)) and isinstance(region[0], str):
