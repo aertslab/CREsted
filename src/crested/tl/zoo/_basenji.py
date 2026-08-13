@@ -70,7 +70,7 @@ def basenji(
         batch_norm=True,
         bn_momentum=0.9,
         bn_gamma=None,
-        bn_type="standard",
+        bn_sync=False,
         kernel_initializer="he_normal",
         padding="same",
     )
