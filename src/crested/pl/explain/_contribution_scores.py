@@ -13,7 +13,8 @@ from crested.pl._utils import _parse_coordinates_input, create_plot, render_plot
 from crested.utils._logging import log_and_raise
 
 from ._utils import (
-    _plot_attribution_map,
+    _build_attribution_logo,
+    _draw_logo,
     _plot_mutagenesis_map,
     _process_gradients,
     _process_mutagenesis,
@@ -69,7 +70,7 @@ def contribution_scores(
         (to visualize average effects as letters) or `mutagenesis` (to visualize in a legacy way).
     plot_kws
         Extra keyword arguments passed to the underlying plotting function.
-        If `method` is `None` or `'mutagenesis_letters'`, passed to  `_plot_attribution_map` and on to `logomaker.Logo`.
+        If `method` is `None` or `'mutagenesis_letters'`, passed to `_build_attribution_logo` and on to `fast_logomaker.FastLogo`.
         If `method` is `'mutagenesis'`, passed to `_plot_mutagenesis_map` and on to :meth:`~matplotlib.axes.Axes.bar`.
     highlight_kws
         Keywords to use for plotting highlights with :meth:`~matplotlib.axes.Axes.axvspan`.
@@ -207,6 +208,11 @@ def contribution_scores(
         axs = [axs]
 
     plot_idx = 0
+    # Gradient/mutagenesis-letters logos are drawn via FastLogo, which benefits from batch
+    # processing. FastLogo supports per-logo x-axis coordinates/strand, so every logo in
+    # this call (across all sequences/classes) is deferred here and drawn as a single
+    # batched FastLogo call below, regardless of differing coordinates/strands.
+    pending_logos = []
     for seq_i in range(total_sequences):
         # Gather this sequence's seq and score values
         seq_x = seqs_one_hot[seq_i, ...]
@@ -242,6 +248,9 @@ def contribution_scores(
         else:
             left, right = 0, seq_length
 
+        reversed_positions = left > right
+        positions_for_seq = np.arange(left, right, -1 if reversed_positions else 1)
+
         for class_i in range(total_classes):
             ax = axs[plot_idx]
             plot_idx += 1
@@ -249,15 +258,24 @@ def contribution_scores(
             # Plot values for this sequence x class combo
             if method == "mutagenesis":
                 _plot_mutagenesis_map(seq_scores[class_i], ax=ax, start=left, end=right, **plot_kws)
+                # Handle layout
+                if sharey == 'sequence':
+                    ax.set_ylim([sequence_min, sequence_max])
+                else:
+                    ax.set_ymargin(0.25)
             else:
-                _plot_attribution_map(seq_scores[class_i], ax=ax, start=left, end=right, return_ax=False, **plot_kws)
-                ax.autoscale(enable=True, axis='y') # undo fixing of axes within logomaker
+                # Defer drawing so every logo in this call gets batched into a single
+                # FastLogo call below (positions/mirror_glyphs are per-logo, see
+                # _build_attribution_logo); the ylim to apply afterwards must be
+                # deferred with it (see note there).
+                pending_logos.append({
+                    "ax": ax,
+                    "values": seq_scores[class_i],
+                    "positions": positions_for_seq,
+                    "reversed": reversed_positions,
+                    "ylim": (sequence_min, sequence_max) if sharey == 'sequence' else None,
+                })
 
-            # Handle layout
-            if sharey == 'sequence':
-                ax.set_ylim([sequence_min, sequence_max])
-            else:
-                ax.set_ymargin(0.25)
             if class_labels is not None:
                 # Plot at bottom half if mutagenesis scatter (usually negative values), top half for letters (usually positive)
                 label_rel_y = 0.3 if method == 'mutagenesis' else 0.7
@@ -292,6 +310,45 @@ def contribution_scores(
         # Set the title for the sequence (subplot)
         if sequence_labels:
             axs[plot_idx - total_classes].set_title(sequence_labels[seq_i], fontsize=14)
+
+    # Draw all deferred gradient/mutagenesis-letters logos as a single batched FastLogo call,
+    # regardless of differing coordinates/strands (FastLogo supports per-logo positions/mirror_glyphs)
+    if pending_logos:
+        positions_batch = np.stack([p["positions"] for p in pending_logos], axis=0)
+        mirror_batch = np.array([p["reversed"] for p in pending_logos])
+        values_batch = np.stack([p["values"] for p in pending_logos], axis=0)
+
+        # `spines`/`figsize`/`rotate` are consumed here (drawing-time), the rest of
+        # `plot_kws` is forwarded to `fast_logomaker.FastLogo` (batch-building-time).
+        logo_kws = plot_kws.copy()
+        spines_kw = logo_kws.pop('spines', True)
+        figsize_kw = logo_kws.pop('figsize', (20, 1))
+        rotate_kw = logo_kws.pop('rotate', False)
+
+        logo = _build_attribution_logo(
+            values_batch,
+            alphabet=("A", "C", "G", "T"),
+            positions=positions_batch,
+            mirror_glyphs=mirror_batch,
+            **logo_kws,
+        )
+        for idx, entry in enumerate(pending_logos):
+            _draw_logo(
+                logo,
+                idx,
+                ax=entry["ax"],
+                return_ax=False,
+                spines=spines_kw,
+                figsize=figsize_kw,
+                rotate=rotate_kw,
+                reversed_positions=entry["reversed"],
+            )
+            entry["ax"].autoscale(enable=True, axis='y') # undo fixing of axes within FastLogo
+            # Handle layout (deferred: must happen after the draw+autoscale above, not before)
+            if entry["ylim"] is not None:
+                entry["ax"].set_ylim(entry["ylim"])
+            else:
+                entry["ax"].set_ymargin(0.25)
 
     # Set xlabels with coordinates if not supplied
     if coordinates is not None and 'xlabel' not in kwargs:

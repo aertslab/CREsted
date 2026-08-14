@@ -14,6 +14,7 @@
 - Added (more) tests:
   - bigwig and bed reading, predictions from negative strand regions, classes for `contribution_scores`, and creating and loading models from the zoo. (#144, #233)
   - `utils.parse_region` and `utils.resize_region` (#234)
+- Sequence-logo plotting (e.g. {func}`crested.pl.explain.contribution_scores`, {mod}`crested.pl.modisco`) now renders using `fast-logomaker` instead of `logomaker`, which is substantially faster. `contribution_scores` now renders all of its gradient/mutagenesis-letters logos (any number of sequences and classes, even across differing `coordinates`/strands) in a single batched render pass. Minor behavior changes: minus-strand/reversed-coordinate logos now render with forward-facing letters instead of the previous mirrored-letter rendering; a handful of `logomaker`-only styling kwargs passed via `plot_kws` are no longer recognized (most `fast_logomaker.FastLogo` kwargs share the same names).
 
 ### Bugfixes
 - {func}`crested.pl.explain.contribution_scores`' argument `highlight_positions` now highlights [start, end) rather than [start, end], in order to align with indexing and `crested.tl.design`'s `protected_positions`.

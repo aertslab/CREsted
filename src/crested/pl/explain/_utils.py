@@ -5,10 +5,10 @@ from __future__ import annotations
 import warnings
 from collections.abc import Sequence
 
-import logomaker
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from fast_logomaker import FastLogo
 from loguru import logger
 from PIL import Image
 
@@ -69,13 +69,13 @@ def _process_gradients(seq: np.ndarray, scores: np.ndarray):
     return scores*seq
 
 
-def _make_logomaker_df(
+def _make_logo_df(
     scores: np.ndarray,
     start: int | None = None,
     end: int | None = None,
     alphabet: Sequence = ('A', 'C', 'G', 'T')
     ):
-    """Turn an array into a LogoMaker-ready dataframe.
+    """Turn an array into a logo-ready dataframe (index = x-coordinate, columns = alphabet).
 
     Parameters
     ----------
@@ -101,6 +101,130 @@ def _make_logomaker_df(
     x_values = np.arange(start, end, step)
     # Goal: a [n_bp, n_nuc] dataframe, with integer positions as row indices and DNA letters as columns.
     return pd.DataFrame(scores, index=x_values, columns=alphabet)
+
+
+def _build_attribution_logo(
+    values: np.ndarray,
+    alphabet: Sequence,
+    positions: np.ndarray,
+    mirror_glyphs: bool,
+    **kwargs,
+):
+    """Build and process a (possibly batched) FastLogo for one or more attribution/PWM logos.
+
+    All logos in `values` must share the same `positions`/`mirror_glyphs` (i.e. the same
+    x-axis coordinates and strand direction) - pass multiple logos at once to benefit from
+    `fast_logomaker`'s batch processing (shared glyph-path cache, chunked processing).
+
+    Parameters
+    ----------
+    values
+        Array of shape (n_logos, n_bp, n_nuc), attribution/PWM values for one or more logos.
+    alphabet
+        The order of the nucleotides/columns.
+    positions
+        The x-coordinate for each of the `n_bp` positions, shared across the batch.
+    mirror_glyphs
+        Whether to pre-mirror glyphs (see `fast_logomaker.FastLogo`), shared across the batch.
+    kwargs
+        Additional arguments passed to `fast_logomaker.FastLogo()`.
+
+    Returns
+    -------
+    A processed `fast_logomaker.FastLogo` (`.process_all()` already called), ready for `_draw_logo()`.
+    """
+    logo = FastLogo(
+        values,
+        alphabet=alphabet,
+        positions=positions,
+        mirror_glyphs=mirror_glyphs,
+        show_progress=False,
+        **kwargs,
+    )
+    logo.process_all()
+    return logo
+
+
+def _draw_logo(
+    logo: FastLogo,
+    idx: int,
+    ax: plt.Axis | None = None,
+    return_ax: bool = True,
+    spines: bool = True,
+    figsize: tuple[int, int] = (20, 1),
+    rotate: bool = False,
+    reversed_positions: bool = False,
+):
+    """Draw one logo from a processed (possibly batched) FastLogo, optionally rotated by 90 degrees.
+
+    Parameters
+    ----------
+    logo
+        A processed `fast_logomaker.FastLogo` (i.e. `.process_all()` already called), as built by `_build_attribution_logo`.
+    idx
+        Index of the logo to draw within `logo`'s batch.
+    ax
+        Axes object to plot on. Default is None which creates a new Axes.
+    return_ax
+        Whether to return the Axes object. Default is True.
+    spines
+        Whether to display spines (axes borders). Default is True.
+    figsize
+        Figure size for temporary rendering. Default is (20, 1).
+    rotate
+        Whether to rotate the resulting plot by 90 degrees. Default is False.
+    reversed_positions
+        Whether `logo`'s positions run in descending order; if so, inverts the x-axis (non-rotated case only).
+
+    Returns
+    -------
+    matplotlib.axes.Axes: The Axes object with the plotted logo, if `return_ax` is True.
+    """
+    # Standard plotting (no rotation)
+    if not rotate:
+        if ax is None:
+            _, ax = plt.subplots(figsize=figsize)
+        logo.draw_single(idx, ax=ax, fixed_ylim=False, border=True, apply_layout=False)
+        if reversed_positions:
+            ax.xaxis.set_inverted(True)
+        if not spines:
+            ax.spines["right"].set_visible(False)
+            ax.spines["top"].set_visible(False)
+        if return_ax:
+            return ax
+        return
+
+    # Rotation case: render plot to an image
+    temp_fig, temp_ax = plt.subplots(figsize=figsize)
+    logo.draw_single(idx, ax=temp_ax, fixed_ylim=False, border=True, apply_layout=False)
+    temp_ax.axis("off")  # Remove axes for clean rendering
+
+    # Render the plot as an image
+    temp_fig.canvas.draw()
+    renderer = temp_fig.canvas.get_renderer()
+    width, height = map(int, temp_fig.get_size_inches() * temp_fig.get_dpi())
+    image = np.frombuffer(renderer.buffer_rgba(), dtype="uint8").reshape(
+        height, width, 4
+    )[..., :3]
+    # width, height = map(int, temp_fig.get_size_inches() * temp_fig.get_dpi())
+    # image = np.frombuffer(temp_fig.canvas.tostring_rgb(), dtype="uint8").reshape(
+    #    height, width, 3
+    # )
+    plt.close(temp_fig)  # Close the temporary figure to avoid memory leaks
+
+    # Rotate the rendered image
+    rotated_image = np.rot90(image)
+    rotated_image_pil = Image.fromarray(rotated_image)
+
+    # Display the rotated image on the given Axes
+    if ax is None:
+        _, ax = plt.subplots(figsize=figsize)
+    ax.clear()
+    ax.imshow(rotated_image_pil)
+    ax.axis("off")  # Hide axes for a clean look
+
+    if return_ax:
+        return ax
 
 
 def _plot_attribution_map(
@@ -136,7 +260,7 @@ def _plot_attribution_map(
     rotate
         Whether to rotate the resulting plot by 90 degrees. Default is False.
     kwargs
-        Arguments passed to `logomaker.Logo()`.
+        Arguments passed to `fast_logomaker.FastLogo()`.
 
     Returns
     -------
@@ -144,59 +268,32 @@ def _plot_attribution_map(
     """
     # Convert input to DataFrame if needed
     if not isinstance(saliency_df, pd.DataFrame):
-        saliency_df = _make_logomaker_df(saliency_df, start=start, end=end)
+        saliency_df = _make_logo_df(saliency_df, start=start, end=end)
     else:
         if start is not None or end is not None:
             logger.warning("Setting `start` and/or `end` with a pre-made DataFrame. Using DataFrame info and ignoring `start`/`end`...")
 
-    # Check matrix validity
-    logomaker.validate_matrix(saliency_df)
+    # Build a FastLogo from the DataFrame's values/columns/index (positions can be
+    # descending, e.g. for a minus-strand region; mirror_glyphs keeps glyphs
+    # forward-facing if the axis ends up inverted below).
+    alphabet = list(saliency_df.columns)
+    positions = saliency_df.index.to_numpy()
+    values = saliency_df.to_numpy()[None, ...]  # (1, L, A) for FastLogo
+    reversed_positions = positions[0] > positions[-1]
 
-    # Standard plotting (no rotation)
-    if not rotate:
-        if ax is None:
-            _, ax = plt.subplots(figsize=figsize)
-        logomaker.Logo(saliency_df, ax=ax, **kwargs)
-        if saliency_df.index[0] > saliency_df.index[-1]:
-            ax.xaxis.set_inverted(True)
-        if not spines:
-            ax.spines["right"].set_visible(False)
-            ax.spines["top"].set_visible(False)
-        if return_ax:
-            return ax
-        return
-
-    # Rotation case: render plot to an image
-    temp_fig, temp_ax = plt.subplots(figsize=figsize)
-    logomaker.Logo(saliency_df, ax=temp_ax)
-    temp_ax.axis("off")  # Remove axes for clean rendering
-
-    # Render the plot as an image
-    temp_fig.canvas.draw()
-    renderer = temp_fig.canvas.get_renderer()
-    width, height = map(int, temp_fig.get_size_inches() * temp_fig.get_dpi())
-    image = np.frombuffer(renderer.buffer_rgba(), dtype="uint8").reshape(
-        height, width, 4
-    )[..., :3]
-    # width, height = map(int, temp_fig.get_size_inches() * temp_fig.get_dpi())
-    # image = np.frombuffer(temp_fig.canvas.tostring_rgb(), dtype="uint8").reshape(
-    #    height, width, 3
-    # )
-    plt.close(temp_fig)  # Close the temporary figure to avoid memory leaks
-
-    # Rotate the rendered image
-    rotated_image = np.rot90(image)
-    rotated_image_pil = Image.fromarray(rotated_image)
-
-    # Display the rotated image on the given Axes
-    if ax is None:
-        _, ax = plt.subplots(figsize=figsize)
-    ax.clear()
-    ax.imshow(rotated_image_pil)
-    ax.axis("off")  # Hide axes for a clean look
-
-    if return_ax:
-        return ax
+    logo = _build_attribution_logo(
+        values, alphabet=alphabet, positions=positions, mirror_glyphs=reversed_positions, **kwargs
+    )
+    return _draw_logo(
+        logo,
+        0,
+        ax=ax,
+        return_ax=return_ax,
+        spines=spines,
+        figsize=figsize,
+        rotate=rotate,
+        reversed_positions=reversed_positions,
+    )
 
 
 def _plot_mutagenesis_map(
@@ -261,6 +358,28 @@ def _plot_mutagenesis_map(
         ax.spines["top"].set_visible(False)
     ax.margins(x=0)
 
+def _saliency_to_matrix(seq: str, values: np.ndarray, alphabet: str = "ACGT") -> pd.DataFrame:
+    """Scatter per-position saliency values onto the matching-letter column of a logo dataframe.
+
+    Parameters
+    ----------
+    seq
+        The reference sequence, one character per position.
+    values
+        A 1D array of saliency values, one per position in `seq`.
+    alphabet
+        The order of the nucleotides/columns.
+
+    Returns
+    -------
+    A DataFrame of shape (len(seq), len(alphabet)), with `values[i]` placed at column `seq[i]` and zero elsewhere.
+    """
+    mat = np.zeros((len(seq), len(alphabet)))
+    for i, (char, value) in enumerate(zip(seq, values)):
+        mat[i, alphabet.index(char)] = value
+    return pd.DataFrame(mat, columns=list(alphabet))
+
+
 def grad_times_input_to_df(x, grad, alphabet="ACGT"):
     """Generate pandas dataframe for saliency plot based on grad x inputs.
 
@@ -282,7 +401,7 @@ def grad_times_input_to_df(x, grad, alphabet="ACGT"):
         saliency[i] = grad[i, x_index[i]]
 
     # create saliency matrix
-    saliency_df = logomaker.saliency_to_matrix(seq=seq, values=saliency)
+    saliency_df = _saliency_to_matrix(seq=seq, values=saliency, alphabet=alphabet)
     return saliency_df
 
 def grad_times_input_to_df_mutagenesis(x, grad, alphabet="ACGT"):
@@ -343,5 +462,5 @@ def grad_times_input_to_df_mutagenesis_letters(x, grad, alphabet="ACGT"):
         saliency[i] = -np.mean(grad[i, np.delete(all_locs, x_index[i])])
 
     # create saliency matrix
-    saliency_df = logomaker.saliency_to_matrix(seq=seq, values=saliency)
+    saliency_df = _saliency_to_matrix(seq=seq, values=saliency, alphabet=alphabet)
     return saliency_df
