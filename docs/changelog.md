@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features
+- {func}`crested.tl.contribution_scores` now reuses computations (gradients or predictions) when calculating scores for multiple classes of one region. This should speed up both gradient and mutagenesis-based calculations. (#162, #228)
 - {func}`crested.tl.design.in_silico_evolution` and {func}`crested.tl.design.motif_insertion` now take a `protected_positions` argument: a list of `(start, end)` ranges of nucleotide positions that will never be mutated or overwritten by a motif insertion, independent of `no_mutation_flanks`/`target_len`.
 - Added {obj}`crested.tl.data.AnnDataWrapper`, a futureproof dataloader for sequence-to-function training. (#208)
    - AnnDataWrapper mostly uses the same arguments as AnnDataModule and should be a drop-in replacement.

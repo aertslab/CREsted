@@ -253,6 +253,72 @@ def test_contribution_scores(keras_model, genome):
     assert one_hot_encoded_sequences.shape == (1, 500, 4)
 
 
+def test_contribution_scores_multiclass_equivalence(keras_model, genome):
+    """Multi-class contribution_scores calls must match looping single-class calls."""
+    sequence = "ATCGA" * 100
+
+    for method in ["integrated_grad", "expected_integrated_grad", "saliency_map", "mutagenesis"]:
+        combined, _ = crested.tl.contribution_scores(
+            sequence,
+            target_idx=[0, 1],
+            model=keras_model,
+            genome=genome,
+            method=method,
+            seed=42,
+            verbose=False,
+        )
+        for i, class_index in enumerate([0, 1]):
+            single, _ = crested.tl.contribution_scores(
+                sequence,
+                target_idx=class_index,
+                model=keras_model,
+                genome=genome,
+                method=method,
+                seed=42,
+                verbose=False,
+            )
+            np.testing.assert_allclose(
+                combined[:, i],
+                single[:, 0],
+                rtol=1e-5,
+                atol=1e-5,
+                err_msg=f"multi-class and single-class {method} results diverge for class {class_index}",
+            )
+
+
+def test_contribution_scores_window_shuffle_multiclass_equivalence(keras_model, genome):
+    """Multi-class window_shuffle calls must match looping single-class calls, given the same seed."""
+    sequence = "ATCGA" * 100
+
+    for method in ["window_shuffle", "window_shuffle_uniform"]:
+        combined, _ = crested.tl.contribution_scores(
+            sequence,
+            target_idx=[0, 1],
+            model=keras_model,
+            genome=genome,
+            method=method,
+            seed=42,
+            verbose=False,
+        )
+        for i, class_index in enumerate([0, 1]):
+            single, _ = crested.tl.contribution_scores(
+                sequence,
+                target_idx=class_index,
+                model=keras_model,
+                genome=genome,
+                method=method,
+                seed=42,
+                verbose=False,
+            )
+            np.testing.assert_allclose(
+                combined[:, i],
+                single[:, 0],
+                rtol=1e-5,
+                atol=1e-5,
+                err_msg=f"multi-class and single-class {method} results diverge for class {class_index}",
+            )
+
+
 def test_contribution_scores_specific(keras_model, adata, adata_specific, genome):
     with pytest.raises(ValueError):
         # class names can't be empty for specific
