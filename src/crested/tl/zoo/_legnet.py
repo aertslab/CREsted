@@ -68,6 +68,7 @@ def legnet(
         dropout=0.0,
         normalization="batch",
         padding="same",
+        pool_padding="valid",
         l2=0.0,
         # defaults to be kept
         res=False,
@@ -82,8 +83,8 @@ def legnet(
         # Residual concat with EffBlock
         y = legnet_eff_block(
             x,
-            out_ch=tower_eff_filters,
-            ks=eff_kernel_size,
+            filters=tower_eff_filters,
+            kernel_size=eff_kernel_size,
             resize_factor=resize_factor,
             activation=activation,
             name=f"stage{idx}_eff",
@@ -95,7 +96,7 @@ def legnet(
             # Mandatory params
             inputs=x,
             filters=tower_conv_filters,
-            kernel_size=stem_kernel_size,
+            kernel_size=eff_kernel_size,
             pool_size=pool_size,
             activation=activation,
             # Adjusted defaults
@@ -103,6 +104,7 @@ def legnet(
             dropout=0.0,
             normalization="batch",
             padding="same",
+            pool_padding="valid",
             l2=0.0,
             # defaults to be kept
             res=False,
@@ -114,7 +116,7 @@ def legnet(
 
     # Mapper block
     x = keras.layers.BatchNormalization(name="mapper_bn")(x)
-    x = keras.layers.Conv1D(filters=tower_conv_filters * 2, kernel_size=1, name="mapper_conv")(y)
+    x = keras.layers.Conv1D(filters=tower_conv_filters * 2, kernel_size=1, name="mapper_conv")(x)
 
     # Global average pooling across sequence length
     x = keras.ops.mean(x, axis=1)
