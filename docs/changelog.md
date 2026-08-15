@@ -13,7 +13,7 @@
 - Added {func}`crested.utils.resize_region`. (#234)
 - {func}`crested.pp.sort_and_filter_regions_on_specificity` now uses "proportion" by default, and takes a `min_score` threshold parameter. (#235)
   - {func}`crested.pl.qc.sort_and_filter_cutoff` is updated in conjunction to allow plotting of possible `min_score` values with argument `min_scores`. (#235)
-- Add new loss functions ({func}`crested.tl.losses.PoissonKLlLoss`, {func}`crested.tl.losses.GiniLoss`) and fully rework {func}`crested.tl.losses.PoissonMultinomialLoss`. (#223)
+- Add new loss functions ({func}`crested.tl.losses.PoissonKLLoss`, {func}`crested.tl.losses.GiniLoss`) and fully rework {func}`crested.tl.losses.PoissonMultinomialLoss`. (#223)
 
 ### Small changes
 - {func}`crested.tl.modisco.create_pattern_tf_dict`: add motif_col (default 'Motif_name') so tomtom matches can be looked up against a motif-to-TF table that uses a different motif identifier column name. (#221)
