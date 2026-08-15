@@ -3,27 +3,35 @@
 ## Unreleased
 
 ### Features
-- {func}`crested.tl.contribution_scores` now reuses computations (gradients or predictions) when calculating scores for multiple classes of one region. This should speed up both gradient and mutagenesis-based calculations. (#162, #228)
-- {func}`crested.tl.design.in_silico_evolution` and {func}`crested.tl.design.motif_insertion` now take a `protected_positions` argument: a list of `(start, end)` ranges of nucleotide positions that will never be mutated or overwritten by a motif insertion, independent of `no_mutation_flanks`/`target_len`.
+- {func}`crested.tl.contribution_scores` now reuses computations (gradients or predictions) when calculating scores for multiple classes of one region. This should speed up both gradient and mutagenesis-based calculations. (#228)
+- {func}`crested.tl.design.in_silico_evolution` and {func}`crested.tl.design.motif_insertion` now take a `protected_positions` argument: a list of `(start, end)` ranges of nucleotide positions that will never be mutated or overwritten by a motif insertion, independent of `no_mutation_flanks`/`target_len`. (#227)
 - Added {obj}`crested.tl.data.AnnDataWrapper`, a futureproof dataloader for sequence-to-function training. (#208)
    - AnnDataWrapper mostly uses the same arguments as AnnDataModule and should be a drop-in replacement.
    - New: You can set `train_splits`/`val_splits`/`test_splits` to pick the values to assign as train/val/test splits, and `split_column` to pick the column to find these values in. That allows for easier ensemble training, where it changes which fold is the val/test constantly. By default, `train_splits` is inferred to be all values not included in val/test (e.g. 'fold0/1/2' when val and test are 'fold3'/'fold4')
    - AnnDataWrapper should be slightly more memory-efficient.
+- Added {func}`crested.utils.resize_region`. (#234)
+- {func}`crested.pp.sort_and_filter_regions_on_specificity` now uses "proportion" by default, and takes a `min_score` threshold parameter. (#235)
+  - {func}`crested.pl.qc.sort_and_filter_cutoff` is updated in conjunction to allow plotting of possible `min_score` values with argument `min_scores`. (#235)
+- Add new loss functions ({func}`crested.tl.losses.PoissonKLlLoss`, {func}`crested.tl.losses.GiniLoss`) and fully rework {func}`crested.tl.losses.PoissonMultinomialLoss`. (#223)
+
+### Small changes
+- {func}`crested.tl.modisco.create_pattern_tf_dict`: add motif_col (default 'Motif_name') so tomtom matches can be looked up against a motif-to-TF table that uses a different motif identifier column name. (#221)
+- {func}`crested.tl.modisco.create_tf_ct_matrix`: add min_total_seqlets, a whole-pattern gate that drops patterns whose seqlet count summed across all firing cell types is below the floor. (#221)
+- {func}`crested.pl.explain.contribution_scores`' argument `highlight_positions` now highlights [start, end) rather than [start, end], in order to align with indexing and `crested.tl.design`'s `protected_positions`. (#227)
 - Both AnnDataWrapper and AnnDataModule now now handle regions that could cross genome boundaries when stochastically shifted better. (#208)
-- Added {func}`crested.utils.resize_region` (#160, #234)
-- {func}`crested.pp.sort_and_filter_regions_on_specificity` now uses "proportion" by default, and takes a `min_score` threshold parameter.
-  - {func}`crested.pl.qc.sort_and_filter_cutoff` is updated in conjunction to allow plotting of possible `min_score` values with argument `min_scores`.
 - CREsted now supports Python 3.14. (#229)
 - `crested[motif]` optional dependencies integrated into main dependencies, as they no longer require a lower Python version. (#229)
 
+
 ### Bugfixes
-- {func}`crested.pl.explain.contribution_scores`' argument `highlight_positions` now highlights [start, end) rather than [start, end], in order to align with indexing and `crested.tl.design`'s `protected_positions`.
-- {func}`crested.tl.zoo.basenji` can now be built again by fixing a renamed argument in `conv_block_bs`. (#144, #233)
-- {func}`crested.utils.parse_region` now also handles negative coordinates. (#234)
+- x_shift now works in conjunction with coordinates in {func}`crested.pl.explain.contribution_scores` (#232)
+- {func}`crested.tl.zoo.basenji` can now be built again by fixing a renamed argument in `conv_block_bs`. (#233)
+- {func}`crested.utils.parse_region` now also doesn't break with negative coordinates. (#234)
+- Fix compatibility with AnnData>=0.13.0 including X in `AnnData.layers` for plotting functions. (#226)
 
 ### Tests
 - Add tests for both AnnDataLoader and AnnDataWrapper, in both TensorFlow and PyTorch. (#208)
-- Added new tests for bigwig and bed reading, predictions from negative strand regions, classes for `contribution_scores`, and creating and loading models from the zoo. (#144, #233)
+- Added new tests for bigwig and bed reading, predictions from negative strand regions, classes for `contribution_scores`, and creating and loading models from the zoo. (#233)
 - Added new tests for {func}`crested.utils.parse_region` and {func}`crested.utils.resize_region` (#234)
 
 ### Dev/poweruser features
