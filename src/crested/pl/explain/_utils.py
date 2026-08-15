@@ -2,14 +2,9 @@
 
 from __future__ import annotations
 
-import warnings
-from collections.abc import Sequence
-
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 from fast_logomaker import FastLogo
-from loguru import logger
 from PIL import Image
 
 
@@ -49,7 +44,7 @@ def _process_mutagenesis_letters(seq: np.ndarray, scores: np.ndarray):
     # Take the mean of the other nucleotides, negate
     scores = -scores.sum(axis=-1) / 3
     # Spread back out over nucleotide axis
-    scores = scores[..., None] * seq[None, ...] # TODO: check whether this works
+    scores = scores[..., None] * seq[None, ...]
     return scores
 
 def _process_gradients(seq: np.ndarray, scores: np.ndarray):
@@ -68,86 +63,9 @@ def _process_gradients(seq: np.ndarray, scores: np.ndarray):
     """
     return scores*seq
 
-
-def _make_logo_df(
-    scores: np.ndarray,
-    start: int | None = None,
-    end: int | None = None,
-    alphabet: Sequence = ('A', 'C', 'G', 'T')
-    ):
-    """Turn an array into a logo-ready dataframe (index = x-coordinate, columns = alphabet).
-
-    Parameters
-    ----------
-    scores
-        A [n_bp, n_nuc] array, of scores per nucleotide for each location, like from `_process_gradients()` or `_process_mutagenesis_letters()`.
-    start
-        The x-coordinate of the start of the sequence. If None, set to 0. Can be bigger than `end` to plot the values in reverse order.
-    end
-        The x-coordinate of the end of the sequence. If None, set to `start` + `n_bp`. Can be smaller than `start` to plot the values in reverse order.
-        Must be `n_bp` bigger or smaller than `start`.
-    alphabet
-        The order of the nucleotides.
-
-    Returns
-    -------
-    A DataFrame the same shape as `scores`, with scores as values, x-axis integers as index, and nucleotide letters as columns.
-    """
-    if start is None:
-        start = 0
-    if end is None:
-        end = start + scores.shape[-2]
-    step = -1 if start > end else 1
-    x_values = np.arange(start, end, step)
-    # Goal: a [n_bp, n_nuc] dataframe, with integer positions as row indices and DNA letters as columns.
-    return pd.DataFrame(scores, index=x_values, columns=alphabet)
-
-
-def _build_attribution_logo(
-    values: np.ndarray,
-    alphabet: Sequence,
-    positions: np.ndarray,
-    mirror_glyphs: bool,
-    **kwargs,
-):
-    """Build and process a (possibly batched) FastLogo for one or more attribution/PWM logos.
-
-    All logos in `values` must share the same `positions`/`mirror_glyphs` (i.e. the same
-    x-axis coordinates and strand direction) - pass multiple logos at once to benefit from
-    `fast_logomaker`'s batch processing (shared glyph-path cache, chunked processing).
-
-    Parameters
-    ----------
-    values
-        Array of shape (n_logos, n_bp, n_nuc), attribution/PWM values for one or more logos.
-    alphabet
-        The order of the nucleotides/columns.
-    positions
-        The x-coordinate for each of the `n_bp` positions, shared across the batch.
-    mirror_glyphs
-        Whether to pre-mirror glyphs (see `fast_logomaker.FastLogo`), shared across the batch.
-    kwargs
-        Additional arguments passed to `fast_logomaker.FastLogo()`.
-
-    Returns
-    -------
-    A processed `fast_logomaker.FastLogo` (`.process_all()` already called), ready for `_draw_logo()`.
-    """
-    logo = FastLogo(
-        values,
-        alphabet=alphabet,
-        positions=positions,
-        mirror_glyphs=mirror_glyphs,
-        show_progress=False,
-        **kwargs,
-    )
-    logo.process_all()
-    return logo
-
-
-def _draw_logo(
-    logo: FastLogo,
-    idx: int,
+def _plot_attribution_map(
+    data: FastLogo | np.ndarray,
+    idx: int = 0,
     ax: plt.Axis | None = None,
     return_ax: bool = True,
     spines: bool = True,
@@ -159,10 +77,10 @@ def _draw_logo(
 
     Parameters
     ----------
-    logo
-        A processed `fast_logomaker.FastLogo` (i.e. `.process_all()` already called), as built by `_build_attribution_logo`.
+    data
+        A `fast_logomaker.FastLogo` object (with `logo.process_all()` called) (preferred), or an array with attribution scores of shape (length, 4) or (1, length, 4).
     idx
-        Index of the logo to draw within `logo`'s batch.
+        Index of the logo to draw within `logo`'s batch. Default is 0.
     ax
         Axes object to plot on. Default is None which creates a new Axes.
     return_ax
@@ -180,6 +98,14 @@ def _draw_logo(
     -------
     matplotlib.axes.Axes: The Axes object with the plotted logo, if `return_ax` is True.
     """
+    if not isinstance(data, FastLogo):
+        if data.ndim == 2:
+            data = np.expand_dims(data, 0)
+        logo = FastLogo(values=data, show_progress=False)
+        logo.process_all()
+    else:
+        logo = data
+
     # Standard plotting (no rotation)
     if not rotate:
         if ax is None:
@@ -225,76 +151,6 @@ def _draw_logo(
 
     if return_ax:
         return ax
-
-
-def _plot_attribution_map(
-    saliency_df: pd.DataFrame | np.ndarray,
-    ax: plt.Axis | None = None,
-    start: int | None = None,
-    end: int | None = None,
-    return_ax: bool = True,
-    spines: bool = True,
-    figsize: tuple[int, int] = (20, 1),
-    rotate: bool = False,
-    **kwargs
-):
-    """
-    Plot an attribution map (PWM logo) and optionally rotate it by 90 degrees.
-
-    Parameters
-    ----------
-    saliency_df
-        A DataFrame or array with attribution scores where columns are nucleotide bases (A, C, G, T).
-    ax
-        Axes object to plot on. Default is None which creates a new Axes.
-    start
-        The start of the sequence x-axis. If not supplied, set to 0. Ignored if `saliency_df` is already a dataframe.
-    end
-        The end of the sequence x-axis. If not supplied, set to start + the length of the sequence. Ignored if `saliency_df` is already a dataframe.
-    return_ax
-        Whether to return the Axes object. Default is True.
-    spines
-        Whether to display spines (axes borders). Default is True.
-    figsize
-        Figure size for temporary rendering. Default is (20, 1).
-    rotate
-        Whether to rotate the resulting plot by 90 degrees. Default is False.
-    kwargs
-        Arguments passed to `fast_logomaker.FastLogo()`.
-
-    Returns
-    -------
-    matplotlib.axes.Axes: The Axes object with the plotted attribution map, if `return_ax` is True.
-    """
-    # Convert input to DataFrame if needed
-    if not isinstance(saliency_df, pd.DataFrame):
-        saliency_df = _make_logo_df(saliency_df, start=start, end=end)
-    else:
-        if start is not None or end is not None:
-            logger.warning("Setting `start` and/or `end` with a pre-made DataFrame. Using DataFrame info and ignoring `start`/`end`...")
-
-    # Build a FastLogo from the DataFrame's values/columns/index (positions can be
-    # descending, e.g. for a minus-strand region; mirror_glyphs keeps glyphs
-    # forward-facing if the axis ends up inverted below).
-    alphabet = list(saliency_df.columns)
-    positions = saliency_df.index.to_numpy()
-    values = saliency_df.to_numpy()[None, ...]  # (1, L, A) for FastLogo
-    reversed_positions = positions[0] > positions[-1]
-
-    logo = _build_attribution_logo(
-        values, alphabet=alphabet, positions=positions, mirror_glyphs=reversed_positions, **kwargs
-    )
-    return _draw_logo(
-        logo,
-        0,
-        ax=ax,
-        return_ax=return_ax,
-        spines=spines,
-        figsize=figsize,
-        rotate=rotate,
-        reversed_positions=reversed_positions,
-    )
-
 
 def _plot_mutagenesis_map(
         scores: np.ndarray,
@@ -357,25 +213,4 @@ def _plot_mutagenesis_map(
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
     ax.margins(x=0)
-
-def _saliency_to_matrix(seq: str, values: np.ndarray, alphabet: str = "ACGT") -> pd.DataFrame:
-    """Scatter per-position saliency values onto the matching-letter column of a logo dataframe.
-
-    Parameters
-    ----------
-    seq
-        The reference sequence, one character per position.
-    values
-        A 1D array of saliency values, one per position in `seq`.
-    alphabet
-        The order of the nucleotides/columns.
-
-    Returns
-    -------
-    A DataFrame of shape (len(seq), len(alphabet)), with `values[i]` placed at column `seq[i]` and zero elsewhere.
-    """
-    mat = np.zeros((len(seq), len(alphabet)))
-    for i, (char, value) in enumerate(zip(seq, values)):
-        mat[i, alphabet.index(char)] = value
-    return pd.DataFrame(mat, columns=list(alphabet))
 
