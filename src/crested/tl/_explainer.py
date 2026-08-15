@@ -39,7 +39,7 @@ elif keras.config.backend() == "torch":
 def saliency_map(
     X: np.ndarray,
     model: keras.Model,
-    class_index: int | None,
+    class_index: int | list[int] | None,
     batch_size: int = 128,
     func: Callable = None,
 ) -> np.ndarray:
@@ -52,7 +52,7 @@ def saliency_map(
     model
         Your Keras model.
     class_index
-        The index of the class to explain. If None, applies func to average/sum/etc over all classes.
+        The index of the class to explain, an int, a list of ints, or None. If None, applies func to average/sum/etc over all classes.
     func
         If class_index is None, how to combine the final predictions (sum/mean/etc). Should work on tensors of your backend.
     batch_size
@@ -83,7 +83,7 @@ def saliency_map(
 def integrated_grad(
     X: np.ndarray,
     model: keras.Model,
-    class_index: int | None = None,
+    class_index: int | list[int] | None = None,
     baseline_type: str = "random",
     num_baselines: int = 25,
     num_steps: int = 25,
@@ -103,7 +103,7 @@ def integrated_grad(
     model
         Your Keras model.
     class_index
-        The index of the class to explain. If None, applies func to average/sum/etc over all classes.
+        The index of the class to explain, an int, a list of ints, or None. If None, applies func to average/sum/etc over all classes.
     baseline_type
         How to get the baseline sequence to compare your sequence to.
         "random" shuffles each input sequence `num_baselines` times and interpolates from those shuffled versions to the original, as used in expected integrated gradients.
@@ -177,7 +177,12 @@ def integrated_grad(
     # Make baselines
     baselines = make_baselines(X, num_samples=num_baselines, baseline_type=baseline_type, seed=seed)
 
-    outputs = np.zeros_like(X)
+    is_multi_class = isinstance(class_index, (list, tuple))
+    if is_multi_class:
+        outputs = np.zeros((X.shape[0], len(class_index), X.shape[1], X.shape[2]), dtype=X.dtype)
+    else:
+        outputs = np.zeros_like(X)
+
     for i, x in enumerate(X):
         x = np.expand_dims(x, axis=0)
 
@@ -198,8 +203,8 @@ def integrated_grad(
             func=func,
             batch_size=batch_size,
         )
-        # Reshape from n_baselines*n_steps, seq_len, 4 to n_baselines, n_steps, seq_len, 4
-        grad = grad.reshape([num_baselines, num_steps + 1, x.shape[-2], x.shape[-1]])
+        # Reshape from (n_baselines*(n_steps+1), (n_classes), seq_len, 4) to (n_baselines, n_steps+1, (n_classes), seq_len, 4)
+        grad = grad.reshape((num_baselines, num_steps + 1) + grad.shape[1:])
 
         # Apply integrated gradient transform
         avg_grad = integral_approximation(grad)
@@ -209,8 +214,13 @@ def integrated_grad(
     return outputs
 
 
-def mutagenesis(X: np.ndarray, model: keras.Model, class_index: int = None, batch_size: int = 256) -> np.ndarray:
-    """In silico mutagenesis analysis for a given sequence.
+def mutagenesis(
+    X: np.ndarray,
+    model: keras.Model,
+    class_index: int | list[int] | None = None,
+    batch_size: int = 256,
+) -> np.ndarray:
+    """In silico mutagenesis analysis for a given (set of) sequence(s).
 
     Parameters
     ----------
@@ -219,7 +229,7 @@ def mutagenesis(X: np.ndarray, model: keras.Model, class_index: int = None, batc
     model
         Your Keras model.
     class_index
-        The index of the class to explain.
+        The index/indices of the class(es) to explain: an int, a list of ints, or None. If None, uses the L2 norm across all classes.
     batch_size
         Batch size to use when predicting values with the model. Note that mutagenesis requires (seq_len*3+1) predictions to explain one sequence.
         Default is 256.
@@ -228,24 +238,25 @@ def mutagenesis(X: np.ndarray, model: keras.Model, class_index: int = None, batc
     if _is_tensor(X):
         X = _from_tensor(X)
 
+    is_multi_class = isinstance(class_index, (list, tuple))
+    if not is_multi_class:
+        class_index = [class_index]
+
     def reconstruct_map(predictions):
         _, L, A = x.shape
 
-        mut_score = np.zeros((1, L, A))
+        mut_score = np.zeros((1, len(class_index), L, A))
         k = 0
         for length in range(L):
             for a in range(A):
-                mut_score[0, length, a] = predictions[k]
+                mut_score[0, :, length, a] = predictions[k]
                 k += 1
         return mut_score
 
     def get_score(x, model, class_index, batch_size=None):
-        score = model.predict(x, verbose=0, batch_size=batch_size)
-        if class_index is None:
-            score = np.sqrt(np.sum(score**2, axis=-1, keepdims=True))
-        else:
-            score = score[:, class_index]
-        return score
+        predictions = model.predict(x, verbose=0, batch_size=batch_size)
+        cols = [np.sqrt(np.sum(predictions**2, axis=-1)) if idx is None else predictions[:, idx] for idx in class_index]
+        return np.stack(cols, axis=1)
 
     scores = []
     for x in X:
@@ -260,7 +271,13 @@ def mutagenesis(X: np.ndarray, model: keras.Model, class_index: int = None, batc
 
         # reshape mutagenesis predictions
         mut_score = reconstruct_map(predictions)
-        scores.append(mut_score - wt_score)
+        wt_score = wt_score[:, :, None, None]  # (1, n_classes) -> (1, n_classes, 1, 1) to broadcast over (L, A)
+
+        # Remove 1-length class index if not multi-class
+        score_diff = mut_score - wt_score
+        if not is_multi_class:
+            score_diff = score_diff.squeeze(axis=1)
+        scores.append(score_diff)
 
     return np.concatenate(scores, axis=0)
 
@@ -268,13 +285,14 @@ def mutagenesis(X: np.ndarray, model: keras.Model, class_index: int = None, batc
 def window_shuffle(
     X: np.ndarray,
     model: keras.Model,
-    class_index: int = None,
+    class_index: int | list[int] | None = None,
     window_size: int = 5,
     n_shuffles: int = 5,
     uniform: bool = False,
     batch_size: int = 256,
+    seed: int | None = 42,
 ) -> np.ndarray:
-    """In silico mutagenesis analysis for a given sequence.
+    """In silico mutagenesis analysis for a given (set of) sequence(s) via window shuffling.
 
     Parameters
     ----------
@@ -283,7 +301,7 @@ def window_shuffle(
     model
         Your Keras model.
     class_index
-        The index of the class to explain.
+        The index/indices of the class(es) to explain: an int, a list of ints, or None. If None, uses the L2 norm across all classes.
     window_size
         Window size to use to shuffle
     n_shuffles
@@ -293,12 +311,17 @@ def window_shuffle(
     batch_size
         Batch size to use when predicting values with the model. Note that mutagenesis requires (seq_len*3+1) predictions to explain one sequence.
         Default is 256.
+    seed
+        Seed to use for the window shuffling.
     """
+    is_multi_class = isinstance(class_index, (list, tuple))
+    if not is_multi_class:
+        class_index = [class_index]
 
     def reconstruct_map(predictions, window_size, n_shuffles):
         _, L, A = x.shape
 
-        mut_score = np.zeros((1, L, A))
+        mut_score = np.zeros((1, len(class_index), L, A))
         n_mut_per_shuffle = len(predictions) // n_shuffles
         for location in range(L):
             # determine which predictions affect this location
@@ -308,23 +331,22 @@ def window_shuffle(
             for shuffle in range(n_shuffles):
                 offset = shuffle * n_mut_per_shuffle
                 indexes.extend(range(start + offset, (start + number_of_changes) + offset))
-            mut_score[0, location, :] = np.mean(predictions[indexes])
+            mean_score = np.mean(predictions[indexes], axis=0)
+            mut_score[0, :, location, :] = mean_score[:, None]
         return mut_score
 
     def get_score(x, model, class_index, batch_size=None):
-        score = model.predict(x, verbose=0, batch_size=batch_size)
-        if class_index is None:
-            score = np.sqrt(np.sum(score**2, axis=-1, keepdims=True))
-        else:
-            score = score[:, class_index]
-        return score
+        predictions = model.predict(x, verbose=0, batch_size=batch_size)
+        cols = [np.sqrt(np.sum(predictions**2, axis=-1)) if idx is None else predictions[:, idx] for idx in class_index]
+        return np.stack(cols, axis=1)
+
 
     scores = []
     for x in X:
         x = np.expand_dims(x, axis=0)
 
         # generate mutagenized sequences
-        x_mut = generate_window_shuffle(x, window_size=window_size, n_shuffles=n_shuffles, uniform=uniform)
+        x_mut = generate_window_shuffle(x, window_size=window_size, n_shuffles=n_shuffles, uniform=uniform, seed=seed)
 
         # get baseline wildtype score
         wt_score = get_score(x, model, class_index, batch_size=batch_size)
@@ -332,7 +354,13 @@ def window_shuffle(
 
         # reshape mutagenesis predictions
         mut_score = reconstruct_map(predictions, window_size=window_size, n_shuffles=n_shuffles)
-        scores.append(wt_score - mut_score)
+        wt_score = wt_score[:, :, None, None]
+
+        # Remove 1-length class index if not multi-class
+        score_diff = mut_score - wt_score
+        if not is_multi_class:
+            score_diff = score_diff.squeeze(axis=1)
+        scores.append(score_diff)
     return np.concatenate(scores, axis=0)
 
 
@@ -453,7 +481,7 @@ def function_batch(
 
     Returns
     -------
-    Numpy array of the same shape as X.
+    Numpy array matching X's leading (batch) dimension, with any additional trailing dimensions added by fun (e.g. a class axis) preserved.
     """
     data_size = X.shape[0]
     # If fits in one batch, return directly
