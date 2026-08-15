@@ -66,16 +66,10 @@ def dense_block(
             name=name_prefix + "_batchnorm" if name_prefix else None,
         )(x)
     elif normalization == "layer":
-        x = keras.layers.LayerNormalization(
-            name=name_prefix + "_layernorm" if name_prefix else None
-        )(x)
+        x = keras.layers.LayerNormalization(name=name_prefix + "_layernorm" if name_prefix else None)(x)
 
-    x = activate(
-        x, activation, name=name_prefix + "_activation" if name_prefix else None
-    )
-    x = keras.layers.Dropout(
-        dropout, name=name_prefix + "_dropout" if name_prefix else None
-    )(x)
+    x = activate(x, activation, name=name_prefix + "_activation" if name_prefix else None)
+    x = keras.layers.Dropout(dropout, name=name_prefix + "_dropout" if name_prefix else None)(x)
     return x
 
 
@@ -147,12 +141,8 @@ def conv_block(
             name=name_prefix + "_batchnorm" if name_prefix else None,
         )(x)
     elif normalization == "layer":
-        x = keras.layers.LayerNormalization(
-            name=name_prefix + "_layernorm" if name_prefix else None
-        )(x)
-    x = activate(
-        x, activation, name=name_prefix + "_activation" if name_prefix else None
-    )
+        x = keras.layers.LayerNormalization(name=name_prefix + "_layernorm" if name_prefix else None)(x)
+    x = activate(x, activation, name=name_prefix + "_activation" if name_prefix else None)
     if res:
         if filters != residual.shape[2]:
             residual = keras.layers.Convolution1D(
@@ -170,16 +160,12 @@ def conv_block(
             name=name_prefix + "_pool" if name_prefix else None,
         )(x)
     if dropout > 0:
-        x = keras.layers.Dropout(
-            dropout, name=name_prefix + "_dropout" if name_prefix else None
-        )(x)
+        x = keras.layers.Dropout(dropout, name=name_prefix + "_dropout" if name_prefix else None)(x)
 
     return x
 
 
-def activate(
-    current: keras.KerasTensor, activation: str, verbose: bool = False, name=None
-) -> keras.KerasTensor:
+def activate(current: keras.KerasTensor, activation: str, verbose: bool = False, name=None) -> keras.KerasTensor:
     """
     Apply activation function to a tensor.
 
@@ -268,15 +254,11 @@ def pool(
         print("pool:", pool_type)
 
     if pool_type == "max":
-        current = keras.layers.MaxPooling1D(
-            pool_size=pool_size, padding=padding, name=name
-        )(current)
+        current = keras.layers.MaxPooling1D(pool_size=pool_size, padding=padding, name=name)(current)
     elif pool_type == "attention":
         current = AttentionPool1D(pool_size=2, padding=padding, name=name)(current)
     elif pool_type == "average":
-        current = keras.layers.AveragePooling1D(
-            pool_size=2, padding=padding, name=name
-        )(current)
+        current = keras.layers.AveragePooling1D(pool_size=2, padding=padding, name=name)(current)
     else:
         raise ValueError(f'Unrecognized pooling type "{pool_type}"')
     return current
@@ -412,9 +394,7 @@ def conv_block_bs(
         )(current)
 
     # activation
-    current = activate(
-        current, activation, name=name_prefix + "_activation" if name_prefix else None
-    )
+    current = activate(current, activation, name=name_prefix + "_activation" if name_prefix else None)
 
     # convolution
     current = conv_layer(
@@ -431,15 +411,11 @@ def conv_block_bs(
 
     # dropout
     if dropout > 0:
-        current = keras.layers.Dropout(
-            rate=dropout, name=name_prefix + "_dropout" if name_prefix else None
-        )(current)
+        current = keras.layers.Dropout(rate=dropout, name=name_prefix + "_dropout" if name_prefix else None)(current)
 
     # residual add
     if residual:
-        current = keras.layers.Add(name=name_prefix + "_add" if name_prefix else None)(
-            [inputs, current]
-        )
+        current = keras.layers.Add(name=name_prefix + "_add" if name_prefix else None)([inputs, current])
 
     # end activation
     if activation_end is not None:
@@ -553,9 +529,7 @@ def mha_block_enf(
         absolute_positions=absolute_positions,
         name=f"{name_prefix}_mhsa",
     )(current)
-    current = keras.layers.Dropout(rate=final_dropout, name=f"{name_prefix}_dropout")(
-        current
-    )
+    current = keras.layers.Dropout(rate=final_dropout, name=f"{name_prefix}_dropout")(current)
     if residual:
         current = keras.layers.Add()([inputs, current])
     return current
@@ -608,23 +582,13 @@ def ffn_block_enf(
         gamma_initializer="ones",
         name=f"{name_prefix}_layernorm",
     )(inputs)
-    current = keras.layers.Conv1D(
-        filters=expansion_filters, kernel_size=1, name=f"{name_prefix}_pointwise_1"
-    )(current)
-    current = keras.layers.Dropout(rate=dropout, name=f"{name_prefix}_dropout_1")(
-        current
-    )
+    current = keras.layers.Conv1D(filters=expansion_filters, kernel_size=1, name=f"{name_prefix}_pointwise_1")(current)
+    current = keras.layers.Dropout(rate=dropout, name=f"{name_prefix}_dropout_1")(current)
 
     # Second half
-    current = activate(
-        current, activation, name=name_prefix + "_activation" if name_prefix else None
-    )
-    current = keras.layers.Conv1D(
-        filters=filters, kernel_size=1, name=f"{name_prefix}_pointwise_2"
-    )(current)
-    current = keras.layers.Dropout(rate=dropout, name=f"{name_prefix}_dropout_2")(
-        current
-    )
+    current = activate(current, activation, name=name_prefix + "_activation" if name_prefix else None)
+    current = keras.layers.Conv1D(filters=filters, kernel_size=1, name=f"{name_prefix}_pointwise_2")(current)
+    current = keras.layers.Dropout(rate=dropout, name=f"{name_prefix}_dropout_2")(current)
 
     # Residual
     if residual:
@@ -708,6 +672,7 @@ def dilated_residual(
             dilation_rate = np.round(dilation_rate)
 
     return current
+
 
 def legnet_se_block(inputs: keras.KerasTensor, units: int, reduction: int = 4, name: str | None = None):
     """

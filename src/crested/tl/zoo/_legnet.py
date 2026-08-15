@@ -5,9 +5,6 @@ import keras
 from .utils import conv_block, legnet_eff_block
 
 
-
-
-
 def legnet(
     seq_len: int,
     num_classes: int,
