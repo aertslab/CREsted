@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 import numpy as np
 from anndata import AnnData
 from loguru import logger
@@ -52,18 +54,14 @@ def filter_regions_on_specificity(
     ...     gini_std_threshold=1.0,
     ... )
     """
-    if model_name is None or model_name in ['X', 'truth', 'groundtruth']:
+    if model_name is None or model_name in ["X", "truth", "groundtruth"]:
         if isinstance(adata.X, csr_matrix):
-            target_matrix = (
-                adata.X.toarray().T
-            )  # Convert to dense and transpose to (regions, cell types)
+            target_matrix = adata.X.toarray().T  # Convert to dense and transpose to (regions, cell types)
         else:
             target_matrix = adata.X.T
     else:
         if model_name not in adata.layers:
-            raise ValueError(
-                f"Model name {model_name} not found in adata.layers. Please provide a valid model name."
-            )
+            raise ValueError(f"Model name {model_name} not found in adata.layers. Please provide a valid model name.")
         target_matrix = adata.layers[model_name].T
 
     gini_scores = np.max(_calc_gini(target_matrix), axis=1)
@@ -75,9 +73,7 @@ def filter_regions_on_specificity(
     target_matrix_filt = target_matrix[selected_indices]
     regions_filt = adata.var_names[selected_indices]
 
-    logger.info(
-        f"After specificity filtering, kept {len(target_matrix_filt)} out of {target_matrix.shape[0]} regions."
-    )
+    logger.info(f"After specificity filtering, kept {len(target_matrix_filt)} out of {target_matrix.shape[0]} regions.")
 
     # Filter the adata object inplace or return copy
     if inplace:
@@ -90,15 +86,17 @@ def sort_and_filter_regions_on_specificity(
     adata: AnnData,
     top_k: int,
     model_name: str | None = None,
-    method: str = "gini",
+    method: Literal["gini", "proportion"] = "proportion",
+    min_score: float | None = None,
     inplace: bool = True,
 ) -> AnnData | None:
     """
-    Sort bed regions & targets/predictions based on high Gini or proportion score per colum while keeping the top k rows per column.
+    Sort bed regions & targets/predictions based on high Gini or proportion score per column while keeping the top k rows per column.
 
     Combines them into a single AnnData object with extra columns indicating the original class name,
     the rank per column, and the score.
-    To get an idea for the impact of different possible `top_k` values, see :func:`~crested.pl.qc.sort_and_filter_cutoff`.
+    To get an idea for the impact of different possible `top_k` and `min_score` values, see :func:`~crested.pl.qc.sort_and_filter_cutoff`.
+    We highly recommend setting a `min_score` value especially when using "gini" on a small dataset.
 
     Parameters
     ----------
@@ -111,7 +109,9 @@ def sort_and_filter_regions_on_specificity(
         If None, will use the targets in adata.X to decide which regions to sort.
     method
         The method to use for calculating scores, either 'gini' or 'proportion'.
-        Default is 'gini'.
+        Default is 'proportion' since v1.10.0, 'gini' before that.
+    min_score
+        If provided, keep only regions with gini or proportion score to be greater than this value. Will potentially lead to unbalanced numbers of regions by classes.
     inplace
         Perform computation and modify `adata` in-place or return a resulting copy of the `adata` instead.
 
@@ -130,22 +130,23 @@ def sort_and_filter_regions_on_specificity(
     >>> crested.pp.sort_and_filter_regions_on_specificity(
     ...     adata,
     ...     top_k=500,
-    ...     method="gini",
+    ...     method="proportion",
     ... )
     """
+    logger.info("Default value for 'method' has changed to 'proportion' in v.1.10.0.")
+    if method == "gini" and min_score is None:
+        logger.info(
+            "We highly recommend setting a min_score when using 'gini' scoring, as class gini scores can quickly bottom out to zero."
+        )
     class_names = list(adata.obs_names)
-    if model_name is None or model_name in ['X', 'truth', 'groundtruth']:
+    if model_name is None or model_name in ["X", "truth", "groundtruth"]:
         if isinstance(adata.X, csr_matrix):
-            target_matrix = (
-                adata.X.toarray().T
-            )  # Convert to dense and transpose to (regions, cell types)
+            target_matrix = adata.X.toarray().T  # Convert to dense and transpose to (regions, cell types)
         else:
             target_matrix = adata.X.T
     else:
         if model_name not in adata.layers:
-            raise ValueError(
-                f"Model name {model_name} not found in adata.layers. Please provide a valid model name."
-            )
+            raise ValueError(f"Model name {model_name} not found in adata.layers. Please provide a valid model name.")
         target_matrix = adata.layers[model_name].T
 
     if method == "gini":
@@ -162,6 +163,8 @@ def sort_and_filter_regions_on_specificity(
     for col in range(scores.shape[1]):
         sorted_indices = np.argsort(scores[:, col])[::-1]
         top_indices = sorted_indices[:top_k]
+        if min_score is not None:
+            top_indices = top_indices[scores[:, col][top_indices] > min_score]
         all_selected_indices.extend(top_indices)
         column_indices.extend([col] * len(top_indices))
         ranks.extend(range(1, len(top_indices) + 1))
@@ -177,9 +180,7 @@ def sort_and_filter_regions_on_specificity(
     regions_filtered = adata.var_names[all_selected_indices]
     class_names_filtered = [class_names[idx] for idx in column_indices]
 
-    logger.info(
-        f"After sorting and filtering, kept {target_matrix_filtered.shape[0]} regions."
-    )
+    logger.info(f"After sorting and filtering, kept {target_matrix_filtered.shape[0]} regions.")
 
     # filter the adata object (inplace or via a copy)
     if inplace:
