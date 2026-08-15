@@ -55,7 +55,7 @@ def dense_block(
         activation=None,
         use_bias=use_bias,
         kernel_initializer="he_normal",
-        kernel_regularizer=keras.regularizers.l2(l2),
+        kernel_regularizer=keras.regularizers.l2(l2) if l2 > 0 else None,
         name=name_prefix + "_dense" if name_prefix else None,
     )(inputs)
 
@@ -137,7 +137,7 @@ def conv_block(
         filters=filters,
         kernel_size=kernel_size,
         padding=padding,
-        kernel_regularizer=keras.regularizers.L2(l2),
+        kernel_regularizer=keras.regularizers.L2(l2) if l2 > 0 else None,
         use_bias=conv_bias,
         name=name_prefix + "_conv" if name_prefix else None,
     )(inputs)
@@ -425,7 +425,7 @@ def conv_block_bs(
         use_bias=conv_bias,
         dilation_rate=dilation_rate,
         kernel_initializer=kernel_initializer,
-        kernel_regularizer=keras.regularizers.l2(l2_scale),
+        kernel_regularizer=keras.regularizers.l2(l2_scale) if l2_scale > 0 else None,
         name=name_prefix + "_conv" if name_prefix else None,
     )(current)
 
