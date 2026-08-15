@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from anndata import AnnData
+from loguru import logger
 from scipy.sparse import csr_matrix
 
 from crested.pl._utils import create_plot, render_plot
@@ -149,8 +150,9 @@ def filter_cutoff(
 
 def sort_and_filter_cutoff(
     adata: AnnData,
-    cutoffs: list[int] | None = None,
-    method: Literal['gini', 'proportion'] = 'gini',
+    cutoffs: int | list[int] | None = None,
+    method: Literal['gini', 'proportion'] = 'proportion',
+    min_scores: float | None = None,
     model_name: str | None = None,
     max_k: int = 2000,
     cmap: str | Sequence = 'tab20',
@@ -158,7 +160,8 @@ def sort_and_filter_cutoff(
     class_labels: bool = True,
     ax: plt.Axes | None = None,
     plot_kws: dict | None = None,
-    line_kws: dict | None = None,
+    cutoff_line_kws: dict | None = None,
+    score_line_kws: dict | None = None,
     **kwargs
 ) -> (plt.Figure, plt.Axes) | None:
     """
@@ -171,12 +174,14 @@ def sort_and_filter_cutoff(
     adata
         AnnData object with region data. This should not be filtered yet!
     cutoffs
-        List of considered top amounts to plot an illustrative line at, as in :func:`~crested.pp.sort_and_filter_regions_on_specificity`'s `top_k`.
+        (List of) considered top # of regions to plot an illustrative line at, as in :func:`~crested.pp.sort_and_filter_regions_on_specificity`'s `top_k`.
     model_name
         The name of the model to calculate scores from. If None or 'truth'/'groundtruth'/'X' (default), will use the values in adata.X.
     method
         The method to use for calculating scores, either 'gini' or 'proportion'.
-        Default is 'gini'.
+        Default is 'proportion'.
+    min_scores
+        Minimum score(s) required to plot an illustrative line at, as in :func:`~crested.pp.sort_and_filter_regions_on_specificity`'s `min_score`.
     max_k
         The maximum number of top regions per cell type to plot. Should be higher than the cutoffs you're considering.
     cmap
@@ -190,8 +195,10 @@ def sort_and_filter_cutoff(
         Axis to plot values on. If not supplied, creates a figure from scratch.
     plot_kws
         Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.scatter`. Defaults: `'s': 4`.
-    line_kws
-        Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.axvline`. Defaults: `'color': 'black'`, `'linestyle': '--'`.
+    cutoff_line_kws
+        Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.axvline` to show `cutoffs`. Defaults: `'color': 'black'`, `'linestyle': '--'`.
+    score_line_kws
+        Extra keyword arguments passed to :meth:`~matplotlib.axes.Axes.axhline` to show `min_score`. Defaults: `'color': 'darkgray'`, `linestyle: '-.'`.
     width
         Width of the newly created figure if `ax=None`. Default is 8.
     height
@@ -211,11 +218,16 @@ def sort_and_filter_cutoff(
     >>> crested.pl.qc.sort_and_filter_cutoff(
     ...     adata,
     ...     cutoffs=[2000, 3000, 4000],
+    ...     min_scores=[0.2, 0.3],
     ...     max_k=5000
     ... )
 
     .. image:: /_static/img/examples/qc_sort_and_filter_cutoff.png
     """
+    # Handle renamed arguments
+    if 'line_kws' in kwargs:
+        cutoff_line_kws = kwargs.pop('line_kws')
+        logger.warning(f"Argument `line_kws` is renamed to `cutoff_line_kws` since version 1.10.0; please use `cutoff_line_kws={cutoff_line_kws}` instead.")
     # Validate cutoffs
     if cutoffs is not None:
         if not isinstance(cutoffs, Sequence):
@@ -253,11 +265,16 @@ def sort_and_filter_cutoff(
     plot_kws = {} if plot_kws is None else plot_kws.copy()
     if 's' not in plot_kws:
         plot_kws['s'] = 4
-    line_kws = {} if line_kws is None else line_kws.copy()
-    if 'color' not in line_kws:
-        line_kws['color'] = 'black'
-    if 'linestyle' not in line_kws:
-        line_kws['linestyle'] = '--'
+    cutoff_line_kws = {} if cutoff_line_kws is None else cutoff_line_kws.copy()
+    if 'color' not in cutoff_line_kws:
+        cutoff_line_kws['color'] = 'black'
+    if 'linestyle' not in cutoff_line_kws:
+        cutoff_line_kws['linestyle'] = '--'
+    score_line_kws = {} if score_line_kws is None else score_line_kws.copy()
+    if 'color' not in score_line_kws:
+        score_line_kws['color'] = 'darkgray'
+    if 'linestyle' not in score_line_kws:
+        score_line_kws['linestyle'] = '-.'
 
     # Create plot
     fig, ax = create_plot(
@@ -278,7 +295,10 @@ def sort_and_filter_cutoff(
             ax.annotate(class_name, (max_k, class_max_gini[-1]), ha='right', va='center')
     if cutoffs is not None:
         for cutoff in cutoffs:
-            ax.axvline(cutoff, **line_kws)
+            ax.axvline(cutoff, **cutoff_line_kws)
+    if min_scores is not None:
+        for min_score in min_scores:
+            ax.axhline(min_score, **score_line_kws)
     if legend:
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), scatterpoints=10)
     ax.margins(x=0.01)
