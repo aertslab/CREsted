@@ -1,188 +1,20 @@
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 
 import keras
 
-
-def legnet_se_layer(x: keras.KerasTensor, inp: int, reduction: int = 4, name: str | None = None):
-    """
-    Squeeze-and-Excite layer.
-
-    Parameters
-    ----------
-    x
-        Input tensor with shape (batch, channels, length).
-    inp
-        Input channel size.
-    reduction
-        Reduction parameter. The default is 4.
-    name : str, optional
-        Name prefix for keras.layers.
-
-    Returns
-    -------
-    tensor
-        Output tensor with same shape as input.
-    """
-    # Global average pooling
-    y = keras.ops.mean(x, axis=1)
-    # Linear
-    y = keras.layers.Dense(inp // reduction, activation=None, name=f"{name}_fc1" if name else None)(y)
-    # SiLU
-    y = keras.layers.Activation("swish", name=f"{name}_swish1" if name else None)(y)
-    # Linear 2
-    y = keras.layers.Dense(inp, activation=None, name=f"{name}_fc2" if name else None)(y)
-    # Sigmoid
-    y = keras.layers.Activation("sigmoid", name=f"{name}_sigmoid" if name else None)(y)
-    # Multiplication
-    output = keras.layers.Multiply(name=f"{name}_multiply" if name else None)([x, y])
-    return output
+from .utils import conv_block, legnet_eff_block
 
 
-def legnet_eff_block(x: keras.KerasTensor, out_ch: int, ks: int, resize_factor: int, activation: str = "swish", se_reduction: int | None = None, name: str | None = None):
-    """
-    EfficientNet-style block with inverted residuals and squeeze-excite.
 
-    Parameters
-    ----------
-    x
-        Input tensor.
-    out_ch
-        Output channels.
-    ks
-        Kernel size.
-    resize_factor
-        Expansion factor for the inner dimension.
-    activation
-        Activation function.
-    se_reduction
-        SE layer reduction factor. If None, same as resize_factor.
-    name
-        Name prefix for keras.layers.
-
-    Returns
-    -------
-    tensor
-        Output tensor.
-    """
-    se_reduction = resize_factor if se_reduction is None else se_reduction
-    inner_dim = out_ch * resize_factor
-
-    # Expansion
-    y = keras.layers.Conv1D(
-        filters=inner_dim, kernel_size=1, padding="same", use_bias=False, name=f"{name}_expand_conv" if name else None
-    )(x)
-    y = keras.layers.BatchNormalization(name=f"{name}_expand_bn" if name else None)(y)
-    y = keras.layers.Activation(activation, name=f"{name}_expand_act" if name else None)(y)
-
-    # Depthwise
-    y = keras.layers.Conv1D(
-        filters=inner_dim,
-        kernel_size=ks,
-        groups=inner_dim,
-        padding="same",
-        use_bias=False,
-        name=f"{name}_dw_conv" if name else None,
-    )(y)
-    y = keras.layers.BatchNormalization(name=f"{name}_dw_bn" if name else None)(y)
-    y = keras.layers.Activation(activation, name=f"{name}_dw_act" if name else None)(y)
-
-    # Squeeze-and-Excite
-    y = legnet_se_layer(y, inner_dim, reduction=se_reduction, name=f"{name}_se" if name else None)
-
-    # Projection
-    y = keras.layers.Conv1D(
-        filters=out_ch, kernel_size=1, padding="same", use_bias=False, name=f"{name}_project_conv" if name else None
-    )(y)
-    y = keras.layers.BatchNormalization(name=f"{name}_project_bn" if name else None)(y)
-    y = keras.layers.Activation(activation, name=f"{name}_project_act" if name else None)(y)
-
-    return y
-
-
-def legnet_local_block(x: keras.KerasTensor, out_ch: int, ks: int, activation: str = "swish", name: str | None = None):
-    """
-    Normal convolution block for the stem.
-
-    Parameters
-    ----------
-    x
-        Input tensor.
-    out_ch
-        Output channels.
-    ks
-        Kernel size.
-    activation
-        Activation function.
-    name
-        Name prefix for keras.layers.
-
-    Returns
-    -------
-    tensor
-        Output tensor.
-    """
-    y = keras.layers.Conv1D(
-        filters=out_ch, kernel_size=ks, padding="same", use_bias=False, name=f"{name}_conv" if name else None
-    )(x)
-    y = keras.layers.BatchNormalization(name=f"{name}_bn" if name else None)(y)
-    y = keras.layers.Activation(activation, name=f"{name}_act" if name else None)(y)
-
-    return y
-
-
-def residual_concat(x: keras.KerasTensor, fn: Callable, name: str | None = None):
-    """
-    Applies a function and concatenates the result with the input.
-
-    Parameters
-    ----------
-    x
-        Input tensor.
-    fn
-        Function to apply to x.
-    name
-        Name for the concatenation layer.
-
-    Returns
-    -------
-    tensor
-        Concatenated output.
-    """
-    y = fn(x)
-    return keras.layers.Concatenate(axis=1, name=name)([y, x])
-
-
-def legnet_mapper_block(x: keras.KerasTensor, out_features: int, name: str | None = None):
-    """
-    Mapper block for feature transformation.
-
-    Parameters
-    ----------
-    x : tensor
-        Input tensor.
-    out_features : int
-        Output feature dimension.
-    name : str, optional
-        Name prefix for keras.layers.
-
-    Returns
-    -------
-    tensor
-        Output tensor.
-    """
-    y = keras.layers.BatchNormalization(name=f"{name}_bn" if name else None)(x)
-    y = keras.layers.Conv1D(filters=out_features, kernel_size=1, name=f"{name}_conv" if name else None)(y)
-
-    return y
 
 
 def legnet(
     seq_len: int,
     num_classes: int,
-    stem_ch: int = 64,
-    stem_ks: int = 5,
-    ef_ks: int = 3,
-    ef_block_sizes: Sequence[int] = (80, 96, 112, 128),
+    stem_filters: int = 64,
+    stem_kernel_size: int = 5,
+    eff_kernel_size: int = 3,
+    tower_filters: Sequence[int] = (80, 96, 112, 128),
     pool_sizes: Sequence[int] = (2, 2, 2, 2),
     resize_factor: int = 4,
     activation: str = "swish",
@@ -199,14 +31,14 @@ def legnet(
         Width of the input region.
     num_classes
         Number of classes to predict.
-    stem_ch
-        Number of channels in the stem.
-    stem_ks
+    stem_filters
+        Number of convolution filters in the stem.
+    stem_kernel_size
         Kernel size for the stem.
-    ef_ks
+    eff_kernel_size
         Kernel size for EfficientNet blocks.
-    ef_block_sizes
-        List of output channel sizes for each stage.
+    tower_filters
+        List of output filters for each stage in the convolution tower.
     pool_sizes
         List of pooling sizes for each stage.
     resize_factor
@@ -221,40 +53,77 @@ def legnet(
     keras.Model
         Compiled LegNet model.
     """
-    assert len(pool_sizes) == len(ef_block_sizes), "pool_sizes and ef_block_sizes must have the same length"
+    assert len(pool_sizes) == len(tower_filters), "pool_sizes and tower_filters must have the same length"
 
     # Input layer
     inputs = keras.layers.Input(shape=(seq_len, 4), name="input")
 
     # Stem layer
-    x = legnet_local_block(inputs, out_ch=stem_ch, ks=stem_ks, activation=activation, name="stem")
+    x = conv_block(
+        # Mandatory params
+        inputs=inputs,
+        filters=stem_filters,
+        kernel_size=stem_kernel_size,
+        pool_size=1,
+        activation=activation,
+        # adjusted params
+        conv_bias=False,
+        dropout=0.0,
+        normalization="batch",
+        padding="same",
+        l2=0.0,
+        # defaults to be kept
+        res=False,
+        batchnorm_momentum=0.99,
+        name_prefix="stem",
+    )
 
     # Main blocks
-    prev_filters = stem_ch
-    for idx, (pool_size, out_filters) in enumerate(zip(pool_sizes, ef_block_sizes, strict=True)):
+    tower_eff_filters = stem_filters  # in_ch
+    tower_conv_filters = stem_filters  # out_ch
+    for idx, (pool_size, tower_conv_filters) in enumerate(zip(pool_sizes, tower_filters, strict=True)):
         # Residual concat with EffBlock
         y = legnet_eff_block(
-            x, out_ch=prev_filters, ks=ef_ks, resize_factor=resize_factor, activation=activation, name=f"stage{idx}_eff"
+            x,
+            out_ch=tower_eff_filters,
+            ks=eff_kernel_size,
+            resize_factor=resize_factor,
+            activation=activation,
+            name=f"stage{idx}_eff",
         )
         x = keras.layers.Concatenate(axis=-1, name=f"stage{idx}_rescat")([y, x])
 
-        # Local block
-        x = legnet_local_block(x, out_ch=out_filters, ks=ef_ks, activation=activation, name=f"stage{idx}_local")
+        # Local block and pooling
+        x = conv_block(
+            # Mandatory params
+            inputs=x,
+            filters=tower_conv_filters,
+            kernel_size=stem_kernel_size,
+            pool_size=pool_size,
+            activation=activation,
+            # Adjusted defaults
+            conv_bias=False,
+            dropout=0.0,
+            normalization="batch",
+            padding="same",
+            l2=0.0,
+            # defaults to be kept
+            res=False,
+            batchnorm_momentum=0.99,
+            name_prefix=f"stage{idx}_local",
+        )
 
-        # Pooling
-        if pool_size != 1:
-            x = keras.layers.MaxPooling1D(pool_size=pool_size, name=f"stage{idx}_pool")(x)
+        tower_eff_filters = tower_conv_filters
 
-        prev_filters = out_filters
-
-    # Mapper
-    x = legnet_mapper_block(x, out_features=out_filters * 2, name="mapper")
+    # Mapper block
+    x = keras.layers.BatchNormalization(name="mapper_bn")(x)
+    x = keras.layers.Conv1D(filters=tower_conv_filters * 2, kernel_size=1, name="mapper_conv")(y)
 
     # Global average pooling across sequence length
     x = keras.ops.mean(x, axis=1)
 
     # Final
-    x = keras.layers.Dense(out_filters * 2, name="final_dense")(x)
+    x = keras.layers.Dense(tower_conv_filters * 2, name="final_dense")(x)
     x = keras.layers.BatchNormalization(name="final_bn")(x)
     x = keras.layers.Activation(activation, name="final_act")(x)
     outputs = keras.layers.Dense(num_classes, name="head", activation="softplus")(x)

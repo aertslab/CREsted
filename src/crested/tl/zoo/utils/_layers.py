@@ -708,3 +708,106 @@ def dilated_residual(
             dilation_rate = np.round(dilation_rate)
 
     return current
+
+def legnet_se_block(inputs: keras.KerasTensor, units: int, reduction: int = 4, name: str | None = None):
+    """
+    Squeeze-and-Excite block.
+
+    Parameters
+    ----------
+    inputs
+        Input tensor with shape (batch, channels, length).
+    units
+        Number of units (filters, dimensions) for the dense blocks.
+    reduction
+        Reduction parameter. The default is 4.
+    name : str, optional
+        Name prefix for keras.layers.
+
+    Returns
+    -------
+    tensor
+        Output tensor with same shape as input.
+    """
+    # Global average pooling
+    y = keras.ops.mean(inputs, axis=1)
+    # Linear
+    y = keras.layers.Dense(units // reduction, activation=None, name=f"{name}_fc1" if name else None)(y)
+    # SiLU
+    y = keras.layers.Activation("swish", name=f"{name}_swish1" if name else None)(y)
+    # Linear 2
+    y = keras.layers.Dense(units, activation=None, name=f"{name}_fc2" if name else None)(y)
+    # Sigmoid
+    y = keras.layers.Activation("sigmoid", name=f"{name}_sigmoid" if name else None)(y)
+    # Multiplication
+    output = keras.layers.Multiply(name=f"{name}_multiply" if name else None)([inputs, y])
+    return output
+
+
+def legnet_eff_block(
+    inputs: keras.KerasTensor,
+    filters: int,
+    kernel_size: int,
+    resize_factor: int,
+    activation: str = "swish",
+    se_reduction: int | None = None,
+    name: str | None = None,
+):
+    """
+    EfficientNet-style block with inverted residuals and squeeze-excite.
+
+    Parameters
+    ----------
+    inputs
+        Input tensor.
+    filters
+        Output channels.
+    kernel_size
+        Kernel size.
+    resize_factor
+        Expansion factor for the inner dimension.
+    activation
+        Activation function.
+    se_reduction
+        SE layer reduction factor. If None, same as resize_factor.
+    name
+        Name prefix for keras.layers.
+
+    Returns
+    -------
+    tensor
+        Output tensor.
+    """
+    se_reduction = resize_factor if se_reduction is None else se_reduction
+    inner_dim = filters * resize_factor
+
+    # Expansion
+    y = keras.layers.Conv1D(
+        filters=inner_dim, kernel_size=1, padding="same", use_bias=False, name=f"{name}_expand_conv" if name else None
+    )(inputs)
+    y = keras.layers.BatchNormalization(name=f"{name}_expand_bn" if name else None)(y)
+    y = keras.layers.Activation(activation, name=f"{name}_expand_act" if name else None)(y)
+
+    # Depthwise
+    y = keras.layers.Conv1D(
+        filters=inner_dim,
+        kernel_size=kernel_size,
+        groups=inner_dim,
+        padding="same",
+        use_bias=False,
+        name=f"{name}_dw_conv" if name else None,
+    )(y)
+    y = keras.layers.BatchNormalization(name=f"{name}_dw_bn" if name else None)(y)
+    y = keras.layers.Activation(activation, name=f"{name}_dw_act" if name else None)(y)
+
+    # Squeeze-and-Excite
+    y = legnet_se_block(y, inner_dim, reduction=se_reduction, name=f"{name}_se" if name else None)
+
+    # Projection
+    y = keras.layers.Conv1D(
+        filters=filters, kernel_size=1, padding="same", use_bias=False, name=f"{name}_project_conv" if name else None
+    )(y)
+    y = keras.layers.BatchNormalization(name=f"{name}_project_bn" if name else None)(y)
+    y = keras.layers.Activation(activation, name=f"{name}_project_act" if name else None)(y)
+
+    return y
