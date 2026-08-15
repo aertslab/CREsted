@@ -108,14 +108,14 @@ def generate_motif_insertions(x, motif, flanks=(0, 0), masked_locations=None):
     return np.concatenate(x_mut, axis=0), insertion_locations
 
 
-def generate_window_shuffle(x, window_size, n_shuffles, uniform, include_original=True, flanks=(0, 0)):
+def generate_window_shuffle(x, window_size, n_shuffles, uniform, include_original=True, flanks=(0, 0), seed=None):
     """Generate all possible single point mutations in a sequence."""
     _, L, A = x.shape
     start, end = 0, L
     x_mut = []
     start = flanks[0]
     end = L - flanks[1] - window_size + 1
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(seed)
     uniform_array = np.identity(4, dtype=int)
     for _ in range(n_shuffles):
         for location in range(start, end):
