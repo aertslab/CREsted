@@ -70,7 +70,8 @@ def contribution_scores(
         (to visualize average effects as letters) or `mutagenesis` (to visualize in a legacy way).
     plot_kws
         Extra keyword arguments passed to the underlying plotting function.
-        If `method` is `None` or `'mutagenesis_letters'`, passed to `_plot_attribution_map` (specific arguments) and `fast_logomaker.BatchLogo` (all other kws). Default is `'font_weight': 'bold'`.
+        If `method` is `None` or `'mutagenesis_letters'`, passed to `_plot_attribution_map` (specific arguments) and `fast_logomaker.BatchLogo` (all other kws).
+        Defaults for attributions are `'font_weight': 'bold'`, `'shade_below': 0`, `'fade_below': 0`.
         If `method` is `'mutagenesis'`, passed to `_plot_mutagenesis_map` and on to :meth:`~matplotlib.axes.Axes.scatter`.
     highlight_kws
         Keywords to use for plotting highlights with :meth:`~matplotlib.axes.Axes.axvspan`.
@@ -181,6 +182,10 @@ def contribution_scores(
     if method != "mutagenesis":
         if "font_weight" not in plot_kws:
             plot_kws["font_weight"] = "bold"
+        if "shade_below" not in plot_kws:
+            plot_kws["shade_below"] = 0.
+        if "fade_below" not in plot_kws:
+            plot_kws["fade_below"] = 0.
     highlight_kws = {} if highlight_kws is None else highlight_kws.copy()
     if "edgecolor" not in highlight_kws:
         highlight_kws["edgecolor"] = "red"
