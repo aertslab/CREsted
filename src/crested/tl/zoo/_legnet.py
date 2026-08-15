@@ -15,6 +15,7 @@ def legnet(
     pool_sizes: Sequence[int] = (2, 2, 2, 2),
     resize_factor: int = 4,
     activation: str = "swish",
+    output_activation: str = "softplus",
     name: str | None = "LegNet",
 ):
     """
@@ -42,6 +43,8 @@ def legnet(
         Expansion factor for inverted residual blocks.
     activation
         Activation function. The default is "swish".
+    output_activation
+        Activation function for the output layer.
     name
         Model name.
 
@@ -125,7 +128,7 @@ def legnet(
     x = keras.layers.Dense(tower_conv_filters * 2, name="final_dense")(x)
     x = keras.layers.BatchNormalization(name="final_bn")(x)
     x = keras.layers.Activation(activation, name="final_act")(x)
-    outputs = keras.layers.Dense(num_classes, name="head", activation="softplus")(x)
+    outputs = keras.layers.Dense(num_classes, name="head", activation=output_activation)(x)
 
     # Create model
     model = keras.Model(inputs=inputs, outputs=outputs, name=name)
