@@ -208,7 +208,7 @@ def modisco_results(
                 if viz == "contrib":
                     ax = _plot_attribution_map(
                         ax=ax,
-                        saliency_df=np.array(pattern_trimmed["contrib_scores"]),
+                        data=np.array(pattern_trimmed["contrib_scores"]),
                         return_ax=True,
                         figsize=None,
                     )
@@ -223,7 +223,7 @@ def modisco_results(
                     rounded_mean = np.around(np.mean(pwm), 2)
                     pwm = pwm.astype(float)
                     ax = _plot_attribution_map(
-                        ax=ax, saliency_df=pwm, return_ax=True, figsize=None
+                        ax=ax, data=pwm, return_ax=True, figsize=None
                     )
                     ax.set_title(
                         f"{cell_type}: {np.around(num_seqlets / num_seq * 100, 2)}% seqlet frequency - Average IC: {rounded_mean:.2f}"
@@ -392,7 +392,7 @@ def clustermap_tomtom_similarities(
             pwm_ax = fig.add_axes([x_start, y_start, logo_width, logo_height])
             _plot_attribution_map(
                 ax=pwm_ax,
-                saliency_df=ppm,
+                data=ppm,
                 return_ax=True,
                 figsize=(8, 2),
                 rotate=False,
@@ -765,7 +765,7 @@ def clustermap_with_pwm_logos(
 
         pwm_ax = _plot_attribution_map(
             ax=pwm_ax,
-            saliency_df=pwm,
+            data=pwm,
             return_ax=True,
             figsize=(8 * ratio, 8),
             rotate=True,
@@ -866,7 +866,7 @@ def selected_instances(
     for i, idx in enumerate(idcs):
         _plot_attribution_map(
             ax=axs[i],
-            saliency_df=np.array(pattern_dict[str(idx)]["pattern"]["contrib_scores"]),
+            data=np.array(pattern_dict[str(idx)]["pattern"]["contrib_scores"]),
             return_ax=False,
             figsize=None,
         )
@@ -940,7 +940,7 @@ def class_instances(
     for i, cl in enumerate(instance_classes):
         _plot_attribution_map(
             ax=axs[i],
-            saliency_df=np.array(pattern_dict[str(idx)][key][cl]["contrib_scores"]),
+            data=np.array(pattern_dict[str(idx)][key][cl]["contrib_scores"]),
             return_ax=False,
             figsize=None,
         )

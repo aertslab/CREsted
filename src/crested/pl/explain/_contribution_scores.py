@@ -213,7 +213,7 @@ def contribution_scores(
     full_seq_scores = np.empty(
         (total_plots, seq_length, 4)
     )  # (n_seqs * n_classes, n_bases, n_features) = (n_plots, n_bases, n_features)
-    full_positions = np.empty_like((total_plots, seq_length))
+    full_positions = np.empty((total_plots, seq_length))
     full_mirrored = []
 
     # Process data into per-ax values
@@ -288,9 +288,10 @@ def contribution_scores(
         logo.process_all()
 
     # Start plotting data
-    for ax_i in total_plots:
+    for ax_i in range(total_plots):
         ax = axs[ax_i]
         ax_metadata = per_ax_metadata[ax_i]
+        left, right = ax_metadata["x_range"]
         # Plot values for this sequence x class combo
         if method == "mutagenesis":
             _plot_mutagenesis_map(full_seq_scores[ax_i], ax=ax, start=left, end=right, **plot_kws)
@@ -351,7 +352,7 @@ def contribution_scores(
 
         # Set the sequence title for the first plot of a sequence
         if sequence_labels and ax_metadata["class_i"] == 0:
-            axs[ax_i].set_title(sequence_labels[seq_i], fontsize=14)
+            axs[ax_i].set_title(sequence_labels[ax_metadata["seq_i"]], fontsize=14)
 
     # Set xlabels with coordinates if not supplied
     if coordinates is not None and "xlabel" not in kwargs:
