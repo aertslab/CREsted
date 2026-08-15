@@ -14,6 +14,7 @@
 - Added (more) tests:
   - bigwig and bed reading, predictions from negative strand regions, classes for `contribution_scores`, and creating and loading models from the zoo. (#144, #233)
   - `utils.parse_region` and `utils.resize_region` (#234)
+- New architecture option for model training: `crested.tl.zoo.legnet`, inspired by human_legnet ([10.1038/s41586-024-08430-9](https://doi.org/10.1038/s41586-024-08430-9)). It uses EfficientNetV2-inspired blocks to train highly performant models on small regions.
 
 ### Bugfixes
 - {func}`crested.pl.explain.contribution_scores`' argument `highlight_positions` now highlights [start, end) rather than [start, end], in order to align with indexing and `crested.tl.design`'s `protected_positions`.
