@@ -81,6 +81,80 @@ def test_predict(keras_model, adata, genome):
     assert predictions == pytest.approx(predictions_pos)
     assert predictions != pytest.approx(predictions_neg)
 
+    # Predicting on a "-"-strand region must be numerically identical to
+    # independently reverse-complementing the "+" sequence and predicting on that directly
+    seq_pos = genome.fetch(region=region_str_pos)
+    seq_neg = crested.utils.reverse_complement(seq_pos)
+    predictions_seq_pos = crested.tl.predict(seq_pos, keras_model)
+    predictions_seq_neg = crested.tl.predict(seq_neg, keras_model)
+    assert predictions_pos == pytest.approx(predictions_seq_pos)
+    assert predictions_neg == pytest.approx(predictions_seq_neg)
+
+    # Same consistency check when regions come from an AnnData's var_names
+    adata_stranded = create_anndata_with_regions([region_str_pos, region_str_neg])
+    predictions_stranded = crested.tl.predict(
+        input=adata_stranded, model=keras_model, genome=genome
+    )
+    assert predictions_stranded[0] == pytest.approx(predictions_seq_pos[0])
+    assert predictions_stranded[1] == pytest.approx(predictions_seq_neg[0])
+
+
+def test_contribution_scores_target_idx(keras_model, genome):
+    sequence = "ATCGA" * 100
+
+    # np.int64 (e.g. from np.argmax()) should be accepted like a plain int
+    scores, one_hot_encoded_sequences = crested.tl.contribution_scores(
+        sequence,
+        target_idx=np.int64(1),
+        model=keras_model,
+        genome=genome,
+        method="integrated_grad",
+    )
+    assert scores.shape == (1, 1, 500, 4)
+    assert one_hot_encoded_sequences.shape == (1, 500, 4)
+
+    # None -> scores for all classes
+    scores, one_hot_encoded_sequences = crested.tl.contribution_scores(
+        sequence,
+        target_idx=None,
+        model=keras_model,
+        genome=genome,
+        method="integrated_grad",
+    )
+    assert scores.shape == (1, 5, 500, 4)
+
+    # Empty list -> scores for the 'combined' class
+    scores, one_hot_encoded_sequences = crested.tl.contribution_scores(
+        sequence,
+        target_idx=[],
+        model=keras_model,
+        genome=genome,
+        method="integrated_grad",
+        verbose=False,
+    )
+    assert scores.shape == (1, 1, 500, 4)
+
+    # A string is not a valid target_idx (should suggest anndata.obs_names.index) and should raise
+    with pytest.raises(ValueError, match="not a string"):
+        crested.tl.contribution_scores(
+            sequence,
+            target_idx="Topic_1",
+            model=keras_model,
+            genome=genome,
+            method="integrated_grad",
+        )
+
+    # Other invalid types should also raise a clear error
+    with pytest.raises(ValueError):
+        crested.tl.contribution_scores(
+            sequence,
+            target_idx=1.5,
+            model=keras_model,
+            genome=genome,
+            method="integrated_grad",
+        )
+
+
 def test_score_gene_locus(keras_model, genome):
     chrom = "chr1"
     start = 200000

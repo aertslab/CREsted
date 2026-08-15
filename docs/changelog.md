@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features
+- {func}`crested.tl.contribution_scores` now reuses computations (gradients or predictions) when calculating scores for multiple classes of one region. This should speed up both gradient and mutagenesis-based calculations. (#162, #237)
 - {func}`crested.tl.design.in_silico_evolution` and {func}`crested.tl.design.motif_insertion` now take a `protected_positions` argument: a list of `(start, end)` ranges of nucleotide positions that will never be mutated or overwritten by a motif insertion, independent of `no_mutation_flanks`/`target_len`.
 - Added {obj}`crested.tl.data.AnnDataWrapper`, a futureproof dataloader for sequence-to-function training. (#208)
    - AnnDataWrapper mostly uses the same arguments as AnnDataModule and should be a drop-in replacement.
@@ -10,10 +11,15 @@
    - AnnDataWrapper should be slightly more memory-efficient.
 - Both AnnDataWrapper and AnnDataModule now now handle regions that could cross genome boundaries when stochastically shifted better. (#208)
 - Add tests for both AnnDataLoader and AnnDataWrapper, in both TensorFlow and PyTorch. (#208)
-- {func}`crested.tl.contribution_scores` now reuses computations (gradients or predictions) when calculating scores for multiple classes of one region. This should speed up both gradient and mutagenesis-based calculations. (#162, #228)
+- Added {func}`crested.utils.resize_region` (#160, #234)
+- Added (more) tests:
+  - bigwig and bed reading, predictions from negative strand regions, classes for `contribution_scores`, and creating and loading models from the zoo. (#144, #233)
+  - `utils.parse_region` and `utils.resize_region` (#234)
 
 ### Bugfixes
 - {func}`crested.pl.explain.contribution_scores`' argument `highlight_positions` now highlights [start, end) rather than [start, end], in order to align with indexing and `crested.tl.design`'s `protected_positions`.
+- {func}`crested.tl.zoo.basenji` can now be built again by fixing a renamed argument in `conv_block_bs`. (#144, #233)
+- {func}`crested.utils.parse_region` now also handles negative coordinates. (#234)
 
 ### Dev/poweruser features
 - Added `BaseDataWrapper` and `BaseGenomicDataWrapper`, classes that form a base for all kinds of sequence-to-function training. They handle indexes, augmentation, sequence retrieval, iteration, etc. automatically, and leave you to adjust only the parts that matter in a modular fashion. (#208)

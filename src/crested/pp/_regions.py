@@ -11,15 +11,13 @@ from loguru import logger
 
 from crested import Genome
 from crested import _conf as conf
-from crested.utils import parse_region
+from crested.utils import parse_region, resize_region
 from crested.utils._logging import log_and_raise
 
 
 def _read_chromsizes(chromsizes_file: str | PathLike) -> dict[str, int]:
     """Read chromsizes file into a dictionary."""
-    chromsizes = pd.read_csv(
-        chromsizes_file, sep="\t", header=None, names=["chr", "size"]
-    )
+    chromsizes = pd.read_csv(chromsizes_file, sep="\t", header=None, names=["chr", "size"])
     chromsizes_dict = chromsizes.set_index("chr")["size"].to_dict()
     return chromsizes_dict
 
@@ -38,6 +36,8 @@ def change_regions_width(
     This function is useful when you want to train on a wider/narrower region than the
     original consensus regions.
 
+    To resize individual regions quickly, please use :func:`~crested.utils.resize_region` instead.
+
     Parameters
     ----------
     adata
@@ -54,6 +54,10 @@ def change_regions_width(
     -------
     If `inplace=True` (default), modifies the anndata in-place and doesn't return anything.
     If `inplace=False`, returns the AnnData object with the modified regions.
+
+    See Also
+    --------
+    crested.utils.resize_region
 
     Example
     -------
@@ -85,50 +89,30 @@ def change_regions_width(
     else:
         chromsizes = None
 
-    if adata.var_names[0].count(':') == 1:
-        stranded = False
-    elif adata.var_names[0].count(':') == 2:
-        stranded = True
-    else:
-        raise ValueError("Region names must follow 'chr:start-end' or 'chr:start-end:strand' layout.")
-
     # Copy if doing inplace
     if not inplace:
         adata = adata.copy()
     adata.var = adata.var.copy()
 
     # Create new values and record spacing for all regions
-    half_width = width / 2
-    new_starts, new_ends, new_names = [], [], []
-    regions_to_keep = []
-    for region_name in adata.var_names:
-        # Resize regions
-        chrom, start, end, strand = parse_region(region_name)
-        center = (start + end)/2
-        new_start, new_end = int(center-half_width), int(center+half_width)
-        new_name = f"{chrom}:{int(center-half_width)}-{int(center+half_width)}"
-        if stranded:
-            new_name += f":{strand}"
-        new_starts.append(new_start)
-        new_ends.append(new_end)
-        new_names.append(new_name)
-
-        # Check chromosome boundaries on the resized coordinates (not the
-        # originals): a region whose centered/widened window runs off a contig
-        # edge must be dropped even if the original peak was in-bounds.
-        if chromsizes is not None:
+    new_regions = resize_region(adata.var_names, width)
+    new_parsed_regions = [parse_region(region) for region in new_regions]  # Parse again to access start/end
+    if chromsizes is not None:
+        regions_to_keep = []
+        for new_region_str, new_region_tuple in zip(new_regions, new_parsed_regions, strict=True):
+            chrom, new_start, new_end, strand = new_region_tuple
             if new_start < 0 or new_end > chromsizes.get(chrom, float("inf")):
                 logger.warning(
-                    f"Region {region_name} with new coordinates {chrom}:{new_start}-{new_end} is out of bounds for chromosome {chrom}. Removing region."
+                    f"Region {new_region_str} with new coordinates {chrom}:{new_start}-{new_end} is out of bounds for chromosome {chrom}. Removing region."
                 )
             else:
-                regions_to_keep.append(new_name)
+                regions_to_keep.append(new_region_str)
 
     # Set new values in adata
-    adata.var['unresized_index'] = adata.var_names
-    adata.var.index = new_names
-    adata.var['start'] = new_starts
-    adata.var['end'] = new_ends
+    adata.var["unresized_index"] = adata.var_names
+    adata.var.index = new_regions
+    adata.var["start"] = [parsed_region[1] for parsed_region in new_parsed_regions]
+    adata.var["end"] = [parsed_region[2] for parsed_region in new_parsed_regions]
     adata.var_names.name = "region"
 
     # Filter out oversized regions
@@ -137,7 +121,6 @@ def change_regions_width(
             adata._inplace_subset_var(regions_to_keep)
         else:
             adata = adata[:, regions_to_keep].copy()
-
 
     if not inplace:
         return adata
