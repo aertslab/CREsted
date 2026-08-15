@@ -84,6 +84,7 @@ def conv_block(
     normalization: str = "batch",
     res: bool = False,
     padding: str = "valid",
+    pool_padding: str | None = None,
     l2: float = 1e-5,
     batchnorm_momentum: float = 0.99,
     name_prefix: str | None = None,
@@ -113,6 +114,8 @@ def conv_block(
         Whether to use residual connections (default is False).
     padding
         Padding type for the convolutional layer (default is "valid").
+    pool_padding
+        Padding type to be used for the pooling. If None (default), will use same value as `padding`.
     l2
         L2 regularization weight (default is 1e-5).
     batchnorm_momentum
@@ -156,7 +159,7 @@ def conv_block(
     if pool_size > 1:
         x = keras.layers.MaxPooling1D(
             pool_size=pool_size,
-            padding=padding,
+            padding=pool_padding if pool_padding is not None else padding,
             name=name_prefix + "_pool" if name_prefix else None,
         )(x)
     if dropout > 0:
