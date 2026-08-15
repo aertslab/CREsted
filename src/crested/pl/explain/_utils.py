@@ -5,7 +5,7 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
 from fast_logomaker import FastLogo
-from PIL import Image
+from matplotlib.transforms import Affine2D
 
 
 def _process_mutagenesis(seq: np.ndarray, scores: np.ndarray):
@@ -24,6 +24,7 @@ def _process_mutagenesis(seq: np.ndarray, scores: np.ndarray):
     """
     # Where seq is True/1, set np.nan, otherwise grab value from scores
     return np.where(seq, np.nan, scores)
+
 
 def _process_mutagenesis_letters(seq: np.ndarray, scores: np.ndarray):
     """Process a mutagenesis scoring matrix for plotting as letters by taking the average effect and inverting the sign.
@@ -47,6 +48,7 @@ def _process_mutagenesis_letters(seq: np.ndarray, scores: np.ndarray):
     scores = scores[..., None] * seq[None, ...]
     return scores
 
+
 def _process_gradients(seq: np.ndarray, scores: np.ndarray):
     """Process a gradient scoring matrix for plotting by selecting the values for the sequence in `seq`.
 
@@ -61,19 +63,19 @@ def _process_gradients(seq: np.ndarray, scores: np.ndarray):
     -------
     An array the same shape as `scores`, with non-reference basepairs zero'd out.
     """
-    return scores*seq
+    return scores * seq
+
 
 def _plot_attribution_map(
     data: FastLogo | np.ndarray,
+    ax: plt.Axis,
     idx: int = 0,
-    ax: plt.Axis | None = None,
-    return_ax: bool = True,
     spines: bool = True,
-    figsize: tuple[int, int] = (20, 1),
-    rotate: bool = False,
     reversed_positions: bool = False,
+    rotate: bool = False,
+    **kwargs,
 ):
-    """Draw one logo from a processed (possibly batched) FastLogo, optionally rotated by 90 degrees.
+    """Draw an attribution map from a processed FastLogo or a matrix onto an ax, optionally rotated by 90 degrees.
 
     Parameters
     ----------
@@ -82,22 +84,22 @@ def _plot_attribution_map(
     idx
         Index of the logo to draw within `logo`'s batch. Default is 0.
     ax
-        Axes object to plot on. Default is None which creates a new Axes.
-    return_ax
-        Whether to return the Axes object. Default is True.
+        Axes object to plot on.
     spines
-        Whether to display spines (axes borders). Default is True.
-    figsize
-        Figure size for temporary rendering. Default is (20, 1).
-    rotate
-        Whether to rotate the resulting plot by 90 degrees. Default is False.
+        Whether to keep the top and right spines (axes borders). Default is True.
+        Disregarded if `rotate=True`, since all spines are turned off with `ax.axis("off")` there.
     reversed_positions
         Whether `logo`'s positions run in descending order; if so, inverts the x-axis (non-rotated case only).
+    rotate
+        Whether to rotate the resulting plot by 90 degrees. Default is False.
+    kwargs
+        Extra arguments passed to logo.draw_single.
 
     Returns
     -------
     matplotlib.axes.Axes: The Axes object with the plotted logo, if `return_ax` is True.
     """
+    # Check inputs
     if not isinstance(data, FastLogo):
         if data.ndim == 2:
             data = np.expand_dims(data, 0)
@@ -106,62 +108,46 @@ def _plot_attribution_map(
     else:
         logo = data
 
-    # Standard plotting (no rotation)
+    # Create plot
+    logo.draw_single(idx, ax=ax, border=not rotate, baseline=not rotate, fixed_ylim=False, apply_layout=False, **kwargs)
+
     if not rotate:
-        if ax is None:
-            _, ax = plt.subplots(figsize=figsize)
-        logo.draw_single(idx, ax=ax, fixed_ylim=False, border=True, apply_layout=False)
+        # Standard plotting (no rotation)
         if reversed_positions:
             ax.xaxis.set_inverted(True)
         if not spines:
             ax.spines["right"].set_visible(False)
             ax.spines["top"].set_visible(False)
-        if return_ax:
-            return ax
-        return
+    else:
+        # Rotation case: rotate the glyphs in place via a data-space transform
+        xmin, xmax = ax.get_xlim()
+        ymin, ymax = ax.get_ylim()
 
-    # Rotation case: render plot to an image
-    temp_fig, temp_ax = plt.subplots(figsize=figsize)
-    logo.draw_single(idx, ax=temp_ax, fixed_ylim=False, border=True, apply_layout=False)
-    temp_ax.axis("off")  # Remove axes for clean rendering
+        # Rotate the glyph patch collection(s) FastLogo just drew
+        rotation = Affine2D().rotate_deg(90) + ax.transData
+        for collection in ax.collections:
+            collection.set_transform(rotation)
 
-    # Render the plot as an image
-    temp_fig.canvas.draw()
-    renderer = temp_fig.canvas.get_renderer()
-    width, height = map(int, temp_fig.get_size_inches() * temp_fig.get_dpi())
-    image = np.frombuffer(renderer.buffer_rgba(), dtype="uint8").reshape(
-        height, width, 4
-    )[..., :3]
-    # width, height = map(int, temp_fig.get_size_inches() * temp_fig.get_dpi())
-    # image = np.frombuffer(temp_fig.canvas.tostring_rgb(), dtype="uint8").reshape(
-    #    height, width, 3
-    # )
-    plt.close(temp_fig)  # Close the temporary figure to avoid memory leaks
+        # FastLogo's baseline does not rotate nicely, so we manually draw it instead
+        baseline_width = logo.kwargs.get("baseline_width", 0.5)
+        if baseline_width > 0:
+            ax.axvline(x=0, color="black", linewidth=baseline_width, zorder=-1)
 
-    # Rotate the rendered image
-    rotated_image = np.rot90(image)
-    rotated_image_pil = Image.fromarray(rotated_image)
+        ax.set_xlim(-ymax, -ymin)
+        ax.set_ylim(xmin, xmax)
+        ax.axis("off")  # Hide axes for a clean look
 
-    # Display the rotated image on the given Axes
-    if ax is None:
-        _, ax = plt.subplots(figsize=figsize)
-    ax.clear()
-    ax.imshow(rotated_image_pil)
-    ax.axis("off")  # Hide axes for a clean look
-
-    if return_ax:
-        return ax
 
 def _plot_mutagenesis_map(
-        scores: np.ndarray,
-        ax: plt.Axes,
-        start: int | None = None,
-        end: int | None = None,
-        colors: dict | None = None,
-        s: int = 10,
-        spines: bool = False,
-        **kwargs
-    ):
+    scores: np.ndarray,
+    ax: plt.Axes,
+    start: int | None = None,
+    end: int | None = None,
+    colors: dict | None = None,
+    s: int = 10,
+    spines: bool = False,
+    **kwargs,
+):
     """
     Plot a mutagenesis map with one point for every nucleotide.
 
@@ -213,4 +199,3 @@ def _plot_mutagenesis_map(
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
     ax.margins(x=0)
-

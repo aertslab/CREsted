@@ -296,12 +296,10 @@ def contribution_scores(
         if method == "mutagenesis":
             _plot_mutagenesis_map(full_seq_scores[ax_i], ax=ax, start=left, end=right, **plot_kws)
         else:
-            # _plot_attribution_map(full_seq_scores[ax_i], ax=ax, start=left, end=right, return_ax=False, **plot_kws)
             _plot_attribution_map(
                 logo,
-                ax_i,
+                idx=ax_i,
                 ax=ax,
-                return_ax=False,
                 spines=spines_kw,
                 figsize=figsize_kw,
                 rotate=rotate_kw,

@@ -206,10 +206,9 @@ def modisco_results(
                     else pattern
                 )
                 if viz == "contrib":
-                    ax = _plot_attribution_map(
+                    _plot_attribution_map(
                         ax=ax,
                         data=np.array(pattern_trimmed["contrib_scores"]),
-                        return_ax=True,
                         figsize=None,
                     )
                     ax.set_ylim([y_min, y_max])
@@ -222,7 +221,7 @@ def modisco_results(
                     pwm = np.array(ic_mat)
                     rounded_mean = np.around(np.mean(pwm), 2)
                     pwm = pwm.astype(float)
-                    ax = _plot_attribution_map(
+                    _plot_attribution_map(
                         ax=ax, data=pwm, return_ax=True, figsize=None
                     )
                     ax.set_title(
@@ -393,7 +392,6 @@ def clustermap_tomtom_similarities(
             _plot_attribution_map(
                 ax=pwm_ax,
                 data=ppm,
-                return_ax=True,
                 figsize=(8, 2),
                 rotate=False,
             )
@@ -763,10 +761,9 @@ def clustermap_with_pwm_logos(
                 'Invalid visualization method. Choose either "contrib" or "pwm" in the pwm_or_contrib parameter. Aborting...'
             )
 
-        pwm_ax = _plot_attribution_map(
+        _plot_attribution_map(
             ax=pwm_ax,
             data=pwm,
-            return_ax=True,
             figsize=(8 * ratio, 8),
             rotate=True,
         )
@@ -867,7 +864,6 @@ def selected_instances(
         _plot_attribution_map(
             ax=axs[i],
             data=np.array(pattern_dict[str(idx)]["pattern"]["contrib_scores"]),
-            return_ax=False,
             figsize=None,
         )
 
@@ -941,7 +937,6 @@ def class_instances(
         _plot_attribution_map(
             ax=axs[i],
             data=np.array(pattern_dict[str(idx)][key][cl]["contrib_scores"]),
-            return_ax=False,
             figsize=None,
         )
 
