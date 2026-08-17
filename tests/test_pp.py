@@ -185,6 +185,21 @@ def test_normalize_peaks_uses_the_cell_types_own_top_peaks():
     assert weights == pytest.approx(heights.max() / heights)
 
 
+def test_normalize_peaks_raises_when_no_peaks_are_selected():
+    """A cell type with no selected peaks has an undefined weight, so raise.
+
+    Raising `gini_std_threshold` lowers the Gini cutoff, and past some dataset
+    dependent point no top peak counts as broad anymore. Dividing by the resulting
+    zero would put inf (or nan, if it happens to every cell type) into .X.
+    """
+    adata = create_anndata_with_regions(
+        [f"chr{chr_i}:{start}-{start + 100}" for chr_i in range(1, 10) for start in range(0, 1000, 100)]
+    )
+
+    with pytest.raises(ValueError, match="normalization weight is undefined"):
+        crested.pp.normalize_peaks(adata, gini_std_threshold=10, top_k_percent=0.2, inplace=False)
+
+
 def test_change_regions_width_inplace(adata_function):
     adata_inplace = adata_function.copy()
 

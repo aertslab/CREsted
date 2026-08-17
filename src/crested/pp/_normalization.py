@@ -103,8 +103,23 @@ def normalize_peaks(
 
         top_k_percent_means.append(top_k_mean)
 
+    top_k_percent_means = np.array(top_k_percent_means)
+
+    # A cell type with no selected peaks would divide by zero below, giving it an
+    # infinite weight (or nan for all of them, if none had any), which propagates
+    # silently into .X.
+    if not top_k_percent_means.all():
+        empty = adata.obs_names[top_k_percent_means == 0].tolist()
+        shown = ", ".join(empty[:10]) + (f", ... ({len(empty)} total)" if len(empty) > 10 else "")
+        raise ValueError(
+            f"No peaks passed the top-k and Gini selection for {shown}, so their "
+            "normalization weight is undefined. Lower gini_std_threshold to widen what "
+            "counts as a broad peak, raise top_k_percent to select more peaks, or drop "
+            "these cell types from the AnnData."
+        )
+
     max_mean = np.max(top_k_percent_means)
-    weights = max_mean / np.array(top_k_percent_means)
+    weights = max_mean / top_k_percent_means
     normalized_matrix = target_matrix * weights
 
     if isinstance(adata.X, csr_matrix):

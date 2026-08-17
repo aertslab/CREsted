@@ -22,6 +22,7 @@
 
 ### Bugfixes
 - {func}`crested.pp.normalize_peaks` now reads Gini scores from the peaks its top-k selection actually picked. Sort positions within the thresholded column were used to index the full region matrix, so whenever a region fell at or below `peak_threshold` the broad/specific test ran on unrelated regions, in effect skipping it. Weights change by ~1% on average (2.8% max) on the 19-cell-type mouse cortex tutorial data, and more on sparser datasets or with a nonzero `peak_threshold`, so normalized `.h5ad` files written by earlier versions differ slightly. The returned region DataFrame now lists top peaks rather than arbitrary broad regions. (#240)
+- {func}`crested.pp.normalize_peaks` now raises when a cell type ends up with no selected peaks instead of giving it an infinite weight (or a nan one, if it happens to every cell type) and writing that into `.X`. Reachable by raising `gini_std_threshold` past the point where no top peak still counts as broad, which is dataset dependent. (#240)
 - x_shift now works in conjunction with coordinates in {func}`crested.pl.explain.contribution_scores` (#232)
 - {func}`crested.tl.zoo.basenji` can now be built again by fixing a renamed argument in `conv_block_bs`. (#233)
 - {func}`crested.utils.parse_region` now also doesn't break with negative coordinates. (#234)
