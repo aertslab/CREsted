@@ -71,53 +71,49 @@ def normalize_peaks(
 
     top_k_percent_means = []
     all_low_gini_indices = set()
-    gini_scores_all = []
+    failed_classes = []
 
-    overall_gini_scores = _calc_gini(target_matrix)
-    mean = np.mean(np.max(overall_gini_scores, axis=1))
-    std_dev = np.std(np.max(overall_gini_scores, axis=1))
+    overall_gini_scores = np.max(_calc_gini(target_matrix), axis=1)
+    mean = np.mean(overall_gini_scores)
+    std_dev = np.std(overall_gini_scores)
     gini_threshold = mean - gini_std_threshold * std_dev
 
     logger.info("Filtering on top k Gini scores...")
     for i in range(target_matrix.shape[1]):
-        # Keep the region indices alongside the values. Sorting the filtered column
-        # gives positions within that column, which are shifted relative to the
-        # region axis by however many regions the threshold dropped before them,
-        # so they have to be mapped back before indexing target_matrix.
-        kept_indices = np.where(target_matrix[:, i] > peak_threshold)[0]
-        filtered_col = target_matrix[kept_indices, i]
-        sorted_col = np.sort(filtered_col)[::-1]
-        top_k_index = int(len(sorted_col) * top_k_percent)
+        # Apply peak_threshold: minimum peak height filtering for this cell type
+        filtered_indices = np.where(target_matrix[:, i] > peak_threshold)[0]
+        filtered_col = target_matrix[filtered_indices, i]
 
-        top_indices = kept_indices[np.argsort(filtered_col)[::-1][:top_k_index]]
-        gini_scores = _calc_gini(target_matrix[top_indices])
-        low_gini_indices = np.where(np.max(gini_scores, axis=1) < gini_threshold)[0]
+        # Apply top_k_percent: Get top k of the values that pass threshold
+        top_k_index = int(len(filtered_indices) * top_k_percent)
+        sorted_filtered_indices = np.argsort(filtered_col)[::-1]
+        top_indices = filtered_indices[sorted_filtered_indices[:top_k_index]]
+        top_col = target_matrix[:, i][top_indices]
 
-        if len(low_gini_indices) > 0:
-            top_k_mean = np.mean(sorted_col[low_gini_indices])
-            gini_scores_all.append(np.max(gini_scores[low_gini_indices], axis=1))
-            all_low_gini_indices.update(top_indices[low_gini_indices])
+        # Apply gini_threshold: Retrieve gini scores for the regions passing previous filters and keep those below threshold
+        gini_scores = overall_gini_scores[top_indices]
+        low_gini_mask = gini_scores < gini_threshold
+
+        # Save final scores
+        if low_gini_mask.sum() > 0:
+            top_k_mean = np.mean(top_col[low_gini_mask])
+            all_low_gini_indices.update(top_indices[low_gini_mask])
+            top_k_percent_means.append(top_k_mean)
         else:
-            top_k_mean = 0
-            gini_scores_all.append(0)
+            # No regions left after all filtering, saving cell type name to raise later
+            failed_classes.append(adata.obs_names[i])
 
-        top_k_percent_means.append(top_k_mean)
-
-    top_k_percent_means = np.array(top_k_percent_means)
-
-    # A cell type with no selected peaks would divide by zero below, giving it an
-    # infinite weight (or nan for all of them, if none had any), which propagates
-    # silently into .X.
-    if not top_k_percent_means.all():
-        empty = adata.obs_names[top_k_percent_means == 0].tolist()
-        shown = ", ".join(empty[:10]) + (f", ... ({len(empty)} total)" if len(empty) > 10 else "")
+    # Raise error if no selected peaks found (since otherwise it'd create divide by zero and create NaNs in .X)
+    if len(failed_classes) > 0:
+        classes_to_show = ", ".join(failed_classes[:10]) + (f", ... ({len(failed_classes)} total)" if len(failed_classes) > 10 else "")
         raise ValueError(
-            f"No peaks passed the top-k and Gini selection for {shown}, so their "
+            f"No peaks passed the top-k and Gini selection for {classes_to_show}, so their "
             "normalization weight is undefined. Lower gini_std_threshold to widen what "
             "counts as a broad peak, raise top_k_percent to select more peaks, or drop "
             "these cell types from the AnnData."
         )
 
+    top_k_percent_means = np.array(top_k_percent_means)
     max_mean = np.max(top_k_percent_means)
     weights = max_mean / top_k_percent_means
     normalized_matrix = target_matrix * weights
