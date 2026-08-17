@@ -60,6 +60,9 @@ def normalize_peaks(
     ...     top_k_percent=0.05,
     ... )
     """
+    if "weights" in adata.obsm:
+        raise ValueError("Your data is already peak-normalized ('weights' already in adata.obsm).")
+
     if isinstance(adata.X, csr_matrix):
         target_matrix = (
             adata.X.toarray().T
