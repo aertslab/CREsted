@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from loguru import logger
+from memelite import tomtom
 
 
 def _trim_pattern_by_ic(
@@ -376,21 +377,6 @@ def match_score_patterns(
     Match score between the patterns (``-log10(pval)``; higher = more similar). A float for a
     one-vs-one comparison, a 2D numpy array when comparing lists of motifs.
     """
-    try:
-        from memelite import tomtom
-    except ImportError as e:
-        import sys
-
-        if sys.version_info >= (3, 13):
-            raise ImportError(
-                "memelite (required for TOMTOM motif matching) is not compatible with Python 3.13+. "
-                "Please use Python 3.12 or earlier for TOMTOM functionality, or use other pattern matching methods."
-            ) from e
-        else:
-            raise ImportError(
-                "memelite is required for motif matching. Install with: pip install crested[motif]"
-            ) from e
-
     if background_freqs is None:
         background_freqs = [0.28, 0.22, 0.22, 0.28]
     background_freqs = np.array(background_freqs)

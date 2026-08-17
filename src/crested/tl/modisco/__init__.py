@@ -1,8 +1,4 @@
-"""
-TF-MoDISco (utility) functions.
-
-Requires the `modisco-lite` and `memelite` packages to be installed. Install with: `pip install crested[motif]`
-"""
+"""TF-MoDISco (utility) functions."""
 
 from ._tfmodisco import (
     calculate_mean_expression_per_cell_type,

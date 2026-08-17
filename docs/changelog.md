@@ -19,6 +19,9 @@
 - {func}`crested.tl.modisco.create_tf_ct_matrix`: add min_total_seqlets, a whole-pattern gate that drops patterns whose seqlet count summed across all firing cell types is below the floor. (#221)
 - {func}`crested.pl.explain.contribution_scores`' argument `highlight_positions` now highlights [start, end) rather than [start, end], in order to align with indexing and `crested.tl.design`'s `protected_positions`. (#227)
 - Both AnnDataWrapper and AnnDataModule now now handle regions that could cross genome boundaries when stochastically shifted better. (#208)
+- CREsted now supports Python 3.14. (#229)
+- `crested[motif]` optional dependencies integrated into main dependencies, as they no longer require a lower Python version. (#229)
+
 
 ### Bugfixes
 - x_shift now works in conjunction with coordinates in {func}`crested.pl.explain.contribution_scores` (#232)

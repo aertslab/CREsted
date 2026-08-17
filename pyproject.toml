@@ -14,12 +14,13 @@ maintainers = [
 authors = [
   { name = "Aerts lab @ VIB.AI" },
 ]
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.11"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
   "anndata",
@@ -27,11 +28,15 @@ dependencies = [
   "keras>=3.4",
   "logomaker",
   "loguru",
+  "lxml",
+  "memelite",
+  "modisco-lite>=2.2.1",
   "numpy",
   "pandas",
   "pooch",
   "pybigtools>=0.2",
   "pysam",
+  "scanpy>=1.10",
   "scikit-learn",
   "seaborn",
   "tqdm",
@@ -50,16 +55,13 @@ dev = [
   "pytest",
   "twine>=4.0.2",
 ]
-doc = [
-  "docutils>=0.8,!=0.18.*,!=0.19.*",
-  # For notebooks
+doc = [ # For notebooks and documentation
+  # General scverse template
   "ipykernel",
   "ipython",
-  "modisco-lite",
   "scanpy>=1.10",
   "myst-nb>=1.1",
   "pandas",
-  "ruff",
   "scverse-misc[sphinx]>=0.1.2",
   "sphinx>=8.1",
   "sphinx-autodoc-typehints",
@@ -69,16 +71,13 @@ doc = [
   "sphinxcontrib-bibtex>=1",
   "sphinxcontrib-katex",
   "sphinxext-opengraph",
+  # CREsted-specific
+  "ruff",
   "tensorflow",
 ]
 motif = [
-  "memelite; python_version<'3.13'",
-  "modisco-lite>=2.2.1",
-  "scanpy>=1.10",
-  "lxml"
 ]
 test = [
-  "anndata",
   "coverage>=7.10",
   "pytest",
   "pytest-cov",
@@ -96,9 +95,9 @@ envs.docs.scripts.open = "python -m webbrowser -t docs/_build/html/index.html"
 
 envs.hatch-test.matrix = [
   # Test the lowest and highest supported Python versions with normal deps
-  { deps = [ "stable" ], python = [ "3.11", "3.13" ], backend = [ "tensorflow", "pytorch" ] },
+  { deps = [ "stable" ], python = [ "3.11", "3.14" ], backend = [ "tensorflow", "pytorch" ] },
   # Test the newest supported Python version also with pre-release deps
-  { deps = [ "pre" ], python = [ "3.13" ], backend = [ "tensorflow", "pytorch" ] },
+  { deps = [ "pre" ], python = [ "3.14" ], backend = [ "tensorflow", "pytorch" ] },
 ]
 # If the matrix variable `deps` is set to "pre",
 # set the environment variable `UV_PRERELEASE` to "allow".
