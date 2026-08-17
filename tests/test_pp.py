@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 from numpy import array_equiv
 
 import crested
@@ -149,6 +150,40 @@ def test_normalize_peaks_inplace():
     assert adata_inplace.X == pytest.approx(adata_copy.X)
     assert not adata.X == pytest.approx(adata_inplace.X)
     assert not adata.X == pytest.approx(adata_copy.X)
+
+def test_normalize_peaks_uses_the_cell_types_own_top_peaks():
+    """Gini scores must come from the peaks the top-k selection actually picked.
+
+    Regions at or below `peak_threshold` are dropped before sorting, which offsets
+    sort positions from region indices by the number of regions dropped ahead of
+    them, so positions have to be mapped back before indexing the matrix.
+
+    The fixture has a closed-form answer: 100 broad regions open in every cell type
+    at that cell type's own height, plus 20 per cell type that are tall in one cell
+    type and zero elsewhere. Broad regions get a low Gini and specific ones a high
+    Gini, so each cell type's low-Gini subset is exactly its broad regions and its
+    top_k_mean is exactly its broad height.
+    """
+    heights = np.array([1.0, 2.0, 4.0, 8.0])
+    broad = np.tile(heights, (100, 1))
+    specific = np.zeros((20 * len(heights), len(heights)))
+    for c in range(len(heights)):
+        specific[c * 20 : (c + 1) * 20, c] = 100.0
+
+    matrix = np.vstack([broad, specific])
+    matrix = matrix[np.random.default_rng(0).permutation(len(matrix))]  # index != sort position
+
+    regions = [f"chr1:{i * 1000}-{i * 1000 + 500}" for i in range(len(matrix))]
+    adata = create_anndata_with_regions(regions, n_classes=len(heights))
+    adata.X = matrix.T.copy()  # AnnData is (cell types, regions)
+
+    adata_out, _ = crested.pp.normalize_peaks(
+        adata, peak_threshold=0.0, gini_std_threshold=0, top_k_percent=1.0, inplace=False
+    )
+
+    weights = np.asarray(adata_out.obsm["weights"]).ravel()
+    assert weights == pytest.approx(heights.max() / heights)
+
 
 def test_change_regions_width_inplace(adata_function):
     adata_inplace = adata_function.copy()

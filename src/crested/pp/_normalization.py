@@ -80,11 +80,16 @@ def normalize_peaks(
 
     logger.info("Filtering on top k Gini scores...")
     for i in range(target_matrix.shape[1]):
-        filtered_col = target_matrix[:, i][target_matrix[:, i] > peak_threshold]
+        # Keep the region indices alongside the values. Sorting the filtered column
+        # gives positions within that column, which are shifted relative to the
+        # region axis by however many regions the threshold dropped before them,
+        # so they have to be mapped back before indexing target_matrix.
+        kept_indices = np.where(target_matrix[:, i] > peak_threshold)[0]
+        filtered_col = target_matrix[kept_indices, i]
         sorted_col = np.sort(filtered_col)[::-1]
         top_k_index = int(len(sorted_col) * top_k_percent)
 
-        top_indices = np.argsort(filtered_col)[::-1][:top_k_index]
+        top_indices = kept_indices[np.argsort(filtered_col)[::-1][:top_k_index]]
         gini_scores = _calc_gini(target_matrix[top_indices])
         low_gini_indices = np.where(np.max(gini_scores, axis=1) < gini_threshold)[0]
 
