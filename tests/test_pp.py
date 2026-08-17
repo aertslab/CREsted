@@ -185,19 +185,35 @@ def test_normalize_peaks_uses_the_cell_types_own_top_peaks():
     assert weights == pytest.approx(heights.max() / heights)
 
 
-def test_normalize_peaks_raises_when_no_peaks_are_selected():
+@pytest.mark.parametrize("case", ["no_broad_peaks", "all_below_threshold", "top_k_rounds_to_zero"])
+def test_normalize_peaks_raises_when_no_peaks_are_selected(case):
     """A cell type with no selected peaks has an undefined weight, so raise.
 
-    Raising `gini_std_threshold` lowers the Gini cutoff, and past some dataset
-    dependent point no top peak counts as broad anymore. Dividing by the resulting
-    zero would put inf (or nan, if it happens to every cell type) into .X.
+    Three routes there: no top peak counts as broad (raising `gini_std_threshold`
+    lowers the cutoff past some dataset dependent point), every region at or below
+    `peak_threshold`, or so few regions above it that `top_k_percent` rounds the
+    selection to zero. The latter two leave `top_indices` empty, which is a clean
+    shape-(0,) reduction over the cell type axis rather than an error, so they reach
+    this check as well. Dividing by the resulting zero would otherwise put inf (or
+    nan, if it happens to every cell type) into .X.
     """
     adata = create_anndata_with_regions(
-        [f"chr{chr_i}:{start}-{start + 100}" for chr_i in range(1, 10) for start in range(0, 1000, 100)]
+        [f"chr{chr_i}:{start}-{start + 100}" for chr_i in range(1, 10) for start in range(0, 1000, 100)],
+        random_state=0,
     )
+    kwargs = {"gini_std_threshold": 1.0, "top_k_percent": 0.2}
+
+    if case == "no_broad_peaks":
+        kwargs["gini_std_threshold"] = 10
+    elif case == "all_below_threshold":
+        adata.X[0] = 0.0
+    else:
+        adata.X[0] = 0.0
+        adata.X[0, :2] = 3.0
+        kwargs["top_k_percent"] = 0.1  # int(2 * 0.1) == 0 -> nothing selected
 
     with pytest.raises(ValueError, match="normalization weight is undefined"):
-        crested.pp.normalize_peaks(adata, gini_std_threshold=10, top_k_percent=0.2, inplace=False)
+        crested.pp.normalize_peaks(adata, peak_threshold=0.0, inplace=False, **kwargs)
 
 
 def test_change_regions_width_inplace(adata_function):
