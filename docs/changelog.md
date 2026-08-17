@@ -33,6 +33,10 @@
 - Added new tests for bigwig and bed reading, predictions from negative strand regions, classes for `contribution_scores`, and creating and loading models from the zoo. (#233)
 - Added new tests for {func}`crested.utils.parse_region` and {func}`crested.utils.resize_region` (#234)
 - Added a closed-form test for {func}`crested.pp.normalize_peaks`, over a matrix of broad and cell-type-specific regions whose weights are known analytically. (#240)
+- Added coverage for the routes that leave {func}`crested.pp.normalize_peaks` with no peaks selected for a cell type. (#240)
+
+### Documentation
+- Regenerated the peak normalization outputs in the model training and evaluation tutorial after the {func}`crested.pp.normalize_peaks` fix. (#240)
 
 ### Dev/poweruser features
 - Added `BaseDataWrapper` and `BaseGenomicDataWrapper`, classes that form a base for all kinds of sequence-to-function training. They handle indexes, augmentation, sequence retrieval, iteration, etc. automatically, and leave you to adjust only the parts that matter in a modular fashion. (#208)
