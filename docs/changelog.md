@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## v1.10.0
 
 ### Features
 - {func}`crested.tl.contribution_scores` now reuses computations (gradients or predictions) when calculating scores for multiple classes of one region. This should speed up both gradient and mutagenesis-based calculations. (#228)
