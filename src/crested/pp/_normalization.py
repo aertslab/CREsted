@@ -61,7 +61,10 @@ def normalize_peaks(
     ... )
     """
     if "weights" in adata.obsm:
-        raise ValueError("Your data is already peak-normalized ('weights' already in adata.obsm).")
+        raise ValueError(
+            "Your data is already peak-normalized ('weights' already in adata.obsm). "
+            "To normalize with different parameters, start again from an unnormalized AnnData."
+        )
 
     if isinstance(adata.X, csr_matrix):
         target_matrix = (
