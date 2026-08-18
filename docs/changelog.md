@@ -20,6 +20,7 @@
 - {func}`crested.tl.modisco.create_tf_ct_matrix`: add min_total_seqlets, a whole-pattern gate that drops patterns whose seqlet count summed across all firing cell types is below the floor. (#221)
 - {func}`crested.pl.explain.contribution_scores`' argument `highlight_positions` now highlights [start, end) rather than [start, end], in order to align with indexing and `crested.tl.design`'s `protected_positions`. (#227)
 - Both AnnDataWrapper and AnnDataModule now now handle regions that could cross genome boundaries when stochastically shifted better. (#208)
+- `crested.tl.zoo.utils.ConvBlock` now can have separate padding for pooling and convolutions, by setting `pool_padding`. (#236)
 
 ### Bugfixes
 - {func}`crested.pp.normalize_peaks` now reads Gini scores from the peaks its top-k selection actually picked. Weights change by ~1% on average (2.8% max) on the 19-cell-type mouse cortex tutorial data, and more on sparser datasets or with a nonzero `peak_threshold`, so normalized `.h5ad` files written by earlier versions differ slightly. The returned region DataFrame now lists top peaks rather than arbitrary broad regions. (#240)
@@ -28,6 +29,7 @@
 - {func}`crested.tl.zoo.basenji` can now be built again by fixing a renamed argument in `conv_block_bs`. (#233)
 - {func}`crested.utils.parse_region` now also doesn't break with negative coordinates. (#234)
 - Fix compatibility with AnnData>=0.13.0 including X in `AnnData.layers` for plotting functions. (#226)
+- Now fully drop L2 normalizers in `dense_block()`, `conv_block()`, `conv_block_bs()` if `l2` is set to 0, instead of adding normalizer that doesn't do anything. (#236)
 
 ### Tests
 - Add tests for both AnnDataLoader and AnnDataWrapper, in both TensorFlow and PyTorch. (#208)
@@ -35,9 +37,6 @@
 - Added new tests for {func}`crested.utils.parse_region` and {func}`crested.utils.resize_region` (#234)
 - Added a closed-form test for {func}`crested.pp.normalize_peaks`, over a matrix of broad and cell-type-specific regions whose weights are known analytically. (#240)
 - Added coverage for the routes that leave {func}`crested.pp.normalize_peaks` with no peaks selected for a cell type. (#240)
-
-### Documentation
-- Regenerated the peak normalization outputs in the model training and evaluation tutorial after the {func}`crested.pp.normalize_peaks` fix. (#240)
 
 ### Dev/poweruser features
 - Added `BaseDataWrapper` and `BaseGenomicDataWrapper`, classes that form a base for all kinds of sequence-to-function training. They handle indexes, augmentation, sequence retrieval, iteration, etc. automatically, and leave you to adjust only the parts that matter in a modular fashion. (#208)
