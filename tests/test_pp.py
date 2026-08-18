@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 from numpy import array_equiv
 
 import crested
@@ -149,6 +150,71 @@ def test_normalize_peaks_inplace():
     assert adata_inplace.X == pytest.approx(adata_copy.X)
     assert not adata.X == pytest.approx(adata_inplace.X)
     assert not adata.X == pytest.approx(adata_copy.X)
+
+def test_normalize_peaks_uses_the_cell_types_own_top_peaks():
+    """Gini scores must come from the peaks the top-k selection actually picked.
+
+    Regions at or below `peak_threshold` are dropped before sorting, which offsets
+    sort positions from region indices by the number of regions dropped ahead of
+    them, so positions have to be mapped back before indexing the matrix.
+
+    The fixture has a closed-form answer: 100 broad regions open in every cell type
+    at that cell type's own height, plus 20 per cell type that are tall in one cell
+    type and zero elsewhere. Broad regions get a low Gini and specific ones a high
+    Gini, so each cell type's low-Gini subset is exactly its broad regions and its
+    top_k_mean is exactly its broad height.
+    """
+    heights = np.array([1.0, 2.0, 4.0, 8.0])
+    broad = np.tile(heights, (100, 1))
+    specific = np.zeros((20 * len(heights), len(heights)))
+    for c in range(len(heights)):
+        specific[c * 20 : (c + 1) * 20, c] = 100.0
+
+    matrix = np.vstack([broad, specific])
+    matrix = matrix[np.random.default_rng(0).permutation(len(matrix))]  # index != sort position
+
+    regions = [f"chr1:{i * 1000}-{i * 1000 + 500}" for i in range(len(matrix))]
+    adata = create_anndata_with_regions(regions, n_classes=len(heights))
+    adata.X = matrix.T.copy()  # AnnData is (cell types, regions)
+
+    adata_out, _ = crested.pp.normalize_peaks(
+        adata, peak_threshold=0.0, gini_std_threshold=0, top_k_percent=1.0, inplace=False
+    )
+
+    weights = np.asarray(adata_out.obsm["weights"]).ravel()
+    assert weights == pytest.approx(heights.max() / heights)
+
+
+@pytest.mark.parametrize("case", ["no_broad_peaks", "all_below_threshold", "top_k_rounds_to_zero"])
+def test_normalize_peaks_raises_when_no_peaks_are_selected(case):
+    """A cell type with no selected peaks has an undefined weight, so raise.
+
+    Three routes there: no top peak counts as broad (raising `gini_std_threshold`
+    lowers the cutoff past some dataset dependent point), every region at or below
+    `peak_threshold`, or so few regions above it that `top_k_percent` rounds the
+    selection to zero. The latter two leave `top_indices` empty, which is a clean
+    shape-(0,) reduction over the cell type axis rather than an error, so they reach
+    this check as well. Dividing by the resulting zero would otherwise put inf (or
+    nan, if it happens to every cell type) into .X.
+    """
+    adata = create_anndata_with_regions(
+        [f"chr{chr_i}:{start}-{start + 100}" for chr_i in range(1, 10) for start in range(0, 1000, 100)],
+        random_state=0,
+    )
+    kwargs = {"gini_std_threshold": 1.0, "top_k_percent": 0.2}
+
+    if case == "no_broad_peaks":
+        kwargs["gini_std_threshold"] = 10
+    elif case == "all_below_threshold":
+        adata.X[0] = 0.0
+    else:
+        adata.X[0] = 0.0
+        adata.X[0, :2] = 3.0
+        kwargs["top_k_percent"] = 0.1  # int(2 * 0.1) == 0 -> nothing selected
+
+    with pytest.raises(ValueError, match="normalization weight is undefined"):
+        crested.pp.normalize_peaks(adata, peak_threshold=0.0, inplace=False, **kwargs)
+
 
 def test_change_regions_width_inplace(adata_function):
     adata_inplace = adata_function.copy()

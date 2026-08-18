@@ -55,7 +55,7 @@ def dense_block(
         activation=None,
         use_bias=use_bias,
         kernel_initializer="he_normal",
-        kernel_regularizer=keras.regularizers.l2(l2),
+        kernel_regularizer=keras.regularizers.l2(l2) if l2 > 0 else None,
         name=name_prefix + "_dense" if name_prefix else None,
     )(inputs)
 
@@ -66,16 +66,10 @@ def dense_block(
             name=name_prefix + "_batchnorm" if name_prefix else None,
         )(x)
     elif normalization == "layer":
-        x = keras.layers.LayerNormalization(
-            name=name_prefix + "_layernorm" if name_prefix else None
-        )(x)
+        x = keras.layers.LayerNormalization(name=name_prefix + "_layernorm" if name_prefix else None)(x)
 
-    x = activate(
-        x, activation, name=name_prefix + "_activation" if name_prefix else None
-    )
-    x = keras.layers.Dropout(
-        dropout, name=name_prefix + "_dropout" if name_prefix else None
-    )(x)
+    x = activate(x, activation, name=name_prefix + "_activation" if name_prefix else None)
+    x = keras.layers.Dropout(dropout, name=name_prefix + "_dropout" if name_prefix else None)(x)
     return x
 
 
@@ -90,6 +84,7 @@ def conv_block(
     normalization: str = "batch",
     res: bool = False,
     padding: str = "valid",
+    pool_padding: str | None = None,
     l2: float = 1e-5,
     batchnorm_momentum: float = 0.99,
     name_prefix: str | None = None,
@@ -119,6 +114,8 @@ def conv_block(
         Whether to use residual connections (default is False).
     padding
         Padding type for the convolutional layer (default is "valid").
+    pool_padding
+        Padding type to be used for the pooling. If None (default), will use same value as `padding`.
     l2
         L2 regularization weight (default is 1e-5).
     batchnorm_momentum
@@ -137,7 +134,7 @@ def conv_block(
         filters=filters,
         kernel_size=kernel_size,
         padding=padding,
-        kernel_regularizer=keras.regularizers.L2(l2),
+        kernel_regularizer=keras.regularizers.L2(l2) if l2 > 0 else None,
         use_bias=conv_bias,
         name=name_prefix + "_conv" if name_prefix else None,
     )(inputs)
@@ -147,12 +144,8 @@ def conv_block(
             name=name_prefix + "_batchnorm" if name_prefix else None,
         )(x)
     elif normalization == "layer":
-        x = keras.layers.LayerNormalization(
-            name=name_prefix + "_layernorm" if name_prefix else None
-        )(x)
-    x = activate(
-        x, activation, name=name_prefix + "_activation" if name_prefix else None
-    )
+        x = keras.layers.LayerNormalization(name=name_prefix + "_layernorm" if name_prefix else None)(x)
+    x = activate(x, activation, name=name_prefix + "_activation" if name_prefix else None)
     if res:
         if filters != residual.shape[2]:
             residual = keras.layers.Convolution1D(
@@ -166,20 +159,16 @@ def conv_block(
     if pool_size > 1:
         x = keras.layers.MaxPooling1D(
             pool_size=pool_size,
-            padding=padding,
+            padding=pool_padding if pool_padding is not None else padding,
             name=name_prefix + "_pool" if name_prefix else None,
         )(x)
     if dropout > 0:
-        x = keras.layers.Dropout(
-            dropout, name=name_prefix + "_dropout" if name_prefix else None
-        )(x)
+        x = keras.layers.Dropout(dropout, name=name_prefix + "_dropout" if name_prefix else None)(x)
 
     return x
 
 
-def activate(
-    current: keras.KerasTensor, activation: str, verbose: bool = False, name=None
-) -> keras.KerasTensor:
+def activate(current: keras.KerasTensor, activation: str, verbose: bool = False, name=None) -> keras.KerasTensor:
     """
     Apply activation function to a tensor.
 
@@ -268,15 +257,11 @@ def pool(
         print("pool:", pool_type)
 
     if pool_type == "max":
-        current = keras.layers.MaxPooling1D(
-            pool_size=pool_size, padding=padding, name=name
-        )(current)
+        current = keras.layers.MaxPooling1D(pool_size=pool_size, padding=padding, name=name)(current)
     elif pool_type == "attention":
         current = AttentionPool1D(pool_size=2, padding=padding, name=name)(current)
     elif pool_type == "average":
-        current = keras.layers.AveragePooling1D(
-            pool_size=2, padding=padding, name=name
-        )(current)
+        current = keras.layers.AveragePooling1D(pool_size=2, padding=padding, name=name)(current)
     else:
         raise ValueError(f'Unrecognized pooling type "{pool_type}"')
     return current
@@ -412,9 +397,7 @@ def conv_block_bs(
         )(current)
 
     # activation
-    current = activate(
-        current, activation, name=name_prefix + "_activation" if name_prefix else None
-    )
+    current = activate(current, activation, name=name_prefix + "_activation" if name_prefix else None)
 
     # convolution
     current = conv_layer(
@@ -425,21 +408,17 @@ def conv_block_bs(
         use_bias=conv_bias,
         dilation_rate=dilation_rate,
         kernel_initializer=kernel_initializer,
-        kernel_regularizer=keras.regularizers.l2(l2_scale),
+        kernel_regularizer=keras.regularizers.l2(l2_scale) if l2_scale > 0 else None,
         name=name_prefix + "_conv" if name_prefix else None,
     )(current)
 
     # dropout
     if dropout > 0:
-        current = keras.layers.Dropout(
-            rate=dropout, name=name_prefix + "_dropout" if name_prefix else None
-        )(current)
+        current = keras.layers.Dropout(rate=dropout, name=name_prefix + "_dropout" if name_prefix else None)(current)
 
     # residual add
     if residual:
-        current = keras.layers.Add(name=name_prefix + "_add" if name_prefix else None)(
-            [inputs, current]
-        )
+        current = keras.layers.Add(name=name_prefix + "_add" if name_prefix else None)([inputs, current])
 
     # end activation
     if activation_end is not None:
@@ -553,9 +532,7 @@ def mha_block_enf(
         absolute_positions=absolute_positions,
         name=f"{name_prefix}_mhsa",
     )(current)
-    current = keras.layers.Dropout(rate=final_dropout, name=f"{name_prefix}_dropout")(
-        current
-    )
+    current = keras.layers.Dropout(rate=final_dropout, name=f"{name_prefix}_dropout")(current)
     if residual:
         current = keras.layers.Add()([inputs, current])
     return current
@@ -608,23 +585,13 @@ def ffn_block_enf(
         gamma_initializer="ones",
         name=f"{name_prefix}_layernorm",
     )(inputs)
-    current = keras.layers.Conv1D(
-        filters=expansion_filters, kernel_size=1, name=f"{name_prefix}_pointwise_1"
-    )(current)
-    current = keras.layers.Dropout(rate=dropout, name=f"{name_prefix}_dropout_1")(
-        current
-    )
+    current = keras.layers.Conv1D(filters=expansion_filters, kernel_size=1, name=f"{name_prefix}_pointwise_1")(current)
+    current = keras.layers.Dropout(rate=dropout, name=f"{name_prefix}_dropout_1")(current)
 
     # Second half
-    current = activate(
-        current, activation, name=name_prefix + "_activation" if name_prefix else None
-    )
-    current = keras.layers.Conv1D(
-        filters=filters, kernel_size=1, name=f"{name_prefix}_pointwise_2"
-    )(current)
-    current = keras.layers.Dropout(rate=dropout, name=f"{name_prefix}_dropout_2")(
-        current
-    )
+    current = activate(current, activation, name=name_prefix + "_activation" if name_prefix else None)
+    current = keras.layers.Conv1D(filters=filters, kernel_size=1, name=f"{name_prefix}_pointwise_2")(current)
+    current = keras.layers.Dropout(rate=dropout, name=f"{name_prefix}_dropout_2")(current)
 
     # Residual
     if residual:
@@ -708,3 +675,107 @@ def dilated_residual(
             dilation_rate = np.round(dilation_rate)
 
     return current
+
+
+def legnet_se_block(inputs: keras.KerasTensor, units: int, reduction: int = 4, name: str | None = None):
+    """
+    Squeeze-and-Excite block.
+
+    Parameters
+    ----------
+    inputs
+        Input tensor with shape (batch, channels, length).
+    units
+        Number of units (filters, dimensions) for the dense blocks.
+    reduction
+        Reduction parameter. The default is 4.
+    name : str, optional
+        Name prefix for keras.layers.
+
+    Returns
+    -------
+    tensor
+        Output tensor with same shape as input.
+    """
+    # Global average pooling
+    y = keras.ops.mean(inputs, axis=1)
+    # Linear
+    y = keras.layers.Dense(units // reduction, activation=None, name=f"{name}_fc1" if name else None)(y)
+    # SiLU
+    y = keras.layers.Activation("swish", name=f"{name}_swish1" if name else None)(y)
+    # Linear 2
+    y = keras.layers.Dense(units, activation=None, name=f"{name}_fc2" if name else None)(y)
+    # Sigmoid
+    y = keras.layers.Activation("sigmoid", name=f"{name}_sigmoid" if name else None)(y)
+    # Multiplication
+    output = keras.layers.Multiply(name=f"{name}_multiply" if name else None)([inputs, y])
+    return output
+
+
+def legnet_eff_block(
+    inputs: keras.KerasTensor,
+    filters: int,
+    kernel_size: int,
+    resize_factor: int,
+    activation: str = "swish",
+    se_reduction: int | None = None,
+    name: str | None = None,
+):
+    """
+    EfficientNet-style block with inverted residuals and squeeze-excite.
+
+    Parameters
+    ----------
+    inputs
+        Input tensor.
+    filters
+        Output channels.
+    kernel_size
+        Kernel size.
+    resize_factor
+        Expansion factor for the inner dimension.
+    activation
+        Activation function.
+    se_reduction
+        SE layer reduction factor. If None, same as resize_factor.
+    name
+        Name prefix for keras.layers.
+
+    Returns
+    -------
+    tensor
+        Output tensor.
+    """
+    se_reduction = resize_factor if se_reduction is None else se_reduction
+    inner_dim = filters * resize_factor
+
+    # Expansion
+    y = keras.layers.Conv1D(
+        filters=inner_dim, kernel_size=1, padding="same", use_bias=False, name=f"{name}_expand_conv" if name else None
+    )(inputs)
+    y = keras.layers.BatchNormalization(name=f"{name}_expand_bn" if name else None)(y)
+    y = keras.layers.Activation(activation, name=f"{name}_expand_act" if name else None)(y)
+
+    # Depthwise
+    y = keras.layers.Conv1D(
+        filters=inner_dim,
+        kernel_size=kernel_size,
+        groups=inner_dim,
+        padding="same",
+        use_bias=False,
+        name=f"{name}_dw_conv" if name else None,
+    )(y)
+    y = keras.layers.BatchNormalization(name=f"{name}_dw_bn" if name else None)(y)
+    y = keras.layers.Activation(activation, name=f"{name}_dw_act" if name else None)(y)
+
+    # Squeeze-and-Excite
+    y = legnet_se_block(y, inner_dim, reduction=se_reduction, name=f"{name}_se" if name else None)
+
+    # Projection
+    y = keras.layers.Conv1D(
+        filters=filters, kernel_size=1, padding="same", use_bias=False, name=f"{name}_project_conv" if name else None
+    )(y)
+    y = keras.layers.BatchNormalization(name=f"{name}_project_bn" if name else None)(y)
+    y = keras.layers.Activation(activation, name=f"{name}_project_act" if name else None)(y)
+
+    return y
