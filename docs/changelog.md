@@ -4,6 +4,7 @@
 
 ### Features
 - {func}`crested.tl.contribution_scores` now reuses computations (gradients or predictions) when calculating scores for multiple classes of one region. This should speed up both gradient and mutagenesis-based calculations. (#228)
+- Plotting logo-based contribution scores ({func}`crested.pl.explain.contribution_scores` & co) now use `fast-logomaker` instead of `logomaker`, which is substantially faster. (#237)
 - {func}`crested.tl.design.in_silico_evolution` and {func}`crested.tl.design.motif_insertion` now take a `protected_positions` argument: a list of `(start, end)` ranges of nucleotide positions that will never be mutated or overwritten by a motif insertion, independent of `no_mutation_flanks`/`target_len`. (#227)
 - Added {obj}`crested.tl.data.AnnDataWrapper`, a futureproof dataloader for sequence-to-function training. (#208)
    - AnnDataWrapper mostly uses the same arguments as AnnDataModule and should be a drop-in replacement.
@@ -43,6 +44,7 @@
 - SequenceLoader now doesn't re-do the deterministic augmentations on base indices again, but instead takes a list of expanded_indices (basically indices with all revcomp and/or deterministic_shift) and extracts values for those. (#208)
 - Both AnnDataModule and AnnDataLoader now have a `get_config()` method that returns all kind of information about the number of (batched) entries, its settings, and more. This data is automatically logged in `Crested.fit()`. (#208)
 - AnnDataset and AnnDataLoader are now no longer publicly imported, since they were never relevant for the end user. This keeps the clutter in `crested.tl.data` down a bit. (#208)
+- Rotated logos (`rotate=True`, used e.g. for the vertical PWM/motif logos in {mod}`crested.pl.modisco`) now render as vector graphics via a data-space transform instead of being rasterized to an image and rotated with `np.rot90`. (#231, #237)
 
 ## 1.9.0
 
