@@ -242,15 +242,20 @@ def mutagenesis(
     if not is_multi_class:
         class_index = [class_index]
 
-    def reconstruct_map(predictions):
+    def reconstruct_map(predictions, wt_score):
         _, L, A = x.shape
 
         mut_score = np.zeros((1, len(class_index), L, A))
         k = 0
         for length in range(L):
             for a in range(A):
-                mut_score[0, :, length, a] = predictions[k]
-                k += 1
+                # If original seq is 1, it's wildtype and we use the wt score
+                if x[0, length, a] == 1:
+                    mut_score[0, :, length, a] = wt_score[0, :]
+                # Else use the mutagenized score
+                else:
+                    mut_score[0, :, length, a] = predictions[k]
+                    k += 1
         return mut_score
 
     def get_score(x, model, class_index, batch_size=None):
@@ -262,15 +267,15 @@ def mutagenesis(
     for x in X:
         x = np.expand_dims(x, axis=0)
 
-        # generate mutagenized sequences
-        x_mut = generate_mutagenesis(x)
+        # generate mutagenized sequences, skipping the redundant substitution back to the wildtype base
+        x_mut = generate_mutagenesis(x, include_original=False)
 
         # get baseline wildtype score
         wt_score = get_score(x, model, class_index, batch_size=batch_size)
         predictions = get_score(x_mut, model, class_index, batch_size=batch_size)
 
         # reshape mutagenesis predictions
-        mut_score = reconstruct_map(predictions)
+        mut_score = reconstruct_map(predictions, wt_score)
         wt_score = wt_score[:, :, None, None]  # (1, n_classes) -> (1, n_classes, 1, 1) to broadcast over (L, A)
 
         # Remove 1-length class index if not multi-class
