@@ -247,6 +247,7 @@ def mutagenesis(
 
         mut_score = np.zeros((1, len(class_index), L, A))
         k = 0
+        # Assumes predictions are from generate_mutagenesis(include_original=False) sequences
         for length in range(L):
             for a in range(A):
                 # If original seq is 1, it's wildtype and we use the wt score
@@ -272,7 +273,7 @@ def mutagenesis(
         # generate mutagenized sequences, skipping the redundant substitution back to the wildtype base
         x_mut = generate_mutagenesis(x, include_original=False)
 
-        # get baseline wildtype score
+        # predict for wildtype and mutagenized sequences
         wt_score = get_score(x, model, class_index, batch_size=batch_size)
         predictions = get_score(x_mut, model, class_index, batch_size=batch_size)
 
@@ -280,8 +281,10 @@ def mutagenesis(
         mut_score = reconstruct_map(predictions, wt_score)
         wt_score = wt_score[:, :, None, None]  # (1, n_classes) -> (1, n_classes, 1, 1) to broadcast over (L, A)
 
-        # Remove 1-length class index if not multi-class
+        # Calculate difference between wildtype and ref for every position and nucleotide
         score_diff = mut_score - wt_score
+
+        # Remove 1-length class index if not multi-class
         if not is_multi_class:
             score_diff = score_diff.squeeze(axis=1)
         scores.append(score_diff)
