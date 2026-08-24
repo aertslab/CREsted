@@ -260,6 +260,8 @@ def mutagenesis(
 
     def get_score(x, model, class_index, batch_size=None):
         predictions = model.predict(x, verbose=0, batch_size=batch_size)
+        if predictions.ndim == 1:
+            predictions = predictions[:, None]
         cols = [np.sqrt(np.sum(predictions**2, axis=-1)) if idx is None else predictions[:, idx] for idx in class_index]
         return np.stack(cols, axis=1)
 
@@ -342,6 +344,8 @@ def window_shuffle(
 
     def get_score(x, model, class_index, batch_size=None):
         predictions = model.predict(x, verbose=0, batch_size=batch_size)
+        if predictions.ndim == 1:
+            predictions = predictions[:, None]
         cols = [np.sqrt(np.sum(predictions**2, axis=-1)) if idx is None else predictions[:, idx] for idx in class_index]
         return np.stack(cols, axis=1)
 
