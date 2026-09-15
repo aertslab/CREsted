@@ -151,6 +151,23 @@ def parse_starting_sequences(starting_sequences) -> np.ndarray:
     return starting_sequences_array  # shape (N, L)
 
 
+def parse_protected_positions(
+    protected_positions: list[tuple[int, int]] | None, seq_len: int
+) -> set[int]:
+    """Validate protected position ranges and expand them to a set of individual positions."""
+    if protected_positions is None:
+        return set()
+    positions: set[int] = set()
+    for start, end in protected_positions:
+        if start < 0 or end > seq_len or start >= end:
+            raise ValueError(
+                f"Invalid protected position range ({start}, {end}) for a sequence "
+                f"of length {seq_len}. Ranges must satisfy 0 <= start < end <= seq_len."
+            )
+        positions.update(range(start, end))
+    return positions
+
+
 def generate_motif_insertions(x, motif, flanks=(0, 0), masked_locations=None):
     """Generate motif insertions in a sequence."""
     _, L, A = x.shape
@@ -173,4 +190,10 @@ def generate_motif_insertions(x, motif, flanks=(0, 0), masked_locations=None):
         x_mut.append(x_new)
         insertion_locations.append(motif_start)
 
+    if not x_mut:
+        raise ValueError(
+            "No valid positions remain for motif insertion after applying "
+            "no_mutation_flanks/target_len, protected_positions, and any previously "
+            "inserted motifs."
+        )
     return np.concatenate(x_mut, axis=0), insertion_locations

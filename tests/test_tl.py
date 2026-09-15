@@ -81,6 +81,80 @@ def test_predict(keras_model, adata, genome):
     assert predictions == pytest.approx(predictions_pos)
     assert predictions != pytest.approx(predictions_neg)
 
+    # Predicting on a "-"-strand region must be numerically identical to
+    # independently reverse-complementing the "+" sequence and predicting on that directly
+    seq_pos = genome.fetch(region=region_str_pos)
+    seq_neg = crested.utils.reverse_complement(seq_pos)
+    predictions_seq_pos = crested.tl.predict(seq_pos, keras_model)
+    predictions_seq_neg = crested.tl.predict(seq_neg, keras_model)
+    assert predictions_pos == pytest.approx(predictions_seq_pos)
+    assert predictions_neg == pytest.approx(predictions_seq_neg)
+
+    # Same consistency check when regions come from an AnnData's var_names
+    adata_stranded = create_anndata_with_regions([region_str_pos, region_str_neg])
+    predictions_stranded = crested.tl.predict(
+        input=adata_stranded, model=keras_model, genome=genome
+    )
+    assert predictions_stranded[0] == pytest.approx(predictions_seq_pos[0])
+    assert predictions_stranded[1] == pytest.approx(predictions_seq_neg[0])
+
+
+def test_contribution_scores_target_idx(keras_model, genome):
+    sequence = "ATCGA" * 100
+
+    # np.int64 (e.g. from np.argmax()) should be accepted like a plain int
+    scores, one_hot_encoded_sequences = crested.tl.contribution_scores(
+        sequence,
+        target_idx=np.int64(1),
+        model=keras_model,
+        genome=genome,
+        method="integrated_grad",
+    )
+    assert scores.shape == (1, 1, 500, 4)
+    assert one_hot_encoded_sequences.shape == (1, 500, 4)
+
+    # None -> scores for all classes
+    scores, one_hot_encoded_sequences = crested.tl.contribution_scores(
+        sequence,
+        target_idx=None,
+        model=keras_model,
+        genome=genome,
+        method="integrated_grad",
+    )
+    assert scores.shape == (1, 5, 500, 4)
+
+    # Empty list -> scores for the 'combined' class
+    scores, one_hot_encoded_sequences = crested.tl.contribution_scores(
+        sequence,
+        target_idx=[],
+        model=keras_model,
+        genome=genome,
+        method="integrated_grad",
+        verbose=False,
+    )
+    assert scores.shape == (1, 1, 500, 4)
+
+    # A string is not a valid target_idx (should suggest anndata.obs_names.index) and should raise
+    with pytest.raises(ValueError, match="not a string"):
+        crested.tl.contribution_scores(
+            sequence,
+            target_idx="Topic_1",
+            model=keras_model,
+            genome=genome,
+            method="integrated_grad",
+        )
+
+    # Other invalid types should also raise a clear error
+    with pytest.raises(ValueError):
+        crested.tl.contribution_scores(
+            sequence,
+            target_idx=1.5,
+            model=keras_model,
+            genome=genome,
+            method="integrated_grad",
+        )
+
+
 def test_score_gene_locus(keras_model, genome):
     chrom = "chr1"
     start = 200000
@@ -177,6 +251,72 @@ def test_contribution_scores(keras_model, genome):
     )
     assert scores.shape == (1, 1, 500, 4)
     assert one_hot_encoded_sequences.shape == (1, 500, 4)
+
+
+def test_contribution_scores_multiclass_equivalence(keras_model, genome):
+    """Multi-class contribution_scores calls must match looping single-class calls."""
+    sequence = "ATCGA" * 100
+
+    for method in ["integrated_grad", "expected_integrated_grad", "saliency_map", "mutagenesis"]:
+        combined, _ = crested.tl.contribution_scores(
+            sequence,
+            target_idx=[0, 1],
+            model=keras_model,
+            genome=genome,
+            method=method,
+            seed=42,
+            verbose=False,
+        )
+        for i, class_index in enumerate([0, 1]):
+            single, _ = crested.tl.contribution_scores(
+                sequence,
+                target_idx=class_index,
+                model=keras_model,
+                genome=genome,
+                method=method,
+                seed=42,
+                verbose=False,
+            )
+            np.testing.assert_allclose(
+                combined[:, i],
+                single[:, 0],
+                rtol=1e-5,
+                atol=1e-5,
+                err_msg=f"multi-class and single-class {method} results diverge for class {class_index}",
+            )
+
+
+def test_contribution_scores_window_shuffle_multiclass_equivalence(keras_model, genome):
+    """Multi-class window_shuffle calls must match looping single-class calls, given the same seed."""
+    sequence = "ATCGA" * 100
+
+    for method in ["window_shuffle", "window_shuffle_uniform"]:
+        combined, _ = crested.tl.contribution_scores(
+            sequence,
+            target_idx=[0, 1],
+            model=keras_model,
+            genome=genome,
+            method=method,
+            seed=42,
+            verbose=False,
+        )
+        for i, class_index in enumerate([0, 1]):
+            single, _ = crested.tl.contribution_scores(
+                sequence,
+                target_idx=class_index,
+                model=keras_model,
+                genome=genome,
+                method=method,
+                seed=42,
+                verbose=False,
+            )
+            np.testing.assert_allclose(
+                combined[:, i],
+                single[:, 0],
+                rtol=1e-5,
+                atol=1e-5,
+                err_msg=f"multi-class and single-class {method} results diverge for class {class_index}",
+            )
 
 
 def test_contribution_scores_specific(keras_model, adata, adata_specific, genome):
@@ -317,12 +457,12 @@ def test_enhancer_design_in_silico_evolution(keras_model, adata, genome):
     assert len(seqs) == 2, len(seqs)
 
     # acgt distribution provided
-    acgt_disbtibution = crested.utils.calculate_nucleotide_distribution(input=adata, genome=genome, per_position=True)
+    acgt_distribution = crested.utils.calculate_nucleotide_distribution(input=adata, genome=genome, per_position=True)
     seqs = crested.tl.design.in_silico_evolution(
         n_mutations=1,
         target=0,
         model=keras_model,
-        acgt_distribution=acgt_disbtibution,
+        acgt_distribution=acgt_distribution,
     )
 
     # starting sequences provided
@@ -333,6 +473,75 @@ def test_enhancer_design_in_silico_evolution(keras_model, adata, genome):
         model=keras_model,
         starting_sequences=starting_sequences,
     )
+
+    # protected positions are never mutated
+    seq_len = keras_model.input_shape[1]
+    starting_sequence = "A" * seq_len
+    seqs = crested.tl.design.in_silico_evolution(
+        n_mutations=20,
+        target=0,
+        model=keras_model,
+        starting_sequences=starting_sequence,
+        protected_positions=[(100, 110)],
+    )
+    assert seqs[0][100:110] == "A" * 10
+
+    # invalid range raises
+    with pytest.raises(ValueError):
+        crested.tl.design.in_silico_evolution(
+            n_mutations=1,
+            target=0,
+            model=keras_model,
+            starting_sequences=starting_sequence,
+            protected_positions=[(10, 5)],
+        )
+
+    # protecting everything raises a clear error
+    with pytest.raises(ValueError):
+        crested.tl.design.in_silico_evolution(
+            n_mutations=1,
+            target=0,
+            model=keras_model,
+            starting_sequences=starting_sequence,
+            protected_positions=[(0, seq_len)],
+        )
+
+
+def test_enhancer_design_motif_insertion(keras_model):
+    seq_len = keras_model.input_shape[1]
+    starting_sequence = "A" * seq_len
+    my_motifs = {"motif1": "ACGTTTGA"}
+
+    # protected positions are never overwritten by an inserted motif
+    seqs = crested.tl.design.motif_insertion(
+        patterns=my_motifs,
+        model=keras_model,
+        target=0,
+        starting_sequences=starting_sequence,
+        insertions_per_pattern={"motif1": 5},
+        protected_positions=[(0, seq_len // 2)],
+    )
+    assert seqs[0][: seq_len // 2] == "A" * (seq_len // 2)
+
+    # invalid range raises
+    with pytest.raises(ValueError):
+        crested.tl.design.motif_insertion(
+            patterns=my_motifs,
+            model=keras_model,
+            target=0,
+            starting_sequences=starting_sequence,
+            protected_positions=[(-1, 5)],
+        )
+
+    # protecting everything leaves no valid insertion site
+    with pytest.raises(ValueError):
+        crested.tl.design.motif_insertion(
+            patterns=my_motifs,
+            model=keras_model,
+            target=0,
+            starting_sequences=starting_sequence,
+            protected_positions=[(0, seq_len)],
+        )
 
 
 # ---------- Test modisco process_patterns (agglomerative) -------------

@@ -140,10 +140,10 @@ def bar(
     else:
         # Parse and clean up model_names values
         if model_names is None:
-            model_names = ["truth", *data.layers.keys()]
+            model_names = ["truth"] + [layer_name for layer_name in data.layers if layer_name is not None]
         if isinstance(model_names, str):
             model_names = [model_names]
-        model_names = ['truth' if target.lower() in ['x', 'truth', 'groundtruth'] else target for target in model_names]
+        model_names = ['truth' if target.lower() in ['x', 'truth', 'groundtruth'] or target is None else target for target in model_names]
         # Check whether params are valid
         _check_adata_params()
         # Gather values

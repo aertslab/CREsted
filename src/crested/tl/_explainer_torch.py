@@ -16,7 +16,7 @@ import torch
 def _saliency_map(
     X: torch.Tensor,
     model: keras.Model,
-    class_index: int | None = None,
+    class_index: int | list[int] | None = None,
     func: Callable[[torch.Tensor], torch.Tensor] = torch.mean,
 ) -> torch.Tensor:
     """Fast function to generate saliency maps.
@@ -28,25 +28,28 @@ def _saliency_map(
     model
         Your Keras model, or any object that supports __call__ with gradients, so it can also be a non-Keras PyTorch model.
     class_index
-        Index of model output to explain. Model assumed to return outputs of shape (batch_size, n_classes) if using this.
+        Index (or list of indices) of model output(s) to explain. Model assumed to return outputs of shape (batch_size, n_classes) if using this.
     func
-        Function to reduce model outputs to one value with, if not using class_index.
+        Function to reduce model outputs to one value with, for any class_index entries that are None.
 
     Returns
     -------
-    Gradients of the same shape as X, (batch, seq_len, nuc).
+    Gradients of the same shape as X, (batch, seq_len, nuc), if class_index is a single int or None.
+    If class_index is a list, gradients of shape (batch, n_classes, seq_len, nuc).
     """
     if func is None:
         func = torch.mean
+    is_multi_class = isinstance(class_index, (list, tuple))
+    class_indices = class_index if is_multi_class else [class_index]
     X = X.clone().detach().requires_grad_(True)
     outputs = model(X)
-    if class_index is not None:
-        outputs = outputs[:, class_index]
-    else:
-        outputs = func(outputs)
-
-    outputs.backward(torch.ones_like(outputs))
-    return X.grad
+    n = len(class_indices)
+    grads = []
+    for i, idx in enumerate(class_indices):
+        target = outputs[:, idx] if idx is not None else func(outputs)
+        grad = torch.autograd.grad(target, X, grad_outputs=torch.ones_like(target), retain_graph=(i < n - 1))[0]
+        grads.append(grad)
+    return torch.stack(grads, dim=1) if is_multi_class else grads[0]
 
 
 def _smoothgrad(

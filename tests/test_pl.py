@@ -265,7 +265,8 @@ def test_qc_sort_and_filter_cutoff(adata):
         cutoffs=[300, 450],
         method='gini',
         plot_kws={'alpha': 0.5},
-        line_kws={'alpha': 0.5},
+        cutoff_line_kws={'alpha': 0.5},
+        score_line_kws={'alpha': 0.5},
         show=False
     )
     assert fig is not None and ax is not None
@@ -277,7 +278,8 @@ def test_qc_sort_and_filter_cutoff(adata):
         cutoffs=[300, 450],
         method='proportion',
         plot_kws={'alpha': 0.5},
-        line_kws={'alpha': 0.5},
+        cutoff_line_kws={'alpha': 0.5},
+        score_line_kws={'alpha': 0.5},
         show=False
     )
     assert fig is not None and ax is not None
@@ -457,6 +459,17 @@ def test_corr_violin(adata_preds):
     assert fig is not None and ax is not None
     plt.close()
 
+    # Plot a single model passed as a bare string, not a list
+    fig, ax = crested.pl.corr.violin(
+        adata=adata_preds,
+        model_names='model_1',
+        split=None,
+        show=False
+    )
+    assert isinstance(ax, plt.Axes)
+    assert fig is not None and ax is not None
+    plt.close()
+
 # ---------- Test dist -------------
 def test_dist_histogram(adata_preds):
     # Test simple plot
@@ -547,6 +560,65 @@ def test_patterns_contribution_scores_x_shift():
             x_shift=-30,
             show=False
         )
+
+def test_patterns_contribution_scores_coordinates():
+    scores = np.random.uniform(-1, 3, (1, 1, 100, 4))
+    seqs_one_hot = np.eye(4)[None, np.random.randint(4, size=100)]
+
+    # Valid plot with positive coordinates as string
+    fig, ax = crested.pl.explain.contribution_scores(
+        scores,
+        seqs_one_hot,
+        coordinates="chr1:100-200:+",
+        show=False
+    )
+    assert fig is not None and ax is not None
+    plt.close()
+
+    # Valid plot with positive coordinates as tuple and zoom
+    fig, ax = crested.pl.explain.contribution_scores(
+        scores,
+        seqs_one_hot,
+        zoom_n_bases=50,
+        coordinates=('chr1', 100, 200),
+        show=False
+    )
+    assert fig is not None and ax is not None
+    plt.close()
+
+    # Valid plot with negative coordinates
+    fig, ax = crested.pl.explain.contribution_scores(
+        scores,
+        seqs_one_hot,
+        coordinates="chr1:100-200:-",
+        show=False
+    )
+    assert fig is not None and ax is not None
+    plt.close()
+
+    # Valid plot with positive coordinates, zoom, and x_shift
+    fig, ax = crested.pl.explain.contribution_scores(
+        scores,
+        seqs_one_hot,
+        coordinates="chr1:100-200:+",
+        zoom_n_bases=50,
+        x_shift=20,
+        show=False
+    )
+    assert fig is not None and ax is not None
+    plt.close()
+
+    # Valid plot with negative coordinates, zoom, and x_shift
+    fig, ax = crested.pl.explain.contribution_scores(
+        scores,
+        seqs_one_hot,
+        coordinates="chr1:100-200:-",
+        zoom_n_bases=50,
+        x_shift=20,
+        show=False
+    )
+    assert fig is not None and ax is not None
+    plt.close()
 
 def test_patterns_contribution_scores_mutagenesis():
     scores = np.random.uniform(-3, 1, (1, 1, 100, 4))

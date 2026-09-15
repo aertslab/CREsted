@@ -90,7 +90,7 @@ def scatter(
         for model_name in model_names:
             if model_name not in adata.layers:
                 raise ValueError(f"Model name {model_name} not found in adata.layers.")
-        if len(adata.layers) == 0:
+        if len(adata.layers) == 0 or all(layer_name is None for layer_name in adata.layers):
             raise ValueError("Your adata does not contain prediction values. Please add predictions to adata.layers.")
         if len(model_names) == 0:
             raise ValueError("No model names found. Either your're providing an empty list or the adata does not contain model names.")
@@ -102,7 +102,7 @@ def scatter(
     if isinstance(model_names, str):
         model_names = [model_names]
     if model_names is None:
-        model_names = list(adata.layers.keys())
+        model_names = [layer_name for layer_name in adata.layers if layer_name is not None]
     n_models = len(model_names)
 
     _check_input_params()

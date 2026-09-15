@@ -16,6 +16,8 @@ from ._layers import (
     gelu_approx,
     gelu_enf,
     get_output,
+    legnet_eff_block,
+    legnet_se_block,
     mha_block_enf,
     pool,
 )

@@ -14,6 +14,7 @@ from crested.tl.design._utils import (
     _weighted_difference,
     create_random_sequences,
     generate_motif_insertions,
+    parse_protected_positions,
     parse_starting_sequences,
 )
 from crested.utils._seq_utils import (
@@ -31,6 +32,7 @@ def in_silico_evolution(
     return_intermediate: bool = False,
     no_mutation_flanks: tuple[int, int] | None = None,
     target_len: int | None = None,
+    protected_positions: list[tuple[int, int]] | None = None,
     enhancer_optimizer: EnhancerOptimizer | None = None,
     starting_sequences: str | list | None = None,
     acgt_distribution: np.ndarray[float] | None = None,
@@ -60,6 +62,10 @@ def in_silico_evolution(
     target_len
         Length of the area in the center of the sequence to make mutations in.
         Ignored if no_mutation_flanks is provided.
+    protected_positions
+        A list of (start, end) 0-based, half-open ranges specifying nucleotide
+        positions that must not be mutated, e.g. ``[(50, 60)]`` protects positions
+        50-59. Combinable with `no_mutation_flanks`/`target_len`.
     acgt_distribution
         An array of floats representing the distribution of A, C, G, and T in the genome (in that order).
         If the array is of shape (L, 4), it will be assumed to be per position. If it is of shape (4,), it will be assumed to be overall.
@@ -94,6 +100,7 @@ def in_silico_evolution(
     ...     n_sequences=1,
     ...     return_intermediate=True,
     ...     acgt_distribution=acgt_distribution,
+    ...     protected_positions=[(50, 60)],
     ... )
     """
     if enhancer_optimizer is None:
@@ -148,7 +155,15 @@ def in_silico_evolution(
     start, end = 0, L
     start = no_mutation_flanks[0]
     end = L - no_mutation_flanks[1]
-    TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ = (end - start) * (A - 1)
+
+    protected_position_set = parse_protected_positions(protected_positions, seq_len=L)
+    allowed_positions = [p for p in range(start, end) if p not in protected_position_set]
+    if not allowed_positions:
+        raise ValueError(
+            "No mutable positions remain after applying no_mutation_flanks/target_len "
+            "and protected_positions."
+        )
+    TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ = len(allowed_positions) * (A - 1)
 
     mutagenesis = np.zeros((n_sequences, TOTAL_NUMBER_OF_MUTATIONS_PER_SEQ, seq_len, 4))
 
@@ -182,6 +197,7 @@ def in_silico_evolution(
                 sequence_onehot_prev_iter[i : i + 1],
                 include_original=False,
                 flanks=no_mutation_flanks,
+                protected_positions=protected_position_set,
             )
         mutagenesis_predictions = []
         for m in model:
@@ -212,7 +228,7 @@ def in_silico_evolution(
                 i, best_mutation : best_mutation + 1, :
             ]
             if return_intermediate:
-                mutation_index = best_mutation // 3 + no_mutation_flanks[0]
+                mutation_index = allowed_positions[best_mutation // 3]
                 changed_to = hot_encoding_to_sequence(
                     sequence_onehot_prev_iter[i, mutation_index, :]
                 )
@@ -256,6 +272,7 @@ def motif_insertion(
     return_intermediate: bool = False,
     no_mutation_flanks: tuple[int, int] | None = None,
     target_len: int | None = None,
+    protected_positions: list[tuple[int, int]] | None = None,
     preserve_inserted_motifs: bool = True,
     enhancer_optimizer: EnhancerOptimizer | None = None,
     starting_sequences: str | list | None = None,
@@ -286,6 +303,11 @@ def motif_insertion(
         A tuple specifying regions in each flank where no modifications should occur.
     target_len
         Length of the area in the center of the sequence to make insertions, ignored if `no_mutation_flanks` is set.
+    protected_positions
+        A list of (start, end) 0-based, half-open ranges specifying nucleotide
+        positions that must not be overwritten by a motif insertion, e.g.
+        ``[(50, 60)]`` protects positions 50-59. Combinable with
+        `no_mutation_flanks`/`target_len`.
     preserve_inserted_motifs
         If True, prevents motifs from being inserted on top of previously inserted motifs.
     enhancer_optimizer
@@ -334,6 +356,7 @@ def motif_insertion(
     ...     n_sequences=1,
     ...     return_intermediate=True,
     ...     acgt_distribution=acgt_distribution,
+    ...     protected_positions=[(50, 60)],
     ... )
     """
     if enhancer_optimizer is None:
@@ -343,6 +366,13 @@ def motif_insertion(
         model = [model]
 
     seq_len = model[0].input_shape[1]
+
+    protected_position_set = parse_protected_positions(protected_positions, seq_len=seq_len)
+    protected_position_array = (
+        np.array(sorted(protected_position_set), dtype=float)
+        if protected_position_set
+        else np.array([])
+    )
 
     # Determine mutation flanks
     if no_mutation_flanks is not None and target_len is not None:
@@ -383,7 +413,11 @@ def motif_insertion(
 
     for idx, sequence in enumerate(initial_sequences):
         sequence_onehot = one_hot_encode_sequence(sequence)
-        inserted_motif_locations = np.array([]) if preserve_inserted_motifs else None
+        inserted_motif_locations = (
+            protected_position_array.copy()
+            if (preserve_inserted_motifs or protected_position_set)
+            else None
+        )
 
         if return_intermediate:
             baseline_prediction = np.mean(

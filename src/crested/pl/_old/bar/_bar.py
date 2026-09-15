@@ -76,12 +76,11 @@ def region_predictions(
     :meta private:
     """
     # Parse model_names into targets tuple
-    if model_names is not None:
-        if isinstance(model_names, str):
+    if model_names is None:
+        model_names = [layer_name for layer_name in adata.layers if layer_name is not None]
+    if isinstance(model_names, str):
             model_names = [model_names]
-        model_names = [*model_names, 'truth']
-    else:
-        model_names = [*adata.layers.keys(), 'truth']
+    model_names += ['truth']
 
     # Deprecation warnings
     targets_string = "None" if model_names is None else model_names

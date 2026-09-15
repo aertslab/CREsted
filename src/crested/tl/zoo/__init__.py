@@ -11,4 +11,5 @@ from ._deeptopic_lstm import deeptopic_lstm
 from ._dilated_cnn import dilated_cnn
 from ._dilated_cnn_decoupled import dilated_cnn_decoupled
 from ._enformer import enformer
+from ._legnet import legnet
 from ._simple_convnet import simple_convnet
