@@ -217,6 +217,7 @@ def borzoi(
             zero_init=True,
             residual=True,
             ln_epsilon=1e-3,
+            absolute_positions=absolute_positions,
             name_prefix=f"transformer_mha_{tidx + 1}",
         )
         current = ffn_block_enf(
