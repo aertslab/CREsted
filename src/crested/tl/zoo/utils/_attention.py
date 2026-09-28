@@ -434,6 +434,7 @@ class MultiheadAttention(keras.layers.Layer):
                 "zero_initialize": self._zero_initialize,
                 "initializer": self._initializer,
                 "l2_scale": self._l2_scale,
+                "absolute_positions": self.absolute_positions,
             }
         )
         return config
