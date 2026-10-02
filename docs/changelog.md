@@ -1,5 +1,10 @@
 # Release notes
 
+## Unreleased
+
+### Bugfixes
+- Mutagenesis with {func}`crested.tl.contribution_scores` now doesn't predict the original sequence for every position in the sequence anymore, reducing the number of predictions needed by 25%. (#242)
+
 ## v1.10.0
 
 ### Features
