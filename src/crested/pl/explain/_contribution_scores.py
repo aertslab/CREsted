@@ -7,6 +7,7 @@ from typing import Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
+from fast_logomaker import FastLogo
 from matplotlib.ticker import MultipleLocator
 
 from crested.pl._utils import _parse_coordinates_input, create_plot, render_plot
@@ -30,7 +31,7 @@ def contribution_scores(
     coordinates: str | tuple | list[str] | list[tuple] | None = None,
     highlight_positions: tuple[int, int] | list[tuple[int, int]] | None = None,
     x_shift: int = 0,
-    method: Literal['mutagenesis', 'mutagenesis_letters'] | None = None,
+    method: Literal["mutagenesis", "mutagenesis_letters"] | None = None,
     plot_kws: dict | None = None,
     highlight_kws: dict | None = None,
     sharey: Literal["sequence", True, False] = "sequence",
@@ -69,8 +70,9 @@ def contribution_scores(
         (to visualize average effects as letters) or `mutagenesis` (to visualize in a legacy way).
     plot_kws
         Extra keyword arguments passed to the underlying plotting function.
-        If `method` is `None` or `'mutagenesis_letters'`, passed to  `_plot_attribution_map` and on to `logomaker.Logo`.
-        If `method` is `'mutagenesis'`, passed to `_plot_mutagenesis_map` and on to :meth:`~matplotlib.axes.Axes.bar`.
+        If `method` is `None` or `'mutagenesis_letters'`, passed to `_plot_attribution_map` (specific arguments) and `fast_logomaker.BatchLogo` (all other kws).
+        Defaults for attributions are `'font_weight': 'bold'`, `'shade_below': 0`, `'fade_below': 0`.
+        If `method` is `'mutagenesis'`, passed to `_plot_mutagenesis_map` and on to :meth:`~matplotlib.axes.Axes.scatter`.
     highlight_kws
         Keywords to use for plotting highlights with :meth:`~matplotlib.axes.Axes.axvspan`.
         Default is {'edgecolor':  "red", 'facecolor': "none", 'linewidth': 0.5}
@@ -106,7 +108,7 @@ def contribution_scores(
     ...     seqs_one_hot=seqs_one_hot,
     ...     sequence_labels=region_of_interest,
     ...     class_labels=class_of_interest,
-    ...     coordinates=region_of_interest
+    ...     coordinates=region_of_interest,
     ... )
 
     .. image:: /_static/img/examples/explain_contribution_scores.png
@@ -165,38 +167,46 @@ def contribution_scores(
             f"gives invalid coordinates (start_idx={start_idx}, "
             f"max={scores.shape[2]})."
         )
-    scores = scores[:, :, start_idx:start_idx+zoom_n_bases, :]
-    seqs_one_hot = seqs_one_hot[:, start_idx:start_idx+zoom_n_bases, :]
+    scores = scores[:, :, start_idx : start_idx + zoom_n_bases, :]
+    seqs_one_hot = seqs_one_hot[:, start_idx : start_idx + zoom_n_bases, :]
 
     seq_length = scores.shape[2]
     total_classes = scores.shape[1]
     total_sequences = seqs_one_hot.shape[0]
     total_plots = total_sequences * total_classes
-    xlabel_list=[]
 
     # Set defaults
     if "ylabel" not in kwargs:
         kwargs["ylabel"] = "Scores"
     plot_kws = {} if plot_kws is None else plot_kws.copy()
+    if method != "mutagenesis":
+        if "font_weight" not in plot_kws:
+            plot_kws["font_weight"] = "bold"
+        if "shade_below" not in plot_kws:
+            plot_kws["shade_below"] = 0.
+        if "fade_below" not in plot_kws:
+            plot_kws["fade_below"] = 0.
     highlight_kws = {} if highlight_kws is None else highlight_kws.copy()
-    if 'edgecolor' not in highlight_kws:
-        highlight_kws['edgecolor'] = "red"
-    if 'facecolor' not in highlight_kws:
-        highlight_kws['facecolor'] = "none"
-    if 'linewidth' not in highlight_kws:
-        highlight_kws['linewidth'] = 0.5
+    if "edgecolor" not in highlight_kws:
+        highlight_kws["edgecolor"] = "red"
+    if "facecolor" not in highlight_kws:
+        highlight_kws["facecolor"] = "none"
+    if "linewidth" not in highlight_kws:
+        highlight_kws["linewidth"] = 0.5
 
     if total_plots > 1 and ax is not None:
-        raise ValueError("Cannot provide a pre-existing axis if plotting more than one sequence/more than one class. Please only provide one sequence and one class, or don't provide `ax`.")
+        raise ValueError(
+            "Cannot provide a pre-existing axis if plotting more than one sequence/more than one class. Please only provide one sequence and one class, or don't provide `ax`."
+        )
 
     # Handle sharey with create_plot now that we have a third option (which handles it elsewhere)
-    kwargs['sharey'] = False if sharey == 'sequence' else sharey
+    kwargs["sharey"] = False if sharey == "sequence" else sharey
 
     fig, axs = create_plot(
         ax=ax,
         kwargs_dict=kwargs,
-        default_width=seq_length//10,
-        default_height=0.5+2.25*total_plots,
+        default_width=seq_length // 10,
+        default_height=0.5 + 2.25 * total_plots,
         nrows=total_plots,
         default_sharex=False,
         default_sharey=False,
@@ -206,27 +216,37 @@ def contribution_scores(
     if isinstance(axs, plt.Axes):
         axs = [axs]
 
-    plot_idx = 0
+    # Make containers for data preparation
+    per_ax_metadata = []
+    full_seq_scores = np.empty(
+        (total_plots, seq_length, 4)
+    )  # (n_seqs * n_classes, n_bases, n_features) = (n_plots, n_bases, n_features)
+    full_positions = np.empty((total_plots, seq_length))
+    full_mirrored = []
+
+    # Process data into per-ax values
     for seq_i in range(total_sequences):
         # Gather this sequence's seq and score values
         seq_x = seqs_one_hot[seq_i, ...]
         seq_scores_raw = scores[seq_i, ...]
 
         # Process values depending on method
-        if method == 'mutagenesis':
+        if method == "mutagenesis":
             # Set reference nucleotides to nan to only plot alternative nucleotides
             seq_scores = _process_mutagenesis(seq=seq_x, scores=seq_scores_raw)
-        elif method == 'mutagenesis_letters':
+        elif method == "mutagenesis_letters":
             # Keep only values of non-reference values and take mean of those 3
             seq_scores = _process_mutagenesis_letters(seq=seq_x, scores=seq_scores_raw)
         else:
             # Gradients: keep only scores for the reference nucleotide
             seq_scores = _process_gradients(seq=seq_x, scores=seq_scores_raw)
 
+        full_seq_scores[(seq_i * total_classes) : ((seq_i + 1) * total_classes), ...] = seq_scores
+
         # Get min and max ylims across all classes
         data_range = np.abs(np.nanmax(seq_scores) - np.nanmin(seq_scores))
-        sequence_min = np.nanmin(seq_scores) - 0.25*data_range
-        sequence_max = np.nanmax(seq_scores) + 0.25*data_range
+        sequence_min = np.nanmin(seq_scores) - 0.25 * data_range
+        sequence_max = np.nanmax(seq_scores) + 0.25 * data_range
 
         # Parse coordinates if supplied
         if coordinates is not None:
@@ -235,66 +255,113 @@ def contribution_scores(
                 start += start_idx
                 end = start + zoom_n_bases
             left, right = (end, start) if strand == "-" else (start, end)
-            default_xlabel = f"{start:,.0f}-{end:,.0f}:{strand} ({np.abs(end - start)} bp)"
-            for _ in range(total_classes-1):
-                xlabel_list.append(None) # Add empty labels to all but non-final plot for sequence
-            xlabel_list.append(default_xlabel)
+            coordinates_xlabel = f"{start:,.0f}-{end:,.0f}:{strand} ({np.abs(end - start)} bp)"
         else:
             left, right = 0, seq_length
+            coordinates_xlabel = None
+        reversed_positions = left > right
 
+        # Save per-plot info about genes
         for class_i in range(total_classes):
-            ax = axs[plot_idx]
-            plot_idx += 1
+            full_positions[seq_i * total_classes + class_i, ...] = np.arange(
+                left, right, -1 if reversed_positions else 1
+            )
+            full_mirrored.append(reversed_positions)
+            per_ax_metadata.append(
+                {
+                    "seq_i": seq_i,
+                    "class_i": class_i,
+                    "xlabel": coordinates_xlabel if class_i == total_classes else None,
+                    "y_range": (sequence_min, sequence_max),
+                    "x_range": (left, right),
+                    "reversed": reversed_positions,
+                    "coordinates_xlabel": coordinates_xlabel,
+                }
+            )
 
-            # Plot values for this sequence x class combo
-            if method == "mutagenesis":
-                _plot_mutagenesis_map(seq_scores[class_i], ax=ax, start=left, end=right, **plot_kws)
-            else:
-                _plot_attribution_map(seq_scores[class_i], ax=ax, start=left, end=right, return_ax=False, **plot_kws)
-                ax.autoscale(enable=True, axis='y') # undo fixing of axes within logomaker
+    # Prepare logos for letter-based plots
+    if method != "mutagenesis":
+        logo_kws = plot_kws.copy()
+        # Pop out specific kws for _draw_logo later
+        spines_kw = logo_kws.pop("spines", True)
+        figsize_kw = logo_kws.pop("figsize", (20, 1))
+        rotate_kw = logo_kws.pop("rotate", False)
+        logo = FastLogo(
+            values=full_seq_scores,
+            positions=full_positions,
+            mirror_glyphs=full_mirrored,
+            show_progress=False,
+            **plot_kws,
+        )
+        logo.process_all()
 
-            # Handle layout
-            if sharey == 'sequence':
-                ax.set_ylim([sequence_min, sequence_max])
-            else:
-                ax.set_ymargin(0.25)
-            if class_labels is not None:
-                # Plot at bottom half if mutagenesis scatter (usually negative values), top half for letters (usually positive)
-                label_rel_y = 0.3 if method == 'mutagenesis' else 0.7
-                ax.annotate(class_labels[class_i], (0.025, label_rel_y), xycoords= 'axes fraction', fontsize=16, ha="left", va="center")
+    # Start plotting data
+    for ax_i in range(total_plots):
+        ax = axs[ax_i]
+        ax_metadata = per_ax_metadata[ax_i]
+        left, right = ax_metadata["x_range"]
+        # Plot values for this sequence x class combo
+        if method == "mutagenesis":
+            _plot_mutagenesis_map(full_seq_scores[ax_i], ax=ax, start=left, end=right, **plot_kws)
+        else:
+            _plot_attribution_map(
+                logo,
+                idx=ax_i,
+                ax=ax,
+                spines=spines_kw,
+                figsize=figsize_kw,
+                rotate=rotate_kw,
+                reversed_positions=ax_metadata["reversed"],
+            )
+            ax.autoscale(enable=True, axis="y")  # undo fixing of axes within logomaker
 
-            # Draw highlights
-            if highlight_positions:
-                for hl_start, hl_end in highlight_positions:
-                    # Move highlights w.r.t zoom
-                    if coordinates is None:
-                        hl_start = hl_start - start_idx
-                        hl_end = hl_end - start_idx
-                    elif hl_end < (start_idx+zoom_n_bases): # Reverse compatibility: old idxes (0-indexed) with coordinates
-                        # Handle reversed axis if negative strand, adding 1 to compensate for flipping start and end (which messes up -0.5 later)
-                        if left > right:
-                            hl_start =  left - (hl_start - start_idx) + 1
-                            hl_end = left - (hl_end - start_idx) - 1
-                        else:
-                            hl_start = left + (hl_start - start_idx)
-                            hl_end = left + (hl_end - start_idx)
-                    # -0.5 on both to make it a half-open interval, aligning with indexing
-                    ax.axvspan(
-                        xmin=hl_start-0.5,
-                        xmax=hl_end-0.5,
-                        **highlight_kws
-                    )
+        # Handle layout
+        if sharey == "sequence":
+            ax.set_ylim(ax_metadata["y_range"])
+        else:
+            ax.set_ymargin(0.25)
+        if class_labels is not None:
+            # Plot at bottom half if mutagenesis scatter (usually negative values), top half for letters (usually positive)
+            label_rel_y = 0.3 if method == "mutagenesis" else 0.7
+            ax.annotate(
+                class_labels[ax_metadata["class_i"]],
+                (0.025, label_rel_y),
+                xycoords="axes fraction",
+                fontsize=16,
+                ha="left",
+                va="center",
+            )
 
-            # Set xtick behaviour
-            ax.xaxis.set_major_locator(MultipleLocator(50))
-            ax.xaxis.set_major_formatter("{x:,.0f}")
+        # Draw highlights
+        if highlight_positions:
+            for hl_start, hl_end in highlight_positions:
+                # Move highlights w.r.t zoom
+                if coordinates is None:
+                    hl_start = hl_start - start_idx
+                    hl_end = hl_end - start_idx
+                elif hl_end < (
+                    start_idx + zoom_n_bases
+                ):  # Reverse compatibility: old idxes (0-indexed) with coordinates
+                    # Handle reversed axis if negative strand, adding 1 to compensate for flipping start and end (which messes up -0.5 later)
+                    if left > right:
+                        hl_start = left - (hl_start - start_idx) + 1
+                        hl_end = left - (hl_end - start_idx) - 1
+                    else:
+                        hl_start = left + (hl_start - start_idx)
+                        hl_end = left + (hl_end - start_idx)
+                # -0.5 on both to make it a half-open interval, aligning with indexing
+                ax.axvspan(xmin=hl_start - 0.5, xmax=hl_end - 0.5, **highlight_kws)
 
-        # Set the title for the sequence (subplot)
-        if sequence_labels:
-            axs[plot_idx - total_classes].set_title(sequence_labels[seq_i], fontsize=14)
+        # Set xtick behaviour
+        ax.xaxis.set_major_locator(MultipleLocator(50))
+        ax.xaxis.set_major_formatter("{x:,.0f}")
+
+        # Set the sequence title for the first plot of a sequence
+        if sequence_labels and ax_metadata["class_i"] == 0:
+            axs[ax_i].set_title(sequence_labels[ax_metadata["seq_i"]], fontsize=14)
 
     # Set xlabels with coordinates if not supplied
-    if coordinates is not None and 'xlabel' not in kwargs:
-        kwargs['xlabel'] = xlabel_list
+    if coordinates is not None and "xlabel" not in kwargs:
+        kwargs["xlabel"] = [m["coordinates_xlabel"] for m in per_ax_metadata]
 
     return render_plot(fig, axs, **kwargs)
