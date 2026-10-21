@@ -120,7 +120,7 @@ class PredictPyDataset(keras.utils.PyDataset):
 
 
 def predict(
-    input: str | list[str] | np.array | AnnData,
+    input: str | list[str] | np.ndarray | AnnData,
     model: keras.Model | list[keras.Model],
     genome: Genome | str | os.PathLike | None = None,
     batch_size: int = 128,
@@ -384,7 +384,7 @@ def score_gene_locus(
 
 
 def contribution_scores(
-    input: str | list[str] | np.array | AnnData,
+    input: str | list[str] | np.ndarray | AnnData,
     target_idx: int | list[int] | None,
     model: keras.Model | list[keras.Model],
     method: Literal['integrated_grad', 'mutagenesis', 'expected_integrated_grad', 'saliency_map', 'window_shuffle', 'window_shuffle_uniform'] = "expected_integrated_grad",
