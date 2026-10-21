@@ -95,6 +95,7 @@ def _get_dataset_index():
                 "models/embryo_hydrop.tar.gz": "sha256:9036ef2f18ab894016c8adcd3bba5f1985b74bd2432f4e9b07e6128e43833636",
                 "models/mousecortex_hydrop.tar.gz": "sha256:a850edcd6f9cabd0efb7ea66f48287c1c05ff7c3466363259dfb9229a076c53c",
                 # ASAP models
+                "models/asap.tar.gz": "sha256:99d8a9c11c3b9eea020edc8907ff5a5839e1e7e3fc98ded93bb8bc7189d1d1d3",
                 "models/asap_cc.tar.gz": "sha256:f175af12c76556e0a71bf45d2746f10ced31f5d9ced80190ac52f3ede3f3d197",
                 "models/asap_sn.tar.gz": "sha256:4cb8f53f329432819da7f2664340eef6fd7b751ed0d25b10364238414796d636",
                 # STEAM models (evolutionary transfer learning paper)
@@ -245,8 +246,9 @@ def get_model(model: str) -> tuple[str, list[str]]:
           - 'MouseCortexHydrop'
           - 'BorzoiPrime_human_rep[0-3]' (and alias 'BorzoiPrime_human' for rep0)
           - 'BorzoiPrime_mouse_rep[0-3]' (and alias 'BorzoiPrime_mouse' for rep0)
-          - 'ASAP_CC'
-          - 'ASAP_SN'
+          - 'ASAP'
+          - 'ASAP_CC' (older version of 'ASAP')
+          - 'ASAP_SN' (older version of 'ASAP')
           - 'STEAM_v1' (evolutionary transfer learning paper)
           - 'STEAM_evolution_naive' (evolutionary transfer learning paper)
           - 'STEAM_evolution_aware' (evolutionary transfer learning paper)
@@ -309,6 +311,7 @@ def get_model(model: str) -> tuple[str, list[str]]:
         "borzoiprime_mouse_rep1": ("models/borzoiprime_mouse_rep1.tar.gz"),
         "borzoiprime_mouse_rep2": ("models/borzoiprime_mouse_rep2.tar.gz"),
         "borzoiprime_mouse_rep3": ("models/borzoiprime_mouse_rep3.tar.gz"),
+        "asap": ("models/asap.tar.gz"),
         "asap_cc": ("models/asap_cc.tar.gz"),
         "asap_sn": ("models/asap_sn.tar.gz"),
         "steam_evolution_naive": ("models/steam_evolution_naive.tar.gz"),

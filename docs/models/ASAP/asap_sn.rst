@@ -10,6 +10,10 @@ ASAP_SN
    - **Input shape**: (2114, 4)
    - **Output shape**: (9,)
 
+.. note::
+
+   This is an older version of the :doc:`ASAP <asap>` model, which predicts accessibility for cell types of both the cingulate cortex and the substantia nigra in a single model. We recommend using the :doc:`ASAP <asap>` model for new analyses.
+
 The **ASAP_SN** model is a peak regression model fine-tuned to cell type-specific regions for 9 cell types in the human substantia nigra (SN).
 
 After pretraining on all 977K consensus peaks, the model was fine-tuned to cell type-specific peaks, defined as regions with a Gini index 1 standard deviation above the mean across all regions (194K peaks). Peak heights were calculated by taking mean coverage in the central 1000bp of resized peaks, normalized across cell types using min-max normalization with the top 3% of constitutive peaks per cell type. 2114bp one-hot encoded DNA sequences (centered on consensus peak summits) were used to predict mean peak accessibilities across cell types. Train/validation/test split was done by chromosome (chr2 and chr22 = validation, chr4 and chr9 = test).

@@ -1,6 +1,9 @@
 # Release notes
 
-## Unreleased
+## v1.11.0
+
+### Features
+- A new `ASAP` model, a single model for 33 cell types of both the human cingulate cortex and substantia nigra from the [ASAP preprint](https://doi.org/10.64898/2026.03.15.711881), is now available in the model repository via {func}`crested.get_model`. The documentation of `ASAP_CC` and `ASAP_SN` now notes that they are older versions of this model. (#248)
 
 ### Bugfixes
 - Mutagenesis with {func}`crested.tl.contribution_scores` now doesn't predict the original sequence for every position in the sequence anymore, reducing the number of predictions needed by 25%. (#242)
