@@ -7,13 +7,13 @@ from typing import Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
-from fast_logomaker import FastLogo
 from matplotlib.ticker import MultipleLocator
 
 from crested.pl._utils import _parse_coordinates_input, create_plot, render_plot
 from crested.utils._logging import log_and_raise
 
 from ._utils import (
+    _make_fastlogo,
     _plot_attribution_map,
     _plot_mutagenesis_map,
     _process_gradients,
@@ -70,8 +70,7 @@ def contribution_scores(
         (to visualize average effects as letters) or `mutagenesis` (to visualize in a legacy way).
     plot_kws
         Extra keyword arguments passed to the underlying plotting function.
-        If `method` is `None` or `'mutagenesis_letters'`, passed to `_plot_attribution_map` (specific arguments) and `fast_logomaker.BatchLogo` (all other kws).
-        Defaults for attributions are `'font_weight': 'bold'`, `'shade_below': 0`, `'fade_below': 0`.
+        If `method` is `None` or `'mutagenesis_letters'`, passed to `_plot_attribution_map` (specific arguments) and `_make_fastlogo` -> `fast_logomaker.BatchLogo` (all other kws).
         If `method` is `'mutagenesis'`, passed to `_plot_mutagenesis_map` and on to :meth:`~matplotlib.axes.Axes.scatter`.
     highlight_kws
         Keywords to use for plotting highlights with :meth:`~matplotlib.axes.Axes.axvspan`.
@@ -179,13 +178,6 @@ def contribution_scores(
     if "ylabel" not in kwargs:
         kwargs["ylabel"] = "Scores"
     plot_kws = {} if plot_kws is None else plot_kws.copy()
-    if method != "mutagenesis":
-        if "font_weight" not in plot_kws:
-            plot_kws["font_weight"] = "bold"
-        if "shade_below" not in plot_kws:
-            plot_kws["shade_below"] = 0.
-        if "fade_below" not in plot_kws:
-            plot_kws["fade_below"] = 0.
     highlight_kws = {} if highlight_kws is None else highlight_kws.copy()
     if "edgecolor" not in highlight_kws:
         highlight_kws["edgecolor"] = "red"
@@ -286,11 +278,10 @@ def contribution_scores(
         spines_kw = logo_kws.pop("spines", True)
         figsize_kw = logo_kws.pop("figsize", (20, 1))
         rotate_kw = logo_kws.pop("rotate", False)
-        logo = FastLogo(
+        logo = _make_fastlogo(
             values=full_seq_scores,
             positions=full_positions,
             mirror_glyphs=full_mirrored,
-            show_progress=False,
             **plot_kws,
         )
         logo.process_all()

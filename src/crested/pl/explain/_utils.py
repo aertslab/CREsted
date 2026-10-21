@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Literal
+
 import matplotlib.pyplot as plt
 import numpy as np
 from fast_logomaker import FastLogo
@@ -65,6 +68,51 @@ def _process_gradients(seq: np.ndarray, scores: np.ndarray):
     """
     return scores * seq
 
+def _make_fastlogo(
+    values: np.ndarray,
+    positions: np.ndarray | None = None,
+    mirror_glyphs: bool | Sequence[bool] = False,
+    font_weight: Literal["normal", "bold", "heavy", "light", "ultrabold", "ultralight"] = "bold",
+    shade_below: float = 0.,
+    fade_below: float = 0.,
+    show_progress: bool = False,
+    **kwargs
+) -> FastLogo:
+    """Process contribution scores for use in :func:`~crested.pl._utils._plot_attribution_map.`.
+
+    Parameters
+    ----------
+    values
+        A [N, L, 4] one-hot encoded array, of the sequences to plot.
+    positions
+        A [N, L] array, encoding the X-axis positions of every letter in `values`.
+    mirror_glyphs
+        A single bool or length [N] sequence of booleans, indicating whether to mirror the glyphs to account for a flipped x-axis.
+    font_weight
+        A font weight, 'bold' by default to match LogoMaker.
+    shade_below
+        Amount to shade negative values, ranging from 0-1. Default is 0., to show them the same as positive values.
+    fade_below
+        Amount to fade negative values, ranging from 0-1. Default is 0., to show them the same as positive values.
+    show_progress
+        Whether to show processing progress.
+    kwargs
+        Arguments passed to `fast_logomaker.FastLogo`.
+
+    Returns
+    -------
+    An array the same shape as `scores`, with non-reference basepairs zero'd out.
+    """
+    return FastLogo(
+        values=values,
+        positions=positions,
+        mirror_glyphs=mirror_glyphs,
+        font_weight=font_weight,
+        shade_below=shade_below,
+        fade_below=fade_below,
+        show_progress=show_progress,
+        **kwargs,
+    )
 
 def _plot_attribution_map(
     data: FastLogo | np.ndarray,
@@ -103,7 +151,7 @@ def _plot_attribution_map(
     if not isinstance(data, FastLogo):
         if data.ndim == 2:
             data = np.expand_dims(data, 0)
-        logo = FastLogo(values=data, show_progress=False)
+        logo = _make_fastlogo(values=data, show_progress=False)
         logo.process_all()
     else:
         logo = data
