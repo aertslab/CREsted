@@ -222,7 +222,7 @@ def modisco_results(
                     rounded_mean = np.around(np.mean(pwm), 2)
                     pwm = pwm.astype(float)
                     _plot_attribution_map(
-                        ax=ax, data=pwm, return_ax=True, figsize=None
+                        ax=ax, data=pwm, figsize=None
                     )
                     ax.set_title(
                         f"{cell_type}: {np.around(num_seqlets / num_seq * 100, 2)}% seqlet frequency - Average IC: {rounded_mean:.2f}"
@@ -625,7 +625,7 @@ def clustermap_with_pwm_logos(
     importance_threshold: float = 0,
     logo_height_fraction: float = 0.35,
     logo_y_padding: float = 0.3,
-    logo_x_multiplier: float = 1,
+    logo_x_multiplier: float = 0.8,
     pwm_or_contrib: str = "pwm",
     width: int | float = 25,
     height: int | float = 8,
@@ -664,7 +664,7 @@ def clustermap_with_pwm_logos(
     logo_y_padding:
         Relative vertical padding for the PWM logos relative to the heatmap. Default is 0.3.
     logo_x_multiplier
-        Relative width multiplier of the PWM logos. Lower this to shrink their width.
+        Width of each PWM logo as a fraction of its heatmap column, centered in the column. Default is 0.8.
     pwm_or_contrib:
         Whether to use the pwm or contrib score representation of the pattern in the plotting.
     width
@@ -734,14 +734,15 @@ def clustermap_with_pwm_logos(
     fig.set_size_inches(width, total_height)
 
     # Adjust width and height of logos
-    logo_width = g.ax_heatmap.get_position().width / len(reordered_patterns)
+    column_width = g.ax_heatmap.get_position().width / len(reordered_patterns)
+    logo_width = column_width * logo_x_multiplier
     logo_height = logo_height_fraction * g.ax_heatmap.get_position().height
-    ratio = (logo_height*total_height) / (logo_width*width*logo_x_multiplier)
 
     for i, pattern in enumerate(reordered_patterns):
         plot_start_x = (
             g.ax_heatmap.get_position().x0
-            + g.ax_heatmap.get_position().width / len(reordered_patterns) * i
+            + column_width * i
+            + (column_width - logo_width) / 2
         )
         plot_start_y = (
             g.ax_heatmap.get_position().y0 - logo_height * (1+logo_y_padding)
@@ -764,7 +765,6 @@ def clustermap_with_pwm_logos(
         _plot_attribution_map(
             ax=pwm_ax,
             data=pwm,
-            figsize=(8 * ratio, 8),
             rotate=True,
         )
         pwm_ax.axis("off")
