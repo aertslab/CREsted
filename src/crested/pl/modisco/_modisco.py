@@ -14,7 +14,7 @@ from matplotlib.patches import Patch, Rectangle
 from scipy.cluster.hierarchy import dendrogram, leaves_list, linkage
 
 from crested.pl._utils import create_plot, render_plot
-from crested.pl.explain._utils import _plot_attribution_map
+from crested.pl.explain._utils import _make_padded_fastlogo, _plot_attribution_map
 from crested.tl.modisco._modisco_utils import (
     _pattern_to_ppm,
     _trim_pattern_by_ic,
@@ -168,6 +168,7 @@ def modisco_results(
         logger.info(f"Max patterns for selected classes: {max_num_patterns}")
 
     motif_counter = 1
+    plot_axes, plot_data, plot_titles = [], [], []
 
     for idx, cell_type in enumerate(classes):
         hdf5_results = h5py.File(
@@ -206,13 +207,9 @@ def modisco_results(
                     else pattern
                 )
                 if viz == "contrib":
-                    _plot_attribution_map(
-                        ax=ax,
-                        data=np.array(pattern_trimmed["contrib_scores"]),
-                        figsize=None,
-                    )
-                    ax.set_ylim([y_min, y_max])
-                    ax.set_title(
+                    plot_axes.append(ax)
+                    plot_data.append(np.array(pattern_trimmed["contrib_scores"]))
+                    plot_titles.append(
                         f"{cell_type}: {np.around(num_seqlets / num_seq * 100, 2)}% seqlet frequency"
                     )
                 elif viz == "pwm":
@@ -221,18 +218,24 @@ def modisco_results(
                     pwm = np.array(ic_mat)
                     rounded_mean = np.around(np.mean(pwm), 2)
                     pwm = pwm.astype(float)
-                    _plot_attribution_map(
-                        ax=ax, data=pwm, figsize=None
-                    )
-                    ax.set_title(
+                    plot_axes.append(ax)
+                    plot_data.append(pwm)
+                    plot_titles.append(
                         f"{cell_type}: {np.around(num_seqlets / num_seq * 100, 2)}% seqlet frequency - Average IC: {rounded_mean:.2f}"
                     )
-                    ax.set_ylim([0, 2])
                 else:
                     raise ValueError(
                         'Invalid visualization method. Choose either "contrib" or "pwm". Aborting...'
                     )
         motif_counter = 1
+
+    # Draw all logos from one batch-processed FastLogo
+    if plot_data:
+        logo = _make_padded_fastlogo(plot_data)
+        for i, (ax, title) in enumerate(zip(plot_axes, plot_titles, strict=True)):
+            _plot_attribution_map(logo, idx=i, ax=ax)
+            ax.set_title(title)
+            ax.set_ylim([y_min, y_max] if viz == "contrib" else [0, 2])
 
     return render_plot(fig, axes, **kwargs)
 
@@ -383,16 +386,18 @@ def clustermap_tomtom_similarities(
         logo_width = logo_width_fraction * heatmap_pos.width
         logo_height = heatmap_pos.height / len(reordered_ids)
 
-        for i, motif_id in enumerate(reordered_ids):
+        logo = _make_padded_fastlogo(
+            [np.asarray(pattern_dict[motif_id]["contrib_scores"]) for motif_id in reordered_ids]
+        )
+        for i in range(len(reordered_ids)):
             y_start = heatmap_pos.y0 + (len(reordered_ids) - 1 - i) * logo_height
             x_start = heatmap_pos.x0 - logo_width - logo_width * logo_x_padding
-            ppm = pattern_dict[motif_id]["contrib_scores"]
 
             pwm_ax = fig.add_axes([x_start, y_start, logo_width, logo_height])
             _plot_attribution_map(
+                logo,
+                idx=i,
                 ax=pwm_ax,
-                data=ppm,
-                figsize=(8, 2),
                 rotate=False,
             )
             pwm_ax.axis("off")
@@ -738,7 +743,21 @@ def clustermap_with_pwm_logos(
     logo_width = column_width * logo_x_multiplier
     logo_height = logo_height_fraction * g.ax_heatmap.get_position().height
 
-    for i, pattern in enumerate(reordered_patterns):
+    pwms = []
+    for pattern in reordered_patterns:
+        if pwm_or_contrib == "pwm":
+            ppm = _pattern_to_ppm(pattern["pattern"])
+            ic, ic_pos, ic_mat = compute_ic(ppm)
+            pwms.append(np.array(ic_mat))
+        elif pwm_or_contrib == "contrib":
+            pwms.append(np.array(pattern["pattern"]["contrib_scores"]))
+        else:
+            raise ValueError(
+                'Invalid visualization method. Choose either "contrib" or "pwm" in the pwm_or_contrib parameter. Aborting...'
+            )
+    logo = _make_padded_fastlogo(pwms)
+
+    for i in range(len(reordered_patterns)):
         plot_start_x = (
             g.ax_heatmap.get_position().x0
             + column_width * i
@@ -750,21 +769,10 @@ def clustermap_with_pwm_logos(
         pwm_ax = fig.add_axes([plot_start_x, plot_start_y, logo_width, logo_height])
         pwm_ax.clear()
 
-        pwm = None
-        if pwm_or_contrib == "pwm":
-            ppm = _pattern_to_ppm(pattern["pattern"])
-            ic, ic_pos, ic_mat = compute_ic(ppm)
-            pwm = np.array(ic_mat)
-        elif pwm_or_contrib == "contrib":
-            pwm = np.array(pattern["pattern"]["contrib_scores"])
-        else:
-            raise ValueError(
-                'Invalid visualization method. Choose either "contrib" or "pwm" in the pwm_or_contrib parameter. Aborting...'
-            )
-
         _plot_attribution_map(
+            logo,
+            idx=i,
             ax=pwm_ax,
-            data=pwm,
             rotate=True,
         )
         pwm_ax.axis("off")
@@ -860,12 +868,11 @@ def selected_instances(
     if 'title' not in kwargs:
         kwargs['title'] = [pattern_dict[str(idx)]["pattern"]["id"] for idx in idcs]
 
-    for i, idx in enumerate(idcs):
-        _plot_attribution_map(
-            ax=axs[i],
-            data=np.array(pattern_dict[str(idx)]["pattern"]["contrib_scores"]),
-            figsize=None,
-        )
+    logo = _make_padded_fastlogo(
+        [np.array(pattern_dict[str(idx)]["pattern"]["contrib_scores"]) for idx in idcs]
+    )
+    for i in range(len(idcs)):
+        _plot_attribution_map(logo, idx=i, ax=axs[i])
 
     return render_plot(fig, axs, **kwargs)
 
@@ -933,12 +940,11 @@ def class_instances(
     if 'title' not in kwargs:
         kwargs['title'] = [pattern_dict[str(idx)][key][cl]["id"] for cl in instance_classes]
 
-    for i, cl in enumerate(instance_classes):
-        _plot_attribution_map(
-            ax=axs[i],
-            data=np.array(pattern_dict[str(idx)][key][cl]["contrib_scores"]),
-            figsize=None,
-        )
+    logo = _make_padded_fastlogo(
+        [np.array(pattern_dict[str(idx)][key][cl]["contrib_scores"]) for cl in instance_classes]
+    )
+    for i in range(len(instance_classes)):
+        _plot_attribution_map(logo, idx=i, ax=axs[i])
 
     return render_plot(fig, axs, **kwargs)
 

@@ -122,6 +122,32 @@ def _make_fastlogo(
         **kwargs,
     )
 
+def _make_padded_fastlogo(matrices: Sequence[np.ndarray], **kwargs) -> FastLogo:
+    """Make a processed FastLogo from [L, 4] matrices of different lengths, for use in :func:`~crested.pl._utils._plot_attribution_map.`.
+
+    Shorter matrices are zero-padded. Padded columns repeat the last position, so each logo keeps its own x-limits.
+
+    Parameters
+    ----------
+    matrices
+        A sequence of [L, 4] arrays, of the logos to plot.
+    kwargs
+        Arguments passed to :func:`~crested.pl.explain._utils._make_fastlogo`.
+
+    Returns
+    -------
+    A processed FastLogo with one logo per matrix.
+    """
+    max_len = max(m.shape[0] for m in matrices)
+    values = np.zeros((len(matrices), max_len, 4))
+    positions = np.empty((len(matrices), max_len))
+    for i, m in enumerate(matrices):
+        values[i, : m.shape[0]] = m
+        positions[i] = np.minimum(np.arange(max_len), m.shape[0] - 1)
+    logo = _make_fastlogo(values=values, positions=positions, **kwargs)
+    logo.process_all()
+    return logo
+
 def _plot_attribution_map(
     data: FastLogo | np.ndarray,
     ax: plt.Axis,
