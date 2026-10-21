@@ -72,9 +72,11 @@ def _make_fastlogo(
     values: np.ndarray,
     positions: np.ndarray | None = None,
     mirror_glyphs: bool | Sequence[bool] = False,
+    width: float = 0.98,
     font_weight: Literal["normal", "bold", "heavy", "light", "ultrabold", "ultralight"] = "bold",
     shade_below: float = 0.,
     fade_below: float = 0.,
+    dont_stretch_more_than: str = "E",
     show_progress: bool = False,
     **kwargs
 ) -> FastLogo:
@@ -85,15 +87,19 @@ def _make_fastlogo(
     values
         A [N, L, 4] one-hot encoded array, of the sequences to plot.
     positions
-        A [N, L] array, encoding the X-axis positions of every letter in `values`.
+        A [N, L] array, encoding the X-axis positions of every glyph in `values`.
     mirror_glyphs
         A single bool or length [N] sequence of booleans, indicating whether to mirror the glyphs to account for a flipped x-axis.
+    width
+        How much of one data unit to take up with a glyph.
     font_weight
         A font weight, 'bold' by default to match LogoMaker.
     shade_below
         Amount to shade negative values, ranging from 0-1. Default is 0., to show them the same as positive values.
     fade_below
         Amount to fade negative values, ranging from 0-1. Default is 0., to show them the same as positive values.
+    dont_stretch_more_than
+         Glyphs never stretch wider than this character would. Default is "E", as in LogoMaker.
     show_progress
         Whether to show processing progress.
     kwargs
@@ -107,9 +113,11 @@ def _make_fastlogo(
         values=values,
         positions=positions,
         mirror_glyphs=mirror_glyphs,
+        width=width,
         font_weight=font_weight,
         shade_below=shade_below,
         fade_below=fade_below,
+        dont_stretch_more_than=dont_stretch_more_than,
         show_progress=show_progress,
         **kwargs,
     )
