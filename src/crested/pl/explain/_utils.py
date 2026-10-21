@@ -108,8 +108,13 @@ def _plot_attribution_map(
     else:
         logo = data
 
+    # Disable built-in baseline if rotating
+    baseline_width = logo.kwargs.get("baseline_width", 0.5)
+    if rotate:
+        logo.kwargs['baseline_width'] = 0.
+
     # Create plot
-    logo.draw_single(idx, ax=ax, border=not rotate, baseline=not rotate, fixed_ylim=False, apply_layout=False, **kwargs)
+    logo.draw_single(idx, ax=ax, border=not rotate, fixed_ylim=False, apply_layout=False, **kwargs)
 
     if not rotate:
         # Standard plotting (no rotation)
@@ -129,7 +134,6 @@ def _plot_attribution_map(
             collection.set_transform(rotation)
 
         # FastLogo's baseline does not rotate nicely, so we manually draw it instead
-        baseline_width = logo.kwargs.get("baseline_width", 0.5)
         if baseline_width > 0:
             ax.axvline(x=0, color="black", linewidth=baseline_width, zorder=-1)
 
