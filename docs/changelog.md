@@ -1,5 +1,12 @@
 # Release notes
 
+## Unreleased
+
+### Features
+- Plotting logo-based contribution scores ({func}`crested.pl.explain.contribution_scores` & co) now use `fast-logomaker` instead of `logomaker`, which is substantially faster. (#237)
+  - This was previously erroneously included in v1.10.0's changes, but it was not yet implemented there.
+
+
 ## v1.11.0
 
 ### Features
@@ -12,7 +19,7 @@
 
 ### Features
 - {func}`crested.tl.contribution_scores` now reuses computations (gradients or predictions) when calculating scores for multiple classes of one region. This should speed up both gradient and mutagenesis-based calculations. (#228)
-- Plotting logo-based contribution scores ({func}`crested.pl.explain.contribution_scores` & co) now use `fast-logomaker` instead of `logomaker`, which is substantially faster. (#237)
+
 - {func}`crested.tl.design.in_silico_evolution` and {func}`crested.tl.design.motif_insertion` now take a `protected_positions` argument: a list of `(start, end)` ranges of nucleotide positions that will never be mutated or overwritten by a motif insertion, independent of `no_mutation_flanks`/`target_len`. (#227)
 - Added {obj}`crested.tl.data.AnnDataWrapper`, a futureproof dataloader for sequence-to-function training. (#208)
    - AnnDataWrapper mostly uses the same arguments as AnnDataModule and should be a drop-in replacement.
