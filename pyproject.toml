@@ -25,7 +25,7 @@ dependencies = [
   "anndata",
   "fast-logomaker",
   "joblib",
-  "keras>=3.4",
+  "keras>=3.9",
   "loguru",
   "numpy",
   "pandas",

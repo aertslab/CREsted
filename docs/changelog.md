@@ -5,7 +5,11 @@
 ### Features
 - Plotting logo-based contribution scores ({func}`crested.pl.explain.contribution_scores` & co) now use `fast-logomaker` instead of `logomaker`, which is substantially faster. (#237)
   - This was previously erroneously included in v1.10.0's changes, but it was not yet implemented there.
+- New architecture: {func}`crested.tl.zoo.cerberus`, a CNN + bidirectional Mamba-2 (Hydra) model replicating Calico's Cerberus. Its Hydra layers ({class}`crested.tl.zoo.utils.Hydra`) are native Keras layers that use `mamba_ssm`'s fused Triton scan on the torch backend on GPU, and an equivalent `keras.ops` scan on other backends or without `mamba_ssm`.
+- New {func}`crested.tl.zoo.utils.normalize` helper to pick a normalization layer by name (`'batch'`, `'layer'`, `'rms'`, `'group'`, `'unit'` or `'none'`). 
 
+### Dependencies
+- CREsted now requires `keras>=3.9` (was `>=3.4`), for `keras.layers.RMSNormalization`.
 
 ## v1.11.0
 

@@ -40,7 +40,7 @@ def dense_block(
     bn_momentum
         Batch normalization momentum (default is 0.90).
     normalization
-        Type of normalization ('batch' or 'layer').
+        Type of normalization ('batch', 'layer', 'rms', 'group', 'unit' or 'none'). See :func:`normalize`.
     name_prefix
         Prefix for layer names.
     use_bias
@@ -60,13 +60,15 @@ def dense_block(
     )(inputs)
 
     if normalization == "batch":
-        x = keras.layers.BatchNormalization(
+        x = normalize(
+            x,
+            normalization,
             momentum=bn_momentum,
             gamma_initializer=bn_gamma,
             name=name_prefix + "_batchnorm" if name_prefix else None,
-        )(x)
-    elif normalization == "layer":
-        x = keras.layers.LayerNormalization(name=name_prefix + "_layernorm" if name_prefix else None)(x)
+        )
+    else:
+        x = normalize(x, normalization, name=f"{name_prefix}_{normalization}norm" if name_prefix else None)
 
     x = activate(x, activation, name=name_prefix + "_activation" if name_prefix else None)
     x = keras.layers.Dropout(dropout, name=name_prefix + "_dropout" if name_prefix else None)(x)
@@ -109,7 +111,7 @@ def conv_block(
     dropout
         Dropout rate (default is 0.1).
     normalization
-        Type of normalization ('batch' or 'layer').
+        Type of normalization ('batch', 'layer', 'rms', 'group', 'unit' or 'none'). See :func:`normalize`.
     res
         Whether to use residual connections (default is False).
     padding
@@ -139,12 +141,14 @@ def conv_block(
         name=name_prefix + "_conv" if name_prefix else None,
     )(inputs)
     if normalization == "batch":
-        x = keras.layers.BatchNormalization(
+        x = normalize(
+            x,
+            normalization,
             momentum=batchnorm_momentum,
             name=name_prefix + "_batchnorm" if name_prefix else None,
-        )(x)
-    elif normalization == "layer":
-        x = keras.layers.LayerNormalization(name=name_prefix + "_layernorm" if name_prefix else None)(x)
+        )
+    else:
+        x = normalize(x, normalization, name=f"{name_prefix}_{normalization}norm" if name_prefix else None)
     x = activate(x, activation, name=name_prefix + "_activation" if name_prefix else None)
     if res:
         if filters != residual.shape[2]:
@@ -264,6 +268,53 @@ def pool(
         current = keras.layers.AveragePooling1D(pool_size=2, padding=padding, name=name)(current)
     else:
         raise ValueError(f'Unrecognized pooling type "{pool_type}"')
+    return current
+
+
+def normalize(
+    current: keras.KerasTensor,
+    normalization: str | None,
+    verbose: bool = False,
+    name: str | None = None,
+    **kwargs,
+) -> keras.KerasTensor:
+    """
+    Apply a normalization layer to a tensor.
+
+    Parameters
+    ----------
+    current
+        Input tensor.
+    normalization
+        Type of normalization: 'batch', 'layer', 'rms', 'group', 'unit', or 'none'/None for no normalization.
+    verbose
+        Print verbose information (default is False).
+    name
+        Name to use in the normalization layer. Default is None (no name).
+    **kwargs
+        Extra arguments passed to the normalization layer.
+
+    Returns
+    -------
+    Output tensor after applying normalization.
+    """
+    normalization = "none" if normalization is None else normalization.lower()
+    if verbose:
+        print("normalize:", normalization)
+
+    if normalization == "batch":
+        current = keras.layers.BatchNormalization(name=name, **kwargs)(current)
+    elif normalization == "layer":
+        current = keras.layers.LayerNormalization(name=name, **kwargs)(current)
+    elif normalization == "rms":
+        current = keras.layers.RMSNormalization(name=name, **kwargs)(current)
+    elif normalization == "group":
+        current = keras.layers.GroupNormalization(name=name, **kwargs)(current)
+    elif normalization == "unit":
+        current = keras.layers.UnitNormalization(name=name, **kwargs)(current)
+    elif normalization != "none":
+        raise ValueError(f'Unrecognized normalization "{normalization}"')
+
     return current
 
 

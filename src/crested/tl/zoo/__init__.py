@@ -6,6 +6,7 @@ Supply these (or your own) to `tl.Crested(...)` to use them in training.
 
 from ._basenji import basenji
 from ._borzoi import borzoi, borzoi_prime
+from ._cerberus import cerberus
 from ._deeptopic_cnn import deeptopic_cnn
 from ._deeptopic_lstm import deeptopic_lstm
 from ._dilated_cnn import dilated_cnn
