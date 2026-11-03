@@ -23,9 +23,9 @@ classifiers = [
 ]
 dependencies = [
   "anndata",
+  "fast-logomaker",
   "joblib",
   "keras>=3.4",
-  "logomaker",
   "loguru",
   "numpy",
   "pandas",
