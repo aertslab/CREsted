@@ -10,7 +10,7 @@ import collections.abc as cabc
 import keras
 
 from crested.tl.zoo._borzoi import exp_linspace_int
-from crested.tl.zoo.utils import activate, conv_block_bs, hydra_block, pool
+from crested.tl.zoo.utils import activate, conv_block_bs, hydra_block, normalize, pool
 
 
 def cerberus(
@@ -147,7 +147,7 @@ def cerberus(
 
     # Heads: batchnorm + activation + pointwise conv
     def _head(inputs, n_tracks, head_name):
-        current = keras.layers.BatchNormalization(momentum=0.9, epsilon=1e-4, name=f"{head_name}_batchnorm")(inputs)
+        current = normalize(inputs, "batch", momentum=0.9, epsilon=1e-4, name=f"{head_name}_batchnorm")
         current = activate(current, conv_activation, name=f"{head_name}_activation")
         return keras.layers.Conv1D(n_tracks, kernel_size=1, activation=output_activation, name=head_name)(current)
 

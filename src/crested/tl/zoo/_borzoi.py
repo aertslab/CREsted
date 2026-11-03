@@ -15,6 +15,7 @@ from crested.tl.zoo.utils import (
     conv_block_bs,
     ffn_block_enf,
     mha_block_enf,
+    normalize,
     pool,
 )
 
@@ -235,13 +236,15 @@ def borzoi(
         # First upsampling conv block
         # If upsample_conv=True, matches a conv_block_bs
         # If upsample_conv=False, keeps batchnorm/activation but drops conv, like baskerville unet_conv upsample_conv=False
-        current = keras.layers.BatchNormalization(
+        current = normalize(
+            current,
+            "batch",
             momentum=0.99,
             epsilon=1e-3,
             gamma_initializer="ones",
             synchronized=bn_sync,
             name=f"upsampling_conv_{uidx + 1}_batchnorm",
-        )(current)
+        )
         current = activate(
             current, conv_activation, name=f"upsampling_conv_{uidx + 1}_activation"
         )

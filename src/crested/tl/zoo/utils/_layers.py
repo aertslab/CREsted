@@ -161,11 +161,13 @@ def conv_block(
         x = keras.layers.Add()([x, residual])
 
     if pool_size > 1:
-        x = keras.layers.MaxPooling1D(
+        x = pool(
+            x,
+            "max",
             pool_size=pool_size,
             padding=pool_padding if pool_padding is not None else padding,
             name=name_prefix + "_pool" if name_prefix else None,
-        )(x)
+        )
     if dropout > 0:
         x = keras.layers.Dropout(dropout, name=name_prefix + "_dropout" if name_prefix else None)(x)
 
@@ -214,7 +216,8 @@ def activate(current: keras.KerasTensor, activation: str, verbose: bool = False,
     elif activation == "gelu_enf":
         current = keras.layers.Activation(gelu_enf, name=name)(current)
     else:
-        raise ValueError(f'Unrecognized activation "{activation}"')
+        # Any other activation name known to Keras (raises ValueError if unknown)
+        current = keras.layers.Activation(activation, name=name)(current)
 
     return current
 
@@ -238,34 +241,41 @@ def pool(
     padding="same",
     verbose: bool = False,
     name=None,
+    **kwargs,
 ) -> keras.KerasTensor:
     """
-    Apply activation function to a tensor.
+    Apply a pooling layer to a tensor.
 
     Parameters
     ----------
     current
         Input tensor.
     pool_type
-        Pooling function to apply.
+        Pooling function to apply: 'max', 'attention' or 'average'.
+    pool_size
+        Size of the pooling window.
+    padding
+        Padding type.
     verbose
         Print verbose information (default is False).
     name
-        Name to use in the activation layer. Default is None (no name).
+        Name to use in the pooling layer. Default is None (no name).
+    **kwargs
+        Extra arguments passed to the pooling layer (e.g. `strides`).
 
     Returns
     -------
-    Output tensor after applying activation.
+    Output tensor after applying pooling.
     """
     if verbose:
         print("pool:", pool_type)
 
     if pool_type == "max":
-        current = keras.layers.MaxPooling1D(pool_size=pool_size, padding=padding, name=name)(current)
+        current = keras.layers.MaxPooling1D(pool_size=pool_size, padding=padding, name=name, **kwargs)(current)
     elif pool_type == "attention":
-        current = AttentionPool1D(pool_size=2, padding=padding, name=name)(current)
+        current = AttentionPool1D(pool_size=pool_size, padding=padding, name=name, **kwargs)(current)
     elif pool_type == "average":
-        current = keras.layers.AveragePooling1D(pool_size=2, padding=padding, name=name)(current)
+        current = keras.layers.AveragePooling1D(pool_size=pool_size, padding=padding, name=name, **kwargs)(current)
     else:
         raise ValueError(f'Unrecognized pooling type "{pool_type}"')
     return current
@@ -439,13 +449,15 @@ def conv_block_bs(
     if batch_norm:
         if bn_gamma is None:
             bn_gamma = "zeros" if residual else "ones"
-        current = keras.layers.BatchNormalization(
+        current = normalize(
+            current,
+            "batch",
             momentum=bn_momentum,
             epsilon=bn_epsilon,
             gamma_initializer=bn_gamma,
             synchronized=bn_sync,
             name=name_prefix + "_batchnorm" if name_prefix else None,
-        )(current)
+        )
 
     # activation
     current = activate(current, activation, name=name_prefix + "_activation" if name_prefix else None)
@@ -558,14 +570,16 @@ def mha_block_enf(
     Output tensor after applying the MHA block.
     """
     # MHA block
-    current = keras.layers.LayerNormalization(
+    current = normalize(
+        inputs,
+        "layer",
         epsilon=ln_epsilon,
         center=True,
         scale=True,
         beta_initializer="zeros",
         gamma_initializer="ones",
         name=f"{name_prefix}_layernorm",
-    )(inputs)
+    )
     current = MultiheadAttention(
         value_size=value_dim,
         key_size=key_query_dim,
@@ -628,14 +642,16 @@ def ffn_block_enf(
     expansion_filters = int(expansion_rate * filters)
 
     # First half
-    current = keras.layers.LayerNormalization(
+    current = normalize(
+        inputs,
+        "layer",
         epsilon=ln_epsilon,
         center=True,
         scale=True,
         beta_initializer="zeros",
         gamma_initializer="ones",
         name=f"{name_prefix}_layernorm",
-    )(inputs)
+    )
     current = keras.layers.Conv1D(filters=expansion_filters, kernel_size=1, name=f"{name_prefix}_pointwise_1")(current)
     current = keras.layers.Dropout(rate=dropout, name=f"{name_prefix}_dropout_1")(current)
 
@@ -753,11 +769,11 @@ def legnet_se_block(inputs: keras.KerasTensor, units: int, reduction: int = 4, n
     # Linear
     y = keras.layers.Dense(units // reduction, activation=None, name=f"{name}_fc1" if name else None)(y)
     # SiLU
-    y = keras.layers.Activation("swish", name=f"{name}_swish1" if name else None)(y)
+    y = activate(y, "swish", name=f"{name}_swish1" if name else None)
     # Linear 2
     y = keras.layers.Dense(units, activation=None, name=f"{name}_fc2" if name else None)(y)
     # Sigmoid
-    y = keras.layers.Activation("sigmoid", name=f"{name}_sigmoid" if name else None)(y)
+    y = activate(y, "sigmoid", name=f"{name}_sigmoid" if name else None)
     # Multiplication
     output = keras.layers.Multiply(name=f"{name}_multiply" if name else None)([inputs, y])
     return output
@@ -804,8 +820,8 @@ def legnet_eff_block(
     y = keras.layers.Conv1D(
         filters=inner_dim, kernel_size=1, padding="same", use_bias=False, name=f"{name}_expand_conv" if name else None
     )(inputs)
-    y = keras.layers.BatchNormalization(name=f"{name}_expand_bn" if name else None)(y)
-    y = keras.layers.Activation(activation, name=f"{name}_expand_act" if name else None)(y)
+    y = normalize(y, "batch", name=f"{name}_expand_bn" if name else None)
+    y = activate(y, activation, name=f"{name}_expand_act" if name else None)
 
     # Depthwise
     y = keras.layers.Conv1D(
@@ -816,8 +832,8 @@ def legnet_eff_block(
         use_bias=False,
         name=f"{name}_dw_conv" if name else None,
     )(y)
-    y = keras.layers.BatchNormalization(name=f"{name}_dw_bn" if name else None)(y)
-    y = keras.layers.Activation(activation, name=f"{name}_dw_act" if name else None)(y)
+    y = normalize(y, "batch", name=f"{name}_dw_bn" if name else None)
+    y = activate(y, activation, name=f"{name}_dw_act" if name else None)
 
     # Squeeze-and-Excite
     y = legnet_se_block(y, inner_dim, reduction=se_reduction, name=f"{name}_se" if name else None)
@@ -826,7 +842,7 @@ def legnet_eff_block(
     y = keras.layers.Conv1D(
         filters=filters, kernel_size=1, padding="same", use_bias=False, name=f"{name}_project_conv" if name else None
     )(y)
-    y = keras.layers.BatchNormalization(name=f"{name}_project_bn" if name else None)(y)
-    y = keras.layers.Activation(activation, name=f"{name}_project_act" if name else None)(y)
+    y = normalize(y, "batch", name=f"{name}_project_bn" if name else None)
+    y = activate(y, activation, name=f"{name}_project_act" if name else None)
 
     return y

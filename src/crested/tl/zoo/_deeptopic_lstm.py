@@ -4,7 +4,7 @@ import pickle
 
 import keras
 
-from crested.tl.zoo.utils import get_output
+from crested.tl.zoo.utils import get_output, pool
 
 
 def deeptopic_lstm(
@@ -67,17 +67,18 @@ def deeptopic_lstm(
     """
     inputs = keras.layers.Input(shape=(seq_len, 4), name="sequence")
 
+    x = keras.layers.Convolution1D(
+        filters=filters,
+        kernel_size=first_kernel_size,
+        activation=first_activation,
+        padding="valid",
+        kernel_initializer="random_uniform",
+    )(inputs)
+    x = pool(
+        x, "max", pool_size=max_pool_size, strides=max_pool_stride, padding="valid"
+    )
+
     hidden_layers = [
-        keras.layers.Convolution1D(
-            filters=filters,
-            kernel_size=first_kernel_size,
-            activation=first_activation,
-            padding="valid",
-            kernel_initializer="random_uniform",
-        ),
-        keras.layers.MaxPooling1D(
-            pool_size=max_pool_size, strides=max_pool_stride, padding="valid"
-        ),
         keras.layers.Dropout(pre_dense_do),
         keras.layers.TimeDistributed(
             keras.layers.Dense(lstm_out, activation=activation)
@@ -97,7 +98,7 @@ def deeptopic_lstm(
         keras.layers.Dense(num_classes, activation=output_activation),
     ]
 
-    outputs = get_output(inputs, hidden_layers)
+    outputs = get_output(x, hidden_layers)
 
     model = keras.Model(inputs=inputs, outputs=outputs)
 

@@ -13,6 +13,8 @@ import math
 import keras
 import numpy as np
 
+from ._layers import normalize
+
 
 @functools.cache
 def _mamba_chunk_scan():
@@ -306,9 +308,7 @@ def hydra_block(
     -------
     Output tensor after applying the Hydra block.
     """
-    current = keras.layers.RMSNormalization(
-        epsilon=norm_epsilon, name=name_prefix + "_rmsnorm" if name_prefix else None
-    )(inputs)
+    current = normalize(inputs, "rms", epsilon=norm_epsilon, name=name_prefix + "_rmsnorm" if name_prefix else None)
     current = Hydra(
         d_state=d_state,
         d_conv=d_conv,

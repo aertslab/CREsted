@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 import keras
 
-from .utils import conv_block, legnet_eff_block
+from .utils import activate, conv_block, legnet_eff_block, normalize
 
 
 def legnet(
@@ -118,7 +118,7 @@ def legnet(
         tower_eff_filters = tower_conv_filters
 
     # Mapper block
-    x = keras.layers.BatchNormalization(name="mapper_bn")(x)
+    x = normalize(x, "batch", name="mapper_bn")
     x = keras.layers.Conv1D(filters=tower_conv_filters * 2, kernel_size=1, name="mapper_conv")(x)
 
     # Global average pooling across sequence length
@@ -126,8 +126,8 @@ def legnet(
 
     # Final
     x = keras.layers.Dense(tower_conv_filters * 2, name="final_dense")(x)
-    x = keras.layers.BatchNormalization(name="final_bn")(x)
-    x = keras.layers.Activation(activation, name="final_act")(x)
+    x = normalize(x, "batch", name="final_bn")
+    x = activate(x, activation, name="final_act")
     outputs = keras.layers.Dense(num_classes, name="head", activation=output_activation)(x)
 
     # Create model

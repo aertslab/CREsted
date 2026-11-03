@@ -2,6 +2,8 @@
 
 import keras
 
+from crested.tl.zoo.utils import activate, normalize, pool
+
 
 def dilated_cnn_decoupled(
     seq_len: int,
@@ -80,10 +82,10 @@ def dilated_cnn_decoupled(
         kernel_regularizer=keras.regularizers.l2(first_conv_l2),
         use_bias=False,
     )(inputs)
-    x = keras.layers.BatchNormalization(momentum=0.9, gamma_initializer="ones")(x)
-    x = keras.layers.Activation(first_conv_activation)(x)
+    x = normalize(x, "batch", momentum=0.9, gamma_initializer="ones")
+    x = activate(x, first_conv_activation)
     if first_conv_pool_size > 1:
-        x = keras.layers.MaxPooling1D(pool_size=first_conv_pool_size, padding="same")(x)
+        x = pool(x, "max", pool_size=first_conv_pool_size, padding="same")
     x = keras.layers.Dropout(first_conv_dropout)(x)
 
     # Dilated convolutions
@@ -104,15 +106,17 @@ def dilated_cnn_decoupled(
             name=conv_layer_name,
         )(x)
         if batch_norm:
-            conv_x = keras.layers.BatchNormalization(
+            conv_x = normalize(
+                conv_x,
+                "batch",
                 momentum=0.9,
                 gamma_initializer="ones",
                 name=f"bpnet_{layer_names[i - 1]}bn",
-            )(conv_x)
+            )
         if activation != "none":
-            conv_x = keras.layers.Activation(
-                activation, name=f"bpnet_{layer_names[i - 1]}activation"
-            )(conv_x)
+            conv_x = activate(
+                conv_x, activation, name=f"bpnet_{layer_names[i - 1]}activation"
+            )
 
         x_len = keras.ops.shape(x)[1]
         conv_x_len = keras.ops.shape(conv_x)[1]
