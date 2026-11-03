@@ -33,6 +33,8 @@ def cerberus(
     drop_path: float = 0,
     output_activation: str = "softplus",
     pool_type: str = "max",
+    conv_normalization: str = "batch",
+    hydra_normalization: str = "rms",
     name: str = "Cerberus",
 ) -> keras.Model:
     """
@@ -88,6 +90,11 @@ def cerberus(
         Final activation of the output heads.
     pool_type
         What kind of pooling type to use, one of 'max', 'average' or 'attention'.
+    conv_normalization
+        Type of normalization in the conv tower and the heads ('batch', 'layer', 'rms', 'group', 'unit' or 'none').
+        See :func:`crested.tl.zoo.utils.normalize`.
+    hydra_normalization
+        Type of normalization in the Hydra blocks. See :func:`crested.tl.zoo.utils.normalize`.
     name
         Name of the model.
 
@@ -128,6 +135,7 @@ def cerberus(
             bn_sync=False,
             bn_epsilon=1e-4,
             kernel_initializer="he_normal",
+            normalization=conv_normalization,
             name_prefix=f"tower_conv_{cidx + 1}",
         )
 
@@ -141,13 +149,16 @@ def cerberus(
             headdim=headdim,
             chunk_size=chunk_size,
             dropout=hydra_dropout,
+            normalization=hydra_normalization,
             drop_path=drop_path * hidx / (num_hydra_blocks - 1) if num_hydra_blocks > 1 else drop_path,
             name_prefix=f"hydra_{hidx + 1}",
         )
 
     # Heads: batchnorm + activation + pointwise conv
     def _head(inputs, n_tracks, head_name):
-        current = normalize(inputs, "batch", momentum=0.9, epsilon=1e-4, name=f"{head_name}_batchnorm")
+        current = normalize(
+            inputs, conv_normalization, momentum=0.9, epsilon=1e-4, name=f"{head_name}_{conv_normalization}norm"
+        )
         current = activate(current, conv_activation, name=f"{head_name}_activation")
         return keras.layers.Conv1D(n_tracks, kernel_size=1, activation=output_activation, name=head_name)(current)
 

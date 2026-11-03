@@ -15,6 +15,7 @@ def simple_convnet(
     activation: str = "swish",
     output_activation: str = "softplus",
     normalization: str = "batch",
+    pool_type: str = "max",
     first_filters: int = 192,
     filters: int = 256,
     first_kernel_size: int = 13,
@@ -51,7 +52,9 @@ def simple_convnet(
     output_activation
         Activation function for the output layer.
     normalization
-        Type of normalization ('batch' or 'layer').
+        Type of normalization ('batch', 'layer', 'rms', 'group', 'unit' or 'none'). See :func:`crested.tl.zoo.utils.normalize`.
+    pool_type
+        Type of pooling ('max', 'attention' or 'average'). See :func:`crested.tl.zoo.utils.pool`.
     first_filters
         Number of filters in the first convolutional block.
     filters
@@ -90,6 +93,7 @@ def simple_convnet(
         dropout=conv_dropout,
         normalization=normalization,
         res=residual,
+        pool_type=pool_type,
     )
 
     if num_conv_blocks > 1:
@@ -103,6 +107,7 @@ def simple_convnet(
                 dropout=i * conv_dropout,
                 normalization=normalization,
                 res=residual,
+                pool_type=pool_type,
             )
 
     if flatten:

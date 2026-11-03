@@ -15,7 +15,10 @@ def legnet(
     pool_sizes: Sequence[int] = (2, 2, 2, 2),
     resize_factor: int = 4,
     activation: str = "swish",
+    se_activation: str = "swish",
     output_activation: str = "softplus",
+    normalization: str = "batch",
+    pool_type: str = "max",
     name: str | None = "LegNet",
 ):
     """
@@ -43,8 +46,14 @@ def legnet(
         Expansion factor for inverted residual blocks.
     activation
         Activation function. The default is "swish".
+    se_activation
+        Activation function inside the squeeze-and-excite blocks. The default is "swish".
     output_activation
         Activation function for the output layer.
+    normalization
+        Type of normalization ('batch', 'layer', 'rms', 'group', 'unit' or 'none'). See :func:`crested.tl.zoo.utils.normalize`.
+    pool_type
+        Type of pooling ('max', 'attention' or 'average'). See :func:`crested.tl.zoo.utils.pool`.
     name
         Model name.
 
@@ -69,7 +78,7 @@ def legnet(
         # adjusted params
         conv_bias=False,
         dropout=0.0,
-        normalization="batch",
+        normalization=normalization,
         padding="same",
         pool_padding="valid",
         l2=0.0,
@@ -90,6 +99,8 @@ def legnet(
             kernel_size=eff_kernel_size,
             resize_factor=resize_factor,
             activation=activation,
+            se_activation=se_activation,
+            normalization=normalization,
             name=f"stage{idx}_eff",
         )
         x = keras.layers.Concatenate(axis=-1, name=f"stage{idx}_rescat")([y, x])
@@ -105,20 +116,21 @@ def legnet(
             # Adjusted defaults
             conv_bias=False,
             dropout=0.0,
-            normalization="batch",
+            normalization=normalization,
             padding="same",
             pool_padding="valid",
             l2=0.0,
             # defaults to be kept
             res=False,
             batchnorm_momentum=0.99,
+            pool_type=pool_type,
             name_prefix=f"stage{idx}_local",
         )
 
         tower_eff_filters = tower_conv_filters
 
     # Mapper block
-    x = normalize(x, "batch", name="mapper_bn")
+    x = normalize(x, normalization, name="mapper_bn")
     x = keras.layers.Conv1D(filters=tower_conv_filters * 2, kernel_size=1, name="mapper_conv")(x)
 
     # Global average pooling across sequence length
@@ -126,7 +138,7 @@ def legnet(
 
     # Final
     x = keras.layers.Dense(tower_conv_filters * 2, name="final_dense")(x)
-    x = normalize(x, "batch", name="final_bn")
+    x = normalize(x, normalization, name="final_bn")
     x = activate(x, activation, name="final_act")
     outputs = keras.layers.Dense(num_classes, name="head", activation=output_activation)(x)
 

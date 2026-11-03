@@ -27,6 +27,8 @@ def enformer(
     transformer_activation: str = "relu",
     output_activation: str = "softplus",
     pool_type: str = "attention",
+    conv_normalization: str = "batch",
+    transformer_normalization: str = "layer",
     first_kernel_size: int = 15,
     kernel_size: int = 5,
     transformer_dropout=0.4,
@@ -69,7 +71,11 @@ def enformer(
     output_activation
         Final activation to use on the output heads, just before predicting the tracks.
     pool_type
-        Pooling type to use, one of 'max' or 'attention'.
+        Pooling type to use, one of 'max', 'average' or 'attention'.
+    conv_normalization
+        Type of normalization in the convolution blocks ('batch', 'layer', 'rms', 'group', 'unit' or 'none'). See :func:`crested.tl.zoo.utils.normalize`.
+    transformer_normalization
+        Type of normalization in the transformer blocks. See :func:`crested.tl.zoo.utils.normalize`.
     first_kernel_size
         Kernel size of the first conv layer, directly interfacing the sequence.
     kernel_size
@@ -123,6 +129,7 @@ def enformer(
         bn_sync=bn_sync,
         bn_epsilon=1e-5,
         kernel_initializer="he_normal",
+        normalization=conv_normalization,
         name_prefix="stem_pointwise",
     )
 
@@ -146,6 +153,7 @@ def enformer(
             bn_sync=bn_sync,
             bn_epsilon=1e-5,
             kernel_initializer="he_normal",
+            normalization=conv_normalization,
             name_prefix=f"tower_conv_{cidx + 1}",
         )
         # Add residual pointwise conv block
@@ -164,6 +172,7 @@ def enformer(
             bn_sync=bn_sync,
             bn_epsilon=1e-5,
             kernel_initializer="he_normal",
+            normalization=conv_normalization,
             name_prefix=f"tower_pointwise_{cidx + 1}",
         )
 
@@ -189,6 +198,7 @@ def enformer(
             zero_init=True,
             residual=True,
             ln_epsilon=1e-5,
+            normalization=transformer_normalization,
             name_prefix=f"transformer_mha_{tidx + 1}",
         )
         current = ffn_block_enf(
@@ -198,6 +208,7 @@ def enformer(
             activation=transformer_activation,
             residual=True,
             ln_epsilon=1e-5,
+            normalization=transformer_normalization,
             name_prefix=f"transformer_ff_{tidx + 1}",
         )
 
@@ -217,6 +228,7 @@ def enformer(
         bn_sync=bn_sync,
         bn_epsilon=1e-5,
         kernel_initializer="he_normal",
+        normalization=conv_normalization,
         name_prefix="final_pointwise",
     )
     current = keras.layers.Dropout(pointwise_dropout, name="final_pointwise_dropout")(

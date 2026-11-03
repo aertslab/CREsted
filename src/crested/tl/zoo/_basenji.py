@@ -15,6 +15,8 @@ def basenji(
     filters: int = 2048,
     first_kernel_size: int = 15,
     kernel_size: int = 3,
+    normalization: str = "batch",
+    pool_type: str = "max",
 ) -> keras.Model:
     """
     Construct a Basenji model.
@@ -39,6 +41,10 @@ def basenji(
         Size of the kernel in the first convolutional block.
     kernel_size
         Size of the kernel in subsequent convolutional blocks.
+    normalization
+        Type of normalization ('batch', 'layer', 'rms', 'group', 'unit' or 'none'). See :func:`crested.tl.zoo.utils.normalize`.
+    pool_type
+        Type of pooling ('max', 'attention' or 'average'). See :func:`crested.tl.zoo.utils.pool`.
 
     Returns
     -------
@@ -73,6 +79,8 @@ def basenji(
         bn_sync=False,
         kernel_initializer="he_normal",
         padding="same",
+        pool_type=pool_type,
+        normalization=normalization,
     )
 
     current = dilated_residual(
@@ -88,6 +96,7 @@ def basenji(
         batch_norm=True,
         bn_momentum=0.9,
         bn_sync=False,
+        normalization=normalization,
     )
 
     current = conv_block_bs(
@@ -99,6 +108,7 @@ def basenji(
         batch_norm=True,
         bn_momentum=0.9,
         bn_sync=False,
+        normalization=normalization,
     )
 
     current = keras.layers.GlobalAveragePooling1D()(current)

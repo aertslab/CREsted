@@ -23,6 +23,8 @@ def dilated_cnn(
     dropout: float = 0.1,
     batch_norm: bool = True,
     dense_bias: bool = True,
+    normalization: str = "batch",
+    pool_type: str = "max",
 ) -> keras.Model:
     """
     Construct a CNN using dilated convolutions.
@@ -63,6 +65,11 @@ def dilated_cnn(
         Whether or not to use batch normalization.
     dense_bias
         Whether or not to add a bias to the dense layer.
+    normalization
+        Type of normalization ('batch', 'layer', 'rms', 'group', 'unit' or 'none'). See :func:`crested.tl.zoo.utils.normalize`.
+        Always applied after the first convolution, and after the dilated convolutions if `batch_norm` is True.
+    pool_type
+        Type of pooling ('max', 'attention' or 'average'). See :func:`crested.tl.zoo.utils.pool`.
 
     Returns
     -------
@@ -82,10 +89,10 @@ def dilated_cnn(
         kernel_regularizer=keras.regularizers.l2(first_conv_l2),
         use_bias=False,
     )(inputs)
-    x = normalize(x, "batch", momentum=0.9, gamma_initializer="ones")
+    x = normalize(x, normalization, momentum=0.9, gamma_initializer="ones")
     x = activate(x, first_conv_activation)
     if first_conv_pool_size > 1:
-        x = pool(x, "max", pool_size=first_conv_pool_size, padding="same")
+        x = pool(x, pool_type, pool_size=first_conv_pool_size, padding="same")
     x = keras.layers.Dropout(first_conv_dropout)(x)
 
     # Dilated convolutions
@@ -108,7 +115,7 @@ def dilated_cnn(
         if batch_norm:
             conv_x = normalize(
                 conv_x,
-                "batch",
+                normalization,
                 momentum=0.9,
                 gamma_initializer="ones",
                 name=f"bpnet_{layer_names[i - 1]}bn",

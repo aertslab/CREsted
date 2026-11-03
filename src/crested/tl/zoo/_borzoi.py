@@ -38,6 +38,8 @@ def borzoi(
     transformer_activation: str = "relu",
     output_activation: str = "softplus",
     pool_type: str = "max",
+    conv_normalization: str = "batch",
+    transformer_normalization: str = "layer",
     first_kernel_size: int = 15,
     kernel_size: int = 5,
     transformer_dropout=0.2,
@@ -92,7 +94,11 @@ def borzoi(
     output_activation
         Final activation to use on the output heads, just before predicting the tracks.
     pool_type
-        What kind of pooling type to use, one of 'max' or 'attention'.
+        What kind of pooling type to use, one of 'max', 'average' or 'attention'.
+    conv_normalization
+        Type of normalization in the convolution blocks ('batch', 'layer', 'rms', 'group', 'unit' or 'none'). See :func:`crested.tl.zoo.utils.normalize`.
+    transformer_normalization
+        Type of normalization in the transformer blocks. See :func:`crested.tl.zoo.utils.normalize`.
     first_kernel_size
         Kernel size of the first conv layer, directly interfacing the sequence.
     kernel_size
@@ -169,6 +175,7 @@ def borzoi(
             bn_sync=bn_sync,
             bn_epsilon=1e-3,
             kernel_initializer="he_normal",
+            normalization=conv_normalization,
             name_prefix=f"tower_conv_{cidx + 1}",
         )
         if cidx + 1 in unet_connections:
@@ -187,6 +194,7 @@ def borzoi(
                     bn_sync=bn_sync,
                     bn_epsilon=1e-3,
                     kernel_initializer="he_normal",
+                    normalization=conv_normalization,
                     name_prefix=f"unet_skip_{len(unet_skips) + 1}",
                 )
             )
@@ -218,6 +226,7 @@ def borzoi(
             zero_init=True,
             residual=True,
             ln_epsilon=1e-3,
+            normalization=transformer_normalization,
             name_prefix=f"transformer_mha_{tidx + 1}",
         )
         current = ffn_block_enf(
@@ -227,6 +236,7 @@ def borzoi(
             activation=transformer_activation,
             residual=True,
             ln_epsilon=1e-3,
+            normalization=transformer_normalization,
             name_prefix=f"transformer_ff_{tidx + 1}",
         )
 
@@ -238,12 +248,12 @@ def borzoi(
         # If upsample_conv=False, keeps batchnorm/activation but drops conv, like baskerville unet_conv upsample_conv=False
         current = normalize(
             current,
-            "batch",
+            conv_normalization,
             momentum=0.99,
             epsilon=1e-3,
             gamma_initializer="ones",
             synchronized=bn_sync,
-            name=f"upsampling_conv_{uidx + 1}_batchnorm",
+            name=f"upsampling_conv_{uidx + 1}_{conv_normalization}norm",
         )
         current = activate(
             current, conv_activation, name=f"upsampling_conv_{uidx + 1}_activation"
@@ -295,6 +305,7 @@ def borzoi(
             bn_sync=bn_sync,
             bn_epsilon=1e-3,
             kernel_initializer="he_normal",
+            normalization=conv_normalization,
             name_prefix="final_conv",
         )
     else:
@@ -345,6 +356,8 @@ def borzoi_prime(
     transformer_activation: str = "relu",
     output_activation: str = "softplus",
     pool_type: str = "max",
+    conv_normalization: str = "batch",
+    transformer_normalization: str = "layer",
     first_kernel_size: int = 15,
     kernel_size: int = 5,
     transformer_dropout=0.2,
@@ -399,7 +412,11 @@ def borzoi_prime(
     output_activation
         Final activation to use on the output heads, just before predicting the tracks.
     pool_type
-        What kind of pooling type to use, one of 'max' or 'attention'.
+        What kind of pooling type to use, one of 'max', 'average' or 'attention'.
+    conv_normalization
+        Type of normalization in the convolution blocks ('batch', 'layer', 'rms', 'group', 'unit' or 'none'). See :func:`crested.tl.zoo.utils.normalize`.
+    transformer_normalization
+        Type of normalization in the transformer blocks. See :func:`crested.tl.zoo.utils.normalize`.
     first_kernel_size
         Kernel size of the first conv layer, directly interfacing the sequence.
     kernel_size
@@ -434,6 +451,8 @@ def borzoi_prime(
         transformer_activation=transformer_activation,
         output_activation=output_activation,
         pool_type=pool_type,
+        conv_normalization=conv_normalization,
+        transformer_normalization=transformer_normalization,
         first_kernel_size=first_kernel_size,
         kernel_size=kernel_size,
         transformer_dropout=transformer_dropout,

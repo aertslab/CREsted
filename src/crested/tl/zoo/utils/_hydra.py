@@ -284,6 +284,7 @@ def hydra_block(
     dropout: float = 0,
     drop_path: float = 0,
     norm_epsilon: float = 1e-4,
+    normalization: str = "rms",
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
@@ -300,7 +301,9 @@ def hydra_block(
     drop_path
         Stochastic depth rate: the probability of dropping the whole residual branch per sample.
     norm_epsilon
-        Epsilon of the RMSNorm.
+        Epsilon of the normalization layer.
+    normalization
+        Type of normalization (default is 'rms'). See :func:`normalize`.
     name_prefix
         Prefix for layer names.
 
@@ -308,7 +311,9 @@ def hydra_block(
     -------
     Output tensor after applying the Hydra block.
     """
-    current = normalize(inputs, "rms", epsilon=norm_epsilon, name=name_prefix + "_rmsnorm" if name_prefix else None)
+    current = normalize(
+        inputs, normalization, epsilon=norm_epsilon, name=f"{name_prefix}_{normalization}norm" if name_prefix else None
+    )
     current = Hydra(
         d_state=d_state,
         d_conv=d_conv,

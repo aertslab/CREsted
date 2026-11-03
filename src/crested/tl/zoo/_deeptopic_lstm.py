@@ -14,6 +14,7 @@ def deeptopic_lstm(
     first_kernel_size: int = 30,
     max_pool_size: int = 15,
     max_pool_stride: int = 5,
+    pool_type: str = "max",
     dense_out: int = 256,
     lstm_out: int = 128,
     first_activation: str = "relu",
@@ -42,6 +43,8 @@ def deeptopic_lstm(
         Size of the max pooling kernel.
     max_pool_stride
         Stride of the max pooling kernel.
+    pool_type
+        Type of pooling ('max', 'attention' or 'average'). See :func:`crested.tl.zoo.utils.pool`.
     dense_out
         Number of neurons in the dense layer.
     lstm_out
@@ -75,7 +78,7 @@ def deeptopic_lstm(
         kernel_initializer="random_uniform",
     )(inputs)
     x = pool(
-        x, "max", pool_size=max_pool_size, strides=max_pool_stride, padding="valid"
+        x, pool_type, pool_size=max_pool_size, strides=max_pool_stride, padding="valid"
     )
 
     hidden_layers = [
