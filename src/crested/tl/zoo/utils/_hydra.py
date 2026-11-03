@@ -182,7 +182,7 @@ class Hydra(keras.layers.Layer):
     forward and on the reversed sequence, shifts both by one position and adds a
     data-dependent diagonal skip term, followed by a gated RMSNorm and output projection.
     The scan uses mamba_ssm's Triton kernel where available (see :func:`ssd_scan`).
-    It's highly recommended to use the `torch` backend with `jit_compile=True`.
+    It's highly recommended to use the `torch` backend with `jit_compile=True` when using this layer.
 
     Parameters
     ----------
@@ -352,6 +352,8 @@ def hydra_block(
 ) -> keras.KerasTensor:
     """
     Residual Hydra block: RMSNorm -> Hydra -> dropout -> drop path, added to the input.
+    
+    It's highly recommended to use the `torch` backend with `jit_compile=True` when using this block.
 
     Parameters
     ----------

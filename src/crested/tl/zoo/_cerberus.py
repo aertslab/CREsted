@@ -43,6 +43,7 @@ def cerberus(
     Defaults match the released human/mouse Cerberus models, predicting at 32bp resolution without cropping.
     The Hydra blocks use mamba_ssm's fused Triton scan when running on the torch backend on a GPU with `mamba_ssm`
     installed, and an equivalent but much slower and more memory-hungry keras.ops implementation otherwise.
+    It's highly recommended to use the `torch` backend and compile the model with model.compile(`jit_compile=True`) when using this model.
 
     Note that unlike other CREsted model zoo architectures, this architecture is not suited for
     predicting individual regions out of the box.
