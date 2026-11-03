@@ -7,25 +7,83 @@ Cerberus architecture: copyright Calico LLC
 
 from __future__ import annotations
 
-import functools
 import math
 
 import keras
 import numpy as np
 
-from ._layers import normalize
+from ._layers import DropPath, normalize
 
 
-@functools.cache
+_UNSET = object()
+_kernel = _UNSET
+
+
 def _mamba_chunk_scan():
-    """Return mamba_ssm's fused Triton SSD kernel, or None if unavailable (non-torch backend or no mamba_ssm)."""
+    """
+    Return mamba_ssm's fused Triton SSD kernel, or None if unavailable (non-torch backend or no mamba_ssm).
+
+    The kernel is wrapped as a torch custom op, which torch.compile (Keras `jit_compile=True`) treats as one opaque
+    node; mamba_ssm's own autograd Function causes graph breaks on its Triton autotuner.
+    Cached in a module global rather than with functools.cache, as torch.compile ignores the latter and would
+    register the op again while tracing (graph breaks).
+    """
+    global _kernel
+    if _kernel is _UNSET:
+        _kernel = _load_mamba_chunk_scan()
+    return _kernel
+
+
+def _load_mamba_chunk_scan():
     if keras.config.backend() != "torch":
         return None
     try:
-        from mamba_ssm.ops.triton.ssd_combined import mamba_chunk_scan_combined
+        from mamba_ssm.ops.triton.ssd_combined import _mamba_chunk_scan_combined_bwd, _mamba_chunk_scan_combined_fwd
     except (ImportError, RuntimeError):
         return None
-    return mamba_chunk_scan_combined
+    return _register_ssd_op(_mamba_chunk_scan_combined_fwd, _mamba_chunk_scan_combined_bwd)
+
+
+def _register_ssd_op(fwd, bwd):
+    """Register mamba_ssm's SSD forward and backward kernels as torch custom ops with autograd."""
+    import torch
+
+    # Explicit schemas, as this module's annotations are strings (from __future__ import annotations)
+    @torch.library.custom_op(
+        "crested::ssd_scan",
+        mutates_args=(),
+        schema="(Tensor x, Tensor dt, Tensor A, Tensor B, Tensor C, int chunk_size) -> Tensor",
+    )
+    def ssd_scan_op(x, dt, A, B, C, chunk_size):
+        return fwd(x, dt, A, B, C, chunk_size)[0].contiguous()
+
+    @ssd_scan_op.register_fake
+    def _(x, dt, A, B, C, chunk_size):
+        return torch.empty_like(x, memory_format=torch.contiguous_format)
+
+    @torch.library.custom_op(
+        "crested::ssd_scan_bwd",
+        mutates_args=(),
+        schema="(Tensor dout, Tensor x, Tensor dt, Tensor A, Tensor B, Tensor C, Tensor out, int chunk_size) -> Tensor[]",
+    )
+    def ssd_scan_bwd_op(dout, x, dt, A, B, C, out, chunk_size):
+        grads = bwd(dout.contiguous(), x, dt, A, B, C, out, chunk_size)[:5]
+        return [g.to(t.dtype).contiguous() for g, t in zip(grads, (x, dt, A, B, C), strict=True)]
+
+    @ssd_scan_bwd_op.register_fake
+    def _(dout, x, dt, A, B, C, out, chunk_size):
+        return [torch.empty_like(t, memory_format=torch.contiguous_format) for t in (x, dt, A, B, C)]
+
+    def setup_context(ctx, inputs, output):
+        x, dt, A, B, C, chunk_size = inputs
+        ctx.save_for_backward(x, dt, A, B, C, output)
+        ctx.chunk_size = chunk_size
+
+    def backward(ctx, dout):
+        return (*ssd_scan_bwd_op(dout, *ctx.saved_tensors, ctx.chunk_size), None)
+
+    ssd_scan_op.register_autograd(backward, setup_context=setup_context)
+    return ssd_scan_op
 
 
 def _segsum(x):
@@ -111,7 +169,7 @@ def ssd_scan(x, dt, A, B, C, chunk_size: int = 256, use_kernel: bool = True):
     """
     kernel = _mamba_chunk_scan() if use_kernel else None
     if kernel is not None and x.is_cuda:
-        return kernel(x, dt, A, B, C, chunk_size=chunk_size)
+        return kernel(x, dt, A, B, C, chunk_size)
     return _ssd_scan_ref(x, dt, A, B, C, chunk_size)
 
 
@@ -124,6 +182,7 @@ class Hydra(keras.layers.Layer):
     forward and on the reversed sequence, shifts both by one position and adds a
     data-dependent diagonal skip term, followed by a gated RMSNorm and output projection.
     The scan uses mamba_ssm's Triton kernel where available (see :func:`ssd_scan`).
+    It's highly recommended to use the `torch` backend with `jit_compile=True`.
 
     Parameters
     ----------
@@ -181,13 +240,17 @@ class Hydra(keras.layers.Layer):
         if self.d_inner % self.headdim != 0:
             raise ValueError(f"Inner dimension {self.d_inner} is not divisible by headdim {self.headdim}.")
         self.nheads = self.d_inner // self.headdim
+        # Register the scan kernel's custom op now: registering it during torch.compile tracing breaks the graph
+        _mamba_chunk_scan()
         bc_dim = 2 * self.ngroups * self.d_state  # B and C of one direction
         # Projection order: [z, x, B_fw, C_fw, B_bw, C_bw, dt_fw, dt_bw]
         self.in_proj = keras.layers.Dense(
-            2 * self.d_inner + 2 * bc_dim + 2 * self.nheads, use_bias=False, name="in_proj"
+            2 * self.d_inner + 2 * bc_dim + 2 * self.nheads, use_bias=False, dtype=self.dtype_policy, name="in_proj"
         )
         self.in_proj.build((None, None, d_model))
-        self.conv1d = keras.layers.DepthwiseConv1D(self.d_conv, padding="same", name="conv1d")
+        self.conv1d = keras.layers.DepthwiseConv1D(
+            self.d_conv, padding="same", dtype=self.dtype_policy, name="conv1d"
+        )
         self.conv1d.build((None, None, self.d_inner + 2 * bc_dim))
 
         def dt_bias_init(shape, dtype=None):
@@ -202,10 +265,10 @@ class Hydra(keras.layers.Layer):
         self.dt_bias = self.add_weight(shape=(self.nheads,), initializer=dt_bias_init, autocast=False, name="dt_bias")
         self.A_log = self.add_weight(shape=(self.nheads,), initializer="zeros", autocast=False, name="A_log")
         self.D = self.add_weight(shape=(self.nheads,), initializer="ones", name="D")
-        self.fc_D = keras.layers.Dense(self.nheads, use_bias=False, name="fc_D")
+        self.fc_D = keras.layers.Dense(self.nheads, use_bias=False, dtype=self.dtype_policy, name="fc_D")
         self.fc_D.build((None, None, self.d_inner))
         self.norm_weight = self.add_weight(shape=(self.d_inner,), initializer="ones", name="norm_weight")
-        self.out_proj = keras.layers.Dense(d_model, use_bias=False, name="out_proj")
+        self.out_proj = keras.layers.Dense(d_model, use_bias=False, dtype=self.dtype_policy, name="out_proj")
         self.out_proj.build((None, None, self.d_inner))
 
     def call(self, inputs):
@@ -325,8 +388,5 @@ def hydra_block(
     if dropout > 0:
         current = keras.layers.Dropout(dropout, name=name_prefix + "_dropout" if name_prefix else None)(current)
     if drop_path > 0:
-        # Dropout with a per-sample noise shape drops the whole branch for a sample, scaled by 1/(1-rate)
-        current = keras.layers.Dropout(
-            drop_path, noise_shape=(None, 1, 1), name=name_prefix + "_droppath" if name_prefix else None
-        )(current)
+        current = DropPath(drop_path, name=name_prefix + "_droppath" if name_prefix else None)(current)
     return keras.layers.Add(name=name_prefix + "_add" if name_prefix else None)([inputs, current])

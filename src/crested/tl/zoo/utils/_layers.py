@@ -2,12 +2,90 @@
 
 from __future__ import annotations
 
+import functools
 import inspect
 
 import keras
 import numpy as np
 
 from ._attention import AttentionPool1D, MultiheadAttention
+
+
+def _batchnorm_tuple_axes():
+    """
+    Make keras BatchNormalization store its reduction axes as a tuple, on the torch backend.
+
+    Keras (3.15 at least) stores them as a list, which layer tracking wraps in a TrackedList that torch.compile can't
+    trace. That breaks the graph in every BatchNormalization call, so `jit_compile=True` models with batchnorm (e.g. the
+    Cerberus conv tower) mostly run eagerly. Fixed upstream in keras-team/keras#24083 (open as of 2026-11): this is a
+    no-op once that is released, and can be removed then. It doesn't change the layer's class or config, so saved
+    models are unaffected.
+    """
+    build = keras.layers.BatchNormalization.build
+    if getattr(build, "_crested_tuple_axes", False):
+        return
+
+    @functools.wraps(build)
+    def tuple_axes_build(self, input_shape):
+        build(self, input_shape)
+        if isinstance(self._reduction_axes, list):
+            object.__setattr__(self, "_reduction_axes", tuple(self._reduction_axes))  # bypass keras tracking
+
+    tuple_axes_build._crested_tuple_axes = True
+    keras.layers.BatchNormalization.build = tuple_axes_build
+
+
+if keras.config.backend() == "torch":
+    _batchnorm_tuple_axes()
+
+
+@keras.saving.register_keras_serializable(package="crested", name="DropPath")
+class DropPath(keras.layers.Layer):
+    """
+    Drop path (stochastic depth): zero the whole input of a sample with probability `rate`, and scale kept samples by 1/(1-rate).
+
+    Meant for the residual branch of a block. Same as `keras.layers.Dropout(rate, noise_shape=(None, 1, ..., 1))`,
+    but draws the per-sample mask with regular dropout on a (batch, 1, ..., 1) tensor, which (unseeded) compiles without
+    graph breaks on the torch backend.
+
+    Parameters
+    ----------
+    rate
+        Probability of dropping a sample.
+    seed
+        Random seed.
+    **kwargs
+        Extra arguments passed to keras.layers.Layer.
+    """
+
+    def __init__(self, rate: float, seed: int | None = None, **kwargs):
+        super().__init__(**kwargs)
+        if not 0 <= rate <= 1:
+            raise ValueError(f"rate should be between 0 and 1, got {rate}.")
+        self.rate = rate
+        self.seed = seed
+        if rate > 0:
+            self.seed_generator = keras.random.SeedGenerator(seed)
+        self.supports_masking = True
+        self._build_at_init()
+
+    def call(self, inputs, training=False):
+        """Drop samples during training."""
+        if not training or self.rate == 0:
+            return inputs
+        shape = (keras.ops.shape(inputs)[0],) + (1,) * (len(inputs.shape) - 1)
+        mask = keras.random.dropout(keras.ops.ones(shape, dtype=inputs.dtype), self.rate, seed=self.seed_generator)
+        return inputs * mask
+
+    def compute_output_shape(self, input_shape):
+        """Output shape is the input shape."""
+        return input_shape
+
+    def get_config(self):
+        """Get the config for this layer."""
+        config = super().get_config()
+        config.update({"rate": self.rate, "seed": self.seed})
+        return config
 
 
 def dense_block(

@@ -5,9 +5,14 @@
 ### Features
 - Plotting logo-based contribution scores ({func}`crested.pl.explain.contribution_scores` & co) now use `fast-logomaker` instead of `logomaker`, which is substantially faster. (#237)
   - This was previously erroneously included in v1.10.0's changes, but it was not yet implemented there.
-- New architecture: {func}`crested.tl.zoo.cerberus`, a CNN + bidirectional Mamba-2 (Hydra) model replicating Calico's Cerberus. Its Hydra layers ({class}`crested.tl.zoo.utils.Hydra`) are native Keras layers that use `mamba_ssm`'s fused Triton scan on the torch backend on GPU, and an equivalent `keras.ops` scan on other backends or without `mamba_ssm`.
+- New architecture: {func}`crested.tl.zoo.cerberus`, a CNN + bidirectional Mamba-2 (Hydra) model replicating Calico's Cerberus. Its Hydra layers ({class}`crested.tl.zoo.utils.Hydra`) are native Keras layers that use `mamba_ssm`'s fused Triton scan on the torch backend on GPU, and an equivalent `keras.ops` scan on other backends or without `mamba_ssm`. For full speed, use `jit_compile=True` on the torch backend.
+- New {class}`crested.tl.zoo.utils.DropPath` layer (stochastic depth), used in the Hydra blocks.
+
 - New {func}`crested.tl.zoo.utils.normalize` helper to pick a normalization layer by name (`'batch'`, `'layer'`, `'rms'`, `'group'`, `'unit'` or `'none'`). 
 - All {mod}`crested.tl.zoo` models and {mod}`crested.tl.zoo.utils` layers now allow customization of their activation, normalization and pooling.
+
+### Bug fixes
+- On the torch backend, CREsted makes `keras.layers.BatchNormalization` store its reduction axes as a tuple, which avoids a torch.compile graph break in every batchnorm layer. This is temporary until the Keras fix is upstreamed (keras-team/keras#24083), but should not affect behavior or model saving/loading.
 
 ### Dependencies
 - CREsted now requires `keras>=3.9` (was `>=3.4`), for `keras.layers.RMSNormalization`.

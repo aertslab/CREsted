@@ -12,6 +12,7 @@ from ._hydra import (
     ssd_scan,
 )
 from ._layers import (
+    DropPath,
     activate,
     conv_block,
     conv_block_bs,
