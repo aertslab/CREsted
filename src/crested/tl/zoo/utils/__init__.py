@@ -2,6 +2,23 @@
 
 # All functions and classes exported in `crested.tl.zoo.utils` are used as fallback custom objects in `crested.utils.load_model`
 
+from ._alphagenome import (
+    Bias,
+    MultiQueryAttention,
+    RowAttention,
+    Scale,
+    SequenceToPair,
+    StandardizedConv1D,
+    apply_rope,
+    attention_bias_block_ag,
+    conv_block_ag,
+    down_res_block_ag,
+    mha_block_ag,
+    mlp_block_ag,
+    pair_update_block_ag,
+    rms_norm_ag,
+    up_res_block_ag,
+)
 from ._attention import (
     AttentionPool1D,
     MultiheadAttention,
@@ -13,6 +30,7 @@ from ._hydra import (
 )
 from ._layers import (
     DropPath,
+    RMSBatchNormalization,
     activate,
     conv_block,
     conv_block_bs,

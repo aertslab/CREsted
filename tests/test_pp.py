@@ -1,5 +1,5 @@
-import pytest
 import numpy as np
+import pytest
 from numpy import array_equiv
 
 import crested

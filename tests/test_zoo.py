@@ -24,6 +24,7 @@ ZOO_ARCHITECTURES = [
     ("borzoi", zoo.borzoi, {"seq_len": 524288, "num_classes": 2}),
     ("borzoi_prime", zoo.borzoi_prime, {"seq_len": 524288, "num_classes": 2}),
     ("cerberus", zoo.cerberus, {"seq_len": 8192, "num_classes": 2}),
+    ("alphagenome", zoo.alphagenome, {"seq_len": 2048, "num_classes": 2}),
 ]
 
 

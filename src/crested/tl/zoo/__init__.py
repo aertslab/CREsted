@@ -4,6 +4,7 @@ Custom `keras.Model`-creating functions that have shown to work well in specific
 Supply these (or your own) to `tl.Crested(...)` to use them in training.
 """
 
+from ._alphagenome import alphagenome
 from ._basenji import basenji
 from ._borzoi import borzoi, borzoi_prime
 from ._cerberus import cerberus
