@@ -8,7 +8,6 @@ import os
 import sys
 
 import keras
-import numpy as np
 import torch
 
 import crested
@@ -18,7 +17,9 @@ print(f"CREsted version {crested.__version__}")
 # Dir to save your new models
 output_dir = "xxx"
 # Cerberus saved models dir: should have params.json and folders f0c0/.../f7c0 with model_best.pth
-saved_models_dir = "xxx"  # From https://storage.googleapis.com/seqnn-share/cerberus/models: params.json and f{0-7}c0/model_best.pth
+saved_models_dir = (
+    "xxx"  # From https://storage.googleapis.com/seqnn-share/cerberus/models: params.json and f{0-7}c0/model_best.pth
+)
 folds = [int(f) for f in sys.argv[1:]] or range(8)  # optionally pass folds as arguments
 
 params = json.load(open(os.path.join(saved_models_dir, "params.json")))["model"]
@@ -73,18 +74,20 @@ for i in range(num_conv_blocks):
 hydra_lookup = {}
 for i in range(num_hydra_blocks):
     torch_prefix, crested_name = f"trunk.2.blocks.{i}", f"hydra_{i + 1}_hydra"
-    hydra_lookup.update({
-        f"{torch_prefix}.norm.layer.weight": (f"hydra_{i + 1}_rmsnorm/scale", identity),
-        f"{torch_prefix}.hydra.in_proj.weight": (f"{crested_name}/in_proj/kernel", dense_kernel),
-        f"{torch_prefix}.hydra.conv1d.weight": (f"{crested_name}/conv1d/kernel", depthwise_kernel),
-        f"{torch_prefix}.hydra.conv1d.bias": (f"{crested_name}/conv1d/bias", identity),
-        f"{torch_prefix}.hydra.dt_bias": (f"{crested_name}/dt_bias", identity),
-        f"{torch_prefix}.hydra.A_log": (f"{crested_name}/A_log", identity),
-        f"{torch_prefix}.hydra.D": (f"{crested_name}/D", identity),
-        f"{torch_prefix}.hydra.fc_D.weight": (f"{crested_name}/fc_D/kernel", dense_kernel),
-        f"{torch_prefix}.hydra.norm.weight": (f"{crested_name}/norm_weight", identity),
-        f"{torch_prefix}.hydra.out_proj.weight": (f"{crested_name}/out_proj/kernel", dense_kernel),
-    })
+    hydra_lookup.update(
+        {
+            f"{torch_prefix}.norm.layer.weight": (f"hydra_{i + 1}_rmsnorm/scale", identity),
+            f"{torch_prefix}.hydra.in_proj.weight": (f"{crested_name}/in_proj/kernel", dense_kernel),
+            f"{torch_prefix}.hydra.conv1d.weight": (f"{crested_name}/conv1d/kernel", depthwise_kernel),
+            f"{torch_prefix}.hydra.conv1d.bias": (f"{crested_name}/conv1d/bias", identity),
+            f"{torch_prefix}.hydra.dt_bias": (f"{crested_name}/dt_bias", identity),
+            f"{torch_prefix}.hydra.A_log": (f"{crested_name}/A_log", identity),
+            f"{torch_prefix}.hydra.D": (f"{crested_name}/D", identity),
+            f"{torch_prefix}.hydra.fc_D.weight": (f"{crested_name}/fc_D/kernel", dense_kernel),
+            f"{torch_prefix}.hydra.norm.weight": (f"{crested_name}/norm_weight", identity),
+            f"{torch_prefix}.hydra.out_proj.weight": (f"{crested_name}/out_proj/kernel", dense_kernel),
+        }
+    )
 
 head_lookup = {}
 for i in range(len(head_names)):
@@ -112,7 +115,9 @@ def copy_weights(model, state_dict):
     for torch_name, (crested_name, transform) in lookup.items():
         value = transform(state_dict[torch_name])
         weight = model_weights.pop(crested_name)
-        assert value.shape == tuple(weight.shape), f"shape {value.shape} != {weight.shape} ({torch_name} -> {crested_name})"
+        assert value.shape == tuple(weight.shape), (
+            f"shape {value.shape} != {weight.shape} ({torch_name} -> {crested_name})"
+        )
         weight.assign(value)
     assert not model_weights, f"Model weights not set by porting: {sorted(model_weights)}"
 
@@ -142,7 +147,9 @@ for fold in folds:
     # Save model/weights to file
     model.save(os.path.join(output_dir, f"cerberus_crested_fold{fold}.keras"))
     model.save_weights(os.path.join(output_dir, f"cerberus_crested_fold{fold}.weights.h5"))
-    print(f"Keras model saved to disk!\nModel: {os.path.join(output_dir, f'cerberus_crested_fold{fold}.keras')}\nWeights: {os.path.join(output_dir, f'cerberus_crested_fold{fold}.weights.h5')}")
+    print(
+        f"Keras model saved to disk!\nModel: {os.path.join(output_dir, f'cerberus_crested_fold{fold}.keras')}\nWeights: {os.path.join(output_dir, f'cerberus_crested_fold{fold}.weights.h5')}"
+    )
 
     for i, head_name in enumerate(head_names):
         species = head_name.removeprefix("head_")

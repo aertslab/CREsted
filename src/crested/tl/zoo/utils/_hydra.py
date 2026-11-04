@@ -14,7 +14,6 @@ import numpy as np
 
 from ._layers import DropPath, normalize
 
-
 _UNSET = object()
 _kernel = _UNSET
 
@@ -248,9 +247,7 @@ class Hydra(keras.layers.Layer):
             2 * self.d_inner + 2 * bc_dim + 2 * self.nheads, use_bias=False, dtype=self.dtype_policy, name="in_proj"
         )
         self.in_proj.build((None, None, d_model))
-        self.conv1d = keras.layers.DepthwiseConv1D(
-            self.d_conv, padding="same", dtype=self.dtype_policy, name="conv1d"
-        )
+        self.conv1d = keras.layers.DepthwiseConv1D(self.d_conv, padding="same", dtype=self.dtype_policy, name="conv1d")
         self.conv1d.build((None, None, self.d_inner + 2 * bc_dim))
 
         def dt_bias_init(shape, dtype=None):
@@ -352,7 +349,7 @@ def hydra_block(
 ) -> keras.KerasTensor:
     """
     Residual Hydra block: RMSNorm -> Hydra -> dropout -> drop path, added to the input.
-    
+
     It's highly recommended to use the `torch` backend with `jit_compile=True` when using this block.
 
     Parameters
