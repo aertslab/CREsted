@@ -59,6 +59,7 @@ class DropPath(keras.layers.Layer):
     """
 
     def __init__(self, rate: float, seed: int | None = None, **kwargs):
+        """Initialize the DropPath layer."""
         super().__init__(**kwargs)
         if not 0 <= rate <= 1:
             raise ValueError(f"rate should be between 0 and 1, got {rate}.")

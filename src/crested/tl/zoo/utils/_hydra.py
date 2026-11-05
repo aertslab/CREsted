@@ -219,6 +219,7 @@ class Hydra(keras.layers.Layer):
         dt_init_floor: float = 1e-4,
         **kwargs,
     ):
+        """Initialize the Hydra layer."""
         super().__init__(**kwargs)
         self.d_state = d_state
         self.d_conv = d_conv
