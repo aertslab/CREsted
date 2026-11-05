@@ -107,6 +107,7 @@ class RMSBatchNormalization(keras.layers.Layer):
     """
 
     def __init__(self, momentum: float = 0.9, epsilon: float = 1e-5, **kwargs):
+        """Initialize the RMSBatchNormalization layer."""
         super().__init__(**kwargs)
         self.momentum = momentum
         self.epsilon = epsilon

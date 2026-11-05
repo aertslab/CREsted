@@ -80,6 +80,7 @@ class Scale(keras.layers.Layer):
     """
 
     def __init__(self, per_channel: bool = False, activation: str | None = None, **kwargs):
+        """Initialize the Scale layer."""
         super().__init__(**kwargs)
         self.per_channel = per_channel
         self.activation = keras.activations.get(activation)
@@ -155,6 +156,7 @@ class MultiQueryAttention(keras.layers.Layer):
         bias_upsampling: int = 16,
         **kwargs,
     ):
+        """Initialize the MultiQueryAttention layer."""
         super().__init__(**kwargs)
         self.num_heads = num_heads
         self.key_dim = key_dim
@@ -267,6 +269,7 @@ class SequenceToPair(keras.layers.Layer):
     def __init__(
         self, pair_dim: int = 128, num_heads: int = 32, head_dim: int = 128, max_distance: int = 512, **kwargs
     ):
+        """Initialize the SequenceToPair layer."""
         super().__init__(**kwargs)
         self.pair_dim = pair_dim
         self.num_heads = num_heads
@@ -344,6 +347,7 @@ class RowAttention(keras.layers.Layer):
     """
 
     def __init__(self, key_dim: int = 128, **kwargs):
+        """Initialize the RowAttention layer."""
         super().__init__(**kwargs)
         self.key_dim = key_dim
 
@@ -387,7 +391,7 @@ def conv_block_ag(
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
-    AlphaGenome convolution block: normalization + activation + standardized convolution.
+    Convolution block from AlphaGenome: normalization + activation + standardized convolution.
 
     Parameters
     ----------
@@ -424,7 +428,7 @@ def down_res_block_ag(
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
-    AlphaGenome encoder block: two residual convolution blocks, the first increasing the channels to `filters`.
+    Encoder block from AlphaGenome: two residual convolution blocks, the first increasing the channels to `filters`.
 
     The residual of the first block is the input, zero-padded to `filters` channels. Pooling happens outside the block.
 
@@ -459,7 +463,7 @@ def up_res_block_ag(
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
-    AlphaGenome decoder block: residual convolution, 2x upsampling and addition of the U-Net skip connection.
+    Decoder block from AlphaGenome: residual convolution, 2x upsampling and addition of the U-Net skip connection.
 
     The output has the channels and (doubled) resolution of the skip connection.
 
@@ -501,7 +505,7 @@ def mha_block_ag(
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
-    AlphaGenome residual attention block: normalization + multi-query attention + normalization.
+    Residual attention block from AlphaGenome: normalization + multi-query attention + normalization.
 
     Parameters
     ----------
@@ -542,7 +546,7 @@ def mlp_block_ag(
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
-    AlphaGenome residual feed-forward block: normalization + dense + activation + dense + normalization.
+    Residual feed-forward block from AlphaGenome: normalization + dense + activation + dense + normalization.
 
     Parameters
     ----------
@@ -581,7 +585,7 @@ def pair_update_block_ag(
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
-    AlphaGenome pair update block: update the pair representation from the sequence representation.
+    Pair update block from AlphaGenome: update the pair representation from the sequence representation.
 
     The sequence is average pooled and turned into a pair representation (see :class:`SequenceToPair`), added to
     the existing pair representation (if any), followed by residual row attention and a residual feed-forward block.
@@ -635,7 +639,7 @@ def attention_bias_block_ag(
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
-    AlphaGenome attention bias block: project the pair representation to one attention logit bias per head.
+    Attention bias block from AlphaGenome: project the pair representation to one attention logit bias per head.
 
     Parameters
     ----------
