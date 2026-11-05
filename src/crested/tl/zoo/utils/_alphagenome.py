@@ -391,7 +391,7 @@ def conv_block_ag(
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
-    Convolution block from AlphaGenome: normalization + activation + standardized convolution.
+    Build an AlphaGenome convolution block: normalization + activation + standardized convolution.
 
     Parameters
     ----------
@@ -428,7 +428,7 @@ def down_res_block_ag(
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
-    Encoder block from AlphaGenome: two residual convolution blocks, the first increasing the channels to `filters`.
+    Build an AlphaGenome encoder block: two residual convolution blocks, the first increasing the channels to `filters`.
 
     The residual of the first block is the input, zero-padded to `filters` channels. Pooling happens outside the block.
 
@@ -463,7 +463,7 @@ def up_res_block_ag(
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
-    Decoder block from AlphaGenome: residual convolution, 2x upsampling and addition of the U-Net skip connection.
+    Build an AlphaGenome decoder block: residual convolution, 2x upsampling and addition of the U-Net skip connection.
 
     The output has the channels and (doubled) resolution of the skip connection.
 
@@ -505,7 +505,7 @@ def mha_block_ag(
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
-    Residual attention block from AlphaGenome: normalization + multi-query attention + normalization.
+    Build an AlphaGenome residual attention block: normalization + multi-query attention + normalization.
 
     Parameters
     ----------
@@ -546,7 +546,7 @@ def mlp_block_ag(
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
-    Residual feed-forward block from AlphaGenome: normalization + dense + activation + dense + normalization.
+    Build an AlphaGenome residual feed-forward block: normalization + dense + activation + dense + normalization.
 
     Parameters
     ----------
@@ -585,7 +585,7 @@ def pair_update_block_ag(
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
-    Pair update block from AlphaGenome: update the pair representation from the sequence representation.
+    Build an AlphaGenome pair update block: update the pair representation from the sequence representation.
 
     The sequence is average pooled and turned into a pair representation (see :class:`SequenceToPair`), added to
     the existing pair representation (if any), followed by residual row attention and a residual feed-forward block.
@@ -639,7 +639,7 @@ def attention_bias_block_ag(
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
-    Attention bias block from AlphaGenome: project the pair representation to one attention logit bias per head.
+    Build an AlphaGenome attention bias block: project the pair representation to one attention logit bias per head.
 
     Parameters
     ----------
