@@ -59,7 +59,7 @@ def test_zoo_model_save_load(factory, kwargs, tmp_path):
     ],
 )
 def test_normalize(normalization, layer_type, kwargs):
-    """normalize should apply the normalization layer picked by name, passing on the keyword arguments."""
+    """Test that normalize applies the normalization layer picked by name, passing on the keyword arguments."""
     inputs = keras.Input((10, 8))
     model = keras.Model(inputs, normalize(inputs, normalization, name="norm", **kwargs))
     layer = model.get_layer("norm")
@@ -70,7 +70,7 @@ def test_normalize(normalization, layer_type, kwargs):
 
 @pytest.mark.parametrize("normalization", ["none", None])
 def test_normalize_none(normalization):
-    """normalize with 'none' or None should return the input unchanged."""
+    """Test that normalize with 'none' or None returns the input unchanged."""
     inputs = keras.Input((10, 8))
     assert normalize(inputs, normalization) is inputs
 
