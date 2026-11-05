@@ -89,6 +89,58 @@ class DropPath(keras.layers.Layer):
         return config
 
 
+@keras.saving.register_keras_serializable(package="crested", name="RMSBatchNormalization")
+class RMSBatchNormalization(keras.layers.Layer):
+    """
+    Batch normalization without centering, as used in AlphaGenome.
+
+    Scales the inputs by the root mean square of each channel over all other axes (batch and positions):
+    `x * gamma / sqrt(mean(x**2) + epsilon) + beta`. During training, the batch statistics are used and tracked
+    in a moving average, which is used at inference (like :class:`keras.layers.BatchNormalization`).
+
+    Parameters
+    ----------
+    momentum
+        Momentum of the moving average of the mean square.
+    epsilon
+        Small constant added to the mean square.
+    """
+
+    def __init__(self, momentum: float = 0.9, epsilon: float = 1e-5, **kwargs):
+        """Initialize the RMSBatchNormalization layer."""
+        super().__init__(**kwargs)
+        self.momentum = momentum
+        self.epsilon = epsilon
+
+    def build(self, input_shape):
+        """Create the scale (gamma), offset (beta) and moving mean square (moving_variance) per channel."""
+        shape = (input_shape[-1],)
+        self.gamma = self.add_weight(shape=shape, initializer="ones", name="gamma")
+        self.beta = self.add_weight(shape=shape, initializer="zeros", name="beta")
+        self.moving_variance = self.add_weight(
+            shape=shape, initializer="ones", name="moving_variance", trainable=False, autocast=False
+        )
+
+    def call(self, inputs, training=None):
+        """Normalize the inputs, by batch statistics in training and by the moving average otherwise."""
+        if training:
+            axes = tuple(range(len(inputs.shape) - 1))
+            variance = keras.ops.stop_gradient(
+                keras.ops.mean(keras.ops.square(keras.ops.cast(inputs, "float32")), axis=axes)
+            )
+            self.moving_variance.assign(self.momentum * self.moving_variance + (1 - self.momentum) * variance)
+        else:
+            variance = self.moving_variance
+        inv = self.gamma * keras.ops.cast(keras.ops.rsqrt(variance + self.epsilon), self.compute_dtype)
+        return inputs * inv + self.beta
+
+    def get_config(self):
+        """Get the config for this layer."""
+        config = super().get_config()
+        config.update({"momentum": self.momentum, "epsilon": self.epsilon})
+        return config
+
+
 def dense_block(
     inputs: keras.KerasTensor,
     units: int,
@@ -380,7 +432,8 @@ def normalize(
     current
         Input tensor.
     normalization
-        Type of normalization: 'batch', 'layer', 'rms', 'group', 'unit', or 'none'/None for no normalization.
+        Type of normalization: 'batch', 'layer', 'rms', 'group', 'unit', 'rms_batch' (:class:`RMSBatchNormalization`),
+        or 'none'/None for no normalization.
     verbose
         Print verbose information (default is False).
     name
@@ -404,6 +457,7 @@ def normalize(
         "rms": keras.layers.RMSNormalization,
         "group": keras.layers.GroupNormalization,
         "unit": keras.layers.UnitNormalization,
+        "rms_batch": RMSBatchNormalization,
     }
     if normalization == "none":
         return current

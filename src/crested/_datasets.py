@@ -106,6 +106,26 @@ def _get_dataset_index():
                 "models/cerberus_mouse_fold5.tar.gz": "sha256:5f32c8fd0689bae5acc362b4728b7d5e0dffdfb30ff1df3699e418545d98b2b0",
                 "models/cerberus_mouse_fold6.tar.gz": "sha256:185afcb91cfbfc58e3339e39c653beb04d7347489114047e8aac6e34fbec3019",
                 "models/cerberus_mouse_fold7.tar.gz": "sha256:62e0f92abfb125bf2eec1262af73c6a30762c2c924957c21f617d79ee67031cb",
+                "models/alphagenome_human_full_all_folds.tar.gz": "sha256:48c940f39ae6ba15e2d76161f0231a3ff3c76dac7a9e8a491fead5d6cc483cb7",
+                "models/alphagenome_human_full_fold0.tar.gz": "sha256:19148794408b3a88f7c516092b775445585a69053c54ee67bc67fc295305f2c9",
+                "models/alphagenome_human_full_fold1.tar.gz": "sha256:c00cbab94895f234bbfba7f1b2ba508f273e66e8263aba5b25a65dbd89a7f050",
+                "models/alphagenome_human_full_fold2.tar.gz": "sha256:80bfcf42f1fb176b6d69bb974df539e35fded9736fbadd20d13ef66c51e95b43",
+                "models/alphagenome_human_full_fold3.tar.gz": "sha256:28c20cd2f401f911b4cf36269fe47c05de2f55ae4fe1c618098746993129705f",
+                "models/alphagenome_human_tracks_all_folds.tar.gz": "sha256:81233e328e012d2c8069a5cb9dd069b36e0a7308e85ef9e418a7cf1d396020fb",
+                "models/alphagenome_human_tracks_fold0.tar.gz": "sha256:a910cab62af095be0f4f81ea3cfc058adf908cf25916e13f796ebff391b7b5dd",
+                "models/alphagenome_human_tracks_fold1.tar.gz": "sha256:dce5f306cfdafe1b3a603ad112ec639eeb94e41ac988a4de8c08431f011d1f22",
+                "models/alphagenome_human_tracks_fold2.tar.gz": "sha256:ab9ab9a2ff6f55fbf7d127ba5a18dca6987ae193d11bb66f61a197314573f7fa",
+                "models/alphagenome_human_tracks_fold3.tar.gz": "sha256:fd983a76313ea842038904a14f1209946847d54fb9cd3982e72457ec797b138e",
+                "models/alphagenome_mouse_full_all_folds.tar.gz": "sha256:c1c68e8743c0aee310ed314e5641e3974d8503a1ab3a13333890d5ccee5e49f9",
+                "models/alphagenome_mouse_full_fold0.tar.gz": "sha256:3cb4f0c0c35fb12f3581801a8900ab4fdb054960f5bbe1ed93404e4bb5a99620",
+                "models/alphagenome_mouse_full_fold1.tar.gz": "sha256:5b7477047c944ef6c5db3ff9184746cb3caf40fbb72684fedac1e874da72a0b7",
+                "models/alphagenome_mouse_full_fold2.tar.gz": "sha256:ca78ad77b75d70648c7cd7d1f49de1150d28e280c8e12b706b35acb6e40b390c",
+                "models/alphagenome_mouse_full_fold3.tar.gz": "sha256:2d04f650f4d57c488d498bec0d1b86cebe48ac7e7d80e21de9fba506f595925e",
+                "models/alphagenome_mouse_tracks_all_folds.tar.gz": "sha256:72aedf66dcbebbd56a8df28e41a36ea1d14f5656122391881e680df8f64ff5b7",
+                "models/alphagenome_mouse_tracks_fold0.tar.gz": "sha256:d0e3902ac00979b9f0b0d75a67af54a791b0f85f67bf5bcfa85aa2b17a5c021d",
+                "models/alphagenome_mouse_tracks_fold1.tar.gz": "sha256:db75d820afe5e594af2f825e78b6573713b0d02a6f5677c83ee3357cca8d8a7f",
+                "models/alphagenome_mouse_tracks_fold2.tar.gz": "sha256:6f9035c3d3106f58da87c5bcbaf0b775d4ea345cd08d594e56d58b0bf4978bf5",
+                "models/alphagenome_mouse_tracks_fold3.tar.gz": "sha256:384156bfc33f217f44134b111aa8058a476486855e18222256f86f49a03189a3",
                 # HyDrop models
                 "models/embryo_10x.tar.gz": "sha256:3de62e6913ea491ebdad4bc2ef4e9f404250531093b29e67b5a1fa907f5cf41b",
                 "models/embryo_hydrop.tar.gz": "sha256:9036ef2f18ab894016c8adcd3bba5f1985b74bd2432f4e9b07e6128e43833636",
@@ -264,6 +284,10 @@ def get_model(model: str) -> tuple[str, list[str]]:
           - 'BorzoiPrime_mouse_rep[0-3]' (and alias 'BorzoiPrime_mouse' for rep0)
           - 'Cerberus_human_fold[0-7]' (and alias 'Cerberus_human' for fold0)
           - 'Cerberus_mouse_fold[0-7]' (and alias 'Cerberus_mouse' for fold0)
+          - 'AlphaGenome_human_full_all_folds', 'AlphaGenome_human_full_fold[0-3]' (and alias 'AlphaGenome_human_full' for all_folds)
+          - 'AlphaGenome_mouse_full_all_folds', 'AlphaGenome_mouse_full_fold[0-3]' (and alias 'AlphaGenome_mouse_full' for all_folds)
+          - 'AlphaGenome_human_all_folds', 'AlphaGenome_human_fold[0-3]' (and alias 'AlphaGenome_human' for all_folds)
+          - 'AlphaGenome_mouse_all_folds', 'AlphaGenome_mouse_fold[0-3]' (and alias 'AlphaGenome_mouse' for all_folds)
           - 'ASAP'
           - 'ASAP_CC' (older version of 'ASAP')
           - 'ASAP_SN' (older version of 'ASAP')
@@ -347,6 +371,30 @@ def get_model(model: str) -> tuple[str, list[str]]:
         "cerberus_mouse_fold5": ("models/cerberus_mouse_fold5.tar.gz"),
         "cerberus_mouse_fold6": ("models/cerberus_mouse_fold6.tar.gz"),
         "cerberus_mouse_fold7": ("models/cerberus_mouse_fold7.tar.gz"),
+        "alphagenome_human_full": ("models/alphagenome_human_full_all_folds.tar.gz"),
+        "alphagenome_human_full_all_folds": ("models/alphagenome_human_full_all_folds.tar.gz"),
+        "alphagenome_human_full_fold0": ("models/alphagenome_human_full_fold0.tar.gz"),
+        "alphagenome_human_full_fold1": ("models/alphagenome_human_full_fold1.tar.gz"),
+        "alphagenome_human_full_fold2": ("models/alphagenome_human_full_fold2.tar.gz"),
+        "alphagenome_human_full_fold3": ("models/alphagenome_human_full_fold3.tar.gz"),
+        "alphagenome_human": ("models/alphagenome_human_tracks_all_folds.tar.gz"),
+        "alphagenome_human_all_folds": ("models/alphagenome_human_tracks_all_folds.tar.gz"),
+        "alphagenome_human_fold0": ("models/alphagenome_human_tracks_fold0.tar.gz"),
+        "alphagenome_human_fold1": ("models/alphagenome_human_tracks_fold1.tar.gz"),
+        "alphagenome_human_fold2": ("models/alphagenome_human_tracks_fold2.tar.gz"),
+        "alphagenome_human_fold3": ("models/alphagenome_human_tracks_fold3.tar.gz"),
+        "alphagenome_mouse_full": ("models/alphagenome_mouse_full_all_folds.tar.gz"),
+        "alphagenome_mouse_full_all_folds": ("models/alphagenome_mouse_full_all_folds.tar.gz"),
+        "alphagenome_mouse_full_fold0": ("models/alphagenome_mouse_full_fold0.tar.gz"),
+        "alphagenome_mouse_full_fold1": ("models/alphagenome_mouse_full_fold1.tar.gz"),
+        "alphagenome_mouse_full_fold2": ("models/alphagenome_mouse_full_fold2.tar.gz"),
+        "alphagenome_mouse_full_fold3": ("models/alphagenome_mouse_full_fold3.tar.gz"),
+        "alphagenome_mouse": ("models/alphagenome_mouse_tracks_all_folds.tar.gz"),
+        "alphagenome_mouse_all_folds": ("models/alphagenome_mouse_tracks_all_folds.tar.gz"),
+        "alphagenome_mouse_fold0": ("models/alphagenome_mouse_tracks_fold0.tar.gz"),
+        "alphagenome_mouse_fold1": ("models/alphagenome_mouse_tracks_fold1.tar.gz"),
+        "alphagenome_mouse_fold2": ("models/alphagenome_mouse_tracks_fold2.tar.gz"),
+        "alphagenome_mouse_fold3": ("models/alphagenome_mouse_tracks_fold3.tar.gz"),
         "asap": ("models/asap.tar.gz"),
         "asap_cc": ("models/asap_cc.tar.gz"),
         "asap_sn": ("models/asap_sn.tar.gz"),
