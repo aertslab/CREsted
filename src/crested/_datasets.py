@@ -90,6 +90,22 @@ def _get_dataset_index():
                 "models/borzoiprime_mouse_rep1.tar.gz": "sha256:43b93701571210f61c09ae9b8ba89dc7e398262fe7deb5c740b330bac15ce0d8",
                 "models/borzoiprime_mouse_rep2.tar.gz": "sha256:9c14e38a1d54612ca0d6e7709609fefa5c770357fc7177941b2da5169b50a49d",
                 "models/borzoiprime_mouse_rep3.tar.gz": "sha256:a87f527226e4773cfca8a8804fdd1bd2210001cdce39baaa17b79b996903e6fa",
+                "models/cerberus_human_fold0.tar.gz": "sha256:4398e5bb6da4005e13a981c088a3d17d1b725d484bb70d0ba6ad85540fba6652",
+                "models/cerberus_human_fold1.tar.gz": "sha256:8ebcd83e44ca40f38b4a31987d698859ce21bd0371a8f7d47423e35d606939be",
+                "models/cerberus_human_fold2.tar.gz": "sha256:50e5d18a3241ac638a7d84d96890dab36e53eaf815202ddd2e53a940f42a6d04",
+                "models/cerberus_human_fold3.tar.gz": "sha256:e93ecb8ad75c0b7d5ddb4086068ecab1810a6cd0745e2cfd04cc69901e3c6add",
+                "models/cerberus_human_fold4.tar.gz": "sha256:d825d8f272111371a8172cbb909779e22d32c773c4ec509e35cdf5a2371f31bf",
+                "models/cerberus_human_fold5.tar.gz": "sha256:89183dbdea93ca47899bcefad8b6d3703cdb96c79050c39ba23227ac966419a3",
+                "models/cerberus_human_fold6.tar.gz": "sha256:f24281bfd490bac668b85f4dbff9645ab4b047ffb40a5e02f7824010430f5371",
+                "models/cerberus_human_fold7.tar.gz": "sha256:d2cc5d32371bf75543b11269bb3a0aeeb0b6002855da035f2b865093d322184b",
+                "models/cerberus_mouse_fold0.tar.gz": "sha256:27ac9b6b2952343f8faa2375e0ee7836880ea444a23f4a0c1d68f0689d7e53d8",
+                "models/cerberus_mouse_fold1.tar.gz": "sha256:06d654f8b95e8cd90d728e32d01c84478dd6c57cc0155c48715e24b35f4783fd",
+                "models/cerberus_mouse_fold2.tar.gz": "sha256:f060de19e627ba912946c54131534036f4a837f44c3c447130702cb43ec90e4e",
+                "models/cerberus_mouse_fold3.tar.gz": "sha256:82dad40bff8f42bae30e4d691b02df76cac817c669734231834c78386516bd91",
+                "models/cerberus_mouse_fold4.tar.gz": "sha256:56b04759a5f54854e99a3a6092b92611761a66a94de945292051ea5e06f5fc82",
+                "models/cerberus_mouse_fold5.tar.gz": "sha256:5f32c8fd0689bae5acc362b4728b7d5e0dffdfb30ff1df3699e418545d98b2b0",
+                "models/cerberus_mouse_fold6.tar.gz": "sha256:185afcb91cfbfc58e3339e39c653beb04d7347489114047e8aac6e34fbec3019",
+                "models/cerberus_mouse_fold7.tar.gz": "sha256:62e0f92abfb125bf2eec1262af73c6a30762c2c924957c21f617d79ee67031cb",
                 # HyDrop models
                 "models/embryo_10x.tar.gz": "sha256:3de62e6913ea491ebdad4bc2ef4e9f404250531093b29e67b5a1fa907f5cf41b",
                 "models/embryo_hydrop.tar.gz": "sha256:9036ef2f18ab894016c8adcd3bba5f1985b74bd2432f4e9b07e6128e43833636",
@@ -246,6 +262,8 @@ def get_model(model: str) -> tuple[str, list[str]]:
           - 'MouseCortexHydrop'
           - 'BorzoiPrime_human_rep[0-3]' (and alias 'BorzoiPrime_human' for rep0)
           - 'BorzoiPrime_mouse_rep[0-3]' (and alias 'BorzoiPrime_mouse' for rep0)
+          - 'Cerberus_human_fold[0-7]' (and alias 'Cerberus_human' for fold0)
+          - 'Cerberus_mouse_fold[0-7]' (and alias 'Cerberus_mouse' for fold0)
           - 'ASAP'
           - 'ASAP_CC' (older version of 'ASAP')
           - 'ASAP_SN' (older version of 'ASAP')
@@ -311,6 +329,24 @@ def get_model(model: str) -> tuple[str, list[str]]:
         "borzoiprime_mouse_rep1": ("models/borzoiprime_mouse_rep1.tar.gz"),
         "borzoiprime_mouse_rep2": ("models/borzoiprime_mouse_rep2.tar.gz"),
         "borzoiprime_mouse_rep3": ("models/borzoiprime_mouse_rep3.tar.gz"),
+        "cerberus_human": ("models/cerberus_human_fold0.tar.gz"),
+        "cerberus_human_fold0": ("models/cerberus_human_fold0.tar.gz"),
+        "cerberus_human_fold1": ("models/cerberus_human_fold1.tar.gz"),
+        "cerberus_human_fold2": ("models/cerberus_human_fold2.tar.gz"),
+        "cerberus_human_fold3": ("models/cerberus_human_fold3.tar.gz"),
+        "cerberus_human_fold4": ("models/cerberus_human_fold4.tar.gz"),
+        "cerberus_human_fold5": ("models/cerberus_human_fold5.tar.gz"),
+        "cerberus_human_fold6": ("models/cerberus_human_fold6.tar.gz"),
+        "cerberus_human_fold7": ("models/cerberus_human_fold7.tar.gz"),
+        "cerberus_mouse": ("models/cerberus_mouse_fold0.tar.gz"),
+        "cerberus_mouse_fold0": ("models/cerberus_mouse_fold0.tar.gz"),
+        "cerberus_mouse_fold1": ("models/cerberus_mouse_fold1.tar.gz"),
+        "cerberus_mouse_fold2": ("models/cerberus_mouse_fold2.tar.gz"),
+        "cerberus_mouse_fold3": ("models/cerberus_mouse_fold3.tar.gz"),
+        "cerberus_mouse_fold4": ("models/cerberus_mouse_fold4.tar.gz"),
+        "cerberus_mouse_fold5": ("models/cerberus_mouse_fold5.tar.gz"),
+        "cerberus_mouse_fold6": ("models/cerberus_mouse_fold6.tar.gz"),
+        "cerberus_mouse_fold7": ("models/cerberus_mouse_fold7.tar.gz"),
         "asap": ("models/asap.tar.gz"),
         "asap_cc": ("models/asap_cc.tar.gz"),
         "asap_sn": ("models/asap_sn.tar.gz"),

@@ -5,6 +5,7 @@
 
 borzoi
 borzoiprime
+cerberus
 enformer
 
 ```

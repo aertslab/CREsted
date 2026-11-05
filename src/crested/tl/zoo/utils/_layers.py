@@ -2,10 +2,91 @@
 
 from __future__ import annotations
 
+import functools
+import inspect
+
 import keras
 import numpy as np
 
 from ._attention import AttentionPool1D, MultiheadAttention
+
+
+def _batchnorm_tuple_axes():
+    """
+    Make keras BatchNormalization store its reduction axes as a tuple, on the torch backend.
+
+    Keras (3.15 at least) stores them as a list, which layer tracking wraps in a TrackedList that torch.compile can't
+    trace. That breaks the graph in every BatchNormalization call, so `jit_compile=True` models with batchnorm (e.g. the
+    Cerberus conv tower) mostly run eagerly. Fixed upstream in keras-team/keras#24083 (open as of 2026-11): this is a
+    no-op once that is released, and can be removed then. It doesn't change the layer's class or config, so saved
+    models are unaffected.
+    """
+    build = keras.layers.BatchNormalization.build
+    if getattr(build, "_crested_tuple_axes", False):
+        return
+
+    @functools.wraps(build)
+    def tuple_axes_build(self, input_shape):
+        build(self, input_shape)
+        if isinstance(self._reduction_axes, list):
+            object.__setattr__(self, "_reduction_axes", tuple(self._reduction_axes))  # bypass keras tracking
+
+    tuple_axes_build._crested_tuple_axes = True
+    keras.layers.BatchNormalization.build = tuple_axes_build
+
+
+if keras.config.backend() == "torch":
+    _batchnorm_tuple_axes()
+
+
+@keras.saving.register_keras_serializable(package="crested", name="DropPath")
+class DropPath(keras.layers.Layer):
+    """
+    Drop path (stochastic depth): zero the whole input of a sample with probability `rate`, and scale kept samples by 1/(1-rate).
+
+    Meant for the residual branch of a block. Same as `keras.layers.Dropout(rate, noise_shape=(None, 1, ..., 1))`,
+    but draws the per-sample mask with regular dropout on a (batch, 1, ..., 1) tensor, which (unseeded) compiles without
+    graph breaks on the torch backend.
+
+    Parameters
+    ----------
+    rate
+        Probability of dropping a sample.
+    seed
+        Random seed.
+    **kwargs
+        Extra arguments passed to keras.layers.Layer.
+    """
+
+    def __init__(self, rate: float, seed: int | None = None, **kwargs):
+        """Initialize the DropPath layer."""
+        super().__init__(**kwargs)
+        if not 0 <= rate <= 1:
+            raise ValueError(f"rate should be between 0 and 1, got {rate}.")
+        self.rate = rate
+        self.seed = seed
+        if rate > 0:
+            self.seed_generator = keras.random.SeedGenerator(seed)
+        self.supports_masking = True
+        self._build_at_init()
+
+    def call(self, inputs, training=False):
+        """Drop samples during training."""
+        if not training or self.rate == 0:
+            return inputs
+        shape = (keras.ops.shape(inputs)[0],) + (1,) * (len(inputs.shape) - 1)
+        mask = keras.random.dropout(keras.ops.ones(shape, dtype=inputs.dtype), self.rate, seed=self.seed_generator)
+        return inputs * mask
+
+    def compute_output_shape(self, input_shape):
+        """Output shape is the input shape."""
+        return input_shape
+
+    def get_config(self):
+        """Get the config for this layer."""
+        config = super().get_config()
+        config.update({"rate": self.rate, "seed": self.seed})
+        return config
 
 
 def dense_block(
@@ -40,7 +121,7 @@ def dense_block(
     bn_momentum
         Batch normalization momentum (default is 0.90).
     normalization
-        Type of normalization ('batch' or 'layer').
+        Type of normalization ('batch', 'layer', 'rms', 'group', 'unit' or 'none'). See :func:`normalize`.
     name_prefix
         Prefix for layer names.
     use_bias
@@ -60,13 +141,15 @@ def dense_block(
     )(inputs)
 
     if normalization == "batch":
-        x = keras.layers.BatchNormalization(
+        x = normalize(
+            x,
+            normalization,
             momentum=bn_momentum,
             gamma_initializer=bn_gamma,
             name=name_prefix + "_batchnorm" if name_prefix else None,
-        )(x)
-    elif normalization == "layer":
-        x = keras.layers.LayerNormalization(name=name_prefix + "_layernorm" if name_prefix else None)(x)
+        )
+    else:
+        x = normalize(x, normalization, name=f"{name_prefix}_{normalization}norm" if name_prefix else None)
 
     x = activate(x, activation, name=name_prefix + "_activation" if name_prefix else None)
     x = keras.layers.Dropout(dropout, name=name_prefix + "_dropout" if name_prefix else None)(x)
@@ -87,6 +170,7 @@ def conv_block(
     pool_padding: str | None = None,
     l2: float = 1e-5,
     batchnorm_momentum: float = 0.99,
+    pool_type: str = "max",
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
@@ -109,7 +193,7 @@ def conv_block(
     dropout
         Dropout rate (default is 0.1).
     normalization
-        Type of normalization ('batch' or 'layer').
+        Type of normalization ('batch', 'layer', 'rms', 'group', 'unit' or 'none'). See :func:`normalize`.
     res
         Whether to use residual connections (default is False).
     padding
@@ -120,6 +204,8 @@ def conv_block(
         L2 regularization weight (default is 1e-5).
     batchnorm_momentum
         Batch normalization momentum (default is 0.99).
+    pool_type
+        Pooling type ('max', 'attention' or 'average'). See :func:`pool`.
     name_prefix
         Prefix for layer names.
 
@@ -139,12 +225,14 @@ def conv_block(
         name=name_prefix + "_conv" if name_prefix else None,
     )(inputs)
     if normalization == "batch":
-        x = keras.layers.BatchNormalization(
+        x = normalize(
+            x,
+            normalization,
             momentum=batchnorm_momentum,
             name=name_prefix + "_batchnorm" if name_prefix else None,
-        )(x)
-    elif normalization == "layer":
-        x = keras.layers.LayerNormalization(name=name_prefix + "_layernorm" if name_prefix else None)(x)
+        )
+    else:
+        x = normalize(x, normalization, name=f"{name_prefix}_{normalization}norm" if name_prefix else None)
     x = activate(x, activation, name=name_prefix + "_activation" if name_prefix else None)
     if res:
         if filters != residual.shape[2]:
@@ -157,11 +245,13 @@ def conv_block(
         x = keras.layers.Add()([x, residual])
 
     if pool_size > 1:
-        x = keras.layers.MaxPooling1D(
+        x = pool(
+            x,
+            pool_type,
             pool_size=pool_size,
             padding=pool_padding if pool_padding is not None else padding,
             name=name_prefix + "_pool" if name_prefix else None,
-        )(x)
+        )
     if dropout > 0:
         x = keras.layers.Dropout(dropout, name=name_prefix + "_dropout" if name_prefix else None)(x)
 
@@ -210,7 +300,8 @@ def activate(current: keras.KerasTensor, activation: str, verbose: bool = False,
     elif activation == "gelu_enf":
         current = keras.layers.Activation(gelu_enf, name=name)(current)
     else:
-        raise ValueError(f'Unrecognized activation "{activation}"')
+        # Any other activation name known to Keras (raises ValueError if unknown)
+        current = keras.layers.Activation(activation, name=name)(current)
 
     return current
 
@@ -234,37 +325,94 @@ def pool(
     padding="same",
     verbose: bool = False,
     name=None,
+    **kwargs,
 ) -> keras.KerasTensor:
     """
-    Apply activation function to a tensor.
+    Apply a pooling layer to a tensor.
 
     Parameters
     ----------
     current
         Input tensor.
     pool_type
-        Pooling function to apply.
+        Pooling function to apply: 'max', 'attention' or 'average'.
+    pool_size
+        Size of the pooling window.
+    padding
+        Padding type.
     verbose
         Print verbose information (default is False).
     name
-        Name to use in the activation layer. Default is None (no name).
+        Name to use in the pooling layer. Default is None (no name).
+    **kwargs
+        Extra arguments passed to the pooling layer (e.g. `strides`).
 
     Returns
     -------
-    Output tensor after applying activation.
+    Output tensor after applying pooling.
     """
     if verbose:
         print("pool:", pool_type)
 
     if pool_type == "max":
-        current = keras.layers.MaxPooling1D(pool_size=pool_size, padding=padding, name=name)(current)
+        current = keras.layers.MaxPooling1D(pool_size=pool_size, padding=padding, name=name, **kwargs)(current)
     elif pool_type == "attention":
-        current = AttentionPool1D(pool_size=2, padding=padding, name=name)(current)
+        current = AttentionPool1D(pool_size=pool_size, padding=padding, name=name, **kwargs)(current)
     elif pool_type == "average":
-        current = keras.layers.AveragePooling1D(pool_size=2, padding=padding, name=name)(current)
+        current = keras.layers.AveragePooling1D(pool_size=pool_size, padding=padding, name=name, **kwargs)(current)
     else:
         raise ValueError(f'Unrecognized pooling type "{pool_type}"')
     return current
+
+
+def normalize(
+    current: keras.KerasTensor,
+    normalization: str | None,
+    verbose: bool = False,
+    name: str | None = None,
+    **kwargs,
+) -> keras.KerasTensor:
+    """
+    Apply a normalization layer to a tensor.
+
+    Parameters
+    ----------
+    current
+        Input tensor.
+    normalization
+        Type of normalization: 'batch', 'layer', 'rms', 'group', 'unit', or 'none'/None for no normalization.
+    verbose
+        Print verbose information (default is False).
+    name
+        Name to use in the normalization layer. Default is None (no name).
+    **kwargs
+        Extra arguments passed to the normalization layer.
+        Arguments the chosen layer does not accept (e.g. `momentum` for layer normalization) are ignored,
+        so that blocks can pass their batchnorm settings regardless of the normalization type.
+
+    Returns
+    -------
+    Output tensor after applying normalization.
+    """
+    normalization = "none" if normalization is None else normalization.lower()
+    if verbose:
+        print("normalize:", normalization)
+
+    norm_layers = {
+        "batch": keras.layers.BatchNormalization,
+        "layer": keras.layers.LayerNormalization,
+        "rms": keras.layers.RMSNormalization,
+        "group": keras.layers.GroupNormalization,
+        "unit": keras.layers.UnitNormalization,
+    }
+    if normalization == "none":
+        return current
+    if normalization not in norm_layers:
+        raise ValueError(f'Unrecognized normalization "{normalization}"')
+    norm_layer = norm_layers[normalization]
+    accepted = inspect.signature(norm_layer.__init__).parameters
+    kwargs = {k: v for k, v in kwargs.items() if k in accepted}
+    return norm_layer(name=name, **kwargs)(current)
 
 
 def get_output(input_layer, hidden_layers):
@@ -312,6 +460,7 @@ def conv_block_bs(
     bn_epsilon: float = 1e-5,
     kernel_initializer: str = "he_normal",
     padding: str = "same",
+    normalization: str = "batch",
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
@@ -331,7 +480,7 @@ def conv_block_bs(
     pool_size
         Max pool width.
     batch_norm
-        Apply batch normalization.
+        Apply normalization (of type `normalization`).
     activation
         Activation function.
     activation_end
@@ -353,7 +502,7 @@ def conv_block_bs(
         Whether to use a bias in the convolution layer.
         Should be True for Enformer/Borzoi and (maybe) False for Borzoi?
     pool_type
-        Pooling type. Either 'max' or 'attention'.
+        Pooling type ('max', 'attention' or 'average'). See :func:`pool`.
     bn_momentum
         BatchNorm momentum.
     bn_gamma
@@ -366,6 +515,9 @@ def conv_block_bs(
         Convolution kernel initializer.
     padding
         Padding type.
+    normalization
+        Type of normalization applied if `batch_norm` is True. See :func:`normalize`.
+        The bn_* arguments are passed on where the normalization layer accepts them.
     name_prefix
         Prefix for layer names.
 
@@ -384,17 +536,19 @@ def conv_block_bs(
     if filters is None:
         filters = inputs.shape[-1]
 
-    # batch norm
+    # normalization
     if batch_norm:
         if bn_gamma is None:
             bn_gamma = "zeros" if residual else "ones"
-        current = keras.layers.BatchNormalization(
+        current = normalize(
+            current,
+            normalization,
             momentum=bn_momentum,
             epsilon=bn_epsilon,
             gamma_initializer=bn_gamma,
             synchronized=bn_sync,
-            name=name_prefix + "_batchnorm" if name_prefix else None,
-        )(current)
+            name=f"{name_prefix}_{normalization}norm" if name_prefix else None,
+        )
 
     # activation
     current = activate(current, activation, name=name_prefix + "_activation" if name_prefix else None)
@@ -457,6 +611,7 @@ def mha_block_enf(
     residual: bool = True,
     ln_epsilon: float = 1e-5,
     absolute_positions: bool = False,
+    normalization: str = "layer",
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
@@ -499,6 +654,8 @@ def mha_block_enf(
         Epsilon to use in the layer normalisation layer.
     absolute_positions
         Whether to use absolute position encoding rather than relative. Default is False.
+    normalization
+        Type of normalization before the MHA (default is 'layer'). See :func:`normalize`.
     name_prefix
         Prefix for layer names.
 
@@ -507,14 +664,16 @@ def mha_block_enf(
     Output tensor after applying the MHA block.
     """
     # MHA block
-    current = keras.layers.LayerNormalization(
+    current = normalize(
+        inputs,
+        normalization,
         epsilon=ln_epsilon,
         center=True,
         scale=True,
         beta_initializer="zeros",
         gamma_initializer="ones",
-        name=f"{name_prefix}_layernorm",
-    )(inputs)
+        name=f"{name_prefix}_{normalization}norm",
+    )
     current = MultiheadAttention(
         value_size=value_dim,
         key_size=key_query_dim,
@@ -546,6 +705,7 @@ def ffn_block_enf(
     activation: str = "relu",
     residual: bool = True,
     ln_epsilon: float = 1e-5,
+    normalization: str = "layer",
     name_prefix: str | None = None,
 ) -> keras.KerasTensor:
     """
@@ -567,6 +727,8 @@ def ffn_block_enf(
         Whether to wrap the entire block in residual structure.
     ln_epsilon
         Epsilon to use in the layer normalisation layer.
+    normalization
+        Type of normalization at the start of the block (default is 'layer'). See :func:`normalize`.
     name_prefix
         Prefix for layer names.
 
@@ -577,14 +739,16 @@ def ffn_block_enf(
     expansion_filters = int(expansion_rate * filters)
 
     # First half
-    current = keras.layers.LayerNormalization(
+    current = normalize(
+        inputs,
+        normalization,
         epsilon=ln_epsilon,
         center=True,
         scale=True,
         beta_initializer="zeros",
         gamma_initializer="ones",
-        name=f"{name_prefix}_layernorm",
-    )(inputs)
+        name=f"{name_prefix}_{normalization}norm",
+    )
     current = keras.layers.Conv1D(filters=expansion_filters, kernel_size=1, name=f"{name_prefix}_pointwise_1")(current)
     current = keras.layers.Dropout(rate=dropout, name=f"{name_prefix}_dropout_1")(current)
 
@@ -677,7 +841,13 @@ def dilated_residual(
     return current
 
 
-def legnet_se_block(inputs: keras.KerasTensor, units: int, reduction: int = 4, name: str | None = None):
+def legnet_se_block(
+    inputs: keras.KerasTensor,
+    units: int,
+    reduction: int = 4,
+    activation: str = "swish",
+    name: str | None = None,
+):
     """
     Squeeze-and-Excite block.
 
@@ -689,6 +859,8 @@ def legnet_se_block(inputs: keras.KerasTensor, units: int, reduction: int = 4, n
         Number of units (filters, dimensions) for the dense blocks.
     reduction
         Reduction parameter. The default is 4.
+    activation
+        Activation function between the two dense layers. The default is "swish".
     name : str, optional
         Name prefix for keras.layers.
 
@@ -702,11 +874,11 @@ def legnet_se_block(inputs: keras.KerasTensor, units: int, reduction: int = 4, n
     # Linear
     y = keras.layers.Dense(units // reduction, activation=None, name=f"{name}_fc1" if name else None)(y)
     # SiLU
-    y = keras.layers.Activation("swish", name=f"{name}_swish1" if name else None)(y)
+    y = activate(y, activation, name=f"{name}_swish1" if name else None)
     # Linear 2
     y = keras.layers.Dense(units, activation=None, name=f"{name}_fc2" if name else None)(y)
     # Sigmoid
-    y = keras.layers.Activation("sigmoid", name=f"{name}_sigmoid" if name else None)(y)
+    y = activate(y, "sigmoid", name=f"{name}_sigmoid" if name else None)
     # Multiplication
     output = keras.layers.Multiply(name=f"{name}_multiply" if name else None)([inputs, y])
     return output
@@ -719,6 +891,8 @@ def legnet_eff_block(
     resize_factor: int,
     activation: str = "swish",
     se_reduction: int | None = None,
+    se_activation: str = "swish",
+    normalization: str = "batch",
     name: str | None = None,
 ):
     """
@@ -738,6 +912,10 @@ def legnet_eff_block(
         Activation function.
     se_reduction
         SE layer reduction factor. If None, same as resize_factor.
+    se_activation
+        Activation function inside the squeeze-and-excite block.
+    normalization
+        Type of normalization. See :func:`normalize`.
     name
         Name prefix for keras.layers.
 
@@ -753,8 +931,8 @@ def legnet_eff_block(
     y = keras.layers.Conv1D(
         filters=inner_dim, kernel_size=1, padding="same", use_bias=False, name=f"{name}_expand_conv" if name else None
     )(inputs)
-    y = keras.layers.BatchNormalization(name=f"{name}_expand_bn" if name else None)(y)
-    y = keras.layers.Activation(activation, name=f"{name}_expand_act" if name else None)(y)
+    y = normalize(y, normalization, name=f"{name}_expand_bn" if name else None)
+    y = activate(y, activation, name=f"{name}_expand_act" if name else None)
 
     # Depthwise
     y = keras.layers.Conv1D(
@@ -765,17 +943,19 @@ def legnet_eff_block(
         use_bias=False,
         name=f"{name}_dw_conv" if name else None,
     )(y)
-    y = keras.layers.BatchNormalization(name=f"{name}_dw_bn" if name else None)(y)
-    y = keras.layers.Activation(activation, name=f"{name}_dw_act" if name else None)(y)
+    y = normalize(y, normalization, name=f"{name}_dw_bn" if name else None)
+    y = activate(y, activation, name=f"{name}_dw_act" if name else None)
 
     # Squeeze-and-Excite
-    y = legnet_se_block(y, inner_dim, reduction=se_reduction, name=f"{name}_se" if name else None)
+    y = legnet_se_block(
+        y, inner_dim, reduction=se_reduction, activation=se_activation, name=f"{name}_se" if name else None
+    )
 
     # Projection
     y = keras.layers.Conv1D(
         filters=filters, kernel_size=1, padding="same", use_bias=False, name=f"{name}_project_conv" if name else None
     )(y)
-    y = keras.layers.BatchNormalization(name=f"{name}_project_bn" if name else None)(y)
-    y = keras.layers.Activation(activation, name=f"{name}_project_act" if name else None)(y)
+    y = normalize(y, normalization, name=f"{name}_project_bn" if name else None)
+    y = activate(y, activation, name=f"{name}_project_act" if name else None)
 
     return y

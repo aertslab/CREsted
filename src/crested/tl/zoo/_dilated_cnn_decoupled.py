@@ -2,6 +2,8 @@
 
 import keras
 
+from crested.tl.zoo.utils import activate, normalize, pool
+
 
 def dilated_cnn_decoupled(
     seq_len: int,
@@ -21,6 +23,8 @@ def dilated_cnn_decoupled(
     dropout: float = 0.1,
     batch_norm: bool = True,
     dense_bias: bool = True,
+    normalization: str = "batch",
+    pool_type: str = "max",
 ) -> keras.Model:
     """
     Construct a CNN using dilated convolutions with a separate dense head per output class.
@@ -61,6 +65,11 @@ def dilated_cnn_decoupled(
         Whether or not to use batch normalization.
     dense_bias
         Whether or not to add a bias to the dense layer.
+    normalization
+        Type of normalization ('batch', 'layer', 'rms', 'group', 'unit' or 'none'). See :func:`crested.tl.zoo.utils.normalize`.
+        Always applied after the first convolution, and after the dilated convolutions if `batch_norm` is True.
+    pool_type
+        Type of pooling ('max', 'attention' or 'average'). See :func:`crested.tl.zoo.utils.pool`.
 
     Returns
     -------
@@ -80,10 +89,10 @@ def dilated_cnn_decoupled(
         kernel_regularizer=keras.regularizers.l2(first_conv_l2),
         use_bias=False,
     )(inputs)
-    x = keras.layers.BatchNormalization(momentum=0.9, gamma_initializer="ones")(x)
-    x = keras.layers.Activation(first_conv_activation)(x)
+    x = normalize(x, normalization, momentum=0.9, gamma_initializer="ones")
+    x = activate(x, first_conv_activation)
     if first_conv_pool_size > 1:
-        x = keras.layers.MaxPooling1D(pool_size=first_conv_pool_size, padding="same")(x)
+        x = pool(x, pool_type, pool_size=first_conv_pool_size, padding="same")
     x = keras.layers.Dropout(first_conv_dropout)(x)
 
     # Dilated convolutions
@@ -104,15 +113,17 @@ def dilated_cnn_decoupled(
             name=conv_layer_name,
         )(x)
         if batch_norm:
-            conv_x = keras.layers.BatchNormalization(
+            conv_x = normalize(
+                conv_x,
+                normalization,
                 momentum=0.9,
                 gamma_initializer="ones",
                 name=f"bpnet_{layer_names[i - 1]}bn",
-            )(conv_x)
+            )
         if activation != "none":
-            conv_x = keras.layers.Activation(
-                activation, name=f"bpnet_{layer_names[i - 1]}activation"
-            )(conv_x)
+            conv_x = activate(
+                conv_x, activation, name=f"bpnet_{layer_names[i - 1]}activation"
+            )
 
         x_len = keras.ops.shape(x)[1]
         conv_x_len = keras.ops.shape(conv_x)[1]

@@ -4,7 +4,7 @@ import pickle
 
 import keras
 
-from crested.tl.zoo.utils import get_output
+from crested.tl.zoo.utils import get_output, pool
 
 
 def deeptopic_lstm(
@@ -14,6 +14,7 @@ def deeptopic_lstm(
     first_kernel_size: int = 30,
     max_pool_size: int = 15,
     max_pool_stride: int = 5,
+    pool_type: str = "max",
     dense_out: int = 256,
     lstm_out: int = 128,
     first_activation: str = "relu",
@@ -42,6 +43,8 @@ def deeptopic_lstm(
         Size of the max pooling kernel.
     max_pool_stride
         Stride of the max pooling kernel.
+    pool_type
+        Type of pooling ('max', 'attention' or 'average'). See :func:`crested.tl.zoo.utils.pool`.
     dense_out
         Number of neurons in the dense layer.
     lstm_out
@@ -67,17 +70,18 @@ def deeptopic_lstm(
     """
     inputs = keras.layers.Input(shape=(seq_len, 4), name="sequence")
 
+    x = keras.layers.Convolution1D(
+        filters=filters,
+        kernel_size=first_kernel_size,
+        activation=first_activation,
+        padding="valid",
+        kernel_initializer="random_uniform",
+    )(inputs)
+    x = pool(
+        x, pool_type, pool_size=max_pool_size, strides=max_pool_stride, padding="valid"
+    )
+
     hidden_layers = [
-        keras.layers.Convolution1D(
-            filters=filters,
-            kernel_size=first_kernel_size,
-            activation=first_activation,
-            padding="valid",
-            kernel_initializer="random_uniform",
-        ),
-        keras.layers.MaxPooling1D(
-            pool_size=max_pool_size, strides=max_pool_stride, padding="valid"
-        ),
         keras.layers.Dropout(pre_dense_do),
         keras.layers.TimeDistributed(
             keras.layers.Dense(lstm_out, activation=activation)
@@ -97,7 +101,7 @@ def deeptopic_lstm(
         keras.layers.Dense(num_classes, activation=output_activation),
     ]
 
-    outputs = get_output(inputs, hidden_layers)
+    outputs = get_output(x, hidden_layers)
 
     model = keras.Model(inputs=inputs, outputs=outputs)
 

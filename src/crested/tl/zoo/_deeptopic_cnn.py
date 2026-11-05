@@ -17,6 +17,7 @@ def deeptopic_cnn(
     output_activation: str = "sigmoid",
     conv_do: float = 0.15,
     normalization: str = "batch",
+    pool_type: str = "max",
     dense_do: float = 0.5,
     pre_dense_do: float = 0.5,
     first_kernel_l2: float = 1e-4,
@@ -49,7 +50,9 @@ def deeptopic_cnn(
     conv_do
         Dropout rate for the convolutional layers.
     normalization
-        Type of normalization ('batch' or 'layer').
+        Type of normalization ('batch', 'layer', 'rms', 'group', 'unit' or 'none'). See :func:`crested.tl.zoo.utils.normalize`.
+    pool_type
+        Type of pooling ('max', 'attention' or 'average'). See :func:`crested.tl.zoo.utils.pool`.
     dense_do
         Dropout rate for the dense layers.
     pre_dense_do
@@ -78,6 +81,7 @@ def deeptopic_cnn(
         padding="same",
         l2=first_kernel_l2,
         batchnorm_momentum=0.9,
+        pool_type=pool_type,
     )
     # conv blocks without residual connections
     for _ in range(2):
@@ -94,6 +98,7 @@ def deeptopic_cnn(
             padding="same",
             l2=kernel_l2,
             batchnorm_momentum=0.9,
+            pool_type=pool_type,
         )
 
     # conv blocks with residual connections
@@ -110,6 +115,7 @@ def deeptopic_cnn(
         padding="same",
         l2=kernel_l2,
         batchnorm_momentum=0.9,
+        pool_type=pool_type,
     )
 
     x = conv_block(
@@ -125,6 +131,7 @@ def deeptopic_cnn(
         padding="same",
         l2=kernel_l2,
         batchnorm_momentum=0.9,
+        pool_type=pool_type,
     )
 
     x = keras.layers.Flatten()(x)

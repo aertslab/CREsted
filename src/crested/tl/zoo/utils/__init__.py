@@ -6,7 +6,13 @@ from ._attention import (
     AttentionPool1D,
     MultiheadAttention,
 )
+from ._hydra import (
+    Hydra,
+    hydra_block,
+    ssd_scan,
+)
 from ._layers import (
+    DropPath,
     activate,
     conv_block,
     conv_block_bs,
@@ -19,5 +25,6 @@ from ._layers import (
     legnet_eff_block,
     legnet_se_block,
     mha_block_enf,
+    normalize,
     pool,
 )
